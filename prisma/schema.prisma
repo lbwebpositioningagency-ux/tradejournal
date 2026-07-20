@@ -1,0 +1,319 @@
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// ───────────────────────── Auth.js v5 ─────────────────────────
+
+model User {
+  id              String    @id @default(cuid())
+  name            String?
+  email           String    @unique
+  emailVerified   DateTime?
+  passwordHash    String? // null se l'utente usa solo OAuth
+  image           String?
+  timezone        String    @default("Europe/Rome")
+  baseCurrency    String    @default("USD")
+  dashboardLayout Json? // layout widget dashboard (FASE 5)
+
+  accounts        Account[]
+  sessions        Session[]
+  tradingAccounts TradingAccount[]
+  strategies      Strategy[]
+  tags            Tag[]
+  notes           Note[]
+  importProfiles  ImportProfile[]
+  mt5SyncSources  Mt5SyncSource[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Account {
+  id                String  @id @default(cuid())
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String?
+  access_token      String?
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String?
+  session_state     String?
+  user              User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model VerificationToken {
+  identifier String
+  token      String   @unique
+  expires    DateTime
+
+  @@unique([identifier, token])
+}
+
+// ───────────────────────── Dominio trading ─────────────────────────
+
+enum AssetClass {
+  STOCK
+  FUTURES
+  FOREX
+  CRYPTO
+  OPTION
+}
+
+enum TradeDirection {
+  LONG
+  SHORT
+}
+
+enum TradeStatus {
+  OPEN
+  CLOSED
+}
+
+enum ExecutionSide {
+  BUY
+  SELL
+}
+
+enum TagCategory {
+  SETUP
+  MISTAKE
+  EMOTION
+  CUSTOM
+}
+
+enum NoteType {
+  TRADE // nota su un singolo trade
+  DAILY // journal di giornata (Day View)
+  NOTEBOOK // nota libera / con template
+}
+
+// Fase del journal giornaliero (Day View a 3 campi)
+enum DayPhase {
+  PREMARKET // prima dell'apertura
+  INMARKET // durante la sessione
+  POSTMARKET // dopo la chiusura
+}
+
+model TradingAccount {
+  id             String  @id @default(cuid())
+  userId         String
+  name           String
+  broker         String?
+  currency       String  @default("USD")
+  initialBalance Decimal @default(0) @db.Decimal(14, 2)
+  isArchived     Boolean @default(false)
+
+  user          User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  trades        Trade[]
+  mt5SyncSource Mt5SyncSource?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([userId, name])
+  @@index([userId])
+}
+
+model Trade {
+  id               String         @id @default(cuid())
+  tradingAccountId String
+  symbol           String
+  assetClass       AssetClass     @default(STOCK)
+  direction        TradeDirection
+  status           TradeStatus    @default(OPEN)
+
+  openedAt DateTime // UTC, timestamp della prima execution
+  closedAt DateTime? // UTC, timestamp dell'ultima execution quando la posizione è flat
+
+  // Moltiplicatore del contratto: P&L = Δprezzo × qty × pointValue.
+  // Es. ES=50, NQ=20, forex (qty in lotti)=100000, azioni/crypto=1.
+  pointValue Decimal @default(1) @db.Decimal(18, 8)
+
+  // Campi denormalizzati: ricalcolati dalle executions a ogni scrittura.
+  quantity      Decimal  @db.Decimal(18, 8) // size massima raggiunta
+  avgEntryPrice Decimal  @db.Decimal(18, 8)
+  avgExitPrice  Decimal? @db.Decimal(18, 8)
+  grossPnl      Decimal  @default(0) @db.Decimal(14, 2)
+  fees          Decimal  @default(0) @db.Decimal(14, 2)
+  netPnl        Decimal  @default(0) @db.Decimal(14, 2)
+
+  initialRisk   Decimal? @db.Decimal(14, 2) // rischio $ pianificato → R-multiple
+  plannedStop   Decimal? @db.Decimal(18, 8)
+  plannedTarget Decimal? @db.Decimal(18, 8)
+  rMultiple     Decimal? @db.Decimal(10, 4) // netPnl / initialRisk, denormalizzato
+
+  strategyId String?
+  rating     Int? // 1-5, opzionale
+
+  // Id posizione del broker (sync MT5): la dedup è PER CONTO, non globale —
+  // i ticket MT5 sono sequenziali per server e broker diversi possono riusarli.
+  brokerTicketId String?
+
+  account     TradingAccount @relation(fields: [tradingAccountId], references: [id], onDelete: Cascade)
+  strategy    Strategy?      @relation(fields: [strategyId], references: [id], onDelete: SetNull)
+  executions  Execution[]
+  tags        TradeTag[]
+  notes       Note[]
+  attachments Attachment[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([tradingAccountId, brokerTicketId])
+  @@index([tradingAccountId, openedAt])
+  @@index([tradingAccountId, symbol])
+  @@index([tradingAccountId, status])
+  @@index([strategyId])
+}
+
+model Execution {
+  id         String        @id @default(cuid())
+  tradeId    String
+  side       ExecutionSide
+  quantity   Decimal       @db.Decimal(18, 8)
+  price      Decimal       @db.Decimal(18, 8)
+  fee        Decimal       @default(0) @db.Decimal(14, 2)
+  executedAt DateTime // UTC
+
+  trade Trade @relation(fields: [tradeId], references: [id], onDelete: Cascade)
+
+  @@index([tradeId, executedAt])
+}
+
+model Strategy {
+  id          String  @id @default(cuid())
+  userId      String
+  name        String
+  description String?
+  color       String? // hex per grafici/badge
+  isArchived  Boolean @default(false)
+
+  user   User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  trades Trade[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([userId, name])
+}
+
+model Tag {
+  id       String      @id @default(cuid())
+  userId   String
+  name     String
+  category TagCategory @default(CUSTOM)
+  color    String?
+
+  user   User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  trades TradeTag[]
+
+  createdAt DateTime @default(now())
+
+  @@unique([userId, name])
+}
+
+model TradeTag {
+  tradeId String
+  tagId   String
+  trade   Trade  @relation(fields: [tradeId], references: [id], onDelete: Cascade)
+  tag     Tag    @relation(fields: [tagId], references: [id], onDelete: Cascade)
+
+  @@id([tradeId, tagId])
+  @@index([tagId])
+}
+
+model Note {
+  id       String    @id @default(cuid())
+  userId   String
+  type     NoteType  @default(NOTEBOOK)
+  tradeId  String?
+  dayDate  DateTime? @db.Date // per type=DAILY: giorno nel fuso dell'utente
+  dayPhase DayPhase? // per type=DAILY: fase del journal (3 campi per giorno)
+  title    String?
+  content  String // markdown
+
+  user        User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  trade       Trade?       @relation(fields: [tradeId], references: [id], onDelete: Cascade)
+  attachments Attachment[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([userId, dayDate, dayPhase]) // un journal per giorno E fase
+  @@index([userId, type])
+  @@index([tradeId])
+}
+
+model Attachment {
+  id       String  @id @default(cuid())
+  tradeId  String?
+  noteId   String?
+  fileName String
+  filePath String // storage locale per l'MVP
+  mimeType String
+  size     Int
+
+  trade Trade? @relation(fields: [tradeId], references: [id], onDelete: Cascade)
+  note  Note?  @relation(fields: [noteId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+
+  @@index([tradeId])
+  @@index([noteId])
+}
+
+// ───────────────────────── Import CSV (FASE 3) ─────────────────────────
+
+model ImportProfile {
+  id      String @id @default(cuid())
+  userId  String
+  name    String
+  mapping Json // { colonna CSV → campo, formato date, separatori, ecc. }
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+
+  @@unique([userId, name])
+}
+
+// ───────────────────────── Sync MetaTrader 5 ─────────────────────────
+
+// Una sorgente di sync per conto di trading: il watcher in-app osserva il
+// file NDJSON scritto dall'EA e importa i trade nuovi (dedup su brokerTicketId).
+model Mt5SyncSource {
+  id               String     @id @default(cuid())
+  userId           String
+  tradingAccountId String     @unique // un conto ↔ una sorgente
+  filePath         String // percorso assoluto del file .ndjson scritto dall'EA
+  assetClass       AssetClass @default(FOREX) // asset class di default dei trade importati
+  enabled          Boolean    @default(true)
+  lastSyncAt       DateTime?
+  lastResult       Json? // { imported, duplicates, failed[], divergences[], error? }
+
+  user    User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  account TradingAccount @relation(fields: [tradingAccountId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([userId])
+}

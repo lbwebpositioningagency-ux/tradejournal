@@ -1,0 +1,212 @@
+"use server";
+
+import { revalidatePath } from "next/cache";
+import { redirect } from "next/navigation";
+import { auth } from "@/lib/auth";
+import { prisma } from "@/lib/db";
+import { zonedInputToUtc } from "@/lib/dates";
+import { computeTrade, TradeComputeError } from "@/lib/trade-compute";
+import { tradeInputSchema, type TradeInput } from "@/lib/validations/trade";
+
+export type TradeActionResult =
+  | { error: string }
+  | { success: true; tradeId: string };
+
+async function requireUserId(): Promise<string> {
+  const session = await auth();
+  if (!session?.user?.id) redirect("/login");
+  return session.user.id;
+}
+
+/**
+ * Valida l'input, verifica la proprietà delle risorse collegate e restituisce
+ * i dati pronti per la scrittura (campi denormalizzati calcolati inclusi).
+ */
+async function prepareTradeData(userId: string, input: TradeInput) {
+  const parsed = tradeInputSchema.safeParse(input);
+  if (!parsed.success) {
+    return { error: parsed.error.issues[0]?.message ?? "Dati non validi" } as const;
+  }
+  const data = parsed.data;
+
+  const account = await prisma.tradingAccount.findFirst({
+    where: { id: data.tradingAccountId, userId },
+    select: { id: true },
+  });
+  if (!account) return { error: "Conto non trovato" } as const;
+
+  if (data.strategyId) {
+    const strategy = await prisma.strategy.findFirst({
+      where: { id: data.strategyId, userId },
+      select: { id: true },
+    });
+    if (!strategy) return { error: "Strategia non trovata" } as const;
+  }
+
+  const user = await prisma.user.findUniqueOrThrow({
+    where: { id: userId },
+    select: { timezone: true },
+  });
+
+  const executions = data.executions.map((execution) => ({
+    side: execution.side,
+    quantity: execution.quantity,
+    price: execution.price,
+    fee: execution.fee,
+    executedAt: zonedInputToUtc(execution.executedAt, user.timezone),
+  }));
+
+  let computed;
+  try {
+    computed = computeTrade(executions, {
+      pointValue: data.pointValue,
+      initialRisk: data.initialRisk ?? null,
+    });
+  } catch (error) {
+    if (error instanceof TradeComputeError) return { error: error.message } as const;
+    throw error;
+  }
+
+  return { data, executions, computed } as const;
+}
+
+/** Upsert dei tag per nome e ritorno degli id (sempre dell'utente). */
+async function resolveTagIds(userId: string, names: string[]): Promise<string[]> {
+  const unique = [...new Set(names.map((n) => n.trim()).filter(Boolean))];
+  const ids: string[] = [];
+  for (const name of unique) {
+    const tag = await prisma.tag.upsert({
+      where: { userId_name: { userId, name } },
+      update: {},
+      create: { userId, name },
+      select: { id: true },
+    });
+    ids.push(tag.id);
+  }
+  return ids;
+}
+
+export async function createTradeAction(input: TradeInput): Promise<TradeActionResult> {
+  const userId = await requireUserId();
+  const prepared = await prepareTradeData(userId, input);
+  if (prepared.error !== undefined) return { error: prepared.error };
+  const { data, executions, computed } = prepared;
+
+  const tagIds = await resolveTagIds(userId, data.tags);
+
+  const trade = await prisma.trade.create({
+    data: {
+      tradingAccountId: data.tradingAccountId,
+      symbol: data.symbol,
+      assetClass: data.assetClass,
+      direction: computed.direction,
+      status: computed.status,
+      openedAt: computed.openedAt,
+      closedAt: computed.closedAt,
+      pointValue: data.pointValue,
+      quantity: computed.quantity,
+      avgEntryPrice: computed.avgEntryPrice,
+      avgExitPrice: computed.avgExitPrice,
+      grossPnl: computed.grossPnl,
+      fees: computed.fees,
+      netPnl: computed.netPnl,
+      initialRisk: data.initialRisk ?? null,
+      plannedStop: data.plannedStop ?? null,
+      plannedTarget: data.plannedTarget ?? null,
+      rMultiple: computed.rMultiple,
+      strategyId: data.strategyId ?? null,
+      rating: data.rating ?? null,
+      executions: { create: executions },
+      tags: { create: tagIds.map((tagId) => ({ tagId })) },
+      ...(data.notes
+        ? {
+            notes: {
+              create: { userId, type: "TRADE" as const, content: data.notes },
+            },
+          }
+        : {}),
+    },
+    select: { id: true },
+  });
+
+  revalidatePath("/trades");
+  return { success: true, tradeId: trade.id };
+}
+
+export async function updateTradeAction(
+  tradeId: string,
+  input: TradeInput,
+): Promise<TradeActionResult> {
+  const userId = await requireUserId();
+
+  const existing = await prisma.trade.findFirst({
+    where: { id: tradeId, account: { userId } },
+    select: { id: true },
+  });
+  if (!existing) return { error: "Trade non trovato" };
+
+  const prepared = await prepareTradeData(userId, input);
+  if (prepared.error !== undefined) return { error: prepared.error };
+  const { data, executions, computed } = prepared;
+
+  const tagIds = await resolveTagIds(userId, data.tags);
+
+  await prisma.$transaction(async (tx) => {
+    await tx.execution.deleteMany({ where: { tradeId } });
+    await tx.tradeTag.deleteMany({ where: { tradeId } });
+    await tx.note.deleteMany({ where: { tradeId, type: "TRADE" } });
+
+    await tx.trade.update({
+      where: { id: tradeId },
+      data: {
+        tradingAccountId: data.tradingAccountId,
+        symbol: data.symbol,
+        assetClass: data.assetClass,
+        direction: computed.direction,
+        status: computed.status,
+        openedAt: computed.openedAt,
+        closedAt: computed.closedAt,
+        pointValue: data.pointValue,
+        quantity: computed.quantity,
+        avgEntryPrice: computed.avgEntryPrice,
+        avgExitPrice: computed.avgExitPrice,
+        grossPnl: computed.grossPnl,
+        fees: computed.fees,
+        netPnl: computed.netPnl,
+        initialRisk: data.initialRisk ?? null,
+        plannedStop: data.plannedStop ?? null,
+        plannedTarget: data.plannedTarget ?? null,
+        rMultiple: computed.rMultiple,
+        strategyId: data.strategyId ?? null,
+        rating: data.rating ?? null,
+        executions: { create: executions },
+        tags: { create: tagIds.map((tagId) => ({ tagId })) },
+        ...(data.notes
+          ? {
+              notes: {
+                create: { userId, type: "TRADE" as const, content: data.notes },
+              },
+            }
+          : {}),
+      },
+    });
+  });
+
+  revalidatePath("/trades");
+  revalidatePath(`/trades/${tradeId}`);
+  return { success: true, tradeId };
+}
+
+export async function deleteTradeAction(
+  tradeId: string,
+): Promise<{ error?: string; success?: boolean }> {
+  const userId = await requireUserId();
+
+  const result = await prisma.trade.deleteMany({
+    where: { id: tradeId, account: { userId } },
+  });
+  if (result.count === 0) return { error: "Trade non trovato" };
+
+  revalidatePath("/trades");
+  return { success: true };
+}

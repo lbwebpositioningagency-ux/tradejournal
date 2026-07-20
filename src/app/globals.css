@@ -1,0 +1,310 @@
+@import "tailwindcss";
+@import "tw-animate-css";
+@import "shadcn/tailwind.css";
+
+@custom-variant dark (&:is(.dark *));
+
+/* ============================================================================
+   DESIGN TOKENS — FASE 10
+   Un'unica fonte per spaziatura, tipografia, elevazione, raggi e movimento.
+
+   - SPAZIATURA: scala Tailwind (base 0.25rem). Niente px arbitrari nei
+     componenti: usare gap/p/m della scala (1,2,3,4,6,8…).
+   - TIPOGRAFIA: scala text-2xs → text-3xl. I micro-testi usano SEMPRE
+     text-2xs (mai text-[10px]/text-[11px] sparsi). Gerarchia delle card
+     nelle classi .stat-* qui sotto.
+   - RAGGIO: un solo token --radius (0.625rem); le varianti sm…4xl derivano
+     via calc, mai valori a mano.
+   - ELEVAZIONE: 3 livelli (card, raised, overlay) → utility shadow-card,
+     shadow-raised, shadow-overlay.
+   - MOVIMENTO: durata e easing unici (--motion-duration/--motion-ease),
+     applicati globalmente agli elementi interattivi.
+   ========================================================================= */
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --font-sans: var(--font-geist-sans);
+  --font-mono: var(--font-geist-mono);
+  --font-heading: var(--font-sans);
+  --color-sidebar-ring: var(--sidebar-ring);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar: var(--sidebar);
+  --color-chart-5: var(--chart-5);
+  --color-chart-4: var(--chart-4);
+  --color-chart-3: var(--chart-3);
+  --color-chart-2: var(--chart-2);
+  --color-chart-1: var(--chart-1);
+  --color-ring: var(--ring);
+  --color-input: var(--input);
+  --color-border: var(--border);
+  --color-destructive: var(--destructive);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-accent: var(--accent);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-muted: var(--muted);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-secondary: var(--secondary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-primary: var(--primary);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-popover: var(--popover);
+  --color-card-foreground: var(--card-foreground);
+  --color-card: var(--card);
+  --radius-sm: calc(var(--radius) * 0.6);
+  --radius-md: calc(var(--radius) * 0.8);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) * 1.4);
+  --radius-2xl: calc(var(--radius) * 1.8);
+  --radius-3xl: calc(var(--radius) * 2.2);
+  --radius-4xl: calc(var(--radius) * 2.6);
+  /* Semantica P&L: costante in tutta l'app */
+  --color-profit: var(--profit);
+  --color-loss: var(--loss);
+  --color-breakeven: var(--breakeven);
+  /* Micro-testo a scala (11px): unico taglio sotto text-xs */
+  --text-2xs: 0.6875rem;
+  --text-2xs--line-height: 1rem;
+  /* Elevazione: 3 livelli */
+  --shadow-card: 0 1px 2px 0 rgb(0 0 0 / 0.05);
+  --shadow-raised: 0 2px 8px -2px rgb(0 0 0 / 0.12), 0 1px 2px 0 rgb(0 0 0 / 0.06);
+  --shadow-overlay: 0 8px 24px -6px rgb(0 0 0 / 0.25);
+}
+
+:root {
+  --background: oklch(1 0 0);
+  --foreground: oklch(0.145 0 0);
+  --card: oklch(1 0 0);
+  --card-foreground: oklch(0.145 0 0);
+  --popover: oklch(1 0 0);
+  --popover-foreground: oklch(0.145 0 0);
+  --primary: oklch(0.546 0.245 262.881); /* blue-600 · bianco su primary 5.03:1 AA */
+  --primary-foreground: oklch(0.985 0 0);
+  --secondary: oklch(0.97 0 0);
+  --secondary-foreground: oklch(0.205 0 0);
+  --muted: oklch(0.97 0 0);
+  --muted-foreground: oklch(0.556 0 0); /* su bianco 4.73:1 AA */
+  --accent: oklch(0.97 0 0);
+  --accent-foreground: oklch(0.205 0 0);
+  --destructive: oklch(0.505 0.213 27.518);
+  --border: oklch(0.922 0 0);
+  --input: oklch(0.922 0 0);
+  --ring: oklch(0.546 0.245 262.881);
+  --chart-1: oklch(0.546 0.245 262.881);
+  --chart-2: oklch(0.696 0.17 162.48);
+  --chart-3: oklch(0.637 0.237 25.331);
+  --chart-4: oklch(0.769 0.188 70.08);
+  --chart-5: oklch(0.627 0.265 303.9);
+  /* P&L light — pieni entro il gamut su bianco: 5.37 / 4.76 / 7.80 (AA).
+     Loss = red-600 (C 0.245, più saturo del vecchio red-700 C 0.213);
+     profit resta emerald-700, il verde è al tetto di chroma su bianco. */
+  --profit: oklch(0.508 0.118 165.612); /* emerald-700 */
+  --loss: oklch(0.577 0.245 27.325); /* red-600 */
+  --breakeven: oklch(0.439 0 0); /* neutral-600 */
+  --radius: 0.625rem;
+  /* Movimento unico per tutta l'app */
+  --motion-duration: 150ms;
+  --motion-ease: cubic-bezier(0.2, 0, 0, 1);
+  --sidebar: oklch(0.985 0 0);
+  --sidebar-foreground: oklch(0.145 0 0);
+  --sidebar-primary: oklch(0.546 0.245 262.881);
+  --sidebar-primary-foreground: oklch(0.985 0 0);
+  --sidebar-accent: oklch(0.97 0 0);
+  --sidebar-accent-foreground: oklch(0.205 0 0);
+  --sidebar-border: oklch(0.922 0 0);
+  --sidebar-ring: oklch(0.708 0 0);
+}
+
+.dark {
+  --background: oklch(0.145 0 0);
+  --foreground: oklch(0.985 0 0);
+  --card: oklch(0.205 0 0);
+  --card-foreground: oklch(0.985 0 0);
+  --popover: oklch(0.205 0 0);
+  --popover-foreground: oklch(0.985 0 0);
+  --primary: oklch(0.623 0.214 259.815); /* blue-500 */
+  /* foreground SCURO sui bottoni primari in dark: 5.26:1 AA
+     (il bianco su blue-500 fallisce a 3.60:1 — verificato, non a occhio) */
+  --primary-foreground: oklch(0.145 0 0);
+  --secondary: oklch(0.269 0 0);
+  --secondary-foreground: oklch(0.985 0 0);
+  --muted: oklch(0.269 0 0);
+  --muted-foreground: oklch(0.708 0 0); /* su card 6.91:1 AA */
+  --accent: oklch(0.269 0 0);
+  --accent-foreground: oklch(0.985 0 0);
+  --destructive: oklch(0.704 0.191 22.216);
+  --border: oklch(1 0 0 / 10%);
+  --input: oklch(1 0 0 / 15%);
+  --ring: oklch(0.623 0.214 259.815);
+  --chart-1: oklch(0.623 0.214 259.815);
+  --chart-2: oklch(0.696 0.17 162.48);
+  --chart-3: oklch(0.704 0.191 22.216);
+  --chart-4: oklch(0.769 0.188 70.08);
+  --chart-5: oklch(0.627 0.265 303.9);
+  /* P&L dark — su card: 7.27 / 4.69 / 6.91 (tutti AA). Loss = red-500 vero
+     (C 0.237, pieno) al posto del rosso addolcito precedente (C 0.191). */
+  --profit: oklch(0.696 0.17 162.48); /* emerald-500 */
+  --loss: oklch(0.637 0.237 25.331); /* red-500 */
+  --breakeven: oklch(0.708 0 0); /* neutral-400 */
+  --sidebar: oklch(0.205 0 0);
+  --sidebar-foreground: oklch(0.985 0 0);
+  --sidebar-primary: oklch(0.623 0.214 259.815);
+  --sidebar-primary-foreground: oklch(0.145 0 0);
+  --sidebar-accent: oklch(0.269 0 0);
+  --sidebar-accent-foreground: oklch(0.985 0 0);
+  --sidebar-border: oklch(1 0 0 / 10%);
+  --sidebar-ring: oklch(0.556 0 0);
+}
+
+/* ============================================================================
+   ACCENTO PERSONALIZZABILE (cookie tj-accent → data-accent su <html>)
+   Set curato; ogni coppia primary/foreground è verificata WCAG AA in
+   entrambi i modi (rapporti nel commento: light fg-bianco · dark fg-scuro).
+   Il resto dell'interfaccia eredita da --primary/--ring/--sidebar-primary.
+   ========================================================================= */
+
+[data-accent="violet"] {
+  --primary: oklch(0.541 0.281 293.009); /* violet-600 · 5.63 AA */
+  --ring: oklch(0.541 0.281 293.009);
+  --sidebar-primary: oklch(0.541 0.281 293.009);
+  --chart-1: oklch(0.541 0.281 293.009);
+}
+.dark[data-accent="violet"] {
+  /* custom L-raised (era violet-400, spento C=0.183): C tenuta a 0.214,
+     L a 0.63 per passare il contrasto su card senza desaturare · 4.69 AA */
+  --primary: oklch(0.63 0.214 293.009);
+  --ring: oklch(0.63 0.214 293.009);
+  --sidebar-primary: oklch(0.63 0.214 293.009);
+  --chart-1: oklch(0.63 0.214 293.009);
+}
+
+[data-accent="emerald"] {
+  --primary: oklch(0.508 0.118 165.612); /* emerald-700 · 5.14 AA */
+  --ring: oklch(0.508 0.118 165.612);
+  --sidebar-primary: oklch(0.508 0.118 165.612);
+  --chart-1: oklch(0.508 0.118 165.612);
+}
+.dark[data-accent="emerald"] {
+  --primary: oklch(0.696 0.17 162.48); /* emerald-500 · fg scuro 8.03 AA */
+  --ring: oklch(0.696 0.17 162.48);
+  --sidebar-primary: oklch(0.696 0.17 162.48);
+  --chart-1: oklch(0.696 0.17 162.48);
+}
+
+[data-accent="amber"] {
+  --primary: oklch(0.555 0.163 48.998); /* amber-700 · 4.84 AA */
+  --ring: oklch(0.555 0.163 48.998);
+  --sidebar-primary: oklch(0.555 0.163 48.998);
+  --chart-1: oklch(0.555 0.163 48.998);
+}
+.dark[data-accent="amber"] {
+  --primary: oklch(0.769 0.188 70.08); /* amber-500 · fg scuro 9.23 AA */
+  --ring: oklch(0.769 0.188 70.08);
+  --sidebar-primary: oklch(0.769 0.188 70.08);
+  --chart-1: oklch(0.769 0.188 70.08);
+}
+
+[data-accent="rose"] {
+  --primary: oklch(0.514 0.222 16.935); /* rose-700 · 5.80 AA */
+  --ring: oklch(0.514 0.222 16.935);
+  --sidebar-primary: oklch(0.514 0.222 16.935);
+  --chart-1: oklch(0.514 0.222 16.935);
+}
+.dark[data-accent="rose"] {
+  --primary: oklch(0.645 0.246 16.439); /* rose-500 · fg scuro 5.27 AA */
+  --ring: oklch(0.645 0.246 16.439);
+  --sidebar-primary: oklch(0.645 0.246 16.439);
+  --chart-1: oklch(0.645 0.246 16.439);
+}
+
+/* ============================================================================
+   COPPIE PROFIT/LOSS PERSONALIZZABILI (cookie tj-pnl → data-pnl su <html>)
+   Set curato, validato con script oklch→sRGB: WCAG AA (≥4.5:1) su bg e card
+   in light e dark, più distinguibilità con daltonismo rosso-verde misurata
+   sull'asse blu-giallo di OKLab (Δb — l'asse che protanopia/deuteranopia
+   NON collassano). Il default (verde/rosso, nessun attributo) resta la
+   convenzione classica.
+
+   Saturazione (revisione 17/07): il verde/rosso è il riferimento di
+   vividezza; blu e viola spinti alla chroma MASSIMA che regge il contrasto
+   ≥4.5, cercata col solver (non il primo valore che passa). Dove la shade
+   Tailwind non basta si usa un punto OKLCH custom: blu light = blu profondo
+   C0.313, viola = custom C0.225 (dark) / 0.292 (light). Ceiling reale del
+   BLU in dark = C0.214 (blue-500): oltre, per stare chiaro sulla card, il
+   gamut non concede più chroma. Limite fisico del VERDE su bianco: C~0.12
+   (emerald-700) è il tetto prima che il contrasto cada — non spegnimento.
+   I grafici leggono --profit/--loss via CSS: si aggiornano da soli.
+   ========================================================================= */
+
+[data-pnl="blue-red"] {
+  --profit: oklch(0.452 0.313 264); /* blu profondo custom · C0.313 · 8.59 AA */
+  --loss: oklch(0.577 0.245 27.325); /* red-600 · 4.76 AA */
+}
+.dark[data-pnl="blue-red"] {
+  --profit: oklch(0.623 0.214 259.815); /* blue-500 (ceiling del blu in dark) · 4.76 AA */
+  --loss: oklch(0.637 0.237 25.331); /* red-500 · 4.69 AA su card */
+}
+
+[data-pnl="green-violet"] {
+  --profit: oklch(0.508 0.118 165.612); /* emerald-700 · 5.37 AA */
+  --loss: oklch(0.526 0.292 293.009); /* viola custom C0.292 (era 600 C0.281) · 6.36 AA */
+}
+.dark[data-pnl="green-violet"] {
+  --profit: oklch(0.696 0.17 162.48); /* emerald-500 · 7.27 AA su card */
+  --loss: oklch(0.622 0.225 293.009); /* viola custom C0.225 (era C0.214) · 4.51 AA su card */
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+  body {
+    @apply bg-background text-foreground;
+  }
+  html {
+    @apply font-sans;
+  }
+  /* Movimento coerente su ogni elemento interattivo (durata/easing unici);
+     :where() tiene la specificità a zero, i componenti possono estendere. */
+  :where(a, button, [role="button"], [role="menuitem"], [role="option"]) {
+    transition-property: color, background-color, border-color, box-shadow,
+      opacity;
+    transition-duration: var(--motion-duration);
+    transition-timing-function: var(--motion-ease);
+  }
+  /* Focus visibile per la navigazione da tastiera, identico ovunque */
+  :where(a, button, [role="button"], input, select, textarea):focus-visible {
+    outline: 2px solid var(--ring);
+    outline-offset: 2px;
+  }
+}
+
+@layer components {
+  /* Gerarchia tipografica delle pagine e delle card — usare SEMPRE queste
+     classi, mai ricomporre la gerarchia a mano nei componenti. */
+  .page-title {
+    @apply text-2xl font-semibold tracking-tight;
+  }
+  .page-subtitle {
+    @apply text-sm text-muted-foreground;
+  }
+  .stat-label {
+    @apply text-2xs font-medium uppercase tracking-wider text-muted-foreground;
+  }
+  .stat-value {
+    @apply text-xl font-semibold tracking-tight tabular-nums;
+  }
+  /* I numeri che contano di più (Net P&L, Score, Saldo): un gradino sopra,
+     più grandi dove le card hanno spazio (≥2xl) */
+  .stat-value-hero {
+    @apply text-2xl font-bold tracking-tight tabular-nums 2xl:text-3xl;
+  }
+  .stat-sub {
+    @apply text-xs text-muted-foreground;
+  }
+}
