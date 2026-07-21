@@ -6,6 +6,7 @@ import { usePathname } from "next/navigation";
 import {
   BarChart3,
   CalendarDays,
+  Globe,
   LayoutDashboard,
   Menu,
   NotebookPen,
@@ -29,6 +30,7 @@ const NAV_ITEMS = [
   { href: "/trades", label: "Trade View", icon: Table2 },
   { href: "/notebook", label: "Notebook", icon: NotebookPen },
   { href: "/reports", label: "Reports", icon: BarChart3 },
+  { href: "/macro-desk", label: "Macro Desk", icon: Globe },
   { href: "/strategies", label: "Strategies", icon: Target },
   { href: "/settings", label: "Impostazioni", icon: Settings },
 ] as const;

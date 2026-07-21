@@ -202,6 +202,19 @@ Verifica con Chrome headless (Playwright, il pannello screenshot del browser int
 
 **Segnalazioni mobile FUORI perimetro (non corrette, per il prossimo giro):** touch target della topbar a 32px (linea guida 44px); barra filtri Trade View su 5 righe a 375px; titolo "Trade View" a capo su due righe a 375px; dashboard mobile = colonna singola di ~18 card senza priorità ripensata (già nel report del consulente).
 
+## ✅ MACRO DESK (21/07/2026) — report macro via API esterna
+
+Report macro giornaliero/settimanale (oro XAUUSD, petrolio WTI, indici) inviato da un sistema esterno via API.
+
+**Fatto:**
+- **Schema**: modello `MacroDeskReport` + enum `MacroReportType` (DAILY|WEEKLY) — bias/confidence per i 3 asset, `summary`, `payload` Json col report completo; unique `(type, reportDate)`; NESSUN userId (dato di mercato per l'istanza, non per utente). Migrazione `20260721131132_macro_desk_report`.
+- **API** `POST /api/macro-desk` (`src/app/api/macro-desk/route.ts`): protetta da `Authorization: Bearer <MACRO_DESK_API_SECRET>` con confronto **timing-safe** e fail-closed (secret non configurato → 401); body validato da `macroDeskReportSchema` (`src/lib/validations/macro-desk.ts`) — bias enum chiuso RIALZISTA|RIBASSISTA|NEUTRALE, confidence int 0-100, `reportDate`/`generatedAt` con validazione di calendario REALE (stessa regola anti-rollover del progetto); 401 token errato, 400 con dettagli per riga, **upsert** su (type, reportDate) via `upsertMacroDeskReport` (`src/lib/macro-desk.ts`, client come parametro, stile modulo testabile) — il re-invio è idempotente.
+- **Pagina** `/macro-desk` (+ `loading.tsx`, voce sidebar con icona Globe): ultimo DAILY e ultimo WEEKLY in evidenza (bias in `stat-value` con colori semantici profit/loss/breakeven, confidenza, summary), storico ultimi 20, EmptyState dedicato.
+- **Env**: `MACRO_DESK_API_SECRET` in `.env.example` (placeholder + comando di generazione) e nel `.env` locale; da impostare su Vercel prima del deploy.
+- **17 test nuovi** (231/231 totali): 15 unit (schema: valido/bias invalido/confidence fuori range o non intera/date inesistenti/type sconosciuto/summary opzionale vs payload obbligatorio; auth: token corretto/mancante/errato/senza Bearer/secret non configurato) + 2 di integrazione su Postgres (`macro-desk.integration.test.ts`: re-invio → stessa riga aggiornata mai duplicata; DAILY e WEEKLY coesistono sullo stesso giorno).
+
+**Verificato:** lint ✅ · typecheck ✅ · **231/231 test** ✅ · build ✅ · migrazione applicata al DB locale · E2E con server reale via curl: 401 (token errato e assente), 400 con `details` puntuali (bias "BULLISH"), 200 su DAILY valido, re-invio → **stesso id** (upsert), 200 su WEEKLY; pagina verificata in Chrome headless: card daily coi valori della REVISIONE (confidenza 80, prova che l'upsert arriva in UI), storico, sidebar, overflow mobile 0px. I 2 report di esempio restano nel DB locale come dati demo.
+
 ---
 
 **MVP COMPLETO (FASI 1-8) + FASE 9 + FASE 10 + aggiunte + analytics avanzate + sync MT5.** Roadmap iniziale esaurita: prossimi passi solo dal backlog post-MVP, su istruzione esplicita.

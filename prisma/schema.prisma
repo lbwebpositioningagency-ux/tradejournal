@@ -295,6 +295,42 @@ model ImportProfile {
   @@unique([userId, name])
 }
 
+// ───────────────────────── Macro Desk ─────────────────────────
+
+enum MacroReportType {
+  DAILY
+  WEEKLY
+}
+
+// Report macro (oro/petrolio/indici) inviato da un sistema esterno via API.
+// Dato di MERCATO unico per l'istanza, NON per utente: nessun userId.
+// Chiave logica (type, reportDate): il re-invio dello stesso report è un upsert.
+model MacroDeskReport {
+  id          String          @id @default(cuid())
+  type        MacroReportType
+  reportDate  DateTime        @db.Date // giorno del report (mezzanotte UTC)
+  generatedAt DateTime // quando il sistema esterno l'ha generato
+
+  // Bias direzionale per asset: "RIALZISTA" | "RIBASSISTA" | "NEUTRALE"
+  // (validato dallo schema Zod della route; String a schema per flessibilità).
+  biasXau String
+  biasWti String
+  biasIdx String
+
+  // Confidenza 0-100 per asset
+  confidenceXau Int
+  confidenceWti Int
+  confidenceIdx Int
+
+  summary String? // sintesi breve per le card
+  payload Json // report completo, per il dettaglio in pagina
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([type, reportDate])
+}
+
 // ───────────────────────── Sync MetaTrader 5 ─────────────────────────
 
 // Una sorgente di sync per conto di trading: il watcher in-app osserva il
