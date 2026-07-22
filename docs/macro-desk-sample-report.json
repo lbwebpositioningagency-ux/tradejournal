@@ -1,0 +1,786 @@
+{
+  "lastUpdate": "mer 22 lug 2026 · 07:00 CET",
+  "reportType": "GIORNALIERO — 22 luglio 2026",
+  "disclaimer": "Bias qualitativo basato sullo stato attuale dei dati, non una previsione statistica garantita. I dati possono cambiare rapidamente. Report tattico istituzionale su XAUUSD, WTI e indici azionari.",
+  "dataIssues": [
+    {
+      "sev": "minor",
+      "text": "Indicatori di volatilità (VIX 18,65 · VVIX 102,82 · SKEW 146,05 · MOVE 72,66 · GVZ 25,37 · OVX 62,07 · put/call) dal Saxo Options Brief del 21 lug: fonte datata e completa, ma i valori riflettono la chiusura del 20 lug, una seduta indietro rispetto al rimbalzo azionario del 21 lug. Direzione e livelli restano validi per la lettura; il bias non dipende da un singolo numero vol. Vintage dichiarato in volPanel.asOf."
+    },
+    {
+      "sev": "minor",
+      "text": "Invio al trading journal fallito: rete non raggiungibile da questo ambiente schedulato (403 Forbidden sul tunnel). Nessun ritentativo, come da protocollo — la consegna del report resta valida."
+    },
+    {
+      "sev": "minor",
+      "text": "GER40: livello di chiusura fresco non recuperato da fonti verificate in questo run; l'analisi indici si appoggia ai cash USA (S&P 7.509 · Nasdaq comp 25.837 · Dow 52.225, chiusura 21 lug) e alla lettura vol comune. Il bias indici è di regime, non dipende dal singolo tick del GER40."
+    }
+  ],
+  "newsTriage": "Vagliate 34 notizie (4 canali diretti — Saxo/Bloomberg/CNBC/Reuters via ricerca — + 4 ricerche web mirate: oro, petrolio, indici/risk, banche centrali) · tenute 13 · scartate 21: duplicati della stessa storia Iran-Hormuz da più testate (contati una volta dalla fonte migliore), pezzi >72h senza impatto residuo sul prezzo, e rumore non rilevante per XAU/WTI/indici o per il regime.",
+  "assets": [
+    {
+      "id": "gold",
+      "icon": "🥇",
+      "name": "Oro",
+      "ticker": "XAUUSD",
+      "weekly": {
+        "bias": "neut",
+        "biasLabel": "NEUTRALE",
+        "confidence": 50,
+        "confLabel": "Bassa",
+        "pillars": [
+          {
+            "k": "Regime",
+            "dir": "fl",
+            "note": "Conflitto genuino: FED marcatamente hawkish (Warsh, 'prezzi troppo alti'), PCE core mag 3,4% in accelerazione e reali 10Y a 2,35% = forte vento contrario; ma guerra USA-Iran e rischio inflazione da oil-shock tengono viva la domanda rifugio. Nessun prior direzionale netto."
+          },
+          {
+            "k": "Pricing / posizionamento",
+            "dir": "dn",
+            "note": "CoT spec ancora net long 186.682 (14 lug) ma in calo per la 2ª settimana (−7.564 w/w): affollamento che si scarica lentamente. GVZ 25,37 (52w ~14,5–48,7) mid-range: gli hedge sull'oro non sono a sconto. MOVE 72,66 (+2,5%) in lieve salita: il canale tassi→reali inizia a mandare disturbo, non ancora stress ma non più il MOVE calmo che copriva i lunghi. ETF in deflusso (GLD −14 mld$ da marzo): la domanda finanziaria non conferma più il bull."
+          },
+          {
+            "k": "Tattico",
+            "dir": "fl",
+            "note": "Reali 10Y 2,35% e DXY 100,96 fermi/in salita = pressione; ma martedì 21 lug oro +~1% a ~4.077$ su speranze di de-escalation. Momentum a due facce dopo la peggior settimana in sei (17 lug). Tiene 4.000$ ma senza spinta."
+          },
+          {
+            "k": "Eventi",
+            "dir": "fl",
+            "note": "FOMC 29 lug (binario, rischio hawkish che spinge i reali) e PCE 30 lug dentro la finestra a 9 giorni; una de-escalation Iran confermata toglierebbe il premio rifugio. Rischio evento a due code → confidence tagliata d'ufficio."
+          }
+        ],
+        "edge": "Nessun edge direzionale credibile: il mercato prezza sia un FED hawkish sia una possibile de-escalation, e ENTRAMBI gli esiti sono ribassisti per l'oro (reali su, o premio rifugio giù). Il pavimento strutturale (acquisti banche centrali, hedge d'inflazione in un mondo oil-shock) resta reale ma è già noto. Stare fuori dalla direzione è la posizione: si gioca semmai la volatilità, non il trend.",
+        "invalid": "Chiusura settimanale sopra 4.180$ con reali 10Y sotto 2,20% (FOMC dovish a sorpresa) → il bias W torna RIALZISTA; sotto 3.950$ con reali sopra 2,50% → RIBASSISTA.",
+        "narrative": "Ribaltiamo consapevolmente il RIALZISTA di lunedì 20 lug: informazione nuova a supporto — (1) speranze di de-escalation USA-Iran (proposte di mediazione, ipotesi tregua 10 giorni, 21 lug) erodono il premio rifugio; (2) riprezzamento hawkish del FED (hike 29 lug al 37%, ~70% entro settembre) con reali fermi a 2,35%; (3) i flussi ETF sono passati 'da alluvione a rivolo' (GLD in deflusso), il che smonta la tesi bull sui flussi del 20 lug. Con regime e posizionamento in conflitto, NEUTRALE è la risposta onesta, non pigrizia."
+      },
+      "quarterly": {
+        "bias": "bull",
+        "biasLabel": "RIALZISTA",
+        "confidence": 55,
+        "confLabel": "Media",
+        "since": "15 lug 2026",
+        "invalid": "FED che avvia un vero ciclo di rialzi con reali 10Y stabilmente sopra 2,75%, o fine strutturale degli acquisti delle banche centrali.",
+        "narrative": "Bias trimestrale RIALZISTA confermato dal 15 lug ma ESPLICITAMENTE IN REVISIONE: il regime hawkish del FED di Warsh e reali reali a 2,35% sfidano la tesi secolare; regge finché il pavimento è dato dagli acquisti strutturali delle banche centrali e dall'hedge d'inflazione nell'oil-shock. La decisione di eventuale downgrade spetta al report della domenica."
+      },
+      "drivers": [
+        {
+          "k": "Rendimenti reali 10Y (TIPS)",
+          "v": "2.35% ▲",
+          "cls": "dn",
+          "hz": "W"
+        },
+        {
+          "k": "DXY",
+          "v": "100.96 ▲",
+          "cls": "dn",
+          "hz": "W"
+        },
+        {
+          "k": "Flussi ETF (GLD)",
+          "v": "deflusso ▼",
+          "cls": "dn",
+          "hz": "W"
+        },
+        {
+          "k": "CoT spec net long",
+          "v": "186.682 ▼",
+          "cls": "fl",
+          "hz": "W"
+        },
+        {
+          "k": "Acquisti banche centrali",
+          "v": "strutturali ▲",
+          "cls": "up",
+          "hz": "Q"
+        }
+      ]
+    },
+    {
+      "id": "oil",
+      "icon": "🛢️",
+      "name": "Petrolio",
+      "ticker": "WTI / USOIL",
+      "weekly": {
+        "bias": "bull",
+        "biasLabel": "RIALZISTA",
+        "confidence": 54,
+        "confLabel": "Media",
+        "pillars": [
+          {
+            "k": "Regime",
+            "dir": "fl",
+            "note": "Ciclo in espansione moderata ma domanda cinese strutturalmente fiacca e OPEC+ che ha annunciato di espandere la produzione mensile: fondamentali di fondo neutri-deboli, sovrastati nel breve dallo shock geopolitico."
+          },
+          {
+            "k": "Pricing / posizionamento",
+            "dir": "up",
+            "note": "Managed money leggeri/net short (~24k net short al 14 lug): posizionamento scarico, carburante per uno squeeze al rialzo. OVX 62,07 (+3,4%, ~3,3x il VIX, 52w 23,6–126): il premio geopolitico è GIÀ ricco nelle opzioni — un'escalation sorprende meno, una de-escalation sgonfierebbe l'IV in fretta. Inseguire in opzioni è caro."
+          },
+          {
+            "k": "Tattico",
+            "dir": "up",
+            "note": "WTI ~85$ (+2,5%, 21 lug); scorte USA −1,69M (draw a sostegno). 10° giorno di raid USA, Iran colpisce impianti in Kuwait, Houthi minacciano il Mar Rosso/navi saudite: disruption fisica reale sulle rotte, Hormuz sotto pressione."
+          },
+          {
+            "k": "Eventi",
+            "dir": "fl",
+            "note": "Titoli Iran (mediazione, ipotesi tregua 10 giorni) a due code; scorte EIA settimanali; decisioni OPEC+ sull'offerta. Un cessate-il-fuoco confermato è il rischio ribassista chiave."
+          }
+        ],
+        "edge": "L'asimmetria di breve resta al rialzo: posizionamento scarico/short in mezzo a una disruption fisica in corso (Kuwait, Hormuz, minaccia Mar Rosso) = rischio squeeze che il tape sottovaluta. MA con OVX a 62 il premio è già pagato: l'edge è nel posizionamento, non nel comprare volatilità cara. View da esprimere sui ribassi e con size contenuta, non inseguendo i massimi.",
+        "invalid": "Cessate-il-fuoco USA-Iran confermato (o riapertura piena di Hormuz) + secondo build consecutivo delle scorte → bias W passa a RIBASSISTA.",
+        "narrative": "Confermiamo il RIALZISTA della serie recente. Pilastri in tensione: fondamentali di domanda deboli e OPEC+ in aumento contro un premio geopolitico vivo e uno spec scarico. La combinazione net-short + disruption fisica tiene viva la scommessa squeeze, ma OVX a 62 impone disciplina: conviction media, si compra la debolezza."
+      },
+      "quarterly": {
+        "bias": "neut",
+        "biasLabel": "NEUTRALE",
+        "confidence": 50,
+        "confLabel": "Bassa",
+        "since": "15 lug 2026",
+        "invalid": "Ripresa confermata della domanda cinese o taglio OPEC+ → rialzista; de-escalation duratura + recessione USA → ribassista.",
+        "narrative": "Sul trimestre il quadro resta senza direzione dominante: shock geopolitico (rialzista) contro domanda cinese fiacca e OPEC+ che espande l'offerta (ribassista). NEUTRALE confermato dal 15 lug; il premio di guerra è un fattore tattico, non ancora un cambio di regime strutturale."
+      },
+      "drivers": [
+        {
+          "k": "Rischio Iran/Hormuz",
+          "v": "elevato ▲",
+          "cls": "up",
+          "hz": "W"
+        },
+        {
+          "k": "CoT spec",
+          "v": "net short ▲",
+          "cls": "up",
+          "hz": "W"
+        },
+        {
+          "k": "Scorte EIA",
+          "v": "−1,69M ▼",
+          "cls": "up",
+          "hz": "W"
+        },
+        {
+          "k": "OVX (premio già pagato)",
+          "v": "62.07 ▲",
+          "cls": "fl",
+          "hz": "W"
+        },
+        {
+          "k": "Offerta OPEC+",
+          "v": "in aumento ▲",
+          "cls": "dn",
+          "hz": "Q"
+        }
+      ]
+    },
+    {
+      "id": "idx",
+      "icon": "📈",
+      "name": "Indici",
+      "ticker": "GER40 · S&P500 · Nasdaq",
+      "weekly": {
+        "bias": "neut",
+        "biasLabel": "NEUTRALE",
+        "confidence": 50,
+        "confLabel": "Bassa",
+        "pillars": [
+          {
+            "k": "Regime",
+            "dir": "fl",
+            "note": "Espansione (ISM 53,3, 6° mese di crescita) ma FED hawkish che minaccia rialzi = compressione dei multipli; credito calmo (HY OAS ~2,7%) e domanda AI in ripresa fanno da contrappeso. Regime a spinte opposte, senza prior netto."
+          },
+          {
+            "k": "Pricing / posizionamento",
+            "dir": "fl",
+            "note": "VIX 18,65 basso ma VVIX 102,82 alto (domanda di convessità) e SKEW 146,05 elevato (code ben coperte): la calma di superficie è comprata cara sotto. Gap VIX1D 13,4 vs VIX9D 17,8 = mercato che prezza calma OGGI e tempesta nei prossimi 9 giorni (earnings mega-cap + FOMC + PCE). Put/call index 1,07 = hedging difensivo. Lettura incrociata: nessun eccesso da sfruttare direzionalmente, solo fragilità latente."
+          },
+          {
+            "k": "Tattico",
+            "dir": "up",
+            "note": "Rimbalzo semis il 21 lug (Micron +12%, SanDisk +14%, AMD +8%) su export Corea forti = domanda AI; interrotta una serie di 3 sedute in calo. S&P +0,89% a 7.509, Nasdaq +1,29%. Momentum di breve girato al rialzo."
+          },
+          {
+            "k": "Eventi",
+            "dir": "fl",
+            "note": "Alphabet e Tesla stasera (22 lug), Intel domani; FOMC 29 lug e PCE 30 lug. Cluster di eventi binari back-to-back → confidence limitata a prescindere dal tape."
+          }
+        ],
+        "edge": "Il tape è rimbalzato sull'AI ma la finestra a due settimane è carica di eventi binari dentro un regime FED hawkish. VVIX e SKEW alti con VIX basso dicono che chi conta sta coprendo convessità e code mentre la superficie resta calma: la fragilità è prezzata, non un edge direzionale. Comprare i ribassi con regime intatto ha più senso che inseguire in vista degli earnings e del FOMC.",
+        "invalid": "VIX sopra 24 con HY OAS in allargamento oltre 3,2% (regime risk-off) → bias RIBASSISTA; oppure earnings mega-cap + FOMC entrambi benigni con VIX sotto 16 → RIALZISTA.",
+        "narrative": "NEUTRALE confermato dal 20 lug, senza whipsaw: nessuna informazione nuova sposta il quadro dopo il rimbalzo semis. Regime e tattico spingono in su, ma il muro di eventi (Alphabet/Tesla stasera, FOMC, PCE) e un FED hawkish impongono prudenza. Rialzo tattico da giocare sui ribassi, non da inseguire."
+      },
+      "quarterly": {
+        "bias": "neut",
+        "biasLabel": "NEUTRALE",
+        "confidence": 50,
+        "confLabel": "Bassa",
+        "since": "19 lug 2026",
+        "invalid": "LEI in calo persistente per altri 2-3 mesi + inversione occupazionale o HY OAS sopra 3,5% → ribassista; FED che chiude la porta ai rialzi con utili AI solidi → rialzista.",
+        "narrative": "NEUTRALE confermato dal 19 lug (declassato da RIALZISTA nel settimanale su derating AI/semis e FED hawkish). Ciclo ancora in espansione ma LEI giu 99,1 (−0,2%, reversal dei guadagni precedenti) e concentrazione della leadership sul tema AI mantengono il quadro trimestrale senza direzione dominante."
+      },
+      "drivers": [
+        {
+          "k": "Semis / domanda AI",
+          "v": "rimbalzo ▲",
+          "cls": "up",
+          "hz": "W"
+        },
+        {
+          "k": "VIX / Risk sentiment",
+          "v": "18.65 ●",
+          "cls": "fl",
+          "hz": "W"
+        },
+        {
+          "k": "Credit spread HY (OAS)",
+          "v": "2.71% ▼",
+          "cls": "up",
+          "hz": "W"
+        },
+        {
+          "k": "Earnings mega-cap",
+          "v": "stasera ●",
+          "cls": "fl",
+          "hz": "W"
+        },
+        {
+          "k": "Direzione FED",
+          "v": "hawkish ▲",
+          "cls": "dn",
+          "hz": "Q"
+        },
+        {
+          "k": "LEI",
+          "v": "99.1 ▼",
+          "cls": "dn",
+          "hz": "Q"
+        }
+      ]
+    }
+  ],
+  "synthesis": {
+    "pills": [
+      {
+        "k": "Ciclo",
+        "v": "Espansione moderata ⟳"
+      },
+      {
+        "k": "Inflazione",
+        "v": "Vischiosa · rischio oil-shock ▲"
+      },
+      {
+        "k": "Politica monetaria",
+        "v": "FED hawkish · rialzi sul tavolo"
+      },
+      {
+        "k": "Regime",
+        "v": "Risk-on fragile · event-heavy"
+      }
+    ],
+    "risks": "<b>Rischi principali:</b> FOMC 29 lug con FED hawkish (Warsh) che può alzare o segnalare altri rialzi · escalation/de-escalation Iran a due code sul petrolio e sull'oro · earnings mega-cap (Alphabet/Tesla stasera) come test del binomio spesa AI/utili · reali 10Y a 2,35% e PCE core 3,4% in accelerazione.",
+    "conclusion": "Regime a spinte opposte: espansione che tiene (ISM 53,3, credito calmo) ma FED marcatamente hawkish e inflazione riaccesa dall'oil-shock. Oro NEUTRALE (rifugio contro reali alti), petrolio RIALZISTA tattico (squeeze su spec scarico, ma premio già pagato), indici NEUTRALE (rimbalzo tattico dentro un muro di eventi binari). Settimana da gestire con size ridotta in attesa di FOMC e utili."
+  },
+  "volPanel": {
+    "asOf": "Valori dal Saxo Options Brief del 21 lug 2026 (chiusura 20 lug) · put/call Cboe · una seduta indietro rispetto al rimbalzo azionario del 21 lug (vintage dichiarato, DATA_PLAYBOOK §4)",
+    "items": [
+      {
+        "k": "VIX · vol S&P500",
+        "v": "18.65",
+        "chg": "−0.6%",
+        "dir": "dn",
+        "note": "Zona bassa-media: superficie calma ma non addormentata a ridosso di FOMC ed earnings"
+      },
+      {
+        "k": "VVIX · vol del VIX",
+        "v": "102.82",
+        "chg": "−2.0%",
+        "dir": "dn",
+        "note": "Sopra 100: domanda di convessità elevata, qualcuno paga la protezione sull'evento nonostante il VIX basso"
+      },
+      {
+        "k": "SKEW · tail risk",
+        "v": "146.05",
+        "chg": "−0.8%",
+        "dir": "dn",
+        "note": "Alto: le code sono ben coperte — il crash-risk NON è prezzato poco, coerente con l'hedging pre-evento"
+      },
+      {
+        "k": "Put/Call index (Cboe)",
+        "v": "1.07",
+        "chg": "equity 0.82",
+        "dir": "up",
+        "note": "Index >1 = hedging difensivo sugli indici; equity 0,82 senza estremi. Nessun segnale contrarian netto"
+      },
+      {
+        "k": "GVZ · vol oro",
+        "v": "25.37",
+        "chg": "−0.9%",
+        "dir": "dn",
+        "note": "Mid-range vs 52w (14,5–48,7): giocare l'oro in opzioni non è a sconto, coerente con l'affollamento CoT"
+      },
+      {
+        "k": "OVX · vol petrolio",
+        "v": "62.07",
+        "chg": "+3.4%",
+        "dir": "up",
+        "note": "~3,3x il VIX (52w 23,6–126): il premio geopolitico è GIÀ dentro l'IV; una de-escalation lo sgonfia in fretta"
+      },
+      {
+        "k": "MOVE · vol bond",
+        "v": "72.66",
+        "chg": "+2.5%",
+        "dir": "up",
+        "note": "In lieve salita: il mercato dei tassi inizia a scontare il rischio hawkish del FOMC — canale diretto tassi→reali→oro"
+      }
+    ],
+    "reading": "La struttura vol racconta un mercato che prezza calma OGGI e rischio nei prossimi nove giorni: VIX1D 13,4 contro VIX9D 17,8, con FOMC (29 lug), PCE (30 lug) e gli earnings di Alphabet/Tesla stasera tutti dentro la finestra. Sugli indici il segnale è nell'incrocio: VIX basso 18,65 ma VVIX sopra 100 e SKEW a 146 — la protezione di coda e la convessità sono comprate care mentre la superficie resta ferma, cioè fragilità latente, non compiacenza (giustifica la confidence tagliata sugli indici). Sull'oro GVZ mid-range e un MOVE che risale a 72,7 dicono che il canale tassi inizia a disturbare i lunghi: coerente con l'oro NEUTRALE. Sul petrolio OVX a 62 (3,3x il VIX) è il dato chiave: il premio di guerra è già pagato in opzioni, quindi l'edge rialzista sta nel posizionamento scarico, non nel comprare volatilità cara — e una de-escalation sgonfierebbe l'IV rapidamente."
+  },
+  "watch": [
+    "<b>Earnings Alphabet e Tesla (stasera, dopo la chiusura USA)</b> — test del binomio spesa AI/utili dopo il rimbalzo semis: una delusione riaccende il derating tech, un beat estende il risk-on.",
+    "<b>FOMC 29 lug</b> — con FED hawkish (Warsh) e hike al 37% prezzato, ogni segnale su rialzi futuri muove reali, oro e indici. Evento binario che limita la confidence su tutti e tre gli asset.",
+    "<b>Titoli Iran/Hormuz</b> — conferma di tregua/mediazione = petrolio giù e OVX in collasso; nuova escalation = squeeze sugli short. Driver n.1 di breve per il WTI.",
+    "<b>Reali 10Y (TIPS 2,35%) e DXY (100,96)</b> — la combinazione tassi reali + dollaro è il freno n.1 per l'oro: da monitorare sopra 2,50% reali.",
+    "<b>Scorte EIA (settimanali)</b> — un secondo draw conferma il sostegno tattico al petrolio; un build a sorpresa indebolisce la scommessa squeeze."
+  ],
+  "eventMap": [
+    {
+      "event": "Earnings Alphabet + Tesla",
+      "when": "oggi · dopo chiusura USA",
+      "consensus": "focus su spesa AI vs monetizzazione/utili",
+      "gold": "—",
+      "oil": "—",
+      "idx": "Beat AI → estende il rimbalzo semis e il risk-on. Delusione → riaccende il derating tech, VVIX/SKEW già posizionati per la coda."
+    },
+    {
+      "event": "FOMC (decisione tassi)",
+      "when": "29 lug · 20:00 CET",
+      "consensus": "hold 62,6% · hike +25bp 37,4% (funds 3,50-3,75%)",
+      "gold": "Hike o toni da 'altri rialzi' → reali ▲ → oro ▼ (colpisce i lunghi CoT). Hold dovish a sorpresa → oro ▲ verso 4.180$.",
+      "oil": "Impatto indiretto via dollaro: sorpresa hawkish → USD ▲ → freno moderato sul WTI.",
+      "idx": "Hike/hawkish → compressione multipli, tech guida il ribasso. Hold accomodante → sollievo risk-on."
+    },
+    {
+      "event": "PCE (core, mag→giu)",
+      "when": "30 lug · 14:30 CET",
+      "consensus": "core in area 3,4% YoY (sticky/accel.)",
+      "gold": "Core sopra attese → conferma FED hawkish → reali ▲ → oro ▼. Sorpresa benigna → sollievo.",
+      "oil": "Sensibilità bassa salvo shock sul dollaro.",
+      "idx": "Sticky → tagli fuori dal tavolo, pressione sui multipli. Benigno → supporto."
+    },
+    {
+      "event": "Scorte EIA",
+      "when": "settimanale",
+      "consensus": "prec. −1,69M (draw)",
+      "gold": "—",
+      "oil": "Secondo draw → conferma pressione rialzista/squeeze. Build a sorpresa → indebolisce la scommessa long.",
+      "idx": "—"
+    }
+  ],
+  "macroTiles": [
+    {
+      "k": "PIL USA (QoQ ann.)",
+      "v": "+1.6%",
+      "d": "Q1 2026",
+      "t": "u"
+    },
+    {
+      "k": "ISM Manifatturiero",
+      "v": "53.3",
+      "d": "Giu 2026 · 6° mese crescita",
+      "t": "u"
+    },
+    {
+      "k": "LEI",
+      "v": "99.1",
+      "d": "Giu 2026 · −0.2% m/m",
+      "t": "d"
+    },
+    {
+      "k": "CPI headline YoY",
+      "v": "3.5%",
+      "d": "Giu 2026 · sotto attese",
+      "t": "d"
+    },
+    {
+      "k": "PCE core YoY",
+      "v": "3.4%",
+      "d": "Mag 2026 · in accelerazione",
+      "t": "u"
+    },
+    {
+      "k": "Tasso FED",
+      "v": "3.50-3.75%",
+      "d": "hawkish · hike 37% al 29 lug",
+      "t": "s"
+    },
+    {
+      "k": "Reali 10Y (TIPS)",
+      "v": "2.35%",
+      "d": "20 lug · H.15 · vento contro oro",
+      "t": "u"
+    },
+    {
+      "k": "HY Credit Spread",
+      "v": "2.71%",
+      "d": "~10 lug · compresso, risk-on",
+      "t": "u"
+    }
+  ],
+  "macroSections": [
+    {
+      "title": "1 · PIL e crescita",
+      "rows": [
+        [
+          "PIL USA QoQ ann.",
+          "+1.6%",
+          "Q1 2026",
+          "espansione moderata"
+        ],
+        [
+          "Coincident Index (CEI)",
+          "114.6 (+0.2%)",
+          "Giu 2026",
+          "tutte le componenti positive"
+        ]
+      ],
+      "note": "Il ciclo tiene: crescita moderata e indice coincidente in salita a giugno. Nessun segnale di rallentamento imminente, ma neppure accelerazione."
+    },
+    {
+      "title": "2 · Indicatori anticipatori",
+      "rows": [
+        [
+          "ISM Manifatturiero",
+          "53.3",
+          "Giu 2026",
+          "6° mese consecutivo di crescita"
+        ],
+        [
+          "LEI (Conference Board)",
+          "99.1",
+          "Giu 2026",
+          "−0.2% m/m, reversal dei guadagni di apr-mag"
+        ],
+        [
+          "Prossimo LEI",
+          "—",
+          "20 ago 2026",
+          "da monitorare la persistenza del calo"
+        ]
+      ],
+      "note": "Segnale misto: manifattura in espansione stabile ma il LEI torna a scendere a giugno, cancellando parte del rimbalzo primaverile. Il divario tra hard e soft data resta il punto di attenzione."
+    },
+    {
+      "title": "3 · Mercato del lavoro",
+      "rows": [
+        [
+          "Disoccupazione",
+          "4.2%",
+          "Giu 2026",
+          "stabile"
+        ],
+        [
+          "NFP",
+          "+57K",
+          "Giu 2026",
+          "sotto la media 3m, in raffreddamento"
+        ],
+        [
+          "Salari YoY",
+          "+3.5%",
+          "Giu 2026",
+          "in moderazione"
+        ]
+      ],
+      "note": "Lavoro in raffreddamento graduale: NFP debole ma disoccupazione ferma e salari in moderazione. Non un crollo, ma non più il pieno impiego surriscaldato di inizio ciclo."
+    },
+    {
+      "title": "4 · Inflazione",
+      "rows": [
+        [
+          "CPI headline YoY",
+          "3.5%",
+          "Giu 2026",
+          "in calo, sotto attese"
+        ],
+        [
+          "CPI core",
+          "vischioso",
+          "Giu 2026",
+          "0,0% m/m ma YoY che non scende"
+        ],
+        [
+          "PCE core YoY",
+          "3.4%",
+          "Mag 2026",
+          "massimo dal 2023, in accelerazione"
+        ]
+      ],
+      "note": "Il headline scende ma il core resta appiccicoso e il PCE core accelera al 3,4%: è il dato che alimenta il FED hawkish. L'oil-shock aggiunge rischio inflazione al rialzo — ragione strutturale della svolta della banca centrale."
+    },
+    {
+      "title": "5 · Banca centrale (FED/ECB)",
+      "rows": [
+        [
+          "Tasso FED",
+          "3.50-3.75%",
+          "attuale",
+          "hawkish, rialzi sul tavolo"
+        ],
+        [
+          "Prob. 29 lug",
+          "hold 62,6% / hike 37,4%",
+          "mercato",
+          "~70% hike entro settembre"
+        ],
+        [
+          "Tasso ECB (depo)",
+          "2.25%",
+          "attuale",
+          "dopo +25bp a giugno"
+        ]
+      ],
+      "note": "Il presidente FED Warsh ha spostato la funzione di reazione: 'prezzi troppo alti', rialzi possibili. Il mercato prezza il primo hike come coin-flip a settembre. È il perno del regime: un contesto di tassi in salita, non di tagli."
+    },
+    {
+      "title": "6 · Liquidità e condizioni finanziarie",
+      "rows": [
+        [
+          "Bilancio FED",
+          "in riduzione",
+          "—",
+          "QT in corso"
+        ],
+        [
+          "DXY",
+          "100.96",
+          "20 lug",
+          "dollaro fermo/bid su attese hike"
+        ]
+      ],
+      "note": "QT in corso e dollaro sostenuto dalle attese di rialzo: condizioni finanziarie che si irrigidiscono ai margini, freno per oro e multipli azionari."
+    },
+    {
+      "title": "7 · Credito",
+      "rows": [
+        [
+          "HY Credit Spread (OAS)",
+          "~2.71%",
+          "~10 lug 2026",
+          "compresso"
+        ],
+        [
+          "Segnali di stress",
+          "assenti",
+          "—",
+          "credito risk-on"
+        ]
+      ],
+      "note": "Nessun segnale di stress creditizio: spread HY ancora compressi. È il contrappeso al FED hawkish — finché il credito resta calmo, il regime risk-off non è confermato."
+    },
+    {
+      "title": "8 · Politica fiscale e debito",
+      "rows": [
+        [
+          "Deficit/PIL USA",
+          "~6%",
+          "2026 est.",
+          "espansivo"
+        ],
+        [
+          "Debito/PIL USA",
+          "~123%",
+          "2026 est.",
+          "in aumento"
+        ]
+      ],
+      "note": "Fiscale ancora espansiva: sostiene la domanda ma tiene alti i rendimenti sulla parte lunga (nominale 10Y 4,63%), un ulteriore freno per l'oro via reali."
+    },
+    {
+      "title": "9 · Confronto USA vs Area Euro",
+      "rows": [
+        [
+          "Crescita",
+          "USA > EU",
+          "—",
+          "divergenza a favore USA"
+        ],
+        [
+          "Politica monetaria",
+          "FED hawkish vs ECB ferma",
+          "—",
+          "differenziale a favore USD"
+        ],
+        [
+          "Tassi reali",
+          "USA > EU",
+          "—",
+          "capitali verso USD"
+        ]
+      ],
+      "note": "Il differenziale di crescita e di tassi reali continua a favorire gli USA e il dollaro: un altro tassello del vento contrario per l'oro e di supporto relativo per gli asset in USD."
+    }
+  ],
+  "news": [
+    {
+      "src": "CNBC",
+      "when": "Ieri",
+      "title": "L'oro sale ~1% su speranze di diplomazia USA-Iran, mette in pausa il rally del petrolio",
+      "impl": "Il premio rifugio si affievolisce con la de-escalation: fattore che ci porta a NEUTRALE sull'oro.",
+      "tags": [
+        "gold",
+        "oil"
+      ]
+    },
+    {
+      "src": "Reuters",
+      "when": "Ieri",
+      "title": "Oro sopra 4.000$ in attesa del FOMC della prossima settimana, dollaro fermo",
+      "impl": "Reali e USD tengono l'oro senza spinta: bloccato tra rifugio e tassi.",
+      "tags": [
+        "gold",
+        "fed"
+      ]
+    },
+    {
+      "src": "World Gold Council",
+      "when": "2 giorni fa",
+      "title": "Flussi ETF sull'oro passano 'da alluvione a rivolo'; GLD in deflusso di 14 mld$ da marzo",
+      "impl": "La domanda finanziaria non conferma più il bull: smonta la tesi flussi del 20 lug.",
+      "tags": [
+        "gold"
+      ]
+    },
+    {
+      "src": "CNBC",
+      "when": "Ieri",
+      "title": "WTI +2% a ~85$: 10° giorno di raid USA, Iran colpisce impianti in Kuwait",
+      "impl": "Disruption fisica reale sull'offerta = sostegno tattico al petrolio.",
+      "tags": [
+        "oil"
+      ]
+    },
+    {
+      "src": "Bloomberg",
+      "when": "Oggi",
+      "title": "Iran conferma di aver ricevuto proposte di mediazione; si parla di tregua di 10 giorni",
+      "impl": "Rischio a due code sul WTI: una tregua confermata sgonfia OVX e il premio di guerra.",
+      "tags": [
+        "oil",
+        "macro"
+      ]
+    },
+    {
+      "src": "Al Jazeera",
+      "when": "Ieri",
+      "title": "Houthi minacciano di bloccare il traffico marittimo saudita nel Mar Rosso",
+      "impl": "Seconda rotta di export a rischio oltre Hormuz: coda rialzista per il greggio.",
+      "tags": [
+        "oil"
+      ]
+    },
+    {
+      "src": "Al Jazeera",
+      "when": "3 giorni fa",
+      "title": "OPEC+ conferma l'espansione della produzione mensile",
+      "impl": "Offerta in aumento = freno strutturale che tiene NEUTRALE il petrolio sul trimestre.",
+      "tags": [
+        "oil"
+      ]
+    },
+    {
+      "src": "Yahoo Finance",
+      "when": "Ieri",
+      "title": "Micron +12%, SanDisk +14%, AMD +8%: i semis rimbalzano e trainano il Nasdaq",
+      "impl": "Domanda AI (export Corea) riaccende il risk-on di breve sugli indici.",
+      "tags": [
+        "idx"
+      ]
+    },
+    {
+      "src": "CNBC",
+      "when": "Ieri",
+      "title": "S&P +0,89% a 7.509, Nasdaq +1,29%: interrotta la serie di 3 cali",
+      "impl": "Momentum tattico girato al rialzo, ma dentro un muro di eventi binari.",
+      "tags": [
+        "idx"
+      ]
+    },
+    {
+      "src": "Saxo",
+      "when": "Oggi",
+      "title": "Options Brief: 'calma oggi, prossime due settimane no' — VIX1D 13,4 vs VIX9D 17,8",
+      "impl": "Il mercato prezza il rischio nella finestra earnings+FOMC: confidence tagliata sugli indici.",
+      "tags": [
+        "idx",
+        "fed"
+      ]
+    },
+    {
+      "src": "Chase / Fortune",
+      "when": "2 giorni fa",
+      "title": "Il presidente FED Warsh: 'i prezzi sono troppo alti' — rialzi possibili",
+      "impl": "Svolta hawkish della funzione di reazione: perno del regime, vento contro oro e multipli.",
+      "tags": [
+        "fed",
+        "macro"
+      ]
+    },
+    {
+      "src": "Bloomberg",
+      "when": "2 giorni fa",
+      "title": "Le probabilità di rialzo salgono con Warsh al centro della scena",
+      "impl": "Hike 29 lug al 37%, ~70% entro settembre: riprezzamento hawkish confermato dai future.",
+      "tags": [
+        "fed"
+      ]
+    },
+    {
+      "src": "Conference Board",
+      "when": "2 giorni fa",
+      "title": "LEI di giugno −0,2%, cancella parte dei guadagni di apr-mag",
+      "impl": "Anticipatori di nuovo in calo: mantiene NEUTRALE il quadro trimestrale sugli indici.",
+      "tags": [
+        "idx",
+        "macro"
+      ]
+    }
+  ],
+  "history": [
+    {
+      "date": "2026-07-22",
+      "xau": "NEUTRALE",
+      "wti": "RIALZISTA",
+      "idx": "NEUTRALE",
+      "note": "Oro declassato bull→NEUTRALE 50 (info nuova: de-escalation Iran erode il rifugio, hike FED 37% al 29 lug/~70% a set, reali 2,35%, ETF GLD in deflusso 'da alluvione a rivolo'). WTI RIALZISTA 54 (spec net short=squeeze, WTI ~85$, Kuwait/Hormuz/Mar Rosso, ma OVX 62 = premio pagato). Indici NEUTRALE 50 confermato (rimbalzo semis Micron +12%, S&P 7.509, ma muro eventi: Alphabet/Tesla stasera, FOMC 29 lug; VIX 18,65 VVIX 102,8 SKEW 146). Q: gold bull 15 lug (in revisione), oil neut 15 lug, idx neut 19 lug. Macro: ISM 53,3 giu, LEI 99,1 giu −0,2%, PCE core 3,4% mag, CPI 3,5% giu."
+    },
+    {
+      "date": "2026-07-20",
+      "xau": "RIALZISTA",
+      "wti": "RIALZISTA",
+      "idx": "NEUTRALE",
+      "note": "Giornaliero: oro RIALZISTA 58 (divergenza dal bear settimanale: GLD +447M, tiene 4.000, reali 2,35%), da esprimere sui ribassi. Indici NEUTRALE 50 (rout semis, Netflix −10%). Oil RIALZISTA 55: 9° notte raid Iran, WTI 82,49, CoT net short=squeeze, OVX 60,02 premio pagato. Q gold bull 15 lug (in rev.), oil neut 15 lug, idx neut 19 lug."
+    },
+    {
+      "date": "2026-07-19",
+      "xau": "RIBASSISTA",
+      "wti": "RIALZISTA",
+      "idx": "NEUTRALE",
+      "note": "Settimanale: oil-shock (+12% WTI) riprezza FED hawkish; oro −3%+ peggior settimana in sei, flippa bear sui rimbalzi; indici da bull a NEUTRO su derating AI/semis. Q idx abbassato bull→neut (since 19 lug); Q gold bull in revisione; Q oil neut."
+    },
+    {
+      "date": "2026-07-17",
+      "xau": "NEUTRALE",
+      "wti": "RIALZISTA",
+      "idx": "RIALZISTA",
+      "note": "Oil da Hormuz tiene viva la scommessa rialzo FED; core CPI giu benigno (0,0% m/m) ma oro schiacciato tra safe-haven e tassi. ETF oro in deflusso, lunghi CoT affollati."
+    },
+    {
+      "date": "2026-07-16",
+      "xau": "NEUTRALE",
+      "wti": "RIALZISTA",
+      "idx": "RIALZISTA",
+      "note": "Guerra USA-Iran/Hormuz; FED hawkish-hold 3,50-3,75%, ~35% rialzo prezzato 29 lug; CPI giu core benigno ma PCE appiccicoso."
+    }
+  ]
+}
