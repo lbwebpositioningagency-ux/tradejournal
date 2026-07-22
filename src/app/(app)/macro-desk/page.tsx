@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import Link from "next/link";
 import { redirect } from "next/navigation";
 import { Globe } from "lucide-react";
 import { auth } from "@/lib/auth";
@@ -60,8 +61,12 @@ function LatestReportCard({
   title: string;
   report: ReportRow | null;
 }) {
-  return (
-    <Card>
+  const card = (
+    <Card
+      className={cn(
+        report && "transition-colors hover:border-primary/40 hover:bg-accent/40",
+      )}
+    >
       <CardHeader className="flex flex-row flex-wrap items-center justify-between gap-2">
         <CardTitle className="stat-label">{title}</CardTitle>
         {report ? (
@@ -101,6 +106,19 @@ function LatestReportCard({
         )}
       </CardContent>
     </Card>
+  );
+
+  // Card cliccabile solo quando c'è un report: porta al dettaglio a schede.
+  return report ? (
+    <Link
+      href={`/macro-desk/${report.id}`}
+      aria-label={`Apri il dettaglio: ${title}`}
+      className="block"
+    >
+      {card}
+    </Link>
+  ) : (
+    card
   );
 }
 
@@ -153,9 +171,10 @@ export default async function MacroDeskPage() {
             </CardHeader>
             <CardContent className="flex flex-col gap-1">
               {history.map((report) => (
-                <div
+                <Link
                   key={report.id}
-                  className="flex flex-wrap items-center justify-between gap-2 rounded-md px-1 py-1.5 text-sm"
+                  href={`/macro-desk/${report.id}`}
+                  className="flex flex-wrap items-center justify-between gap-2 rounded-md px-1 py-1.5 text-sm transition-colors hover:bg-accent"
                 >
                   <span className="flex items-center gap-2">
                     <Badge variant={report.type === "DAILY" ? "secondary" : "outline"}>
@@ -180,7 +199,7 @@ export default async function MacroDeskPage() {
                       );
                     })}
                   </span>
-                </div>
+                </Link>
               ))}
             </CardContent>
           </Card>

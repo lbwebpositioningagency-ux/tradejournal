@@ -215,6 +215,30 @@ Report macro giornaliero/settimanale (oro XAUUSD, petrolio WTI, indici) inviato 
 
 **Verificato:** lint ✅ · typecheck ✅ · **231/231 test** ✅ · build ✅ · migrazione applicata al DB locale · E2E con server reale via curl: 401 (token errato e assente), 400 con `details` puntuali (bias "BULLISH"), 200 su DAILY valido, re-invio → **stesso id** (upsert), 200 su WEEKLY; pagina verificata in Chrome headless: card daily coi valori della REVISIONE (confidenza 80, prova che l'upsert arriva in UI), storico, sidebar, overflow mobile 0px. I 2 report di esempio restano nel DB locale come dati demo.
 
+## ✅ MACRO DESK — DETTAGLIO REPORT PREMIUM (22/07/2026)
+
+Pagina di dettaglio `/macro-desk/[id]` in stile terminale istituzionale (Bloomberg × fintech premium), schema autoritativo del payload = `docs/macro-desk-sample-report.json`, NESSUN campo escluso.
+
+**Fatto:**
+- **Identità visiva come design token** (`globals.css`, SCOPED a `.macro-report` — non tocca il tema dell'app): fondo `#080b12` con doppio glow radiale oro/blu fisso, superfici stratificate `#111826/#151e30/#1a2438`, bordi `#20293c`, ombre con inset chiaro + hover profondo (`.md-card`, `.md-card-hover`), semantica verde/rosso/ambra/blu, accenti per asset (oro/petrolio/indici/cross), raggi 18/13/9px, **Inter** UI + **JetBrains Mono** per TUTTI i numeri/ticker/date (next/font, variabili `--md-font-*`), animazioni d'ingresso (`md-fade` con stagger, `md-grow` per le barre, keyframe `md-needle-swing` per l'ago del gauge — tutto disattivato con `prefers-reduced-motion`).
+- **Parser difensivo** `src/lib/macro-desk-payload.ts`: tipi per ogni sezione del sample, mai un crash — elementi malformati scartati, i validi conservati, array vuoti/undefined espliciti; `sanitizeInlineHtml` (per `risks`/`watch` che arrivano con `<b>` dal nostro sistema: sopravvivono solo b/i/em/strong/br), helper puri `dirTone`/`biasTone`/`assetAccentVar`.
+- **Pagina server** `[id]/page.tsx` (auth, findUnique, 404, header con back/badge/data) + **shell client a 7 SCHEDE** (`report-detail.tsx`, tab bar scrollabile su mobile) + tab PURI e testabili (`report-tabs.tsx`): ① Panoramica (hero reportType/lastUpdate/disclaimer, banner dataIssues colorati per sev, 3 card asset con **gauge semicircolare animato** + barra confidence, pills sintesi, Radar rischi HTML, Verdetto) ② Asset (weekly+quarterly con pilastri direzionali, callout Edge/Invalidazione, narrativa, driver a tessere con orizzonte W/Q) ③ Volatilità (asOf, 7 tessere valore mono grande + chg direzionale + note, pannello Lettura) ④ Eventi & Watch (matrice eventi con reazioni per asset a bordo accento, watch list ad alert) ⑤ Macro (8 tessere con trend u/s/d — s in grigio, non ambra — e 9 sezioni tabellari con note) ⑥ News (banner triage, 13 card con tag-chip colorati per asset e implicazione evidenziata) ⑦ Storico (timeline con bias colorati per asset).
+- **Lista `/macro-desk`**: card "Ultimo report" e righe dello storico ora cliccabili → dettaglio.
+- **27 test nuovi** (258/258 totali; vitest esteso ai `.test.tsx`): parser sul sample AUTORITATIVO (tutte le sezioni contate), campi mancanti/malformati/non-oggetto, sanitizer, helper; **rendering dei 7 tab** via `renderToStaticMarkup` col sample completo (ogni sezione presente nel markup) e con payload vuoto (fallback "non disponibile", mai crash) + casi parziali (solo watch; asset senza weekly → vista trimestrale).
+
+**Verificato:** lint ✅ · typecheck ✅ · **258/258 test** ✅ · build ✅ (route `/macro-desk/[id]`) · E2E Chrome headless: sample POSTato via API locale (DAILY 22/07), click sulla card della lista → dettaglio, screenshot di TUTTE le 7 schede (in `docs/macro-desk-detail-20260722/`), overflow orizzontale mobile 375px = 0.
+
+**Note/limiti:** il pannello ha identità dark fissa anche in light mode (scelta deliberata da terminale); i gauge mostrano weekly con fallback quarterly; il record E2E resta nel DB locale come demo.
+
+## 🔧 AGGIUSTAMENTI dettaglio Macro Desk (22/07/2026) — news per categoria, alert in fondo
+
+Due rifiniture mirate sul dettaglio report, resto della pagina invariato.
+
+1. **News raggruppate per categoria**: nuova funzione pura `groupNewsByCategory` (`src/lib/macro-desk-payload.ts`) — Gold/Oil/Indices per il tag asset corrispondente (una news multi-tag, es. `['gold','oil']`, compare in ENTRAMBI i gruppi, di proposito), Global per le news SENZA alcun tag asset (fed/macro pure, tag sconosciuti, o nessun tag — così nessuna si perde). Ordine fisso Global→Gold→Oil→Indices, gruppi vuoti per il report non compaiono. La scheda News (`report-tabs.tsx`) rende 4 sottosezioni con intestazione colorata sull'accento dell'asset (Global blu, Gold oro, Oil petrolio, Indices indici) e conteggio; il banner `newsTriage` resta introduttivo in cima, sopra i gruppi.
+2. **Alert minori in fondo alla Panoramica**: nuovo helper `isCriticalIssue` (major/critical/error) — solo gli alert di severità critica restano subito sotto l'hero; tutti gli altri (nel sample: tutti `minor`) sono spostati in fondo alla scheda, sotto Verdetto/sintesi. Componente `DataIssuesList` estratto e riusato nei due punti d'inserimento.
+
+**Verificato:** lint ✅ · typecheck ✅ · **266/266 test** ✅ (8 nuovi: `isCriticalIssue`, 5 su `groupNewsByCategory` — smistamento, multi-tag, senza tag, gruppo vuoto assente, nessuna news; 2 di rendering — alert critico in alto vs minor in fondo, gruppo vuoto non renderizzato) · build ✅ · E2E Chrome headless su sample reale: ordine testuale verificato (verdetto a offset 1314, alert a 1899, quindi dopo) e 4 header News nell'ordine `Global, Gold, Oil, Indices`; screenshot aggiornati in `docs/macro-desk-detail-20260722/tab-panoramica.png` e `tab-news.png`.
+
 ---
 
 **MVP COMPLETO (FASI 1-8) + FASE 9 + FASE 10 + aggiunte + analytics avanzate + sync MT5.** Roadmap iniziale esaurita: prossimi passi solo dal backlog post-MVP, su istruzione esplicita.
