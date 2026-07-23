@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { Globe, Target } from "lucide-react";
+import { ChartSpline, Globe, Target } from "lucide-react";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { biasColorClass } from "@/lib/macro-desk";
@@ -153,12 +153,20 @@ export default async function MacroDeskPage() {
             Bias macro giornaliero e settimanale su oro, petrolio e indici
           </p>
         </div>
-        <Button asChild variant="outline">
-          <Link href="/macro-desk/scorecard">
-            <Target className="size-4" />
-            Scorecard
-          </Link>
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button asChild variant="outline">
+            <Link href="/macro-desk/trends">
+              <ChartSpline className="size-4" />
+              Trends
+            </Link>
+          </Button>
+          <Button asChild variant="outline">
+            <Link href="/macro-desk/scorecard">
+              <Target className="size-4" />
+              Scorecard
+            </Link>
+          </Button>
+        </div>
       </div>
 
       {!hasAny ? (
