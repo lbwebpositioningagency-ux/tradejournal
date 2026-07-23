@@ -1,12 +1,13 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { Globe } from "lucide-react";
+import { Globe, Target } from "lucide-react";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { biasColorClass } from "@/lib/macro-desk";
 import { cn } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import {
   Card,
   CardContent,
@@ -145,11 +146,19 @@ export default async function MacroDeskPage() {
 
   return (
     <div className="flex flex-col gap-4">
-      <div>
-        <h1 className="page-title">Macro Desk</h1>
-        <p className="page-subtitle">
-          Bias macro giornaliero e settimanale su oro, petrolio e indici
-        </p>
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div>
+          <h1 className="page-title">Macro Desk</h1>
+          <p className="page-subtitle">
+            Bias macro giornaliero e settimanale su oro, petrolio e indici
+          </p>
+        </div>
+        <Button asChild variant="outline">
+          <Link href="/macro-desk/scorecard">
+            <Target className="size-4" />
+            Scorecard
+          </Link>
+        </Button>
       </div>
 
       {!hasAny ? (
