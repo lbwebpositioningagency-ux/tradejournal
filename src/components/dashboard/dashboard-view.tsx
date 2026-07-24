@@ -91,6 +91,7 @@ import {
   type ChartPoint,
 } from "./pnl-charts";
 import { ScoreGauge } from "./score-gauge";
+import { OnboardingHero } from "./onboarding-hero";
 
 export interface DashboardData {
   currency: string;
@@ -105,6 +106,8 @@ export interface DashboardData {
   lifetimeNetPnl: string;
   period: { key: PeriodKey; label: string; fromKey?: string; toKey?: string };
   totalTrades: number;
+  /** F15 — true finché l'utente non ha inserito alcun trade: mostra l'onboarding. */
+  neverTraded: boolean;
   wins: number;
   losses: number;
   breakevens: number;
@@ -395,6 +398,24 @@ export function DashboardView({ data }: { data: DashboardData }) {
   // giorno (dayData = daysR), altrimenti valuta/percentuale via money().
   const dayAmount = (value: string, signed = true) =>
     inR ? formatRMultiple(value) : money(value, null, signed);
+
+  // F15 — onboarding: nessun trade ancora → hero a 3 passi invece della griglia
+  // di trattini (niente filtri periodo/vista: non c'è nulla da filtrare).
+  if (data.neverTraded) {
+    return (
+      <div className="flex flex-col gap-4">
+        <div>
+          <h1 className="page-title">Dashboard</h1>
+          <p className="page-subtitle">
+            Benvenuto in L&amp;B TradeJournal
+          </p>
+        </div>
+        <OnboardingHero
+          accountBalanceLabel={formatMoney(data.accountBalance, data.currency)}
+        />
+      </div>
+    );
+  }
 
   return (
     <div className="flex flex-col gap-4">

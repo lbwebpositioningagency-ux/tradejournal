@@ -340,3 +340,10 @@ Mai più una somma di valute diverse. Prima la vista "Tutti i conti" sommava USD
 - **Zero conversioni, zero tassi, zero fonti esterne**, come deciso.
 
 **Verificato:** lint ✅ · typecheck ✅ · **336/336 test** ✅ (nuovi: `currency-scope.test.ts`, gate Calmar, `coveredDays`) · build di produzione ✅ · F6 verificato a vista su seed multi-valuta (USD 120 trade / EUR 91 trade): dashboard/reports/calendario scoping USD↔EUR, totali affiancati corretti, numeri riconciliati con query SQL indipendente. F8/F10/F11/F12 verificati a runtime (vista R inclusa, 0 errori console).
+
+## ✅ PREMIUM — FASE 3 «Primo accesso e onboarding» (24/07/2026)
+Finding chiuso: **F15**.
+1. **Onboarding hero (dashboard)**: finché l'utente non ha inserito alcun trade (`neverTraded`, conteggio globale di tutti i trade dell'utente — NON solo il periodo, così un utente esperto con un periodo vuoto vede lo stato vuoto normale, non l'onboarding), al posto della griglia di metriche a trattini compare una **hero a 3 passi**: (1) Configura conto e saldo → `/settings/accounts`, (2) Aggiungi il primo trade → `/trades/new`, (3) Oppure importa lo storico → `/import`. Nuovo componente `onboarding-hero.tsx` (card numerate con icone, accento blu, CTA), niente filtri periodo/vista quando non c'è nulla da filtrare. Mostra anche il saldo di partenza.
+2. **Saldo iniziale in registrazione**: `registerSchema` esteso con `currency` (enum `CURRENCIES`) e `initialBalance` (stringa Decimal-safe, virgola→punto, validazione max 2 decimali); il form `/register` ha ora i campi Valuta + Saldo iniziale; `registerAction` crea il primo conto col saldo e la valuta scelti (prima era hardcoded `USD` / saldo 0). Così le percentuali e il rischio partono corretti dal primo trade.
+
+**Verificato:** lint ✅ · typecheck ✅ · **336/336 test** ✅ · build ✅ · flusso end-to-end verificato a runtime col browser (registrazione con saldo 25.000 → redirect dashboard → hero onboarding che mostra "Saldo di partenza: 25.000,00 USD", 0 errori console). Utenti di test rimossi, seed ripristinato (1 utente demo, 213 trade).

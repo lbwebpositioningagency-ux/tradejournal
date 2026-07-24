@@ -130,6 +130,7 @@ export default async function DashboardPage({
     sessionRows,
     openTrades,
     recentTrades,
+    lifetimeTradeCount,
   ] = await Promise.all([
       getTradeAggregates(filter),
       getDailyPnl(filter, user.timezone),
@@ -154,6 +155,8 @@ export default async function DashboardPage({
           account: { select: { currency: true } },
         },
       }),
+      // F15 — onboarding: l'utente ha mai inserito un trade (qualsiasi conto/stato)?
+      prisma.trade.count({ where: { account: { userId } } }),
     ]);
 
   // Metriche (tutte Decimal-safe, sul server; il client formatta soltanto)
@@ -195,6 +198,8 @@ export default async function DashboardPage({
       toKey: period.toKey,
     },
     totalTrades: agg.total,
+    // F15 — hero di onboarding finché l'utente non ha inserito alcun trade.
+    neverTraded: lifetimeTradeCount === 0,
     wins: agg.wins,
     losses: agg.losses,
     breakevens: agg.breakevens,

@@ -14,6 +14,14 @@ import {
 } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { CURRENCIES } from "@/lib/validations/account";
 
 export function RegisterForm() {
   const [state, formAction, pending] = useActionState(registerAction, undefined);
@@ -55,6 +63,37 @@ export function RegisterForm() {
             />
             <p className="text-xs text-muted-foreground">Almeno 8 caratteri</p>
           </div>
+          <div className="grid gap-4 sm:grid-cols-2">
+            <div className="grid gap-2">
+              <Label htmlFor="currency">Valuta del conto</Label>
+              <Select name="currency" defaultValue="USD">
+                <SelectTrigger id="currency" className="w-full">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {CURRENCIES.map((currency) => (
+                    <SelectItem key={currency} value={currency}>
+                      {currency}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="grid gap-2">
+              <Label htmlFor="initialBalance">Saldo iniziale</Label>
+              <Input
+                id="initialBalance"
+                name="initialBalance"
+                inputMode="decimal"
+                placeholder="Es. 25000"
+                defaultValue="0"
+              />
+            </div>
+          </div>
+          <p className="-mt-2 text-xs text-muted-foreground">
+            Crea il tuo primo conto: potrai aggiungerne altri e modificarli in
+            Impostazioni.
+          </p>
           {state?.error ? (
             <p role="alert" className="text-sm text-destructive">
               {state.error}

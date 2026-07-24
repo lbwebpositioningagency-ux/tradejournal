@@ -17,6 +17,8 @@ export async function registerAction(
     name: formData.get("name"),
     email: formData.get("email"),
     password: formData.get("password"),
+    currency: formData.get("currency") || "USD",
+    initialBalance: formData.get("initialBalance") || "0",
   });
   if (!parsed.success) {
     return { error: parsed.error.issues[0]?.message ?? "Dati non validi" };
@@ -35,7 +37,11 @@ export async function registerAction(
       email,
       passwordHash,
       tradingAccounts: {
-        create: { name: "Conto principale", currency: "USD" },
+        create: {
+          name: "Conto principale",
+          currency: parsed.data.currency,
+          initialBalance: parsed.data.initialBalance,
+        },
       },
     },
   });
