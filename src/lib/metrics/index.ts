@@ -21,7 +21,13 @@ export {
   avgDayInfo,
   type DayStats,
 } from "./day-stats";
-export { compositeScore, scoreInfo, type ScoreInput } from "./score";
+export {
+  compositeScore,
+  compositeScoreParts,
+  scoreInfo,
+  type ScoreInput,
+  type ScoreParts,
+} from "./score";
 export { sortinoRatio, sortinoInfo } from "./sortino";
 export { sharpeRatio, sharpeInfo } from "./sharpe";
 export { sqn, sqnInfo, SQN_MIN_TRADES } from "./sqn";

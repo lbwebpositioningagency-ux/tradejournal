@@ -98,6 +98,71 @@ export async function getTagBreakdown(
   `);
 }
 
+export interface SymbolBreakdownRow extends BreakdownAggregates {
+  symbol: string;
+}
+
+/** Performance per simbolo (F30): il report #1 di qualunque journal. */
+export async function getSymbolBreakdown(
+  filter: StatsFilter,
+): Promise<SymbolBreakdownRow[]> {
+  return prisma.$queryRaw<SymbolBreakdownRow[]>(Prisma.sql`
+    SELECT
+      t."symbol" AS "symbol",
+      ${AGGREGATE_COLUMNS}
+    ${FROM_TRADES}
+    WHERE ${whereClosedTrades(filter)}
+    GROUP BY t."symbol"
+    ORDER BY SUM(t."netPnl") DESC
+  `);
+}
+
+export interface DirectionAssetBreakdownRow extends BreakdownAggregates {
+  direction: "LONG" | "SHORT";
+  assetClass: string;
+}
+
+/** Performance per direzione × asset class (F30): long vs short, futures vs forex. */
+export async function getDirectionAssetBreakdown(
+  filter: StatsFilter,
+): Promise<DirectionAssetBreakdownRow[]> {
+  return prisma.$queryRaw<DirectionAssetBreakdownRow[]>(Prisma.sql`
+    SELECT
+      t."direction"::text  AS "direction",
+      t."assetClass"::text AS "assetClass",
+      ${AGGREGATE_COLUMNS}
+    ${FROM_TRADES}
+    WHERE ${whereClosedTrades(filter)}
+    GROUP BY t."direction", t."assetClass"
+    ORDER BY SUM(t."netPnl") DESC
+  `);
+}
+
+export interface MonthBreakdownRow extends BreakdownAggregates {
+  /** Chiave mese "YYYY-MM" nel fuso utente (su closedAt, come le metriche). */
+  month: string;
+}
+
+/**
+ * Performance per mese di calendario (F30): l'unità dei payout e delle
+ * challenge prop. Bucketing su closedAt nel fuso utente (doppio AT TIME ZONE),
+ * mesi recenti per primi.
+ */
+export async function getMonthBreakdown(
+  filter: StatsFilter,
+  timezone: string,
+): Promise<MonthBreakdownRow[]> {
+  return prisma.$queryRaw<MonthBreakdownRow[]>(Prisma.sql`
+    SELECT
+      to_char((t."closedAt" AT TIME ZONE 'UTC') AT TIME ZONE ${timezone}, 'YYYY-MM') AS "month",
+      ${AGGREGATE_COLUMNS}
+    ${FROM_TRADES}
+    WHERE ${whereClosedTrades(filter)}
+    GROUP BY 1
+    ORDER BY 1 DESC
+  `);
+}
+
 export interface HourBreakdownRow extends BreakdownAggregates {
   /** 0-23, ora di APERTURA nel fuso utente. */
   hour: number;

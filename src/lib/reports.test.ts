@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   bestAndWorstBucket,
   fillHourSeries,
+  fillRDistribution,
   fillWeekdaySeries,
 } from "./reports";
 
@@ -64,5 +65,66 @@ describe("bestAndWorstBucket", () => {
       bestAndWorstBucket([{ label: "00", netPnl: "0", trades: 0 }]),
     ).toBeNull();
     expect(bestAndWorstBucket([])).toBeNull();
+  });
+});
+
+describe("fillRDistribution (F32)", () => {
+  const BE = -100;
+
+  it("riempie i bin mancanti tra min e max, con BE tra negativi e positivi", () => {
+    const points = fillRDistribution(
+      [
+        { bin: -3, count: 2 },
+        { bin: 0, count: 5 },
+        { bin: 3, count: 1 },
+        { bin: BE, count: 4 },
+      ],
+      BE,
+    );
+    // da -3 (min osservato) a 3 (max osservato), BE dopo l'ultimo negativo
+    expect(points.map((p) => p.label)).toEqual([
+      "-1,5",
+      "-1",
+      "-0,5",
+      "BE",
+      "0",
+      "0,5",
+      "1",
+      "1,5",
+    ]);
+    expect(points.find((p) => p.label === "BE")).toEqual({
+      label: "BE",
+      range: "breakeven (R = 0)",
+      count: 4,
+      kind: "be",
+    });
+    expect(points[0]).toEqual({
+      label: "-1,5",
+      range: "da -1,5R a -1R",
+      count: 2,
+      kind: "loss",
+    });
+    expect(points.find((p) => p.label === "0")?.count).toBe(5);
+    // bin vuoto intermedio presente con zero
+    expect(points.find((p) => p.label === "1")?.count).toBe(0);
+  });
+
+  it("overflow: bin -9 e 8 hanno etichette aperte", () => {
+    const points = fillRDistribution(
+      [
+        { bin: -9, count: 1 },
+        { bin: 8, count: 2 },
+      ],
+      BE,
+    );
+    expect(points[0].label).toBe("<-4");
+    expect(points[0].range).toBe("sotto -4R");
+    expect(points.at(-1)?.label).toBe("≥4");
+  });
+
+  it("nessun dato: range minimo −1R…+1R con BE a zero", () => {
+    const points = fillRDistribution([], BE);
+    expect(points.map((p) => p.label)).toEqual(["-1", "-0,5", "BE", "0", "0,5"]);
+    expect(points.every((p) => p.count === 0)).toBe(true);
   });
 });

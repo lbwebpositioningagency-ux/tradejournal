@@ -45,7 +45,16 @@ function clamp01(value: Decimal): Decimal {
   return value;
 }
 
-export function compositeScore(input: ScoreInput): number | null {
+/** Le tre componenti dello Score come frazioni 0-1 (F35: mostrate come barre). */
+export interface ScoreParts {
+  score: number;
+  /** Frazioni 0-1, scala 4. */
+  profitability: string;
+  risk: string;
+  consistency: string;
+}
+
+export function compositeScoreParts(input: ScoreInput): ScoreParts | null {
   if (input.total === 0) return null;
 
   // Profittabilità
@@ -77,7 +86,16 @@ export function compositeScore(input: ScoreInput): number | null {
     .plus(consistency.times(WEIGHTS.consistency))
     .times(100);
 
-  return score.toDecimalPlaces(0, Decimal.ROUND_HALF_UP).toNumber();
+  return {
+    score: score.toDecimalPlaces(0, Decimal.ROUND_HALF_UP).toNumber(),
+    profitability: profitability.toFixed(4),
+    risk: risk.toFixed(4),
+    consistency: consistency.toFixed(4),
+  };
+}
+
+export function compositeScore(input: ScoreInput): number | null {
+  return compositeScoreParts(input)?.score ?? null;
 }
 
 /** Testo per <MetricInfo>: tenuto accanto alla formula (vedi types.ts). */

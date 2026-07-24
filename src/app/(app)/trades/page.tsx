@@ -1,7 +1,17 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { ChevronLeft, ChevronRight, FileUp, Plus, Table2 } from "lucide-react";
+import {
+  ArrowDown,
+  ArrowUp,
+  ArrowUpDown,
+  ChevronLeft,
+  ChevronRight,
+  Download,
+  FileUp,
+  Plus,
+  Table2,
+} from "lucide-react";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { getActiveAccountId, tradeAccountWhere } from "@/lib/active-account";
@@ -11,8 +21,11 @@ import { formatRMultiple, formatSignedMoney, pnlColorClass } from "@/lib/money";
 import { resolvePeriod } from "@/lib/period";
 import {
   buildTradeFilterWhere,
+  buildTradeOrderBy,
   countActiveFilters,
   parseTradeFilters,
+  parseTradeSort,
+  type TradeSortField,
 } from "@/lib/trade-filters";
 import { cn } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
@@ -64,6 +77,7 @@ export default async function TradesPage({
   const filters = parseTradeFilters(params);
   const activeCount = countActiveFilters(filters);
   const period = resolvePeriod(params, user.timezone);
+  const sort = parseTradeSort(params);
   const hasAnyFilter = activeCount > 0 || period.key !== "all";
 
   // Il filtro account/userId resta SEMPRE la base del where.
@@ -76,7 +90,7 @@ export default async function TradesPage({
     await Promise.all([
       prisma.trade.findMany({
         where,
-        orderBy: { openedAt: "desc" },
+        orderBy: buildTradeOrderBy(sort),
         skip: (page - 1) * PAGE_SIZE,
         take: PAGE_SIZE,
         include: {
@@ -135,6 +149,26 @@ export default async function TradesPage({
     return qs ? `/trades?${qs}` : "/trades";
   }
 
+  /** F38 — link di ordinamento: clic sulla colonna attiva inverte la direzione. */
+  function sortHref(field: TradeSortField): string {
+    const dir = sort.field === field && sort.dir === "desc" ? "asc" : "desc";
+    const query = new URLSearchParams();
+    for (const [key, value] of Object.entries(params)) {
+      if (typeof value === "string" && key !== "page" && key !== "sort") {
+        query.set(key, value);
+      }
+    }
+    query.set("sort", `${field}.${dir}`);
+    return `/trades?${query.toString()}`;
+  }
+
+  // F37 — export CSV coi filtri correnti (stessi searchParams, senza pagina).
+  const exportQuery = new URLSearchParams();
+  for (const [key, value] of Object.entries(params)) {
+    if (typeof value === "string" && key !== "page") exportQuery.set(key, value);
+  }
+  const exportHref = `/api/export/trades${exportQuery.size > 0 ? `?${exportQuery.toString()}` : ""}`;
+
   return (
     <div className="flex flex-col gap-4">
       <div className="flex items-center justify-between gap-4">
@@ -145,17 +179,24 @@ export default async function TradesPage({
             {hasAnyFilter ? ` · ${period.label}` : ""}
           </p>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
+          <Button asChild variant="outline">
+            {/* Download nativo dalla route protetta: CSV coi filtri correnti */}
+            <a href={exportHref} download aria-label="Esporta i trade filtrati in CSV">
+              <Download className="size-4" />
+              <span className="max-sm:hidden">Esporta CSV</span>
+            </a>
+          </Button>
           <Button asChild variant="outline">
             <Link href="/import">
               <FileUp className="size-4" />
-              Importa CSV
+              <span className="max-sm:hidden">Importa CSV</span>
             </Link>
           </Button>
           <Button asChild>
             <Link href="/trades/new">
               <Plus className="size-4" />
-              Nuovo trade
+              <span className="max-sm:hidden">Nuovo trade</span>
             </Link>
           </Button>
         </div>
@@ -300,14 +341,24 @@ export default async function TradesPage({
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>Apertura</TableHead>
-                  <TableHead>Simbolo</TableHead>
+                  <SortHead field="openedAt" sort={sort} href={sortHref("openedAt")}>
+                    Apertura
+                  </SortHead>
+                  <SortHead field="symbol" sort={sort} href={sortHref("symbol")}>
+                    Simbolo
+                  </SortHead>
                   <TableHead>Direzione</TableHead>
-                  <TableHead className="text-right">Qty</TableHead>
+                  <SortHead field="quantity" sort={sort} href={sortHref("quantity")} align="right">
+                    Qty
+                  </SortHead>
                   <TableHead className="text-right">Entry</TableHead>
                   <TableHead className="text-right">Exit</TableHead>
-                  <TableHead className="text-right">Net P&L</TableHead>
-                  <TableHead className="text-right">R</TableHead>
+                  <SortHead field="netPnl" sort={sort} href={sortHref("netPnl")} align="right">
+                    Net P&L
+                  </SortHead>
+                  <SortHead field="rMultiple" sort={sort} href={sortHref("rMultiple")} align="right">
+                    R
+                  </SortHead>
                   <TableHead>Stato</TableHead>
                   <TableHead>Strategia</TableHead>
                   <TableHead>Conto</TableHead>
@@ -400,4 +451,41 @@ export default async function TradesPage({
 /** "2.00000000" → "2" · "0.50000000" → "0.5" (solo display). */
 function trimZeros(value: string): string {
   return value.includes(".") ? value.replace(/\.?0+$/, "") : value;
+}
+
+/** F38 — header di colonna ordinabile (SSR: solo link, nessun JS client). */
+function SortHead({
+  field,
+  sort,
+  href,
+  children,
+  align,
+}: {
+  field: TradeSortField;
+  sort: { field: TradeSortField; dir: "asc" | "desc" };
+  href: string;
+  children: React.ReactNode;
+  align?: "right";
+}) {
+  const active = sort.field === field;
+  const Icon = active ? (sort.dir === "desc" ? ArrowDown : ArrowUp) : ArrowUpDown;
+  return (
+    <TableHead className={align === "right" ? "text-right" : undefined}>
+      <Link
+        href={href}
+        className={cn(
+          "inline-flex items-center gap-1 hover:text-foreground",
+          align === "right" && "justify-end",
+          active && "text-foreground",
+        )}
+        aria-label={`Ordina per ${typeof children === "string" ? children : field}`}
+      >
+        {children}
+        <Icon
+          className={cn("size-3.5", active ? "" : "text-muted-foreground/50")}
+          aria-hidden
+        />
+      </Link>
+    </TableHead>
+  );
 }

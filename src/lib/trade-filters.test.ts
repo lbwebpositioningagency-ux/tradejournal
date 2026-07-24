@@ -1,9 +1,12 @@
 import { describe, expect, it } from "vitest";
 import {
   buildTradeFilterWhere,
+  buildTradeOrderBy,
   countActiveFilters,
+  DEFAULT_TRADE_SORT,
   NO_STRATEGY_FILTER,
   parseTradeFilters,
+  parseTradeSort,
 } from "./trade-filters";
 
 describe("parseTradeFilters", () => {
@@ -101,6 +104,48 @@ describe("buildTradeFilterWhere", () => {
       "netPnl",
       "openedAt",
       "status",
+    ]);
+  });
+});
+
+describe("parseTradeSort (F38)", () => {
+  it("campo.direzione validi", () => {
+    expect(parseTradeSort({ sort: "netPnl.desc" })).toEqual({
+      field: "netPnl",
+      dir: "desc",
+    });
+    expect(parseTradeSort({ sort: "symbol.asc" })).toEqual({
+      field: "symbol",
+      dir: "asc",
+    });
+  });
+
+  it("assente, invalido o array → default openedAt.desc", () => {
+    expect(parseTradeSort({})).toEqual(DEFAULT_TRADE_SORT);
+    expect(parseTradeSort({ sort: "banana.desc" })).toEqual(DEFAULT_TRADE_SORT);
+    expect(parseTradeSort({ sort: "netPnl.sideways" })).toEqual(DEFAULT_TRADE_SORT);
+    expect(parseTradeSort({ sort: ["netPnl.desc"] })).toEqual(DEFAULT_TRADE_SORT);
+    // niente injection di campi arbitrari (es. id o relazioni)
+    expect(parseTradeSort({ sort: "account.desc" })).toEqual(DEFAULT_TRADE_SORT);
+  });
+});
+
+describe("buildTradeOrderBy (F38)", () => {
+  it("campi non nullabili: ordinamento diretto + tie-break id", () => {
+    expect(buildTradeOrderBy({ field: "openedAt", dir: "desc" })).toEqual([
+      { openedAt: "desc" },
+      { id: "desc" },
+    ]);
+  });
+
+  it("campi nullabili (closedAt, rMultiple): null sempre in fondo", () => {
+    expect(buildTradeOrderBy({ field: "rMultiple", dir: "asc" })).toEqual([
+      { rMultiple: { sort: "asc", nulls: "last" } },
+      { id: "asc" },
+    ]);
+    expect(buildTradeOrderBy({ field: "closedAt", dir: "desc" })).toEqual([
+      { closedAt: { sort: "desc", nulls: "last" } },
+      { id: "desc" },
     ]);
   });
 });

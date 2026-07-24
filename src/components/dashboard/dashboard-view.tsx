@@ -41,6 +41,7 @@ import {
   maxDrawdownInfo,
   netPnlInfo,
   profitFactorInfo,
+  rDistributionInfo,
   scoreInfo,
   sharpeInfo,
   sortinoInfo,
@@ -65,6 +66,8 @@ import {
   TradeSequenceChart,
   type TradeSequencePointView,
 } from "@/components/charts/trade-sequence-chart";
+import { RDistributionChart } from "@/components/charts/r-distribution-chart";
+import type { RDistPoint } from "@/lib/reports";
 import { SessionRadars } from "@/components/charts/session-radar";
 import { cn, pluralize } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
@@ -160,6 +163,28 @@ export interface DashboardData {
   tradeStreak: StreakResult;
   dayStreak: StreakResult;
   score: number | null;
+  /** F35 — componenti dello Score come frazioni 0-1 (barre sotto il gauge). */
+  scoreParts: {
+    profitability: string;
+    risk: string;
+    consistency: string;
+  } | null;
+  /** F32 — istogramma R (bin 0,5R + colonna BE), da aggregato SQL completo. */
+  rDistribution: RDistPoint[];
+  /** F33 — posizioni aperte del conto attivo (mai filtrate dal periodo). */
+  openPositions: {
+    id: string;
+    symbol: string;
+    direction: "LONG" | "SHORT";
+    quantity: string;
+    openedAtLabel: string;
+    /** Secondi dall'apertura a adesso (display only). */
+    openForSec: string;
+    initialRisk: string | null;
+    plannedStop: string | null;
+    currency: string;
+    accountName: string;
+  }[];
   daily: { day: string; netPnl: string; rSum: string }[];
   recent: {
     id: string;
@@ -179,6 +204,11 @@ const MASK = "•••";
 /** Ratio adimensionale per il display: max 2 decimali, "—" se null. */
 function ratio(value: string | null): string {
   return value !== null ? formatRMultiple(value).slice(0, -1) : "—";
+}
+
+/** "2.00000000" → "2" · "0.50000000" → "0.5" (solo display). */
+function trimQty(value: string): string {
+  return value.includes(".") ? value.replace(/\.?0+$/, "") : value;
 }
 
 /**
@@ -666,53 +696,149 @@ export function DashboardView({ data }: { data: DashboardData }) {
       </div>
 
       {/* Sequenza trade: una barra per trade chiuso, in ordine cronologico */}
-      {show("trade-sequence") ? (
+      {/* F33 — posizioni aperte: card dedicata, solo quando ce ne sono */}
+      {show("open-positions") && data.openPositions.length > 0 ? (
         <Card>
-          <CardHeader className="flex flex-row flex-wrap items-center justify-between gap-2">
-            <CardTitle className="stat-label flex items-center gap-1">
-              Sequenza trade
-              <MetricInfo info={streaksInfo} />
+          <CardHeader>
+            <CardTitle className="stat-label">
+              Posizioni aperte ({data.openPositions.length})
             </CardTitle>
-            <div className="flex items-center gap-4 text-xs text-muted-foreground">
-              <span>
-                Max Win Streak{" "}
-                <span className="font-semibold text-profit">
-                  {data.tradeRuns.maxWin}
-                </span>
-              </span>
-              <span>
-                Max Loss Streak{" "}
-                <span className="font-semibold text-loss">
-                  {data.tradeRuns.maxLoss}
-                </span>
-              </span>
-            </div>
           </CardHeader>
           <CardContent>
-            {data.sequence.length > 0 ? (
-              <>
-                <TradeSequenceChart
-                  points={sequencePoints}
-                  suffix={sequenceSuffix}
-                  masked={masked}
-                />
-                {data.sequenceTruncated ? (
-                  <p className="stat-sub mt-1">
-                    Ultimi {data.sequence.length} trade del periodo
-                  </p>
-                ) : null}
-              </>
-            ) : (
-              <EmptyState
-                compact
-                icon={LineChartIcon}
-                title="Nessun trade chiuso nel periodo"
-                description="La sequenza si popola con i trade chiusi."
-              />
-            )}
+            <ul className="grid gap-2 sm:grid-cols-2 xl:grid-cols-3">
+              {data.openPositions.map((position) => (
+                <li key={position.id}>
+                  <Link
+                    href={`/trades/${position.id}`}
+                    className="flex flex-col gap-1 rounded-lg border bg-card p-3 transition-colors hover:bg-accent/50"
+                  >
+                    <span className="flex items-center justify-between gap-2">
+                      <span className="flex min-w-0 items-center gap-2">
+                        <span className="truncate font-medium">
+                          {position.symbol}
+                        </span>
+                        <Badge
+                          variant="outline"
+                          className={
+                            position.direction === "LONG"
+                              ? "text-profit"
+                              : "text-loss"
+                          }
+                        >
+                          {position.direction}
+                        </Badge>
+                      </span>
+                      <span className="shrink-0 text-xs tabular-nums text-muted-foreground">
+                        da {formatDurationSec(position.openForSec)}
+                      </span>
+                    </span>
+                    <span className="flex items-center justify-between gap-2 text-xs text-muted-foreground">
+                      <span className="tabular-nums">
+                        Qty {trimQty(position.quantity)} ·{" "}
+                        {position.openedAtLabel}
+                      </span>
+                      <span className="tabular-nums">
+                        {position.initialRisk !== null
+                          ? `Rischio ${masked ? MASK : formatMoney(position.initialRisk, position.currency)}`
+                          : "Rischio —"}
+                      </span>
+                    </span>
+                    <span className="truncate text-2xs text-muted-foreground">
+                      {position.accountName}
+                    </span>
+                  </Link>
+                </li>
+              ))}
+            </ul>
           </CardContent>
         </Card>
       ) : null}
+
+      <div
+        className={cn(
+          "grid gap-4",
+          show("trade-sequence") && show("r-distribution")
+            ? "xl:grid-cols-2"
+            : undefined,
+        )}
+      >
+        {show("trade-sequence") ? (
+          <Card>
+            <CardHeader className="flex flex-row flex-wrap items-center justify-between gap-2">
+              <CardTitle className="stat-label flex items-center gap-1">
+                Sequenza trade
+                <MetricInfo info={streaksInfo} />
+              </CardTitle>
+              <div className="flex items-center gap-4 text-xs text-muted-foreground">
+                <span>
+                  Max Win Streak{" "}
+                  <span className="font-semibold text-profit">
+                    {data.tradeRuns.maxWin}
+                  </span>
+                </span>
+                <span>
+                  Max Loss Streak{" "}
+                  <span className="font-semibold text-loss">
+                    {data.tradeRuns.maxLoss}
+                  </span>
+                </span>
+              </div>
+            </CardHeader>
+            <CardContent>
+              {data.sequence.length > 0 ? (
+                <>
+                  <TradeSequenceChart
+                    points={sequencePoints}
+                    suffix={sequenceSuffix}
+                    masked={masked}
+                  />
+                  {data.sequenceTruncated ? (
+                    <p className="stat-sub mt-1">
+                      Ultimi {data.sequence.length} trade del periodo
+                    </p>
+                  ) : null}
+                </>
+              ) : (
+                <EmptyState
+                  compact
+                  icon={LineChartIcon}
+                  title="Nessun trade chiuso nel periodo"
+                  description="La sequenza si popola con i trade chiusi."
+                />
+              )}
+            </CardContent>
+          </Card>
+        ) : null}
+
+        {/* F32 — distribuzione degli R-multiple, accanto alla sequenza */}
+        {show("r-distribution") ? (
+          <Card>
+            <CardHeader>
+              <CardTitle className="stat-label flex items-center gap-1">
+                Distribuzione R
+                <MetricInfo info={rDistributionInfo} />
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              {data.rCount > 0 ? (
+                <>
+                  <RDistributionChart points={data.rDistribution} />
+                  <p className="stat-sub mt-1">
+                    {data.rCount} trade con rischio definito · fasce di 0,5R
+                  </p>
+                </>
+              ) : (
+                <EmptyState
+                  compact
+                  icon={LineChartIcon}
+                  title="Nessun trade con rischio definito"
+                  description="L'istogramma usa l'R-multiple: imposta il rischio iniziale sui trade."
+                />
+              )}
+            </CardContent>
+          </Card>
+        ) : null}
+      </div>
 
       {/* Winners & Losers · Best/Worst Days */}
       <div className="grid gap-4 xl:grid-cols-2">
@@ -932,9 +1058,40 @@ export function DashboardView({ data }: { data: DashboardData }) {
             </CardHeader>
             <CardContent className="flex flex-col items-center gap-2">
               <ScoreGauge score={data.score} />
-              <p className="text-center text-xs text-muted-foreground">
-                Profitability 40% · Risk Management 30% · Consistency 30%
-              </p>
+              {/* F35 — i 3 sub-score come barre con valore, non solo i pesi */}
+              {data.scoreParts ? (
+                <div className="flex w-full flex-col gap-1.5">
+                  {(
+                    [
+                      ["Profittabilità", "40%", data.scoreParts.profitability],
+                      ["Rischio", "30%", data.scoreParts.risk],
+                      ["Consistenza", "30%", data.scoreParts.consistency],
+                    ] as const
+                  ).map(([label, weight, value]) => (
+                    <div key={label} className="flex items-center gap-2">
+                      <span className="w-24 shrink-0 text-xs text-muted-foreground">
+                        {label}{" "}
+                        <span className="text-2xs opacity-70">{weight}</span>
+                      </span>
+                      <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-muted">
+                        <div
+                          className="h-full rounded-full bg-primary"
+                          style={{
+                            width: `${Math.round(Number(value) * 100)}%`,
+                          }}
+                        />
+                      </div>
+                      <span className="w-10 shrink-0 text-right text-xs tabular-nums">
+                        {formatPercent(value, 0)}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <p className="text-center text-xs text-muted-foreground">
+                  Profittabilità 40% · Rischio 30% · Consistenza 30%
+                </p>
+              )}
             </CardContent>
           </Card>
         ) : null}

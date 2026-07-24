@@ -1,0 +1,127 @@
+import type { NextRequest } from "next/server";
+import { auth } from "@/lib/auth";
+import { prisma } from "@/lib/db";
+import { getActiveAccountId, tradeAccountWhere } from "@/lib/active-account";
+import { toCsv } from "@/lib/csv";
+import { resolvePeriod } from "@/lib/period";
+import {
+  buildTradeFilterWhere,
+  buildTradeOrderBy,
+  parseTradeFilters,
+  parseTradeSort,
+} from "@/lib/trade-filters";
+
+/**
+ * GET /api/export/trades (F37) — CSV dei trade coi FILTRI CORRENTI della
+ * Trade View (stessi searchParams, stesso where, stesso ordinamento).
+ * Date ISO 8601 UTC, Decimal come stringhe col punto: un backup
+ * riimportabile, non un formato regionale. Query a lotti, mai tutto in RAM
+ * in un colpo solo.
+ */
+
+const BATCH = 1000;
+
+const HEADER = [
+  "openedAt",
+  "closedAt",
+  "symbol",
+  "assetClass",
+  "direction",
+  "status",
+  "quantity",
+  "avgEntryPrice",
+  "avgExitPrice",
+  "pointValue",
+  "grossPnl",
+  "fees",
+  "netPnl",
+  "initialRisk",
+  "plannedStop",
+  "plannedTarget",
+  "rMultiple",
+  "rating",
+  "strategy",
+  "tags",
+  "account",
+  "currency",
+];
+
+export async function GET(request: NextRequest) {
+  const session = await auth();
+  if (!session?.user?.id) {
+    return Response.json({ error: "Non autorizzato" }, { status: 401 });
+  }
+  const userId = session.user.id;
+
+  const params: Record<string, string | undefined> = {};
+  for (const [key, value] of request.nextUrl.searchParams) params[key] = value;
+
+  const [user, activeAccountId] = await Promise.all([
+    prisma.user.findUniqueOrThrow({
+      where: { id: userId },
+      select: { timezone: true },
+    }),
+    getActiveAccountId(),
+  ]);
+
+  const filters = parseTradeFilters(params);
+  const period = resolvePeriod(params, user.timezone);
+  const sort = parseTradeSort(params);
+  const where = {
+    ...tradeAccountWhere(userId, activeAccountId),
+    ...buildTradeFilterWhere(filters, period),
+  };
+
+  const rows: string[][] = [HEADER];
+  let cursor: string | undefined;
+  for (;;) {
+    const batch = await prisma.trade.findMany({
+      where,
+      orderBy: buildTradeOrderBy(sort),
+      take: BATCH,
+      ...(cursor ? { skip: 1, cursor: { id: cursor } } : {}),
+      include: {
+        account: { select: { name: true, currency: true } },
+        strategy: { select: { name: true } },
+        tags: { include: { tag: { select: { name: true } } } },
+      },
+    });
+    for (const t of batch) {
+      rows.push([
+        t.openedAt.toISOString(),
+        t.closedAt ? t.closedAt.toISOString() : "",
+        t.symbol,
+        t.assetClass,
+        t.direction,
+        t.status,
+        t.quantity.toString(),
+        t.avgEntryPrice.toString(),
+        t.avgExitPrice?.toString() ?? "",
+        t.pointValue.toString(),
+        t.grossPnl.toString(),
+        t.fees.toString(),
+        t.netPnl.toString(),
+        t.initialRisk?.toString() ?? "",
+        t.plannedStop?.toString() ?? "",
+        t.plannedTarget?.toString() ?? "",
+        t.rMultiple?.toString() ?? "",
+        t.rating !== null ? String(t.rating) : "",
+        t.strategy?.name ?? "",
+        t.tags.map(({ tag }) => tag.name).join("|"),
+        t.account.name,
+        t.account.currency,
+      ]);
+    }
+    if (batch.length < BATCH) break;
+    cursor = batch[batch.length - 1].id;
+  }
+
+  const today = new Date().toISOString().slice(0, 10);
+  return new Response(toCsv(rows), {
+    headers: {
+      "Content-Type": "text/csv; charset=utf-8",
+      "Content-Disposition": `attachment; filename="tradejournal-export-${today}.csv"`,
+      "Cache-Control": "no-store",
+    },
+  });
+}

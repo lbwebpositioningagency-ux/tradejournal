@@ -140,6 +140,14 @@ export function formatDurationSec(seconds: string | null): string {
   return `${Math.round(s)}s`;
 }
 
+/**
+ * Secondi trascorsi da `date` a `now` come stringa per formatDurationSec
+ * (display only: il Number qui è tempo, non denaro). `now` iniettabile nei test.
+ */
+export function secondsSince(date: Date, now: Date = new Date()): string {
+  return String((now.getTime() - date.getTime()) / 1000);
+}
+
 /** Formatta solo la data nel fuso utente. */
 export function formatDate(date: Date, timeZone: string, locale = "it-IT"): string {
   return new Intl.DateTimeFormat(locale, {

@@ -88,6 +88,41 @@ export const FROM_TRADES = Prisma.sql`
   JOIN "TradingAccount" a ON a."id" = t."tradingAccountId"
 `;
 
+/** Riga della distribuzione R (F32): un bin da 0,5R, conteggiato in SQL. */
+export interface RDistributionRow {
+  /**
+   * Indice bin = floor(R / 0.5), clampato a [-9, 8] (overflow "< −4R" /
+   * "≥ 4R"); BE_BIN per i trade con R esattamente 0.
+   */
+  bin: number;
+  count: number;
+}
+
+/** Bin sentinella per R = 0 (breakeven), colonna dedicata nel grafico. */
+export const BE_BIN = -100;
+
+/**
+ * Istogramma degli R-multiple (F32): bin da 0,5R calcolati in SQL su TUTTI i
+ * trade chiusi con rischio definito del periodo (mai limitato ai 200 della
+ * sequenza). R = 0 va nel bin BE dedicato.
+ */
+export async function getRDistribution(
+  filter: StatsFilter,
+): Promise<RDistributionRow[]> {
+  return prisma.$queryRaw<RDistributionRow[]>(Prisma.sql`
+    SELECT
+      CASE
+        WHEN t."rMultiple" = 0 THEN ${BE_BIN}
+        ELSE LEAST(GREATEST(FLOOR(t."rMultiple" / 0.5), -9), 8)
+      END::int AS "bin",
+      COUNT(*)::int AS "count"
+    ${FROM_TRADES}
+    WHERE ${whereClosedTrades(filter)} AND t."rMultiple" IS NOT NULL
+    GROUP BY 1
+    ORDER BY 1 ASC
+  `);
+}
+
 /**
  * Aggregati sull'R-multiple, limitati ai trade chiusi che hanno un rischio
  * iniziale definito (rMultiple non null). Servono alla vista R della

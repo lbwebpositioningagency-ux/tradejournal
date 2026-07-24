@@ -65,6 +65,13 @@ export const balanceInfo: MetricInfoData = {
   formula: "Saldo iniziale + Σ netPnl storico (tutti i trade chiusi)",
 };
 
+export const rDistributionInfo: MetricInfoData = {
+  label: "Distribuzione R",
+  description:
+    "Quanti trade chiusi cadono in ogni fascia di mezzo R: la forma del tuo edge. Sano = perdite tagliate presto (colonne rosse compatte vicino allo zero) e vincite che si allungano a destra. Solo trade con rischio iniziale definito.",
+  formula: "Conteggio trade per fascia di 0,5R · R = netPnl / rischio iniziale",
+};
+
 /** Aggregati sui trade chiusi, calcolati in SQL (una sola query). */
 export interface TradeAggregates {
   total: number;

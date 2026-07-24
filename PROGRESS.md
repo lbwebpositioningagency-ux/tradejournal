@@ -363,3 +363,22 @@ Finding chiusi: **F16a, F16b** (F16c — grafico a candele — esplicitamente es
 7. UI `AttachmentsCard` su dettaglio trade e Day View: upload multiplo, anteprime immagine con lightbox, chip PDF, eliminazione con conferma, empty state con formati/limite dichiarati.
 
 **Verificato:** lint ✅ · typecheck ✅ · **363/363 test** ✅ (nuovi: `plan.test.ts` 15, `attachment.test.ts` 9, `formatDurationSec` 3) · build di produzione ✅ · numeri "Piano vs esito" riconciliati con query SQL indipendente (NQ 14/07: piano 2,5R, realizzato 2,6364R, 105,46% con arrotondamento a scala 4 della pipeline) · upload/download/delete verificati end-to-end (login reale + server action via HTTP: PNG ok su trade e giornata, EXE rifiutato senza riga, 401/404 sulla route; delete via UI headless con toast) · screenshot before/after 1280/390/375 dark + 1280 light in `docs/premium-20260724/fase4/{before,after}` (dettaglio trade NQ, Day View 14/07). Nota ambiente: pane browser dell'app non visualizzabile in questa sessione → screenshot via Chrome headless CDP (senza nuove dipendenze).
+
+## ✅ PREMIUM — FASE 5 «Profondità Reports» (24/07/2026)
+Finding chiusi: **F30, F31, F32, F33, F34, F35, F37, F38**.
+
+**Reports:**
+1. **F30 — breakdown mancanti**: tre nuove sezioni col pattern `AGGREGATE_COLUMNS` esistente — **Per simbolo** (il report #1: "dove faccio soldi, ES o NQ?"), **Per direzione × asset class** (long vs short, futures vs forex), **Per mese** di calendario nel fuso utente (l'unità dei payout prop; `to_char` col doppio `AT TIME ZONE`, mesi recenti primi). Stesse colonne/metriche delle tabelle esistenti.
+2. **F31 — drill-down**: ogni riga dei breakdown (simbolo, strategia, tag, direzione×asset, mese) è ora un link alla Trade View già filtrata (searchParams condivisi, periodo preservato; il mese diventa un range custom). Divergenza nota e commentata: la Trade View filtra il periodo su openedAt, i report su closedAt.
+3. **F34 — preset periodo**: "Questa settimana" (dal lunedì ISO) e "Questo mese" (dal 1°) in `period.ts`, disponibili ovunque c'è il filtro periodo; 4 nuovi test (inclusi domenica ISO e cambio mese a cavallo di mezzanotte nel fuso).
+
+**Dashboard:**
+4. **F32 — Distribuzione R**: istogramma per fasce di 0,5R accanto alla Sequenza (nuovo widget nascondibile), da aggregato SQL su TUTTI i trade chiusi con rischio del periodo (mai i soli 200 della sequenza); colonna BE dedicata (R=0), overflow "<−4R"/"≥4R", colori P&L semantici, `MetricInfo` con formula, gate onesto "Nessun trade con rischio definito".
+5. **F33 — Posizioni aperte**: card dedicata (widget nascondibile) visibile solo con posizioni aperte: simbolo, direzione, qty, da quanto tempo (server-side), rischio pianificato, conto; click → dettaglio trade. Mai filtrate dal periodo (una posizione aperta è "adesso").
+6. **F35 — sub-score visibili**: le 3 componenti dello Score (profittabilità/rischio/consistenza) mostrate come barre con valore sotto il gauge (`compositeScoreParts`, stessa formula di sempre rifattorizzata senza cambiarla); prima erano solo pesi nel footer.
+
+**Trade View:**
+7. **F38 — ordinamento**: colonne Apertura/Simbolo/Qty/Net P&L/R ordinabili via `?sort=campo.dir` (SSR puro, link senza JS), null sempre in fondo per closedAt/rMultiple, tie-break id, frecce di stato; parsing lenient con test (niente injection di campi arbitrari).
+8. **F37 — export CSV**: `GET /api/export/trades` protetta, STESSI filtri/ordinamento della Trade View (searchParams condivisi), query a lotti da 1000, CSV RFC 4180 (date ISO UTC, Decimal col punto: riimportabile, non un formato regionale), bottone "Esporta CSV" accanto a Importa.
+
+**Verificato:** lint ✅ · typecheck ✅ · **378/378 test** ✅ (nuovi: sort 4, csv 4, fillRDistribution 3, preset periodo 4) · build ✅ · breakdown riconciliati con SQL indipendente (NQ 48 trade/+14.760,80/0,87R · mesi 22/38/37/23) · sub-score verificati a mano contro il gauge (96 = 40%·100 + 30%·87 + 30%·100) · export verificato via HTTP (213 righe totali, filtro NQ+CLOSED → 48 righe tutte NQ, 401 anonimo) · sort verificato contro SQL (top-3 netPnl in ordine nel markup, asc col peggiore in testa) · screenshot before/after 1280/390/375 dark + 1280 light in `docs/premium-20260724/fase5/{before,after}` (dashboard, reports, trade view).

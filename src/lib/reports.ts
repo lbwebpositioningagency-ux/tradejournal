@@ -45,6 +45,68 @@ export function fillWeekdaySeries(
   });
 }
 
+// ── Distribuzione R (F32) ───────────────────────────────────────────────
+
+export interface RDistPoint {
+  /** Etichetta compatta dell'asse: bordo inferiore del bin ("-1", "0,5", "BE"). */
+  label: string;
+  /** Range completo per il tooltip ("da -1R a -0,5R"). */
+  range: string;
+  count: number;
+  kind: "loss" | "be" | "win";
+}
+
+/** Formatta il bordo di un bin (multipli di 0,5) in stile it-IT. */
+function edge(value: number): string {
+  return value.toLocaleString("it-IT", { maximumFractionDigits: 1 });
+}
+
+/**
+ * Riempie l'istogramma R con i bin mancanti tra il minimo e il massimo
+ * osservati (sempre almeno da −1R a +1R, così il grafico ha entrambi i lati).
+ * Il bin BE (R = 0 esatto) è una colonna dedicata tra i negativi e i positivi.
+ * Bin: indice b copre [b·0,5, (b+1)·0,5); overflow a < −4R e ≥ 4R.
+ */
+export function fillRDistribution(
+  rows: { bin: number; count: number }[],
+  beBin: number,
+): RDistPoint[] {
+  const be = rows.find((r) => r.bin === beBin);
+  const binRows = rows.filter((r) => r.bin !== beBin);
+  const byBin = new Map(binRows.map((r) => [r.bin, r.count]));
+
+  const bins = [...byBin.keys()];
+  const min = Math.min(-2, ...bins);
+  const max = Math.max(1, ...bins);
+
+  const points: RDistPoint[] = [];
+  for (let b = min; b <= max; b++) {
+    const label = b === -9 ? "<-4" : b === 8 ? "≥4" : edge(b * 0.5);
+    const range =
+      b === -9
+        ? "sotto -4R"
+        : b === 8
+          ? "da 4R in su"
+          : `da ${edge(b * 0.5)}R a ${edge((b + 1) * 0.5)}R`;
+    points.push({
+      label,
+      range,
+      count: byBin.get(b) ?? 0,
+      kind: b < 0 ? "loss" : "win",
+    });
+    // La colonna BE si inserisce tra l'ultimo bin negativo e il primo ≥ 0.
+    if (b === -1) {
+      points.push({
+        label: "BE",
+        range: "breakeven (R = 0)",
+        count: be?.count ?? 0,
+        kind: "be",
+      });
+    }
+  }
+  return points;
+}
+
 /**
  * Bucket migliore e peggiore per netPnl tra quelli CON trade.
  * null se nessun bucket ha trade.

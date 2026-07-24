@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import Link from "next/link";
 import { redirect } from "next/navigation";
 import Decimal from "decimal.js";
 import { BarChart3 } from "lucide-react";
@@ -33,13 +34,18 @@ import {
   type BucketPoint,
 } from "@/lib/reports";
 import {
+  getDirectionAssetBreakdown,
   getHourBreakdown,
+  getMonthBreakdown,
   getStrategyBreakdown,
   getStreakStats,
+  getSymbolBreakdown,
   getTagBreakdown,
   getWeekdayBreakdown,
   type BreakdownAggregates,
 } from "@/lib/queries/reports";
+import { daysInMonth } from "@/lib/dates";
+import { NO_STRATEGY_FILTER } from "@/lib/trade-filters";
 import {
   getCurrencyBreakdown,
   getRecentTradeOutcomes,
@@ -105,6 +111,8 @@ function BreakdownTable({
     key: string;
     label: React.ReactNode;
     aggregates: BreakdownAggregates;
+    /** F31 — drill-down: la riga apre la Trade View già filtrata. */
+    href?: string;
   }[];
   currency: string;
 }) {
@@ -146,8 +154,20 @@ function BreakdownTable({
           {rows.map((row) => {
             const m = rowMetrics(row.aggregates);
             return (
-              <TableRow key={row.key}>
-                <TableCell className="font-medium">{row.label}</TableCell>
+              <TableRow
+                key={row.key}
+                className={row.href ? "relative" : undefined}
+              >
+                <TableCell className="font-medium">
+                  {row.href ? (
+                    <Link
+                      href={row.href}
+                      className="absolute inset-0"
+                      aria-label="Apri i trade di questa riga"
+                    />
+                  ) : null}
+                  {row.label}
+                </TableCell>
                 <TableCell className="text-right tabular-nums">
                   {row.aggregates.total}
                   <span className="ml-1 text-xs text-muted-foreground">
@@ -264,10 +284,13 @@ export default async function ReportsPage({
   const filter: StatsFilter = { ...baseFilter, currency: scope.active };
   const currency = scope.active ?? activeAccount?.currency ?? user.baseCurrency;
 
-  const [strategies, tags, hours, weekdays, streaks, outcomes] =
+  const [strategies, tags, symbols, directionAssets, months, hours, weekdays, streaks, outcomes] =
     await Promise.all([
       getStrategyBreakdown(filter),
       getTagBreakdown(filter),
+      getSymbolBreakdown(filter),
+      getDirectionAssetBreakdown(filter),
+      getMonthBreakdown(filter, user.timezone),
       getHourBreakdown(filter, user.timezone),
       getWeekdayBreakdown(filter, user.timezone),
       getStreakStats(filter),
@@ -278,6 +301,43 @@ export default async function ReportsPage({
   const weekdaySeries = fillWeekdaySeries(weekdays);
   const current = currentStreak(outcomes);
   const suffix = ` ${currency}`;
+
+  // F31 — drill-down: link alla Trade View coi filtri della riga, preservando
+  // il periodo attivo. Nota: la Trade View filtra il periodo su openedAt
+  // (elenco per apertura), i report aggregano su closedAt — un trade overnight
+  // a cavallo del confine può differire (divergenza nota e documentata).
+  function tradesHref(extra: Record<string, string>): string {
+    const query = new URLSearchParams();
+    if (period.key === "custom" && period.fromKey && period.toKey) {
+      query.set("period", "custom");
+      query.set("from", period.fromKey);
+      query.set("to", period.toKey);
+    } else if (period.key !== "all") {
+      query.set("period", period.key);
+    }
+    for (const [key, value] of Object.entries(extra)) query.set(key, value);
+    return `/trades?${query.toString()}`;
+  }
+
+  /** "YYYY-MM" → label mese leggibile ("luglio 2026"). */
+  function monthLabel(month: string): string {
+    const label = new Intl.DateTimeFormat("it-IT", {
+      month: "long",
+      year: "numeric",
+      timeZone: "UTC",
+    }).format(new Date(`${month}-15T12:00:00Z`));
+    return label.charAt(0).toUpperCase() + label.slice(1);
+  }
+
+  /** Range custom Trade View per un mese "YYYY-MM". */
+  function monthHref(month: string): string {
+    const [y, m] = month.split("-").map(Number);
+    return tradesHref({
+      period: "custom",
+      from: `${month}-01`,
+      to: `${month}-${String(daysInMonth(y, m)).padStart(2, "0")}`,
+    });
+  }
 
   return (
     <div className="flex flex-col gap-4">
@@ -333,6 +393,25 @@ export default async function ReportsPage({
           <Card>
             <CardHeader>
               <CardTitle className="stat-label">
+                Per simbolo
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <BreakdownTable
+                currency={currency}
+                rows={symbols.map((s) => ({
+                  key: s.symbol,
+                  label: s.symbol,
+                  aggregates: s,
+                  href: tradesHref({ symbol: s.symbol }),
+                }))}
+              />
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle className="stat-label">
                 Per strategia
               </CardTitle>
             </CardHeader>
@@ -353,6 +432,9 @@ export default async function ReportsPage({
                     </span>
                   ),
                   aggregates: s,
+                  href: tradesHref({
+                    strategy: s.strategyId ?? NO_STRATEGY_FILTER,
+                  }),
                 }))}
               />
             </CardContent>
@@ -384,6 +466,7 @@ export default async function ReportsPage({
                         </span>
                       ),
                       aggregates: t,
+                      href: tradesHref({ tag: t.tagId }),
                     }))}
                   />
                   <p className="mt-2 text-xs text-muted-foreground">
@@ -394,6 +477,67 @@ export default async function ReportsPage({
               )}
             </CardContent>
           </Card>
+
+          {/* Tabelle a tutta larghezza: affiancate a 1280 taglierebbero le colonne */}
+          <div className="flex flex-col gap-4">
+            <Card>
+              <CardHeader>
+                <CardTitle className="stat-label">
+                  Per direzione e asset class
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <BreakdownTable
+                  currency={currency}
+                  rows={directionAssets.map((row) => ({
+                    key: `${row.direction}-${row.assetClass}`,
+                    label: (
+                      <span className="flex items-center gap-2">
+                        <span
+                          className={cn(
+                            "font-semibold",
+                            row.direction === "LONG" ? "text-profit" : "text-loss",
+                          )}
+                        >
+                          {row.direction}
+                        </span>
+                        <span className="text-xs text-muted-foreground">
+                          {row.assetClass}
+                        </span>
+                      </span>
+                    ),
+                    aggregates: row,
+                    href: tradesHref({
+                      dir: row.direction,
+                      asset: row.assetClass,
+                    }),
+                  }))}
+                />
+              </CardContent>
+            </Card>
+            <Card>
+              <CardHeader>
+                <CardTitle className="stat-label">
+                  Per mese
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <BreakdownTable
+                  currency={currency}
+                  rows={months.map((row) => ({
+                    key: row.month,
+                    label: monthLabel(row.month),
+                    aggregates: row,
+                    href: monthHref(row.month),
+                  }))}
+                />
+                <p className="mt-2 text-xs text-muted-foreground">
+                  Mesi di calendario nel tuo fuso, per chiusura del trade:
+                  l&apos;unità di misura di payout e challenge.
+                </p>
+              </CardContent>
+            </Card>
+          </div>
 
           <div className="grid gap-4 lg:grid-cols-2">
             <Card>

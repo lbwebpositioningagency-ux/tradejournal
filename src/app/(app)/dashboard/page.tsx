@@ -5,7 +5,7 @@ import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { getActiveAccountId, tradeAccountWhere } from "@/lib/active-account";
 import { ALL_ACCOUNTS } from "@/lib/constants";
-import { formatDateTime } from "@/lib/dates";
+import { formatDateTime, secondsSince } from "@/lib/dates";
 import { resolvePeriod } from "@/lib/period";
 import {
   avgLoss,
@@ -13,7 +13,7 @@ import {
   calmarRatio,
   coveredDays,
   classifyOutcome,
-  compositeScore,
+  compositeScoreParts,
   currentDayStreak,
   currentStreak,
   dayStats,
@@ -30,15 +30,18 @@ import {
   winRate,
 } from "@/lib/metrics";
 import {
+  BE_BIN,
   getCurrencyBreakdown,
   getDailyPnl,
   getLifetimeNetPnl,
+  getRDistribution,
   getRecentTradeOutcomes,
   getStartingBalance,
   getTradeAggregates,
   getTradeSequence,
   type StatsFilter,
 } from "@/lib/queries/stats";
+import { fillRDistribution } from "@/lib/reports";
 import { resolveCurrencyScope } from "@/lib/currency-scope";
 import { getSessionBreakdown } from "@/lib/queries/reports";
 import { fillSessionSeries } from "@/lib/sessions";
@@ -128,7 +131,8 @@ export default async function DashboardPage({
     lifetimeNetPnl,
     sequence,
     sessionRows,
-    openTrades,
+    rDistributionRows,
+    openTradeRows,
     recentTrades,
     lifetimeTradeCount,
   ] = await Promise.all([
@@ -139,7 +143,24 @@ export default async function DashboardPage({
       getLifetimeNetPnl(filter),
       getTradeSequence(filter),
       getSessionBreakdown(filter),
-      prisma.trade.count({ where: { ...accountWhere, status: "OPEN" } }),
+      getRDistribution(filter),
+      // F33 — posizioni aperte del conto/valuta attivi (non filtrate dal
+      // periodo: una posizione aperta è "adesso" per definizione).
+      prisma.trade.findMany({
+        where: { ...accountWhere, status: "OPEN" },
+        orderBy: { openedAt: "asc" },
+        take: 12,
+        select: {
+          id: true,
+          symbol: true,
+          direction: true,
+          quantity: true,
+          openedAt: true,
+          initialRisk: true,
+          plannedStop: true,
+          account: { select: { name: true, currency: true } },
+        },
+      }),
       prisma.trade.findMany({
         where: recentWhere,
         orderBy: { openedAt: "desc" },
@@ -171,6 +192,15 @@ export default async function DashboardPage({
   const aLoss = avgLoss(agg.lossSum, agg.losses);
 
   const rTotal = new Decimal(agg.rSum);
+  const scoreParts = compositeScoreParts({
+    total: agg.total,
+    wins: agg.wins,
+    losses: agg.losses,
+    winSum: agg.winSum,
+    lossSum: agg.lossSum,
+    maxDrawdownPct: dd.maxDrawdownPct,
+    dayWinRate,
+  });
   const expectancyR =
     agg.rCount === 0 ? null : rTotal.div(agg.rCount).toFixed(4);
   const avgWinR =
@@ -203,7 +233,21 @@ export default async function DashboardPage({
     wins: agg.wins,
     losses: agg.losses,
     breakevens: agg.breakevens,
-    openTrades,
+    openTrades: openTradeRows.length,
+    // F33 — dettaglio posizioni aperte: durata "finora" calcolata sul server
+    // (display only, il Number è tempo, non denaro).
+    openPositions: openTradeRows.map((t) => ({
+      id: t.id,
+      symbol: t.symbol,
+      direction: t.direction,
+      quantity: t.quantity.toString(),
+      openedAtLabel: formatDateTime(t.openedAt, user.timezone),
+      openForSec: secondsSince(t.openedAt),
+      initialRisk: t.initialRisk?.toString() ?? null,
+      plannedStop: t.plannedStop?.toString() ?? null,
+      currency: t.account.currency,
+      accountName: t.account.name,
+    })),
     netPnl: agg.netPnl,
     fees: agg.fees,
     netR: rTotal.toFixed(2),
@@ -253,15 +297,17 @@ export default async function DashboardPage({
     ulcer: ulcerIndex(daily, baseBalance),
     tradeStreak: currentStreak(outcomes),
     dayStreak: currentDayStreak([...daily].reverse()),
-    score: compositeScore({
-      total: agg.total,
-      wins: agg.wins,
-      losses: agg.losses,
-      winSum: agg.winSum,
-      lossSum: agg.lossSum,
-      maxDrawdownPct: dd.maxDrawdownPct,
-      dayWinRate,
-    }),
+    score: scoreParts?.score ?? null,
+    // F35 — le tre componenti dello Score, mostrate come barre con valore.
+    scoreParts: scoreParts
+      ? {
+          profitability: scoreParts.profitability,
+          risk: scoreParts.risk,
+          consistency: scoreParts.consistency,
+        }
+      : null,
+    // F32 — istogramma R (bin 0,5R + colonna BE) da aggregato SQL completo.
+    rDistribution: fillRDistribution(rDistributionRows, BE_BIN),
     daily: daily.map((d) => ({ day: d.day, netPnl: d.netPnl, rSum: d.rSum })),
     recent: recentTrades.map((t) => ({
       id: t.id,

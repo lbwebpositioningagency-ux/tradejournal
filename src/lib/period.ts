@@ -13,11 +13,21 @@ import { todayKeyInZone, zonedInputToUtc } from "@/lib/dates";
  * - parametri invalidi (date inesistenti, from > to) → fallback su "all".
  */
 
-export const PERIOD_PRESETS = ["7d", "30d", "90d", "ytd", "all"] as const;
+export const PERIOD_PRESETS = [
+  "week",
+  "month",
+  "7d",
+  "30d",
+  "90d",
+  "ytd",
+  "all",
+] as const;
 export type PeriodPreset = (typeof PERIOD_PRESETS)[number];
 export type PeriodKey = PeriodPreset | "custom";
 
 export const PERIOD_LABELS: Record<PeriodKey, string> = {
+  week: "Questa settimana",
+  month: "Questo mese",
   "7d": "Ultimi 7 giorni",
   "30d": "Ultimi 30 giorni",
   "90d": "Ultimi 90 giorni",
@@ -62,6 +72,13 @@ const ROLLING_DAYS: Partial<Record<PeriodPreset, number>> = {
   "30d": 30,
   "90d": 90,
 };
+
+/** Lunedì (ISO) della settimana che contiene la chiave giorno data. */
+function mondayOf(dayKey: string): string {
+  const [y, m, d] = dayKey.split("-").map(Number);
+  const weekday = new Date(Date.UTC(y, m - 1, d)).getUTCDay(); // 0 = domenica
+  return addDays(dayKey, -((weekday + 6) % 7));
+}
 
 /**
  * Risolve i searchParams (?period=&from=&to=) nel filtro effettivo.
@@ -111,7 +128,11 @@ export function resolvePeriod(
   const fromKey =
     preset === "ytd"
       ? `${todayKey.slice(0, 4)}-01-01`
-      : addDays(todayKey, -(ROLLING_DAYS[preset]! - 1));
+      : preset === "month"
+        ? `${todayKey.slice(0, 7)}-01`
+        : preset === "week"
+          ? mondayOf(todayKey)
+          : addDays(todayKey, -(ROLLING_DAYS[preset]! - 1));
 
   return {
     key: preset,

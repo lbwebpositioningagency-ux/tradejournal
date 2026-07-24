@@ -65,6 +65,54 @@ export function countActiveFilters(filters: TradeFilters): number {
   return Object.values(filters).filter((v) => v !== undefined).length;
 }
 
+// ── Ordinamento (F38): ?sort=<campo>.<asc|desc>, SSR via searchParams ──
+
+export const TRADE_SORT_FIELDS = [
+  "openedAt",
+  "closedAt",
+  "symbol",
+  "quantity",
+  "netPnl",
+  "rMultiple",
+] as const;
+export type TradeSortField = (typeof TRADE_SORT_FIELDS)[number];
+
+export interface TradeSort {
+  field: TradeSortField;
+  dir: "asc" | "desc";
+}
+
+export const DEFAULT_TRADE_SORT: TradeSort = { field: "openedAt", dir: "desc" };
+
+/** Parsing LENIENT come i filtri: sort non riconosciuto = default. */
+export function parseTradeSort(params: RawParams): TradeSort {
+  const raw = asString(params.sort);
+  if (!raw) return DEFAULT_TRADE_SORT;
+  const [field, dir] = raw.split(".");
+  if (
+    !(TRADE_SORT_FIELDS as readonly string[]).includes(field) ||
+    (dir !== "asc" && dir !== "desc")
+  ) {
+    return DEFAULT_TRADE_SORT;
+  }
+  return { field: field as TradeSortField, dir };
+}
+
+/**
+ * orderBy Prisma per il sort scelto: i campi nullabili (closedAt sui trade
+ * aperti, rMultiple senza rischio) mettono SEMPRE i null in fondo, qualunque
+ * direzione; id come tie-break stabile per la paginazione.
+ */
+export function buildTradeOrderBy(
+  sort: TradeSort,
+): Record<string, unknown>[] {
+  const nullable = sort.field === "closedAt" || sort.field === "rMultiple";
+  const primary = nullable
+    ? { [sort.field]: { sort: sort.dir, nulls: "last" } }
+    : { [sort.field]: sort.dir };
+  return [primary, { id: sort.dir }];
+}
+
 /**
  * Frammento di `where` Prisma per i filtri (da combinare con il filtro
  * account/userId, che resta SEMPRE responsabilità del chiamante).

@@ -27,6 +27,36 @@ describe("resolvePeriod — preset", () => {
     expect(period.fromKey).toBe("2027-01-01");
   });
 
+  it("month: dal 1° del mese di calendario nel fuso utente", () => {
+    const period = resolvePeriod({ period: "month" }, ROME, NOW);
+    expect(period.key).toBe("month");
+    expect(period.fromKey).toBe("2026-07-01");
+    expect(period.from?.toISOString()).toBe("2026-06-30T22:00:00.000Z");
+    expect(period.to).toBeUndefined();
+  });
+
+  it("week: dal lunedì ISO della settimana corrente", () => {
+    // 16/07/2026 è giovedì → lunedì 13/07
+    const period = resolvePeriod({ period: "week" }, ROME, NOW);
+    expect(period.fromKey).toBe("2026-07-13");
+  });
+
+  it("week: la domenica appartiene ancora alla settimana iniziata lunedì", () => {
+    // 19/07/2026 è domenica → lunedì 13/07 (ISO, non il giorno dopo)
+    const sunday = new Date("2026-07-19T10:00:00Z");
+    expect(resolvePeriod({ period: "week" }, ROME, sunday).fromKey).toBe(
+      "2026-07-13",
+    );
+  });
+
+  it("month: il fuso conta a cavallo di mezzanotte di fine mese", () => {
+    // 31/07/2026 23:30 UTC = 01/08 01:30 a Roma → mese di agosto
+    const eom = new Date("2026-07-31T23:30:00Z");
+    expect(resolvePeriod({ period: "month" }, ROME, eom).fromKey).toBe(
+      "2026-08-01",
+    );
+  });
+
   it("all e valori sconosciuti → nessun limite", () => {
     expect(resolvePeriod({ period: "all" }, ROME, NOW).from).toBeUndefined();
     expect(resolvePeriod({}, ROME, NOW).key).toBe("all");
