@@ -25,7 +25,7 @@ export default async function StrategiesPage() {
         <div>
           <h1 className="page-title">Strategies</h1>
           <p className="text-sm text-muted-foreground">
-            I tuoi setup: collegali ai trade per analizzarne la performance (FASE 8)
+            I tuoi setup: collegali ai trade per analizzarne la performance
           </p>
         </div>
         <StrategyFormDialog mode="create" />

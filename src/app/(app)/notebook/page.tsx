@@ -9,7 +9,7 @@ export default function NotebookPage() {
     <PagePlaceholder
       icon={NotebookPen}
       title="Notebook"
-      description="Il journaling personale con note e template arriverà dopo l'MVP (checklist punto 9)."
+      description="Il journaling personale con note e template arriverà prossimamente."
       phase="post-MVP"
     />
   );

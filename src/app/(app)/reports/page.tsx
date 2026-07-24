@@ -198,11 +198,11 @@ function BestWorstLine({
   return (
     <p className="mt-2 text-xs text-muted-foreground">
       {`${unit} migliore `}
-      <span className="font-medium text-profit">
+      <span className={cn("font-medium", pnlColorClass(extremes.best.netPnl))}>
         {extremes.best.label} ({formatSignedMoney(extremes.best.netPnl, currency)})
       </span>
       {" · peggiore "}
-      <span className="font-medium text-loss">
+      <span className={cn("font-medium", pnlColorClass(extremes.worst.netPnl))}>
         {extremes.worst.label} ({formatSignedMoney(extremes.worst.netPnl, currency)})
       </span>
     </p>

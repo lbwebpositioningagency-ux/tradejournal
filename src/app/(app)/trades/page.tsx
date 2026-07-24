@@ -6,6 +6,7 @@ import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { getActiveAccountId, tradeAccountWhere } from "@/lib/active-account";
 import { formatDateTime } from "@/lib/dates";
+import { formatPrice } from "@/lib/instruments";
 import { formatRMultiple, formatSignedMoney, pnlColorClass } from "@/lib/money";
 import { resolvePeriod } from "@/lib/period";
 import {
@@ -276,9 +277,13 @@ export default async function TradesPage({
                   </span>
                   <span className="truncate tabular-nums">
                     {trimZeros(trade.quantity.toString())} ·{" "}
-                    {trimZeros(trade.avgEntryPrice.toString())}
+                    {formatPrice(
+                      trade.avgEntryPrice.toString(),
+                      trade.symbol,
+                      trade.assetClass,
+                    )}
                     {trade.avgExitPrice
-                      ? ` → ${trimZeros(trade.avgExitPrice.toString())}`
+                      ? ` → ${formatPrice(trade.avgExitPrice.toString(), trade.symbol, trade.assetClass)}`
                       : ""}
                   </span>
                 </span>
@@ -334,10 +339,12 @@ export default async function TradesPage({
                       {trimZeros(trade.quantity.toString())}
                     </TableCell>
                     <TableCell className="text-right tabular-nums">
-                      {trimZeros(trade.avgEntryPrice.toString())}
+                      {formatPrice(trade.avgEntryPrice.toString(), trade.symbol, trade.assetClass)}
                     </TableCell>
                     <TableCell className="text-right tabular-nums">
-                      {trade.avgExitPrice ? trimZeros(trade.avgExitPrice.toString()) : "—"}
+                      {trade.avgExitPrice
+                        ? formatPrice(trade.avgExitPrice.toString(), trade.symbol, trade.assetClass)
+                        : "—"}
                     </TableCell>
                     <TableCell
                       className={cn(

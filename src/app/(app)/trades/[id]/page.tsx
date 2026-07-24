@@ -5,6 +5,7 @@ import { ArrowLeft, Pencil } from "lucide-react";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { formatDateTime } from "@/lib/dates";
+import { formatPrice } from "@/lib/instruments";
 import { formatMoney, formatRMultiple, formatSignedMoney, pnlColorClass } from "@/lib/money";
 import { cn } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
@@ -67,10 +68,15 @@ export default async function TradeDetailPage({
     { label: "Asset class", value: trade.assetClass },
     { label: "Valore punto", value: trimZeros(trade.pointValue.toString()) },
     { label: "Quantità", value: trimZeros(trade.quantity.toString()) },
-    { label: "Prezzo medio ingresso", value: trimZeros(trade.avgEntryPrice.toString()) },
+    {
+      label: "Prezzo medio ingresso",
+      value: formatPrice(trade.avgEntryPrice.toString(), trade.symbol, trade.assetClass),
+    },
     {
       label: "Prezzo medio uscita",
-      value: trade.avgExitPrice ? trimZeros(trade.avgExitPrice.toString()) : "—",
+      value: trade.avgExitPrice
+        ? formatPrice(trade.avgExitPrice.toString(), trade.symbol, trade.assetClass)
+        : "—",
     },
     { label: "Apertura", value: formatDateTime(trade.openedAt, user.timezone) },
     {
@@ -89,11 +95,15 @@ export default async function TradeDetailPage({
     },
     {
       label: "Stop pianificato",
-      value: trade.plannedStop ? trimZeros(trade.plannedStop.toString()) : "—",
+      value: trade.plannedStop
+        ? formatPrice(trade.plannedStop.toString(), trade.symbol, trade.assetClass)
+        : "—",
     },
     {
       label: "Target pianificato",
-      value: trade.plannedTarget ? trimZeros(trade.plannedTarget.toString()) : "—",
+      value: trade.plannedTarget
+        ? formatPrice(trade.plannedTarget.toString(), trade.symbol, trade.assetClass)
+        : "—",
     },
     { label: "Strategia", value: trade.strategy?.name ?? "—" },
     { label: "Valutazione", value: trade.rating ? "★".repeat(trade.rating) : "—" },
@@ -132,11 +142,11 @@ export default async function TradeDetailPage({
             </p>
           </div>
         </div>
-        <div className="flex items-center gap-2">
-          <Button asChild variant="outline">
-            <Link href={`/trades/${trade.id}/edit`}>
+        <div className="flex shrink-0 items-center gap-2">
+          <Button asChild variant="outline" size="sm" className="max-sm:px-2.5">
+            <Link href={`/trades/${trade.id}/edit`} aria-label="Modifica trade">
               <Pencil className="size-4" />
-              Modifica
+              <span className="max-sm:hidden">Modifica</span>
             </Link>
           </Button>
           <DeleteTradeButton tradeId={trade.id} symbol={trade.symbol} />
@@ -203,7 +213,7 @@ export default async function TradeDetailPage({
                     {trimZeros(execution.quantity.toString())}
                   </TableCell>
                   <TableCell className="text-right tabular-nums">
-                    {trimZeros(execution.price.toString())}
+                    {formatPrice(execution.price.toString(), trade.symbol, trade.assetClass)}
                   </TableCell>
                   <TableCell className="text-right tabular-nums">
                     {formatMoney(execution.fee.toString(), currency)}

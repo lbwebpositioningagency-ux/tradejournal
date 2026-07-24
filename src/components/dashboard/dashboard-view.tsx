@@ -54,7 +54,7 @@ import {
   type StreakResult,
   type StreakSummary,
 } from "@/lib/metrics";
-import { formatDurationSec } from "@/lib/dates";
+import { formatDayKey, formatDurationSec } from "@/lib/dates";
 import { sessionsInfo, type SessionPoint } from "@/lib/sessions";
 import { MetricInfo } from "@/components/metric-info";
 import { EmptyState } from "@/components/empty-state";
@@ -63,7 +63,7 @@ import {
   type TradeSequencePointView,
 } from "@/components/charts/trade-sequence-chart";
 import { SessionRadars } from "@/components/charts/session-radar";
-import { cn } from "@/lib/utils";
+import { cn, pluralize } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -263,11 +263,6 @@ function OutcomePanel({
   );
 }
 
-/** "2026-05-19" → "19/05" (solo display). */
-function shortDayKey(day: string): string {
-  return `${day.slice(8, 10)}/${day.slice(5, 7)}`;
-}
-
 function StreakBadge({
   streak,
   unit,
@@ -275,14 +270,14 @@ function StreakBadge({
   streak: StreakResult;
   unit: "trade" | "day";
 }) {
-  const plural = (n: number) => (n === 1 ? unit : `${unit}s`);
+  const many = `${unit}s`;
   if (streak.direction === "NONE" || streak.length === 0) {
-    return <span className="text-breakeven">— {unit}s</span>;
+    return <span className="text-breakeven">— {many}</span>;
   }
   return (
     <span className={streak.direction === "WIN" ? "text-profit" : "text-loss"}>
       {streak.length} {streak.direction === "WIN" ? "win" : "loss"}{" "}
-      {plural(streak.length)}
+      {pluralize(streak.length, unit, many)}
     </span>
   );
 }
@@ -508,7 +503,7 @@ export function DashboardView({ data }: { data: DashboardData }) {
             valueClass={masked || ddValue === "—" ? undefined : "text-loss"}
             sub={
               data.dd.date
-                ? `${data.dd.maxDrawdownPct ? `${formatPercent(data.dd.maxDrawdownPct)} del picco · ` : ""}${data.dd.date}`
+                ? `${data.dd.maxDrawdownPct ? `${formatPercent(data.dd.maxDrawdownPct)} del picco · ` : ""}${formatDayKey(data.dd.date)}`
                 : "Nessun drawdown nel periodo"
             }
           />
@@ -645,7 +640,10 @@ export function DashboardView({ data }: { data: DashboardData }) {
                           ? MASK
                           : formatSignedMoney(data.bestWin, data.currency)
                         : "—",
-                    valueClass: masked ? undefined : "text-profit",
+                    valueClass:
+                      masked || data.bestWin === null
+                        ? undefined
+                        : pnlColorClass(data.bestWin),
                   },
                   {
                     label: "Media vincite",
@@ -666,7 +664,7 @@ export function DashboardView({ data }: { data: DashboardData }) {
                   {
                     label: "Streak media",
                     info: avgStreakInfo,
-                    value: data.tradeRuns.avgWin ?? "—",
+                    value: ratio(data.tradeRuns.avgWin),
                   },
                 ]}
               />
@@ -684,7 +682,10 @@ export function DashboardView({ data }: { data: DashboardData }) {
                           ? MASK
                           : formatSignedMoney(data.worstLoss, data.currency)
                         : "—",
-                    valueClass: masked ? undefined : "text-loss",
+                    valueClass:
+                      masked || data.worstLoss === null
+                        ? undefined
+                        : pnlColorClass(data.worstLoss),
                   },
                   {
                     label: "Media perdite",
@@ -705,7 +706,7 @@ export function DashboardView({ data }: { data: DashboardData }) {
                   {
                     label: "Streak media",
                     info: avgStreakInfo,
-                    value: data.tradeRuns.avgLoss ?? "—",
+                    value: ratio(data.tradeRuns.avgLoss),
                   },
                 ]}
               />
@@ -729,9 +730,12 @@ export function DashboardView({ data }: { data: DashboardData }) {
                     value: data.days.bestDay
                       ? masked
                         ? MASK
-                        : `${formatSignedMoney(data.days.bestDay.netPnl, data.currency)} · ${shortDayKey(data.days.bestDay.day)}`
+                        : `${formatSignedMoney(data.days.bestDay.netPnl, data.currency)} · ${formatDayKey(data.days.bestDay.day)}`
                       : "—",
-                    valueClass: masked ? undefined : "text-profit",
+                    valueClass:
+                      masked || !data.days.bestDay
+                        ? undefined
+                        : pnlColorClass(data.days.bestDay.netPnl),
                   },
                   {
                     label: "Media giorni positivi",
@@ -747,7 +751,7 @@ export function DashboardView({ data }: { data: DashboardData }) {
                   {
                     label: "Streak media",
                     info: avgStreakInfo,
-                    value: data.dayRuns.avgWin ?? "—",
+                    value: ratio(data.dayRuns.avgWin),
                   },
                 ]}
               />
@@ -762,9 +766,12 @@ export function DashboardView({ data }: { data: DashboardData }) {
                     value: data.days.worstDay
                       ? masked
                         ? MASK
-                        : `${formatSignedMoney(data.days.worstDay.netPnl, data.currency)} · ${shortDayKey(data.days.worstDay.day)}`
+                        : `${formatSignedMoney(data.days.worstDay.netPnl, data.currency)} · ${formatDayKey(data.days.worstDay.day)}`
                       : "—",
-                    valueClass: masked ? undefined : "text-loss",
+                    valueClass:
+                      masked || !data.days.worstDay
+                        ? undefined
+                        : pnlColorClass(data.days.worstDay.netPnl),
                   },
                   {
                     label: "Media giorni negativi",
@@ -780,7 +787,7 @@ export function DashboardView({ data }: { data: DashboardData }) {
                   {
                     label: "Streak media",
                     info: avgStreakInfo,
-                    value: data.dayRuns.avgLoss ?? "—",
+                    value: ratio(data.dayRuns.avgLoss),
                   },
                 ]}
               />

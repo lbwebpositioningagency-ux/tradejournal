@@ -1,8 +1,25 @@
 import { describe, expect, it } from "vitest";
-import { formatDateTime, utcToZonedInput, zonedInputToUtc } from "./dates";
+import {
+  formatDateTime,
+  formatDayKey,
+  utcToZonedInput,
+  zonedInputToUtc,
+} from "./dates";
 
 const ROME = "Europe/Rome";
 const NY = "America/New_York";
+
+describe("formatDayKey", () => {
+  it("chiave giorno ISO → data breve dd/MM", () => {
+    expect(formatDayKey("2026-05-19")).toBe("19/05");
+    expect(formatDayKey("2026-05-19T00:00:00.000Z")).toBe("19/05");
+  });
+
+  it("input non-chiave restituito invariato", () => {
+    expect(formatDayKey("—")).toBe("—");
+    expect(formatDayKey("")).toBe("");
+  });
+});
 
 describe("zonedInputToUtc", () => {
   it("converte l'ora legale di Roma (UTC+2) in UTC", () => {

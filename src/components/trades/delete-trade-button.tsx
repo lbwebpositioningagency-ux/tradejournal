@@ -41,9 +41,15 @@ export function DeleteTradeButton({
 
   return (
     <>
-      <Button variant="outline" onClick={() => setOpen(true)}>
+      <Button
+        variant="outline"
+        size="sm"
+        className="max-sm:px-2.5"
+        aria-label="Elimina trade"
+        onClick={() => setOpen(true)}
+      >
         <Trash2 className="size-4" />
-        Elimina
+        <span className="max-sm:hidden">Elimina</span>
       </Button>
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent className="sm:max-w-md">

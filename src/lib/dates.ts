@@ -145,3 +145,14 @@ export function formatDate(date: Date, timeZone: string, locale = "it-IT"): stri
     dateStyle: "medium",
   }).format(date);
 }
+
+/**
+ * Chiave giorno "YYYY-MM-DD" → data breve coerente "dd/MM" (solo display).
+ * È il formato breve UNICO per le etichette di giornata (best/worst day,
+ * data del max drawdown, ecc.): niente ISO grezzo sparso nell'interfaccia.
+ * Se l'input non è una chiave giorno valida, lo restituisce invariato.
+ */
+export function formatDayKey(dayKey: string): string {
+  if (!/^\d{4}-\d{2}-\d{2}/.test(dayKey)) return dayKey;
+  return `${dayKey.slice(8, 10)}/${dayKey.slice(5, 7)}`;
+}

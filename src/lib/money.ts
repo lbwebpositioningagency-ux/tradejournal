@@ -57,7 +57,13 @@ export function formatRMultiple(value: string): string {
     return "—";
   }
   if (!dec.isFinite()) return "—";
-  return `${dec.toDecimalPlaces(2, Decimal.ROUND_HALF_UP).toString()}R`;
+  const rounded = dec.toDecimalPlaces(2, Decimal.ROUND_HALF_UP);
+  // it-IT: virgola decimale, niente zeri finali superflui ("2R", "1,5R").
+  const formatted = new Intl.NumberFormat("it-IT", {
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 2,
+  }).format(rounded.toNumber());
+  return `${formatted}R`;
 }
 
 /**
@@ -122,7 +128,12 @@ export function formatPercent(fraction: string | null, decimals = 2): string {
     return "—";
   }
   if (!dec.isFinite()) return "—";
-  return `${dec.times(100).toFixed(decimals)}%`;
+  const pct = dec.times(100).toDecimalPlaces(decimals, Decimal.ROUND_HALF_UP);
+  const formatted = new Intl.NumberFormat("it-IT", {
+    minimumFractionDigits: decimals,
+    maximumFractionDigits: decimals,
+  }).format(pct.toNumber());
+  return `${formatted}%`;
 }
 
 /**
@@ -143,7 +154,14 @@ export function formatPercentOfBase(
     return "—";
   }
   if (!amount.isFinite() || !baseDec.isFinite() || baseDec.isZero()) return "—";
-  const pct = amount.div(baseDec).times(100);
-  const sign = pct.gt(0) ? "+" : "";
-  return `${sign}${pct.toFixed(decimals)}%`;
+  const pct = amount
+    .div(baseDec)
+    .times(100)
+    .toDecimalPlaces(decimals, Decimal.ROUND_HALF_UP);
+  const formatted = new Intl.NumberFormat("it-IT", {
+    minimumFractionDigits: decimals,
+    maximumFractionDigits: decimals,
+    signDisplay: "exceptZero",
+  }).format(pct.toNumber());
+  return `${formatted}%`;
 }

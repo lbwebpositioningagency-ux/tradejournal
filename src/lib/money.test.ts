@@ -1,6 +1,8 @@
 import { describe, expect, it } from "vitest";
 import {
   formatMoney,
+  formatPercent,
+  formatPercentOfBase,
   formatRMultiple,
   formatSignedMoney,
   formatSignedShort,
@@ -38,23 +40,52 @@ describe("formatSignedMoney", () => {
 });
 
 describe("formatRMultiple", () => {
-  it("arrotonda a massimo 2 decimali", () => {
-    expect(formatRMultiple("1.5073")).toBe("1.51R");
-    expect(formatRMultiple("-1.0152")).toBe("-1.02R");
+  it("arrotonda a massimo 2 decimali (virgola it-IT)", () => {
+    expect(formatRMultiple("1.5073")).toBe("1,51R");
+    expect(formatRMultiple("-1.0152")).toBe("-1,02R");
   });
 
   it("non aggiunge zeri finali superflui", () => {
     expect(formatRMultiple("2.0000")).toBe("2R");
-    expect(formatRMultiple("1.5000")).toBe("1.5R");
+    expect(formatRMultiple("1.5000")).toBe("1,5R");
   });
 
   it("arrotonda per eccesso da .5 in su (HALF_UP)", () => {
-    expect(formatRMultiple("1.005")).toBe("1.01R");
+    expect(formatRMultiple("1.005")).toBe("1,01R");
   });
 
   it("restituisce un trattino per input non numerico", () => {
     expect(formatRMultiple("abc")).toBe("—");
     expect(formatRMultiple("")).toBe("—");
+  });
+});
+
+describe("formatPercent", () => {
+  it("formatta una frazione 0-1 come percentuale it-IT", () => {
+    expect(formatPercent("0.5574")).toBe("55,74%");
+    expect(formatPercent("0.8197")).toBe("81,97%");
+  });
+
+  it("rispetta il numero di decimali richiesto", () => {
+    expect(formatPercent("0.5", 0)).toBe("50%");
+    expect(formatPercent("0.12345", 1)).toBe("12,3%");
+  });
+
+  it("trattino per null o non numerico", () => {
+    expect(formatPercent(null)).toBe("—");
+    expect(formatPercent("abc")).toBe("—");
+  });
+});
+
+describe("formatPercentOfBase", () => {
+  it("percentuale con segno rispetto alla base (it-IT)", () => {
+    expect(formatPercentOfBase("1798.50", "35000")).toBe("+5,14%");
+    expect(formatPercentOfBase("-700", "35000")).toBe("-2,00%");
+  });
+
+  it("zero senza segno; base nulla a trattino", () => {
+    expect(formatPercentOfBase("0", "35000")).toBe("0,00%");
+    expect(formatPercentOfBase("100", "0")).toBe("—");
   });
 });
 
