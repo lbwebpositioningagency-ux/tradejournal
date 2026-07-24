@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   formatDateTime,
   formatDayKey,
+  formatDurationSec,
   utcToZonedInput,
   zonedInputToUtc,
 } from "./dates";
@@ -71,6 +72,26 @@ describe("utcToZonedInput", () => {
   it("converte un istante UTC nel fuso di New York", () => {
     const date = new Date("2026-07-15T13:30:00.000Z");
     expect(utcToZonedInput(date, NY)).toBe("2026-07-15T09:30");
+  });
+});
+
+describe("formatDurationSec", () => {
+  it("secondi, minuti, ore", () => {
+    expect(formatDurationSec("30")).toBe("30s");
+    expect(formatDurationSec("2700")).toBe("45m");
+    expect(formatDurationSec("8040")).toBe("2h 14m");
+  });
+
+  it("oltre le 24 ore passa ai giorni (trade multi-day)", () => {
+    expect(formatDurationSec("93600")).toBe("1g 2h"); // 26h
+    expect(formatDurationSec("266400")).toBe("3g 2h"); // 74h
+    expect(formatDurationSec("86399")).toBe("23h 59m");
+  });
+
+  it("null, negativi e non numerici → em dash", () => {
+    expect(formatDurationSec(null)).toBe("—");
+    expect(formatDurationSec("-5")).toBe("—");
+    expect(formatDurationSec("abc")).toBe("—");
   });
 });
 

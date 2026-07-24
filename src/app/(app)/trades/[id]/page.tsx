@@ -1,12 +1,25 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
-import { ArrowLeft, Pencil } from "lucide-react";
+import { ArrowLeft, ChevronLeft, ChevronRight, Pencil } from "lucide-react";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/db";
-import { formatDateTime } from "@/lib/dates";
+import { formatDateTime, formatDurationSec } from "@/lib/dates";
 import { formatPrice } from "@/lib/instruments";
-import { formatMoney, formatRMultiple, formatSignedMoney, pnlColorClass } from "@/lib/money";
+import {
+  formatMoney,
+  formatPercent,
+  formatRMultiple,
+  formatSignedMoney,
+  pnlColorClass,
+} from "@/lib/money";
+import {
+  planCompletionInfo,
+  plannedRInfo,
+  planVsOutcome,
+  realizedPriceRInfo,
+} from "@/lib/metrics";
+import { MetricInfo } from "@/components/metric-info";
 import { cn } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -25,6 +38,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { DeleteTradeButton } from "@/components/trades/delete-trade-button";
+import { AttachmentsCard } from "@/components/attachments/attachments-card";
 
 export const metadata: Metadata = { title: "Dettaglio trade" };
 
@@ -62,7 +76,71 @@ export default async function TradeDetailPage({
 
   if (!trade) notFound();
 
+  // Prev/next nella cronologia dell'utente (stesso ordine della lista trade:
+  // openedAt, con id come tie-break stabile). "Precedente" = aperto prima.
+  // Gli allegati sono in una query dedicata: MAI includere `data` nei listing.
+  const [prevTrade, nextTrade, attachments] = await Promise.all([
+    prisma.trade.findFirst({
+      where: {
+        account: { userId },
+        OR: [
+          { openedAt: { lt: trade.openedAt } },
+          { openedAt: trade.openedAt, id: { lt: trade.id } },
+        ],
+      },
+      orderBy: [{ openedAt: "desc" }, { id: "desc" }],
+      select: { id: true, symbol: true },
+    }),
+    prisma.trade.findFirst({
+      where: {
+        account: { userId },
+        OR: [
+          { openedAt: { gt: trade.openedAt } },
+          { openedAt: trade.openedAt, id: { gt: trade.id } },
+        ],
+      },
+      orderBy: [{ openedAt: "asc" }, { id: "asc" }],
+      select: { id: true, symbol: true },
+    }),
+    prisma.attachment.findMany({
+      where: { userId, tradeId: trade.id },
+      orderBy: { createdAt: "asc" },
+      select: { id: true, fileName: true, mimeType: true, size: true },
+    }),
+  ]);
+
   const currency = trade.account.currency;
+
+  // Durata dai timestamp (display only: qui il Number è solo tempo, non denaro).
+  const durationSec = trade.closedAt
+    ? String((trade.closedAt.getTime() - trade.openedAt.getTime()) / 1000)
+    : null;
+
+  // Piano vs esito (F16a): confronto sui prezzi, fee escluse.
+  const plan = planVsOutcome({
+    direction: trade.direction,
+    entry: trade.avgEntryPrice.toString(),
+    exit: trade.avgExitPrice ? trade.avgExitPrice.toString() : null,
+    plannedStop: trade.plannedStop ? trade.plannedStop.toString() : null,
+    plannedTarget: trade.plannedTarget ? trade.plannedTarget.toString() : null,
+  });
+  const hasPlanInput = trade.plannedStop !== null || trade.plannedTarget !== null;
+
+  // Nota onesta sotto ai numeri: spiega PERCHÉ un valore è "—" invece di
+  // lasciare il dubbio (dati insufficienti / piano non valido / trade aperto).
+  let planNote: string | null = null;
+  if (plan.stopSideInvalid || plan.targetSideInvalid) {
+    planNote =
+      "Stop o target pianificato dal lato sbagliato rispetto all'ingresso: il piano non è valido per il calcolo degli R.";
+  } else if (trade.plannedStop === null) {
+    planNote =
+      "Senza stop pianificato il rischio non è definito: gli R non sono calcolabili.";
+  } else if (trade.plannedTarget === null) {
+    planNote =
+      "Senza target pianificato l'R del piano non è calcolabile; l'esito sui prezzi sì.";
+  } else if (trade.status === "OPEN") {
+    planNote = "Trade ancora aperto: l'esito si misura alla chiusura.";
+  }
   const infoRows: { label: string; value: React.ReactNode }[] = [
     { label: "Conto", value: trade.account.name },
     { label: "Asset class", value: trade.assetClass },
@@ -83,6 +161,7 @@ export default async function TradeDetailPage({
       label: "Chiusura",
       value: trade.closedAt ? formatDateTime(trade.closedAt, user.timezone) : "—",
     },
+    { label: "Durata", value: formatDurationSec(durationSec) },
     { label: "P&L lordo", value: formatSignedMoney(trade.grossPnl.toString(), currency) },
     { label: "Fee totali", value: formatMoney(trade.fees.toString(), currency) },
     {
@@ -143,6 +222,38 @@ export default async function TradeDetailPage({
           </div>
         </div>
         <div className="flex shrink-0 items-center gap-2">
+          {prevTrade ? (
+            <Button
+              asChild
+              variant="outline"
+              size="icon"
+              aria-label={`Trade precedente (${prevTrade.symbol})`}
+            >
+              <Link href={`/trades/${prevTrade.id}`}>
+                <ChevronLeft className="size-4" />
+              </Link>
+            </Button>
+          ) : (
+            <Button variant="outline" size="icon" disabled aria-label="Nessun trade precedente">
+              <ChevronLeft className="size-4" />
+            </Button>
+          )}
+          {nextTrade ? (
+            <Button
+              asChild
+              variant="outline"
+              size="icon"
+              aria-label={`Trade successivo (${nextTrade.symbol})`}
+            >
+              <Link href={`/trades/${nextTrade.id}`}>
+                <ChevronRight className="size-4" />
+              </Link>
+            </Button>
+          ) : (
+            <Button variant="outline" size="icon" disabled aria-label="Nessun trade successivo">
+              <ChevronRight className="size-4" />
+            </Button>
+          )}
           <Button asChild variant="outline" size="sm" className="max-sm:px-2.5">
             <Link href={`/trades/${trade.id}/edit`} aria-label="Modifica trade">
               <Pencil className="size-4" />
@@ -177,6 +288,88 @@ export default async function TradeDetailPage({
           ) : null}
         </CardContent>
       </Card>
+
+      <Card>
+        <CardHeader className="flex flex-row flex-wrap items-center justify-between gap-2">
+          <CardTitle className="text-base">Piano vs esito</CardTitle>
+          <div className="flex items-center gap-2">
+            {plan.stopViolated ? (
+              <Badge variant="outline" className="text-loss">
+                Stop non rispettato
+              </Badge>
+            ) : null}
+            {plan.targetExceeded ? (
+              <Badge variant="outline" className="text-profit">
+                Oltre il target
+              </Badge>
+            ) : null}
+          </div>
+        </CardHeader>
+        <CardContent>
+          {hasPlanInput ? (
+            <>
+              <dl className="grid gap-x-8 gap-y-3 sm:grid-cols-3">
+                <div>
+                  <dt className="stat-label flex items-center gap-1">
+                    R pianificato
+                    <MetricInfo info={plannedRInfo} />
+                  </dt>
+                  <dd className="mt-1 text-lg font-semibold tabular-nums">
+                    {plan.plannedR ? formatRMultiple(plan.plannedR) : "—"}
+                  </dd>
+                </div>
+                <div>
+                  <dt className="stat-label flex items-center gap-1">
+                    R realizzato (prezzo)
+                    <MetricInfo info={realizedPriceRInfo} />
+                  </dt>
+                  <dd
+                    className={cn(
+                      "mt-1 text-lg font-semibold tabular-nums",
+                      plan.realizedPriceR
+                        ? pnlColorClass(plan.realizedPriceR)
+                        : undefined,
+                    )}
+                  >
+                    {plan.realizedPriceR ? formatRMultiple(plan.realizedPriceR) : "—"}
+                  </dd>
+                </div>
+                <div>
+                  <dt className="stat-label flex items-center gap-1">
+                    Piano raggiunto
+                    <MetricInfo info={planCompletionInfo} />
+                  </dt>
+                  <dd
+                    className={cn(
+                      "mt-1 text-lg font-semibold tabular-nums",
+                      plan.planCompletion
+                        ? pnlColorClass(plan.planCompletion)
+                        : undefined,
+                    )}
+                  >
+                    {plan.planCompletion !== null
+                      ? formatPercent(plan.planCompletion)
+                      : "—"}
+                  </dd>
+                </div>
+              </dl>
+              <p className="mt-3 text-xs text-muted-foreground">
+                {planNote ?? "Calcolato sui prezzi medi di ingresso e uscita, fee escluse."}
+              </p>
+            </>
+          ) : (
+            <p className="text-sm text-muted-foreground">
+              Nessun piano registrato per questo trade: aggiungi stop e target
+              pianificati (Modifica) per confrontare il piano con l&apos;esito.
+            </p>
+          )}
+        </CardContent>
+      </Card>
+
+      <AttachmentsCard
+        target={{ kind: "trade", tradeId: trade.id }}
+        attachments={attachments}
+      />
 
       <Card>
         <CardHeader>

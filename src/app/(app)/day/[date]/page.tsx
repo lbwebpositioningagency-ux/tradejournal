@@ -49,6 +49,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { AttachmentsCard } from "@/components/attachments/attachments-card";
 import { DayNoteEditor } from "./day-note-editor";
 
 export const metadata: Metadata = { title: "Day View" };
@@ -98,7 +99,7 @@ export default async function DayViewPage({
 
   const accountWhere = tradeAccountWhere(userId, activeAccountId, scopeCurrency);
 
-  const [trades, dayNotes, activeAccount] = await Promise.all([
+  const [trades, dayNotes, activeAccount, attachments] = await Promise.all([
     prisma.trade.findMany({
       where: {
         ...accountWhere,
@@ -125,6 +126,12 @@ export default async function DayViewPage({
           where: { id: activeAccountId, userId },
           select: { currency: true },
         }),
+    // Allegati di giornata (F16b): mai selezionare `data` nei listing.
+    prisma.attachment.findMany({
+      where: { userId, dayDate: new Date(`${date}T00:00:00.000Z`) },
+      orderBy: { createdAt: "asc" },
+      select: { id: true, fileName: true, mimeType: true, size: true },
+    }),
   ]);
 
   const currency = scopeCurrency ?? activeAccount?.currency ?? user.baseCurrency;
@@ -376,6 +383,8 @@ export default async function DayViewPage({
           <DayNoteEditor date={date} initialByPhase={dayNotesByPhase(dayNotes)} />
         </CardContent>
       </Card>
+
+      <AttachmentsCard target={{ kind: "day", date }} attachments={attachments} />
     </div>
   );
 }

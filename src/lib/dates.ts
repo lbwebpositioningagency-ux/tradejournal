@@ -124,7 +124,8 @@ export function formatDateTime(
 }
 
 /**
- * Durata in secondi (stringa decimale dal SQL) → "2h 14m" / "45m" / "30s".
+ * Durata in secondi (stringa decimale dal SQL) → "3g 2h" / "2h 14m" / "45m" /
+ * "30s". Oltre le 24 ore si passa ai giorni (trade swing/multi-day).
  * SOLO display: la conversione a Number avviene qui, mai nei calcoli.
  */
 export function formatDurationSec(seconds: string | null): string {
@@ -133,6 +134,7 @@ export function formatDurationSec(seconds: string | null): string {
   if (!Number.isFinite(s) || s < 0) return "—";
   const hours = Math.floor(s / 3600);
   const minutes = Math.floor((s % 3600) / 60);
+  if (hours >= 24) return `${Math.floor(hours / 24)}g ${hours % 24}h`;
   if (hours > 0) return `${hours}h ${minutes}m`;
   if (minutes > 0) return `${minutes}m`;
   return `${Math.round(s)}s`;

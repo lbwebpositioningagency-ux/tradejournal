@@ -28,6 +28,7 @@ model User {
   notes           Note[]
   importProfiles  ImportProfile[]
   mt5SyncSources  Mt5SyncSource[]
+  attachments     Attachment[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -263,14 +264,21 @@ model Note {
 }
 
 model Attachment {
-  id       String  @id @default(cuid())
-  tradeId  String?
-  noteId   String?
+  id      String    @id @default(cuid())
+  userId  String // proprietario: filtro di sicurezza diretto, senza join
+  tradeId String?
+  noteId  String?
+  dayDate DateTime? @db.Date // allegato di GIORNATA (Day View): chiave giorno nel fuso utente
+
   fileName String
-  filePath String // storage locale per l'MVP
+  filePath String // locator dello storage: "db" = byte nella colonna `data`
   mimeType String
   size     Int
+  // Byte del file in Postgres: self-contained e persistente anche su Vercel
+  // (filesystem effimero); mai in SELECT di listing, solo nella route di download.
+  data     Bytes
 
+  user  User   @relation(fields: [userId], references: [id], onDelete: Cascade)
   trade Trade? @relation(fields: [tradeId], references: [id], onDelete: Cascade)
   note  Note?  @relation(fields: [noteId], references: [id], onDelete: Cascade)
 
@@ -278,6 +286,7 @@ model Attachment {
 
   @@index([tradeId])
   @@index([noteId])
+  @@index([userId, dayDate])
 }
 
 // ───────────────────────── Import CSV (FASE 3) ─────────────────────────

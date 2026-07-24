@@ -27,3 +27,11 @@ export { sharpeRatio, sharpeInfo } from "./sharpe";
 export { sqn, sqnInfo, SQN_MIN_TRADES } from "./sqn";
 export { calmarRatio, calmarInfo, coveredDays, CALMAR_MIN_DAYS } from "./calmar";
 export { ulcerIndex, ulcerInfo } from "./ulcer";
+export {
+  planVsOutcome,
+  plannedRInfo,
+  realizedPriceRInfo,
+  planCompletionInfo,
+  type PlanVsOutcome,
+  type PlanVsOutcomeInput,
+} from "./plan";

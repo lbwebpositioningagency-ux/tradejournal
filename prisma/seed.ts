@@ -332,6 +332,20 @@ async function main() {
       const hasRisk = chance(0.85);
       const initialRisk = hasRisk ? riskMoney.toFixed(2) : null;
 
+      // Piano stop/target (F16a): derivato dal rischio già estratto, SENZA
+      // nuove chiamate a rand() — il resto del dataset resta identico.
+      // RR pianificato 1.5-3 a rotazione; ~70% dei trade con rischio ha piano.
+      const riskPerUnit = riskMoney / (qty * pointValueNum);
+      const plannedRR = [1.5, 2, 2.5, 3][created % 4];
+      const withPlan = hasRisk && created % 10 < 7;
+      const stopOffset = direction === "LONG" ? -riskPerUnit : riskPerUnit;
+      const plannedStop = withPlan
+        ? roundToTick(entryPrice + stopOffset, spec)
+        : null;
+      const plannedTarget = withPlan
+        ? roundToTick(entryPrice - stopOffset * plannedRR, spec)
+        : null;
+
       const computed = computeTrade(executions, {
         pointValue: spec.pointValue,
         initialRisk,
@@ -363,6 +377,8 @@ async function main() {
           fees: computed.fees,
           netPnl: computed.netPnl,
           initialRisk,
+          plannedStop,
+          plannedTarget,
           rMultiple: computed.rMultiple,
           strategyId: strategy?.id ?? null,
           rating: chance(0.7) ? Math.ceil(randBetween(0.01, 5)) : null,
@@ -392,6 +408,9 @@ async function main() {
       assetClass: "FUTURES" as const,
       pointValue: "50",
       initialRisk: "500.00",
+      // Piano su trade APERTO: "Piano vs esito" mostra il piano, esito in attesa.
+      plannedStop: "5615.00",
+      plannedTarget: "5635.00",
       executions: [
         {
           side: "BUY" as const,
@@ -408,6 +427,8 @@ async function main() {
       assetClass: "FOREX" as const,
       pointValue: "100000",
       initialRisk: null,
+      plannedStop: null,
+      plannedTarget: null,
       executions: [
         {
           side: "SELL" as const,
@@ -424,6 +445,10 @@ async function main() {
       assetClass: "FUTURES" as const,
       pointValue: "20",
       initialRisk: "400.00",
+      // Piano 2R: stop 20 pt sotto, target 40 pt sopra; uscita a +20 pt = 1R,
+      // quindi "piano raggiunto 50%" deterministico per la verifica.
+      plannedStop: "20230.00",
+      plannedTarget: "20290.00",
       executions: [
         {
           side: "BUY" as const,
@@ -465,6 +490,8 @@ async function main() {
         fees: computed.fees,
         netPnl: computed.netPnl,
         initialRisk: scenario.initialRisk,
+        plannedStop: scenario.plannedStop,
+        plannedTarget: scenario.plannedTarget,
         rMultiple: computed.rMultiple,
         executions: { create: scenario.executions },
       },
