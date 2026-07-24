@@ -18,9 +18,30 @@ import type { DailyPnl } from "./types";
  */
 const DAY_MS = 86_400_000;
 
+/**
+ * Storico minimo (in giorni di calendario coperti) sotto cui il Calmar NON è
+ * affidabile: annualizzare 2-3 mesi di dati (×365/giorni) estrapola una cifra
+ * fuorviante. Sotto questa soglia il Calmar è null e la UI mostra il gate
+ * "dati insufficienti", come per l'SQN. ~6 mesi.
+ */
+export const CALMAR_MIN_DAYS = 180;
+
 function dateKeyToMs(key: string): number {
   const [year, month, day] = key.split("-").map(Number);
   return Date.UTC(year, month - 1, day);
+}
+
+/**
+ * Giorni di calendario coperti dalla serie (dal primo all'ultimo giorno
+ * operativo, estremi inclusi). 0 se la serie è vuota.
+ */
+export function coveredDays(days: Pick<DailyPnl, "day">[]): number {
+  if (days.length === 0) return 0;
+  return (
+    (dateKeyToMs(days[days.length - 1].day) - dateKeyToMs(days[0].day)) /
+      DAY_MS +
+    1
+  );
 }
 
 export function calmarRatio(
@@ -36,15 +57,14 @@ export function calmarRatio(
   const balance = new Decimal(startingBalance);
   if (balance.lte(0)) return null;
 
+  const daysCovered = coveredDays(days);
+  // Gate storico: sotto ~6 mesi l'annualizzazione non è affidabile.
+  if (daysCovered < CALMAR_MIN_DAYS) return null;
+
   let net = new Decimal(0);
   for (const day of days) {
     net = net.plus(day.netPnl);
   }
-
-  const daysCovered =
-    (dateKeyToMs(days[days.length - 1].day) - dateKeyToMs(days[0].day)) /
-      DAY_MS +
-    1;
 
   const annualized = net.div(balance).times(new Decimal(365).div(daysCovered));
   return annualized.div(ddPct).toFixed(2);

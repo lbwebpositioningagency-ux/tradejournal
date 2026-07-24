@@ -25,5 +25,5 @@ export { compositeScore, scoreInfo, type ScoreInput } from "./score";
 export { sortinoRatio, sortinoInfo } from "./sortino";
 export { sharpeRatio, sharpeInfo } from "./sharpe";
 export { sqn, sqnInfo, SQN_MIN_TRADES } from "./sqn";
-export { calmarRatio, calmarInfo } from "./calmar";
+export { calmarRatio, calmarInfo, coveredDays, CALMAR_MIN_DAYS } from "./calmar";
 export { ulcerIndex, ulcerInfo } from "./ulcer";

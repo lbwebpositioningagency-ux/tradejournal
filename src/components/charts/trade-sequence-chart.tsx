@@ -24,6 +24,8 @@ export interface TradeSequencePointView {
   label: string;
   symbol: string;
   netPnl: string;
+  /** R-multiple del trade (null/assente se senza rischio), per la vista R. */
+  rMultiple?: string | null;
 }
 
 export function TradeSequenceChart({

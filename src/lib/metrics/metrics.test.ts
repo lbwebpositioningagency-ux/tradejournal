@@ -3,6 +3,8 @@ import {
   avgLoss,
   avgWin,
   calmarRatio,
+  coveredDays,
+  CALMAR_MIN_DAYS,
   classifyOutcome,
   compositeScore,
   currentDayStreak,
@@ -409,11 +411,19 @@ describe("calmarRatio", () => {
     expect(calmarRatio(days, "10000", "0.0500")).toBe("2.00");
   });
 
-  it("annualizza sul periodo effettivo, non su un anno pieno", () => {
-    // +1% in un solo giorno coperto → ×365 → 365% annuo; / 10% = 36.5
-    expect(calmarRatio([day("2026-07-01", "100")], "10000", "0.1000")).toBe(
-      "36.50",
-    );
+  it("annualizza sul periodo effettivo (>= soglia), non su un anno pieno", () => {
+    // span 2026-01-01 → 2026-06-30 = 181 giorni (supera il gate);
+    // +1% sul periodo → ×365/181 = +2,0166% annuo; / 5% DD = 0.40
+    const days = [day("2026-01-01", "100"), day("2026-06-30", "0")];
+    expect(calmarRatio(days, "10000", "0.0500")).toBe("0.40");
+  });
+
+  it("gate storico: sotto CALMAR_MIN_DAYS giorni coperti → null (non affidabile)", () => {
+    // un solo giorno coperto, storico troppo corto per annualizzare
+    expect(calmarRatio([day("2026-07-01", "100")], "10000", "0.1000")).toBeNull();
+    // ~90 giorni: ancora sotto la soglia dei 180
+    const shortSpan = [day("2026-01-01", "500"), day("2026-03-31", "100")];
+    expect(calmarRatio(shortSpan, "10000", "0.0500")).toBeNull();
   });
 
   it("nessun drawdown (pct zero o null) → null, mai infinito", () => {
@@ -430,6 +440,23 @@ describe("calmarRatio", () => {
 
   it("zero giorni → null", () => {
     expect(calmarRatio([], "10000", "0.0500")).toBeNull();
+  });
+});
+
+describe("coveredDays / CALMAR_MIN_DAYS", () => {
+  it("soglia a 180 giorni", () => {
+    expect(CALMAR_MIN_DAYS).toBe(180);
+  });
+
+  it("conta i giorni di calendario coperti, estremi inclusi", () => {
+    expect(coveredDays([])).toBe(0);
+    expect(coveredDays([{ day: "2026-07-01" }])).toBe(1);
+    expect(
+      coveredDays([{ day: "2026-01-01" }, { day: "2026-12-31" }]),
+    ).toBe(365);
+    expect(
+      coveredDays([{ day: "2026-01-01" }, { day: "2026-06-30" }]),
+    ).toBe(181);
   });
 });
 

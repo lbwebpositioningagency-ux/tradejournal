@@ -76,6 +76,10 @@ export interface ExtremesAggregates {
   bestWin: string | null;
   /** Peggior perdita (netPnl minimo tra i negativi, col segno). */
   worstLoss: string | null;
+  /** Miglior R tra i vincenti in R (max rMultiple > 0), per la vista R. */
+  bestWinR: string | null;
+  /** Peggior R tra i perdenti in R (min rMultiple < 0, col segno). */
+  worstLossR: string | null;
   /** Durata media dei vincenti, in secondi (stringa decimale). */
   avgWinDurationSec: string | null;
   /** Durata media dei perdenti, in secondi. */
@@ -107,6 +111,8 @@ export async function getTradeAggregates(
       COALESCE(SUM(t."rMultiple") FILTER (WHERE t."rMultiple" < 0), 0)::text AS "rLossSum",
       (MAX(t."netPnl") FILTER (WHERE t."netPnl" > 0))::text AS "bestWin",
       (MIN(t."netPnl") FILTER (WHERE t."netPnl" < 0))::text AS "worstLoss",
+      (MAX(t."rMultiple") FILTER (WHERE t."rMultiple" > 0))::text AS "bestWinR",
+      (MIN(t."rMultiple") FILTER (WHERE t."rMultiple" < 0))::text AS "worstLossR",
       (AVG(EXTRACT(EPOCH FROM (t."closedAt" - t."openedAt")))
         FILTER (WHERE t."netPnl" > 0))::text AS "avgWinDurationSec",
       (AVG(EXTRACT(EPOCH FROM (t."closedAt" - t."openedAt")))
@@ -119,6 +125,8 @@ export async function getTradeAggregates(
 
 export interface TradeSequencePoint {
   netPnl: string;
+  /** R-multiple del trade (null se senza rischio iniziale), per la vista R. */
+  rMultiple: string | null;
   symbol: string;
   /** Chiusura ISO (UTC), per l'etichetta del tooltip. */
   closedAt: Date;
@@ -134,8 +142,9 @@ export async function getTradeSequence(
   limit = 200,
 ): Promise<TradeSequencePoint[]> {
   const rows = await prisma.$queryRaw<TradeSequencePoint[]>(Prisma.sql`
-    SELECT "netPnl", "symbol", "closedAt" FROM (
-      SELECT t."netPnl"::text AS "netPnl", t."symbol", t."closedAt",
+    SELECT "netPnl", "rMultiple", "symbol", "closedAt" FROM (
+      SELECT t."netPnl"::text AS "netPnl", t."rMultiple"::text AS "rMultiple",
+             t."symbol", t."closedAt",
              ROW_NUMBER() OVER (ORDER BY t."closedAt" DESC, t."id" DESC) AS "rn"
       ${FROM_TRADES}
       WHERE ${whereClosedTrades(filter)}

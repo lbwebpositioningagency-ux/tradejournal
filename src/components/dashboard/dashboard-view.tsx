@@ -44,6 +44,7 @@ import {
   sortinoInfo,
   sqnInfo,
   SQN_MIN_TRADES,
+  CALMAR_MIN_DAYS,
   streaksInfo,
   tradeCountInfo,
   ulcerInfo,
@@ -110,6 +111,8 @@ export interface DashboardData {
   dayWinRate: string | null;
   dayWins: number;
   dayCount: number;
+  /** Giorni di calendario coperti dalla serie (gate del Calmar, F8). */
+  daysCovered: number;
   profitFactor: string | null;
   expectancy: string | null;
   expectancyR: string | null;
@@ -133,9 +136,15 @@ export interface DashboardData {
   /** Streak max/medie sui trade della sequenza e sulle giornate. */
   tradeRuns: StreakSummary;
   dayRuns: StreakSummary;
+  /** Streak per giornata calcolate sulla curva R (vista R). */
+  dayRunsR: StreakSummary;
   days: DayStats;
+  /** Statistiche per giornata in R (stessa forma, netPnl = somma R del giorno). */
+  daysR: DayStats;
   bestWin: string | null;
   worstLoss: string | null;
+  bestWinR: string | null;
+  worstLossR: string | null;
   avgWinDurationSec: string | null;
   avgLossDurationSec: string | null;
   sessions: SessionPoint[];
@@ -161,6 +170,17 @@ const MASK = "•••";
 /** Ratio adimensionale per il display: max 2 decimali, "—" se null. */
 function ratio(value: string | null): string {
   return value !== null ? formatRMultiple(value).slice(0, -1) : "—";
+}
+
+/**
+ * Etichetta della percentuale di Max Drawdown (F9): quando il calo raggiunge o
+ * supera il 100% del picco — o il picco è ≤ 0 e la % non è definibile —
+ * l'equity è andata sotto zero: lo si dichiara invece di mostrare un "150%"
+ * fuorviante. Sotto il 100% resta la percentuale del picco.
+ */
+function drawdownPctLabel(pct: string | null): string {
+  if (pct === null) return "equity negativa";
+  return new Decimal(pct).gte(1) ? "equity negativa" : `${formatPercent(pct)} del picco`;
 }
 
 /**
@@ -353,6 +373,23 @@ export function DashboardView({ data }: { data: DashboardData }) {
         ? "—"
         : money(`-${data.dd.maxDrawdown}`, null);
 
+  const inR = view === "r";
+  // Sequenza trade: in vista R le barre seguono l'R-multiple (0 se il trade
+  // non aveva rischio iniziale), con suffisso "R"; altrimenti la valuta.
+  const sequencePoints = inR
+    ? data.sequence.map((p) => ({ ...p, netPnl: p.rMultiple ?? "0" }))
+    : data.sequence;
+  const sequenceSuffix = inR ? " R" : ` ${data.currency}`;
+  // Best/Worst Days e sottotitolo del drawdown seguono la curva coerente col
+  // toggle: la serie in R quando la vista è R.
+  const dayData = inR ? data.daysR : data.days;
+  const dayRunsData = inR ? data.dayRunsR : data.dayRuns;
+  const ddForView = inR ? data.ddR : data.dd;
+  // Importo di una giornata coerente col toggle: in R è già la somma R del
+  // giorno (dayData = daysR), altrimenti valuta/percentuale via money().
+  const dayAmount = (value: string, signed = true) =>
+    inR ? formatRMultiple(value) : money(value, null, signed);
+
   return (
     <div className="flex flex-col gap-4">
       {/* Testata: periodo, viste, personalizza */}
@@ -468,7 +505,7 @@ export function DashboardView({ data }: { data: DashboardData }) {
           <StatCard
             label="Avg Win / Loss"
             info={avgWinLossInfo}
-            value={data.payoff !== null ? formatRMultiple(data.payoff) : "—"}
+            value={data.payoff !== null ? `${ratio(data.payoff)}×` : "—"}
             sub={
               <>
                 <span className={masked ? undefined : "text-profit"}>
@@ -502,8 +539,10 @@ export function DashboardView({ data }: { data: DashboardData }) {
             value={ddValue}
             valueClass={masked || ddValue === "—" ? undefined : "text-loss"}
             sub={
-              data.dd.date
-                ? `${data.dd.maxDrawdownPct ? `${formatPercent(data.dd.maxDrawdownPct)} del picco · ` : ""}${formatDayKey(data.dd.date)}`
+              ddForView.date
+                ? inR
+                  ? formatDayKey(ddForView.date)
+                  : `${drawdownPctLabel(ddForView.maxDrawdownPct)} · ${formatDayKey(ddForView.date)}`
                 : "Nessun drawdown nel periodo"
             }
           />
@@ -533,7 +572,7 @@ export function DashboardView({ data }: { data: DashboardData }) {
             value={ratio(data.sortino)}
             sub={
               <span className="flex items-center gap-1">
-                Sharpe di confronto {ratio(data.sharpe)}
+                Giornaliero · Sharpe {ratio(data.sharpe)}
                 <MetricInfo info={sharpeInfo} />
               </span>
             }
@@ -543,8 +582,12 @@ export function DashboardView({ data }: { data: DashboardData }) {
           <StatCard
             label="Calmar Ratio"
             info={calmarInfo}
-            value={ratio(data.calmar)}
-            sub="Rendimento annualizzato / |Max DD %|"
+            value={data.daysCovered < CALMAR_MIN_DAYS ? "—" : ratio(data.calmar)}
+            sub={
+              data.daysCovered < CALMAR_MIN_DAYS
+                ? `Dati insufficienti (${data.daysCovered}/${CALMAR_MIN_DAYS} giorni di storico)`
+                : "Rendimento annualizzato / |Max DD %|"
+            }
           />
         ) : null}
         {show("sqn") ? (
@@ -563,7 +606,13 @@ export function DashboardView({ data }: { data: DashboardData }) {
           <StatCard
             label="Ulcer Index"
             info={ulcerInfo}
-            value={data.ulcer !== null ? formatPercent(data.ulcer) : "—"}
+            value={
+              data.ulcer !== null
+                ? new Decimal(data.ulcer).gte(1)
+                  ? "> 100%"
+                  : formatPercent(data.ulcer)
+                : "—"
+            }
             sub="Drawdown pesato per profondità e durata"
           />
         ) : null}
@@ -596,8 +645,8 @@ export function DashboardView({ data }: { data: DashboardData }) {
             {data.sequence.length > 0 ? (
               <>
                 <TradeSequenceChart
-                  points={data.sequence}
-                  suffix={` ${data.currency}`}
+                  points={sequencePoints}
+                  suffix={sequenceSuffix}
                   masked={masked}
                 />
                 {data.sequenceTruncated ? (
@@ -638,7 +687,7 @@ export function DashboardView({ data }: { data: DashboardData }) {
                       data.bestWin !== null
                         ? masked
                           ? MASK
-                          : formatSignedMoney(data.bestWin, data.currency)
+                          : money(data.bestWin, data.bestWinR)
                         : "—",
                     valueClass:
                       masked || data.bestWin === null
@@ -652,7 +701,7 @@ export function DashboardView({ data }: { data: DashboardData }) {
                       data.avgWin !== null
                         ? masked
                           ? MASK
-                          : formatMoney(data.avgWin, data.currency)
+                          : money(data.avgWin, data.avgWinR, false)
                         : "—",
                   },
                   {
@@ -680,7 +729,7 @@ export function DashboardView({ data }: { data: DashboardData }) {
                       data.worstLoss !== null
                         ? masked
                           ? MASK
-                          : formatSignedMoney(data.worstLoss, data.currency)
+                          : money(data.worstLoss, data.worstLossR)
                         : "—",
                     valueClass:
                       masked || data.worstLoss === null
@@ -694,7 +743,7 @@ export function DashboardView({ data }: { data: DashboardData }) {
                       data.avgLoss !== null
                         ? masked
                           ? MASK
-                          : formatMoney(data.avgLoss, data.currency)
+                          : money(data.avgLoss, data.avgLossR, false)
                         : "—",
                   },
                   {
@@ -723,35 +772,35 @@ export function DashboardView({ data }: { data: DashboardData }) {
                 title="Giorni positivi"
                 tone="profit"
                 rows={[
-                  { label: "Totale", info: dayCountInfo, value: data.days.posDays },
+                  { label: "Totale", info: dayCountInfo, value: dayData.posDays },
                   {
                     label: "Miglior giorno",
                     info: bestWorstDayInfo,
-                    value: data.days.bestDay
+                    value: dayData.bestDay
                       ? masked
                         ? MASK
-                        : `${formatSignedMoney(data.days.bestDay.netPnl, data.currency)} · ${formatDayKey(data.days.bestDay.day)}`
+                        : `${dayAmount(dayData.bestDay.netPnl)} · ${formatDayKey(dayData.bestDay.day)}`
                       : "—",
                     valueClass:
-                      masked || !data.days.bestDay
+                      masked || !dayData.bestDay
                         ? undefined
-                        : pnlColorClass(data.days.bestDay.netPnl),
+                        : pnlColorClass(dayData.bestDay.netPnl),
                   },
                   {
                     label: "Media giorni positivi",
                     info: avgDayInfo,
                     value:
-                      data.days.avgPosDay !== null
+                      dayData.avgPosDay !== null
                         ? masked
                           ? MASK
-                          : formatMoney(data.days.avgPosDay, data.currency)
+                          : dayAmount(dayData.avgPosDay, false)
                         : "—",
                   },
-                  { label: "Streak massima", info: streaksInfo, value: data.dayRuns.maxWin },
+                  { label: "Streak massima", info: streaksInfo, value: dayRunsData.maxWin },
                   {
                     label: "Streak media",
                     info: avgStreakInfo,
-                    value: ratio(data.dayRuns.avgWin),
+                    value: ratio(dayRunsData.avgWin),
                   },
                 ]}
               />
@@ -759,35 +808,35 @@ export function DashboardView({ data }: { data: DashboardData }) {
                 title="Giorni negativi"
                 tone="loss"
                 rows={[
-                  { label: "Totale", info: dayCountInfo, value: data.days.negDays },
+                  { label: "Totale", info: dayCountInfo, value: dayData.negDays },
                   {
                     label: "Peggior giorno",
                     info: bestWorstDayInfo,
-                    value: data.days.worstDay
+                    value: dayData.worstDay
                       ? masked
                         ? MASK
-                        : `${formatSignedMoney(data.days.worstDay.netPnl, data.currency)} · ${formatDayKey(data.days.worstDay.day)}`
+                        : `${dayAmount(dayData.worstDay.netPnl)} · ${formatDayKey(dayData.worstDay.day)}`
                       : "—",
                     valueClass:
-                      masked || !data.days.worstDay
+                      masked || !dayData.worstDay
                         ? undefined
-                        : pnlColorClass(data.days.worstDay.netPnl),
+                        : pnlColorClass(dayData.worstDay.netPnl),
                   },
                   {
                     label: "Media giorni negativi",
                     info: avgDayInfo,
                     value:
-                      data.days.avgNegDay !== null
+                      dayData.avgNegDay !== null
                         ? masked
                           ? MASK
-                          : formatSignedMoney(data.days.avgNegDay, data.currency)
+                          : dayAmount(dayData.avgNegDay)
                         : "—",
                   },
-                  { label: "Streak massima", info: streaksInfo, value: data.dayRuns.maxLoss },
+                  { label: "Streak massima", info: streaksInfo, value: dayRunsData.maxLoss },
                   {
                     label: "Streak media",
                     info: avgStreakInfo,
-                    value: ratio(data.dayRuns.avgLoss),
+                    value: ratio(dayRunsData.avgLoss),
                   },
                 ]}
               />
@@ -892,7 +941,7 @@ export function DashboardView({ data }: { data: DashboardData }) {
           </Card>
         ) : null}
         <div className="flex flex-col gap-4">
-          {show("balance") ? (
+          {show("balance") && !inR ? (
             <StatCard
               label="Saldo conto"
               info={balanceInfo}
@@ -902,9 +951,7 @@ export function DashboardView({ data }: { data: DashboardData }) {
                   ? MASK
                   : view === "percent"
                     ? formatPercentOfBase(data.lifetimeNetPnl, data.baseBalance)
-                    : view === "r"
-                      ? "—"
-                      : formatMoney(data.accountBalance, data.currency)
+                    : formatMoney(data.accountBalance, data.currency)
               }
               sub={
                 masked

@@ -11,6 +11,7 @@ import {
   avgLoss,
   avgWin,
   calmarRatio,
+  coveredDays,
   classifyOutcome,
   compositeScore,
   currentDayStreak,
@@ -81,6 +82,20 @@ export default async function DashboardPage({
 
   const accountWhere = tradeAccountWhere(userId, activeAccountId);
 
+  // F50 — "Ultimi trade" rispetta il filtro periodo: trade APERTI nel periodo
+  // selezionato (openedAt). Con "Tutto lo storico" (from/to assenti) nessun
+  // vincolo, come prima.
+  const recentWhere =
+    period.from || period.to
+      ? {
+          ...accountWhere,
+          openedAt: {
+            ...(period.from ? { gte: period.from } : {}),
+            ...(period.to ? { lt: period.to } : {}),
+          },
+        }
+      : accountWhere;
+
   const [
     agg,
     daily,
@@ -102,7 +117,7 @@ export default async function DashboardPage({
       getSessionBreakdown(filter),
       prisma.trade.count({ where: { ...accountWhere, status: "OPEN" } }),
       prisma.trade.findMany({
-        where: accountWhere,
+        where: recentWhere,
         orderBy: { openedAt: "desc" },
         take: 6,
         select: {
@@ -173,6 +188,7 @@ export default async function DashboardPage({
     dayWinRate,
     dayWins,
     dayCount: daily.length,
+    daysCovered: coveredDays(daily),
     profitFactor: profitFactor(agg.winSum, agg.lossSum),
     expectancy: expectancy(agg),
     expectancyR,
@@ -189,13 +205,18 @@ export default async function DashboardPage({
       label: formatDateTime(p.closedAt, user.timezone),
       symbol: p.symbol,
       netPnl: p.netPnl,
+      rMultiple: p.rMultiple,
     })),
     sequenceTruncated: agg.total > sequence.length,
     tradeRuns: streakSummary(sequence.map((p) => classifyOutcome(p.netPnl))),
     dayRuns: dayStreakSummary(daily),
+    dayRunsR: dayStreakSummary(daily.map((d) => ({ ...d, netPnl: d.rSum }))),
     days: dayStats(daily),
+    daysR: dayStats(daily.map((d) => ({ ...d, netPnl: d.rSum }))),
     bestWin: agg.bestWin,
     worstLoss: agg.worstLoss,
+    bestWinR: agg.bestWinR,
+    worstLossR: agg.worstLossR,
     avgWinDurationSec: agg.avgWinDurationSec,
     avgLossDurationSec: agg.avgLossDurationSec,
     sessions: fillSessionSeries(sessionRows),
