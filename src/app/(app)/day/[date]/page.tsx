@@ -67,8 +67,10 @@ function dayLabel(date: string): string {
 
 export default async function DayViewPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ date: string }>;
+  searchParams: Promise<{ cur?: string }>;
 }) {
   const session = await auth();
   if (!session?.user?.id) redirect("/login");
@@ -77,20 +79,24 @@ export default async function DayViewPage({
   const { date } = await params;
   if (!isValidDateKey(date)) notFound();
 
-  const [user, activeAccountId] = await Promise.all([
+  const [user, activeAccountId, { cur }] = await Promise.all([
     prisma.user.findUniqueOrThrow({
       where: { id: userId },
       select: { timezone: true, baseCurrency: true },
     }),
     getActiveAccountId(),
+    searchParams,
   ]);
+  // F6 — valuta di scope passata dal calendario (?cur): il totale del giorno
+  // non somma mai valute diverse.
+  const scopeCurrency = typeof cur === "string" && cur ? cur : undefined;
 
   // Il "giorno" è quello di calendario nel fuso utente: stessi confini e
   // stessa convenzione (closedAt) del bucketing SQL del calendario.
   const start = zonedInputToUtc(`${date}T00:00`, user.timezone);
   const end = zonedInputToUtc(`${addDays(date, 1)}T00:00`, user.timezone);
 
-  const accountWhere = tradeAccountWhere(userId, activeAccountId);
+  const accountWhere = tradeAccountWhere(userId, activeAccountId, scopeCurrency);
 
   const [trades, dayNotes, activeAccount] = await Promise.all([
     prisma.trade.findMany({
@@ -121,7 +127,7 @@ export default async function DayViewPage({
         }),
   ]);
 
-  const currency = activeAccount?.currency ?? user.baseCurrency;
+  const currency = scopeCurrency ?? activeAccount?.currency ?? user.baseCurrency;
 
   // Poche righe, già caricate per la tabella: le somme restano Decimal.
   // Il cumulato per il grafico intraday è solo presentazione, costruito

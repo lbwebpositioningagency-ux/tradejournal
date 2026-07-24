@@ -21,8 +21,10 @@ import {
   pnlColorClass,
 } from "@/lib/money";
 import { netPnlInfo } from "@/lib/metrics";
-import { getDailyPnl } from "@/lib/queries/stats";
+import { getCurrencyBreakdown, getDailyPnl } from "@/lib/queries/stats";
+import { resolveCurrencyScope } from "@/lib/currency-scope";
 import { cn } from "@/lib/utils";
+import { CurrencyFilter } from "@/components/filters/currency-filter";
 import { MetricInfo } from "@/components/metric-info";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -44,7 +46,7 @@ function monthLabel(month: string): string {
 export default async function DayCalendarPage({
   searchParams,
 }: {
-  searchParams: Promise<{ month?: string }>;
+  searchParams: Promise<{ month?: string; cur?: string }>;
 }) {
   const session = await auth();
   if (!session?.user?.id) redirect("/login");
@@ -69,8 +71,26 @@ export default async function DayCalendarPage({
   const from = zonedInputToUtc(`${month}-01T00:00`, user.timezone);
   const to = zonedInputToUtc(`${addMonths(month, 1)}-01T00:00`, user.timezone);
 
-  const [daily, noteRows, activeAccount] = await Promise.all([
-    getDailyPnl({ userId, accountId: activeAccountId, from, to }, user.timezone),
+  const monthFilter = { userId, accountId: activeAccountId, from, to };
+
+  // F6 — valute presenti nel mese e valuta attiva (mai sommare valute diverse).
+  const [currencyTotals, activeAccount] = await Promise.all([
+    getCurrencyBreakdown(monthFilter),
+    activeAccountId === ALL_ACCOUNTS
+      ? null
+      : prisma.tradingAccount.findFirst({
+          where: { id: activeAccountId, userId },
+          select: { currency: true },
+        }),
+  ]);
+  const scope = resolveCurrencyScope(currencyTotals, params.cur);
+  const currency = scope.active ?? activeAccount?.currency ?? user.baseCurrency;
+
+  const [daily, noteRows] = await Promise.all([
+    getDailyPnl(
+      { ...monthFilter, currency: scope.active },
+      user.timezone,
+    ),
     prisma.note.findMany({
       where: {
         userId,
@@ -82,15 +102,7 @@ export default async function DayCalendarPage({
       },
       select: { dayDate: true },
     }),
-    activeAccountId === ALL_ACCOUNTS
-      ? null
-      : prisma.tradingAccount.findFirst({
-          where: { id: activeAccountId, userId },
-          select: { currency: true },
-        }),
   ]);
-
-  const currency = activeAccount?.currency ?? user.baseCurrency;
   const byDay = new Map(daily.map((d) => [d.day, d]));
   const noteDays = new Set(
     noteRows.map((n) => n.dayDate!.toISOString().slice(0, 10)),
@@ -114,13 +126,32 @@ export default async function DayCalendarPage({
                 <span className={cn("font-medium", pnlColorClass(monthNet))}>
                   {formatSignedMoney(monthNet, currency)}
                 </span>
-                {` · ${monthTrades} trade · ${greenDays} giorni verdi su ${daily.length}`}
+                {` · ${monthTrades} trade · ${greenDays} giorni verdi su ${daily.length}${scope.multi ? ` · ${currency}` : ""}`}
                 <MetricInfo info={netPnlInfo} />
               </>
             )}
           </p>
+          {scope.multi ? (
+            <p className="mt-0.5 text-xs text-muted-foreground">
+              Totali del mese per valuta (mai sommati):{" "}
+              {currencyTotals.map((t, i) => (
+                <span key={t.currency}>
+                  {i > 0 ? " · " : ""}
+                  <span className={pnlColorClass(t.netPnl)}>
+                    {formatSignedMoney(t.netPnl, t.currency)}
+                  </span>
+                </span>
+              ))}
+            </p>
+          ) : null}
         </div>
         <div className="flex items-center gap-2">
+          {scope.multi ? (
+            <CurrencyFilter
+              currencies={currencyTotals.map((t) => t.currency)}
+              active={currency}
+            />
+          ) : null}
           <Button asChild variant="outline" size="icon" aria-label="Mese precedente">
             <Link href={`/day?month=${addMonths(month, -1)}`}>
               <ChevronLeft className="size-4" />
@@ -195,7 +226,11 @@ export default async function DayCalendarPage({
                     return (
                       <Link
                         key={date}
-                        href={`/day/${date}`}
+                        href={
+                          scope.multi
+                            ? `/day/${date}?cur=${currency}`
+                            : `/day/${date}`
+                        }
                         className={cn(
                           "flex min-h-20 flex-col gap-0.5 overflow-hidden rounded-md border px-0.5 py-1 transition-colors sm:p-1.5",
                           tone,
@@ -278,9 +313,11 @@ export default async function DayCalendarPage({
           </div>
           <p className="mt-3 text-xs text-muted-foreground">
             Importi in {currency}
-            {activeAccountId === ALL_ACCOUNTS
-              ? " · tutti i conti non archiviati (valute sommate senza conversione)"
-              : ""}
+            {scope.multi
+              ? " · altre valute con totali separati (mai sommate)"
+              : activeAccountId === ALL_ACCOUNTS
+                ? " · tutti i conti non archiviati"
+                : ""}
             . I giorni seguono il tuo fuso orario.
           </p>
         </CardContent>

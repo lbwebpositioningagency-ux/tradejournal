@@ -30,6 +30,7 @@ import {
   winRate,
 } from "@/lib/metrics";
 import {
+  getCurrencyBreakdown,
   getDailyPnl,
   getLifetimeNetPnl,
   getRecentTradeOutcomes,
@@ -38,6 +39,7 @@ import {
   getTradeSequence,
   type StatsFilter,
 } from "@/lib/queries/stats";
+import { resolveCurrencyScope } from "@/lib/currency-scope";
 import { getSessionBreakdown } from "@/lib/queries/reports";
 import { fillSessionSeries } from "@/lib/sessions";
 import { parseDashboardLayout } from "@/lib/dashboard";
@@ -51,7 +53,12 @@ export const metadata: Metadata = { title: "Dashboard" };
 export default async function DashboardPage({
   searchParams,
 }: {
-  searchParams: Promise<{ period?: string; from?: string; to?: string }>;
+  searchParams: Promise<{
+    period?: string;
+    from?: string;
+    to?: string;
+    cur?: string;
+  }>;
 }) {
   const session = await auth();
   if (!session?.user?.id) redirect("/login");
@@ -73,14 +80,31 @@ export default async function DashboardPage({
 
   const period = resolvePeriod(params, user.timezone);
 
-  const filter: StatsFilter = {
+  const baseFilter: StatsFilter = {
     userId,
     accountId: activeAccountId,
     from: period.from,
     to: period.to,
   };
 
-  const accountWhere = tradeAccountWhere(userId, activeAccountId);
+  // F6 — prima si determinano le valute presenti nel periodo/scope e la valuta
+  // attiva (mai sommare valute diverse), poi tutte le metriche girano ristrette
+  // a quella valuta.
+  const [currencyTotals, activeAccount] = await Promise.all([
+    getCurrencyBreakdown(baseFilter),
+    activeAccountId === ALL_ACCOUNTS
+      ? null
+      : prisma.tradingAccount.findFirst({
+          where: { id: activeAccountId, userId },
+          select: { currency: true },
+        }),
+  ]);
+  const scope = resolveCurrencyScope(currencyTotals, params.cur);
+  const filter: StatsFilter = { ...baseFilter, currency: scope.active };
+  const currency = scope.active ?? activeAccount?.currency ?? user.baseCurrency;
+
+  // Filtro conto + valuta attiva per le query Prisma non-SQL (aperti, recenti).
+  const accountWhere = tradeAccountWhere(userId, activeAccountId, scope.active);
 
   // F50 — "Ultimi trade" rispetta il filtro periodo: trade APERTI nel periodo
   // selezionato (openedAt). Con "Tutto lo storico" (from/to assenti) nessun
@@ -106,7 +130,6 @@ export default async function DashboardPage({
     sessionRows,
     openTrades,
     recentTrades,
-    activeAccount,
   ] = await Promise.all([
       getTradeAggregates(filter),
       getDailyPnl(filter, user.timezone),
@@ -131,15 +154,7 @@ export default async function DashboardPage({
           account: { select: { currency: true } },
         },
       }),
-      activeAccountId === ALL_ACCOUNTS
-        ? null
-        : prisma.tradingAccount.findFirst({
-            where: { id: activeAccountId, userId },
-            select: { currency: true },
-          }),
     ]);
-
-  const currency = activeAccount?.currency ?? user.baseCurrency;
 
   // Metriche (tutte Decimal-safe, sul server; il client formatta soltanto)
   const dayWins = daily.filter((d) => new Decimal(d.netPnl).gt(0)).length;
@@ -164,6 +179,10 @@ export default async function DashboardPage({
 
   const data: DashboardData = {
     currency,
+    // F6 — totali per valuta presenti nel periodo (per i totali affiancati) e
+    // flag multi-valuta (mostra selettore + nota). Mai una somma cross-valuta.
+    currencyTotals,
+    multiCurrency: scope.multi,
     baseBalance,
     // Saldo REALE del conto: iniziale + P&L di tutto lo storico chiuso,
     // mai filtrato dal periodo (il P&L di periodo è un widget a parte).

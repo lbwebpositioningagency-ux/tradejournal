@@ -15,7 +15,9 @@ import {
   type WidgetId,
 } from "@/lib/dashboard";
 import type { PeriodKey } from "@/lib/period";
+import type { CurrencyTotal } from "@/lib/queries/stats";
 import { PeriodFilter } from "@/components/filters/period-filter";
+import { CurrencyFilter } from "@/components/filters/currency-filter";
 import {
   formatMoney,
   formatPercent,
@@ -92,6 +94,10 @@ import { ScoreGauge } from "./score-gauge";
 
 export interface DashboardData {
   currency: string;
+  /** F6 — totali per valuta presenti nel periodo (mai sommati tra loro). */
+  currencyTotals: CurrencyTotal[];
+  /** F6 — true se lo scope contiene più valute: selettore + nota. */
+  multiCurrency: boolean;
   baseBalance: string;
   /** Saldo reale: iniziale + P&L di tutto lo storico (mai filtrato dal periodo). */
   accountBalance: string;
@@ -400,9 +406,29 @@ export function DashboardView({ data }: { data: DashboardData }) {
             {data.totalTrades} trade chiusi
             {data.openTrades > 0 ? ` · ${data.openTrades} aperti` : ""} ·{" "}
             {data.period.label}
+            {data.multiCurrency ? ` · ${data.currency}` : ""}
           </p>
+          {data.multiCurrency ? (
+            <p className="mt-0.5 text-xs text-muted-foreground">
+              Totali per valuta (mai sommati):{" "}
+              {data.currencyTotals.map((t, i) => (
+                <span key={t.currency}>
+                  {i > 0 ? " · " : ""}
+                  <span className={pnlColorClass(t.netPnl)}>
+                    {formatSignedMoney(t.netPnl, t.currency)}
+                  </span>
+                </span>
+              ))}
+            </p>
+          ) : null}
         </div>
         <div className="flex flex-wrap items-center gap-2">
+          {data.multiCurrency ? (
+            <CurrencyFilter
+              currencies={data.currencyTotals.map((t) => t.currency)}
+              active={data.currency}
+            />
+          ) : null}
           <PeriodFilter
             periodKey={data.period.key}
             fromKey={data.period.fromKey}

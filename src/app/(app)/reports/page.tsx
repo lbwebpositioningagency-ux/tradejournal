@@ -40,9 +40,15 @@ import {
   getWeekdayBreakdown,
   type BreakdownAggregates,
 } from "@/lib/queries/reports";
-import { getRecentTradeOutcomes, type StatsFilter } from "@/lib/queries/stats";
+import {
+  getCurrencyBreakdown,
+  getRecentTradeOutcomes,
+  type StatsFilter,
+} from "@/lib/queries/stats";
+import { resolveCurrencyScope } from "@/lib/currency-scope";
 import { cn } from "@/lib/utils";
 import { PeriodFilter } from "@/components/filters/period-filter";
+import { CurrencyFilter } from "@/components/filters/currency-filter";
 import { ReportBarChart } from "@/components/reports/report-bar-chart";
 import {
   Card,
@@ -235,14 +241,30 @@ export default async function ReportsPage({
   ]);
 
   const period = resolvePeriod(params, user.timezone);
-  const filter: StatsFilter = {
+  const baseFilter: StatsFilter = {
     userId,
     accountId: activeAccountId,
     from: period.from,
     to: period.to,
   };
+  const curParam = typeof params.cur === "string" ? params.cur : undefined;
 
-  const [strategies, tags, hours, weekdays, streaks, outcomes, activeAccount] =
+  // F6 — scope per valuta (mai sommare valute diverse): prima le valute
+  // presenti, poi tutti i report ristretti alla valuta attiva.
+  const [currencyTotals, activeAccount] = await Promise.all([
+    getCurrencyBreakdown(baseFilter),
+    activeAccountId === ALL_ACCOUNTS
+      ? null
+      : prisma.tradingAccount.findFirst({
+          where: { id: activeAccountId, userId },
+          select: { currency: true },
+        }),
+  ]);
+  const scope = resolveCurrencyScope(currencyTotals, curParam);
+  const filter: StatsFilter = { ...baseFilter, currency: scope.active };
+  const currency = scope.active ?? activeAccount?.currency ?? user.baseCurrency;
+
+  const [strategies, tags, hours, weekdays, streaks, outcomes] =
     await Promise.all([
       getStrategyBreakdown(filter),
       getTagBreakdown(filter),
@@ -250,15 +272,7 @@ export default async function ReportsPage({
       getWeekdayBreakdown(filter, user.timezone),
       getStreakStats(filter),
       getRecentTradeOutcomes(filter),
-      activeAccountId === ALL_ACCOUNTS
-        ? null
-        : prisma.tradingAccount.findFirst({
-            where: { id: activeAccountId, userId },
-            select: { currency: true },
-          }),
     ]);
-
-  const currency = activeAccount?.currency ?? user.baseCurrency;
   const totalTrades = strategies.reduce((acc, s) => acc + s.total, 0);
   const hourSeries = fillHourSeries(hours);
   const weekdaySeries = fillWeekdaySeries(weekdays);
@@ -272,17 +286,40 @@ export default async function ReportsPage({
           <h1 className="page-title">Reports</h1>
           <p className="page-subtitle">
             {totalTrades} trade chiusi · {period.label}
-            {activeAccountId === ALL_ACCOUNTS
-              ? " · tutti i conti (valute sommate senza conversione)"
-              : ""}
+            {scope.multi
+              ? ` · ${currency}`
+              : activeAccountId === ALL_ACCOUNTS
+                ? " · tutti i conti"
+                : ""}
           </p>
+          {scope.multi ? (
+            <p className="mt-0.5 text-xs text-muted-foreground">
+              Totali per valuta (mai sommati):{" "}
+              {currencyTotals.map((t, i) => (
+                <span key={t.currency}>
+                  {i > 0 ? " · " : ""}
+                  <span className={pnlColorClass(t.netPnl)}>
+                    {formatSignedMoney(t.netPnl, t.currency)}
+                  </span>
+                </span>
+              ))}
+            </p>
+          ) : null}
         </div>
-        <PeriodFilter
-          periodKey={period.key}
-          fromKey={period.fromKey}
-          toKey={period.toKey}
-          label={period.label}
-        />
+        <div className="flex flex-wrap items-center gap-2">
+          {scope.multi ? (
+            <CurrencyFilter
+              currencies={currencyTotals.map((t) => t.currency)}
+              active={currency}
+            />
+          ) : null}
+          <PeriodFilter
+            periodKey={period.key}
+            fromKey={period.fromKey}
+            toKey={period.toKey}
+            label={period.label}
+          />
+        </div>
       </div>
 
       {totalTrades === 0 ? (

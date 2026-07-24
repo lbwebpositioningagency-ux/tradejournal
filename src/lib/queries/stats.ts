@@ -22,6 +22,13 @@ export interface StatsFilter {
   userId: string;
   /** Id conto oppure ALL_ACCOUNTS per tutti i conti non archiviati. */
   accountId: string;
+  /**
+   * F6 — scope per valuta: in vista "Tutti i conti" con conti di valute
+   * diverse, restringe l'aggregato a una sola valuta (mai sommare valute
+   * diverse). Assente = nessun vincolo di valuta (conto singolo, o un'unica
+   * valuta presente).
+   */
+  currency?: string;
   /** Intervallo opzionale su closedAt (UTC). */
   from?: Date;
   to?: Date;
@@ -39,9 +46,41 @@ export function whereClosedTrades(filter: StatsFilter): Prisma.Sql {
   } else {
     conditions.push(Prisma.sql`a."isArchived" = false`);
   }
+  if (filter.currency) {
+    conditions.push(Prisma.sql`a."currency" = ${filter.currency}`);
+  }
   if (filter.from) conditions.push(Prisma.sql`t."closedAt" >= ${filter.from}`);
   if (filter.to) conditions.push(Prisma.sql`t."closedAt" < ${filter.to}`);
   return Prisma.join(conditions, " AND ");
+}
+
+/** Totale per valuta (F6): P&L netto e n° trade chiusi per ogni valuta nello
+ *  scope/periodo, per mostrare i totali affiancati senza mai sommarli. */
+export interface CurrencyTotal {
+  currency: string;
+  netPnl: string;
+  trades: number;
+}
+
+/**
+ * Ripartisce i trade chiusi dello scope per valuta del conto (mai una somma
+ * cross-valuta). Ignora un eventuale filtro `currency` per elencare TUTTE le
+ * valute presenti. Ordina per numero di trade (valuta prevalente prima).
+ */
+export async function getCurrencyBreakdown(
+  filter: StatsFilter,
+): Promise<CurrencyTotal[]> {
+  // Ignora un eventuale scope di valuta: vogliamo TUTTE le valute presenti.
+  const scope: StatsFilter = { ...filter, currency: undefined };
+  return prisma.$queryRaw<CurrencyTotal[]>(Prisma.sql`
+    SELECT a."currency" AS "currency",
+           COALESCE(SUM(t."netPnl"), 0)::text AS "netPnl",
+           COUNT(*)::int AS "trades"
+    ${FROM_TRADES}
+    WHERE ${whereClosedTrades(scope)}
+    GROUP BY a."currency"
+    ORDER BY COUNT(*) DESC, a."currency" ASC
+  `);
 }
 
 export const FROM_TRADES = Prisma.sql`
@@ -240,12 +279,16 @@ export async function getRecentTradeOutcomes(
  * mai dipendere dal periodo selezionato in dashboard.
  */
 export async function getLifetimeNetPnl(
-  filter: Pick<StatsFilter, "userId" | "accountId">,
+  filter: Pick<StatsFilter, "userId" | "accountId" | "currency">,
 ): Promise<string> {
   const rows = await prisma.$queryRaw<{ netPnl: string }[]>(Prisma.sql`
     SELECT COALESCE(SUM(t."netPnl"), 0)::text AS "netPnl"
     ${FROM_TRADES}
-    WHERE ${whereClosedTrades({ userId: filter.userId, accountId: filter.accountId })}
+    WHERE ${whereClosedTrades({
+      userId: filter.userId,
+      accountId: filter.accountId,
+      currency: filter.currency,
+    })}
   `);
   return rows[0].netPnl;
 }
@@ -264,6 +307,7 @@ export async function getStartingBalance(filter: StatsFilter): Promise<string> {
           ? Prisma.sql`a."id" = ${filter.accountId}`
           : Prisma.sql`a."isArchived" = false`
       }
+      ${filter.currency ? Prisma.sql`AND a."currency" = ${filter.currency}` : Prisma.empty}
   `);
   return rows[0].balance;
 }

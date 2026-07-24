@@ -319,3 +319,24 @@ Piano master premium, giro di pulizia. Finding chiusi: **F1, F2, F3, F4, F5, F19
 9. **F46 — toast**: `Toaster` spostato da `top-right` a `bottom-right`, non copre più la topbar (account switcher/tema/avatar).
 
 **Verificato:** lint ✅ · typecheck ✅ · **328/328 test** ✅ (nuovi: `instruments.test.ts`, `utils.test.ts`, + copertura `formatPercent`/`formatPercentOfBase`/`formatDayKey`) · build ✅ · screenshot before/after 1280/390/375 in `docs/premium-20260724/{before,after}` (dashboard, reports, trade list, dettaglio trade XAUUSD/ES, strategies). F4 verificato a vista: forex 5 dec, oro 2 dec, futures 2 dec col separatore migliaia.
+
+## ✅ PREMIUM — FASE 2 «Fiducia nei numeri» (24/07/2026)
+Finding chiusi: **F6, F8, F9, F10, F11, F12, F50**. **F7 rimandato alla Fase 11** (il piano lo accoppia esplicitamente a F22 «da fare insieme»: le sessioni nel fuso dell'exchange si fanno insieme alla trasformazione radar→tabella, per non toccare due volte lo stesso codice).
+
+**Numeri e metriche (commit 1/2):**
+1. **F19 già in Fase 1**; qui **F10** — il Payoff è un moltiplicatore, etichettato "×" (es. "2,57×"), non più "R" (non è un R-multiple).
+2. **F11** — Sortino/Sharpe dichiarano la base "Giornaliero" sulla card (non sono annualizzati), non solo nel tooltip.
+3. **F8** — Calmar con gate storico: `calmarRatio` è null sotto `CALMAR_MIN_DAYS` (180 giorni coperti), la card mostra "—" + "dati insufficienti (N/180)" come l'SQN (nuovi `coveredDays`/`CALMAR_MIN_DAYS` in `calmar.ts`, con test). Sul seed (91 giorni) il Calmar è correttamente gated.
+4. **F9** — Drawdown/Ulcer oltre il 100% del picco → "equity negativa" / "> 100%" invece di percentuali fuorvianti (equity sotto zero).
+5. **F12** — Vista R completa: R propagato a Winners&Losers (miglior/peggior e medie), Best/Worst Days (serie e streak sulla curva R via `daysR`/`dayRunsR`), Sequenza trade (barre in R), sottotitolo Max Drawdown dalla curva R; "Saldo conto" nascosto in vista R. Nuovi aggregati SQL `bestWinR`/`worstLossR` + `rMultiple` nella sequenza. Verificato a runtime (0 errori console) e i numeri R controllati via SQL (bestWinR 2,74 / worstLossR -1,20).
+6. **F50** — "Ultimi trade" rispetta il filtro periodo (trade aperti nel periodo).
+
+**F6 — SPLIT PER VALUTA (commit 2/2), la decisione chiave del piano:**
+Mai più una somma di valute diverse. Prima la vista "Tutti i conti" sommava USD+EUR in un unico numero fasullo (sul seed: "40.293,14 USD" = 32.601,50 USD + 7.691,64 EUR sommati). Ora:
+- `StatsFilter.currency` (opzionale) restringe TUTTE le query aggregate (dashboard, reports, calendario) a una sola valuta via `whereClosedTrades`; `tradeAccountWhere(userId, account, currency?)` fa lo stesso per le query Prisma (aperti, recenti, dettaglio giorno).
+- Nuova `getCurrencyBreakdown` → totali (P&L netto + n° trade) **per valuta**, mai sommati.
+- `resolveCurrencyScope` (con test): una sola valuta → scope su quella (corregge anche il vecchio bug che etichettava tutto con `baseCurrency`); più valute → valuta selezionata via `?cur` o la prevalente.
+- UI: quando lo scope ha più valute compaiono **il selettore valuta** (`CurrencyFilter`, es. USD/EUR) e la riga **"Totali per valuta (mai sommati): +32.601,50 USD · +7.691,64 €"** affiancati, in dashboard, reports e calendario. Il dettaglio giorno riceve la valuta dal calendario (`?cur`) e non somma mai il totale del giorno tra valute.
+- **Zero conversioni, zero tassi, zero fonti esterne**, come deciso.
+
+**Verificato:** lint ✅ · typecheck ✅ · **336/336 test** ✅ (nuovi: `currency-scope.test.ts`, gate Calmar, `coveredDays`) · build di produzione ✅ · F6 verificato a vista su seed multi-valuta (USD 120 trade / EUR 91 trade): dashboard/reports/calendario scoping USD↔EUR, totali affiancati corretti, numeri riconciliati con query SQL indipendente. F8/F10/F11/F12 verificati a runtime (vista R inclusa, 0 errori console).
