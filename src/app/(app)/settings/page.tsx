@@ -21,6 +21,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { AccentPicker } from "./accent-picker";
 import { Mt5SyncSettings } from "./mt5-sync-settings";
 import { ProfileForm } from "./profile-form";
+import { PasswordForm } from "./password-form";
 
 export const metadata: Metadata = { title: "Impostazioni" };
 
@@ -31,7 +32,14 @@ export default async function SettingsPage() {
   const userId = session.user.id;
   const user = await prisma.user.findUniqueOrThrow({
     where: { id: userId },
-    select: { name: true, email: true, timezone: true, baseCurrency: true },
+    select: {
+      name: true,
+      email: true,
+      timezone: true,
+      baseCurrency: true,
+      // F39 — null = account solo-Google: il form "imposta password".
+      passwordHash: true,
+    },
   });
 
   const [mt5Sources, accounts] = await Promise.all([
@@ -77,6 +85,9 @@ export default async function SettingsPage() {
         timezone={user.timezone}
         baseCurrency={user.baseCurrency}
       />
+
+      {/* F39 — sicurezza account */}
+      <PasswordForm hasPassword={user.passwordHash !== null} />
 
       <AccentPicker currentAccent={accent} currentPnl={pnlPalette} />
 

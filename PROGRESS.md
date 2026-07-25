@@ -414,3 +414,11 @@ Finding chiuso: **F17**.
 5. **"Crea e nuovo"**: salva e riparte per il trade successivo tenendo conto, simbolo, asset, valore punto e data; piano/esecuzioni/note/tag ripartono puliti.
 
 **Verificato:** lint ✅ · typecheck ✅ · **404/404 test** ✅ (nuovi: `plannedRiskFromStop` 2 suite, `suggestAssetClass` 3 casi) · build di produzione ✅ · flusso verificato sul form REALE in produzione (default "Futures" dal conto attivo; digitando "ES": punto→50; stop 5590 + qty 2 + prezzo 5600 → rischio auto "1000.00"; suggerimenti tag dal vocabolario) · screenshot before/after in `docs/premium-20260724/fase8/` (1280/390 dark + 1280 light + form compilato).
+
+## ✅ PREMIUM — FASE 9 «Account e sicurezza» (25/07/2026)
+Finding chiuso: **F39** (cambio password + rate limiting; il recupero via email resta fuori come da audit "solo se/quando servirà" — richiederebbe un servizio di invio email, cioè una dipendenza esterna).
+
+1. **Cambio password** nelle Impostazioni (`PasswordForm` + `changePasswordAction`): password attuale SEMPRE verificata via bcrypt quando esiste; un account solo-Google (hash null) la imposta per la prima volta senza campo "attuale" (copy dedicata). Zod: minimo 8 caratteri, conferma coincidente.
+2. **Rate limiting** (`src/lib/rate-limit.ts`, sliding window in memoria, zero dipendenze come da regola): login 10 tentativi/15min per email — applicato DENTRO `authorize`, quindi vale anche per le POST dirette all'endpoint credentials; registrazione 5/15min per email; cambio password 5/15min per utente. Login riuscito azzera il contatore; i tentativi oltre soglia NON allungano la punizione. Limite noto e documentato nel modulo: su serverless il tetto è per-istanza.
+
+**Verificato:** lint ✅ · typecheck ✅ · **409/409 test** ✅ (nuovi: `rate-limit.test.ts` 5 casi con clock iniettato — finestra scorrevole, chiavi indipendenti, reset, niente punizione allungata) · build di produzione ✅ · cambio password end-to-end su prod con utente usa-e-getta: attuale sbagliata → "Password attuale errata"; giusta → "Password aggiornata"; vecchia credenziale rifiutata e nuova accettata all'endpoint reale; utente di test rimosso · screenshot before/after in `docs/premium-20260724/fase9/` (1280/390 dark + 1280 light + toast di conferma).

@@ -20,5 +20,23 @@ export const registerSchema = z.object({
     .transform((v) => v.replace(",", ".")),
 });
 
+// F39 — cambio password dalle Impostazioni. `currentPassword` è verificata
+// nella server action (obbligatoria solo se l'utente HA già una password:
+// un account solo-Google la sta impostando per la prima volta).
+export const changePasswordSchema = z
+  .object({
+    currentPassword: z.string(),
+    newPassword: z
+      .string()
+      .min(8, "La nuova password deve avere almeno 8 caratteri")
+      .max(72),
+    confirmPassword: z.string(),
+  })
+  .refine((data) => data.newPassword === data.confirmPassword, {
+    message: "Le password non coincidono",
+    path: ["confirmPassword"],
+  });
+
 export type LoginInput = z.infer<typeof loginSchema>;
 export type RegisterInput = z.infer<typeof registerSchema>;
+export type ChangePasswordInput = z.infer<typeof changePasswordSchema>;

@@ -6,6 +6,7 @@ import { PrismaAdapter } from "@auth/prisma-adapter";
 import bcrypt from "bcryptjs";
 import { prisma } from "@/lib/db";
 import { loginSchema } from "@/lib/validations/auth";
+import { AUTH_LIMITS, rateLimit, resetRateLimit } from "@/lib/rate-limit";
 
 const providers: Provider[] = [
   Credentials({
@@ -17,14 +18,19 @@ const providers: Provider[] = [
       const parsed = loginSchema.safeParse(credentials);
       if (!parsed.success) return null;
 
-      const user = await prisma.user.findUnique({
-        where: { email: parsed.data.email.toLowerCase() },
-      });
+      // F39 — freno al brute force PRIMA di toccare il database: vale anche
+      // per le POST dirette all'endpoint credentials, non solo per il form.
+      const email = parsed.data.email.toLowerCase();
+      if (!rateLimit(`login:${email}`, AUTH_LIMITS.login).allowed) return null;
+
+      const user = await prisma.user.findUnique({ where: { email } });
       if (!user?.passwordHash) return null;
 
       const valid = await bcrypt.compare(parsed.data.password, user.passwordHash);
       if (!valid) return null;
 
+      // Login riuscito: i tentativi legittimi non pesano sul contatore.
+      resetRateLimit(`login:${email}`);
       return { id: user.id, email: user.email, name: user.name, image: user.image };
     },
   }),
