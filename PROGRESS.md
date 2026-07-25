@@ -403,3 +403,14 @@ Finding chiusi: **F13, F14, F49**.
 4. **F49 — drag&drop + preset**: dropzone tratteggiata sullo step 1 (stesso percorso del bottone, rifiuta i non-CSV); 3 preset predefiniti (NinjaTrader Trade Performance, Generico EN, Generico IT) applicati con lo stesso filtro dei profili utente (colonne assenti ignorate: punto di partenza sicuro, mai una gabbia).
 
 **Verificato:** lint ✅ · typecheck ✅ · **399/399 test** ✅ (nuovi: `import-core.fingerprint.test.ts` 7 puri + `import-core.integration.test.ts` 4 su Postgres, suggestPointValue 4, previewNetPnl 3, point value per riga 3) · build di produzione ✅ · flusso end-to-end sul wizard REALE in produzione (CSV misto ES+NQ+GC: anteprima con 50/20/100 e Net P&L 497.90/997.90/495.80 confermati poi in SQL; re-import → "3 righe identiche", 0 doppioni in tabella; trade di test rimossi, seed a 213) · screenshot before/after in `docs/premium-20260724/fase7/` (step 1 dark+light+mobile, step 2 mapping, step 3 anteprima e warning duplicati).
+
+## ✅ PREMIUM — FASE 8 «Inserimento manuale» (25/07/2026)
+Finding chiuso: **F17**.
+
+1. **Default per conto**: l'asset class iniziale è quella dell'ULTIMO trade del conto scelto (poi dell'utente), non più "Azioni" fissa — la trappola "ES salvato come STOCK" sparisce alla radice.
+2. **Simbolo → suggerimenti certi**: digitando il simbolo, `suggestAssetClass` (nuova, con test: tabella futures, metalli spot, coppie con valuta maggiore — MAI ipotesi) imposta l'asset class e `suggestPointValue` il valore punto (etichetta "Dalla tabella per ES — modificabile"). I suggerimenti agiscono SOLO sui campi non ancora toccati a mano; in modifica nessuna magia.
+3. **Rischio auto-calcolato**: nuova `plannedRiskFromStop` (|entry − stop| × qty × valore punto, Decimal, test con stop=entry e qty=0) — il campo Rischio segue il calcolo finché non viene toccato; dopo, resta un hint "Calcolato dal piano: X [Usa]". Stop/target spostati PRIMA del rischio nella card (l'ordine del ragionamento del trader).
+4. **Tag con suggerimenti**: `TagPicker` a chips (Invio/virgola per aggiungere, Backspace per togliere, suggerimenti filtrati dai tag esistenti, dedup case-insensitive che riusa la grafia esistente: mai più "fomo/FOMO"). `TradeFormValues.tags` ora è `string[]`.
+5. **"Crea e nuovo"**: salva e riparte per il trade successivo tenendo conto, simbolo, asset, valore punto e data; piano/esecuzioni/note/tag ripartono puliti.
+
+**Verificato:** lint ✅ · typecheck ✅ · **404/404 test** ✅ (nuovi: `plannedRiskFromStop` 2 suite, `suggestAssetClass` 3 casi) · build di produzione ✅ · flusso verificato sul form REALE in produzione (default "Futures" dal conto attivo; digitando "ES": punto→50; stop 5590 + qty 2 + prezzo 5600 → rischio auto "1000.00"; suggerimenti tag dal vocabolario) · screenshot before/after in `docs/premium-20260724/fase8/` (1280/390 dark + 1280 light + form compilato).

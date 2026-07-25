@@ -177,3 +177,33 @@ export function computeTrade(
     rMultiple,
   };
 }
+
+/**
+ * F17 — rischio pianificato suggerito dal piano: |entry − stop| × qty × punto.
+ * Input come stringhe decimali dal form; null se un campo manca, non è
+ * numerico o il rischio non è positivo (stop uguale all'entry). Il valore è
+ * un SUGGERIMENTO per il campo "Rischio iniziale", sempre sovrascrivibile.
+ */
+export function plannedRiskFromStop(params: {
+  entryPrice: string;
+  plannedStop: string;
+  quantity: string;
+  pointValue: string;
+}): string | null {
+  let entry: Decimal, stop: Decimal, qty: Decimal, point: Decimal;
+  try {
+    entry = new Decimal(params.entryPrice);
+    stop = new Decimal(params.plannedStop);
+    qty = new Decimal(params.quantity);
+    point = new Decimal(params.pointValue);
+  } catch {
+    return null;
+  }
+  if (!entry.isFinite() || !stop.isFinite() || !qty.isFinite() || !point.isFinite()) {
+    return null;
+  }
+  if (qty.lte(0) || point.lte(0)) return null;
+  const risk = entry.minus(stop).abs().times(qty).times(point);
+  if (risk.lte(0)) return null;
+  return risk.toFixed(2);
+}

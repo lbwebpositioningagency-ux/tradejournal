@@ -62,6 +62,29 @@ export function suggestPointValue(
   return null;
 }
 
+/** Simboli della tabella che sono contratti futures (non metalli spot). */
+const SPOT_METALS = new Set(["XAUUSD", "XAGUSD"]);
+
+/**
+ * F17 — asset class suggerita dal simbolo: evita la trappola "ES salvato come
+ * STOCK" del default. Solo suggerimenti CERTI (tabella futures, metalli spot,
+ * coppia a 6 lettere con valute note); null per tutto il resto.
+ */
+export function suggestAssetClass(symbol: string): "FUTURES" | "FOREX" | null {
+  const s = symbol.trim().toUpperCase();
+  if (s === "") return null;
+  if (SPOT_METALS.has(s)) return "FOREX";
+  if (KNOWN_POINT_VALUES[s]) return "FUTURES";
+  // Coppia a 6 lettere con una valuta maggiore in una delle due metà.
+  if (/^[A-Z]{6}$/.test(s)) {
+    const majors = ["USD", "EUR", "GBP", "JPY", "CHF", "AUD", "NZD", "CAD"];
+    if (majors.includes(s.slice(0, 3)) || majors.includes(s.slice(3))) {
+      return "FOREX";
+    }
+  }
+  return null;
+}
+
 /** Decimali di prezzo da mostrare per un dato simbolo/asset class. */
 export function priceDecimals(symbol: string, assetClass: string): number {
   const s = symbol.toUpperCase();

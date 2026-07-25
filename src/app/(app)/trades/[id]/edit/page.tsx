@@ -22,7 +22,7 @@ export default async function EditTradePage({
 
   const { id } = await params;
 
-  const [user, trade, accounts, strategies] = await Promise.all([
+  const [user, trade, accounts, strategies, allTags] = await Promise.all([
     prisma.user.findUniqueOrThrow({
       where: { id: userId },
       select: { timezone: true },
@@ -44,6 +44,12 @@ export default async function EditTradePage({
       where: { userId, isArchived: false },
       orderBy: { name: "asc" },
       select: { id: true, name: true },
+    }),
+    // F17 — suggerimenti tag dal vocabolario esistente dell'utente.
+    prisma.tag.findMany({
+      where: { userId },
+      orderBy: { name: "asc" },
+      select: { name: true },
     }),
   ]);
 
@@ -67,6 +73,7 @@ export default async function EditTradePage({
         tradeId={trade.id}
         accounts={accounts}
         strategies={strategies}
+        tagSuggestions={allTags.map((t) => t.name)}
         initialValues={{
           tradingAccountId: trade.tradingAccountId,
           symbol: trade.symbol,
@@ -80,7 +87,7 @@ export default async function EditTradePage({
           strategyId: trade.strategyId ?? "",
           rating: trade.rating ? String(trade.rating) : "",
           notes: trade.notes.map((note) => note.content).join("\n\n"),
-          tags: trade.tags.map(({ tag }) => tag.name).join(", "),
+          tags: trade.tags.map(({ tag }) => tag.name),
           executions,
         }}
       />

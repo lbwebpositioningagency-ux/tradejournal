@@ -14,7 +14,7 @@ export default async function NewTradePage() {
   if (!session?.user?.id) redirect("/login");
   const userId = session.user.id;
 
-  const [user, accounts, strategies, activeAccountId] = await Promise.all([
+  const [user, accounts, strategies, tags, activeAccountId] = await Promise.all([
     prisma.user.findUniqueOrThrow({
       where: { id: userId },
       select: { timezone: true },
@@ -29,6 +29,12 @@ export default async function NewTradePage() {
       orderBy: { name: "asc" },
       select: { id: true, name: true },
     }),
+    // F17 — suggerimenti tag dal vocabolario esistente dell'utente.
+    prisma.tag.findMany({
+      where: { userId },
+      orderBy: { name: "asc" },
+      select: { name: true },
+    }),
     getActiveAccountId(),
   ]);
 
@@ -39,6 +45,20 @@ export default async function NewTradePage() {
       ? activeAccountId
       : accounts[0].id;
 
+  // F17 — default per conto: l'asset class dell'ULTIMO trade del conto scelto
+  // (poi dell'utente), non più "Azioni" fisso per tutti.
+  const lastTrade =
+    (await prisma.trade.findFirst({
+      where: { tradingAccountId: defaultAccountId },
+      orderBy: { openedAt: "desc" },
+      select: { assetClass: true },
+    })) ??
+    (await prisma.trade.findFirst({
+      where: { account: { userId } },
+      orderBy: { openedAt: "desc" },
+      select: { assetClass: true },
+    }));
+
   const now = utcToZonedInput(new Date(), user.timezone);
 
   return (
@@ -48,10 +68,11 @@ export default async function NewTradePage() {
         mode="create"
         accounts={accounts}
         strategies={strategies}
+        tagSuggestions={tags.map((t) => t.name)}
         initialValues={{
           tradingAccountId: defaultAccountId,
           symbol: "",
-          assetClass: "STOCK",
+          assetClass: lastTrade?.assetClass ?? "STOCK",
           pointValue: "1",
           initialRisk: "",
           plannedStop: "",
@@ -59,7 +80,7 @@ export default async function NewTradePage() {
           strategyId: "",
           rating: "",
           notes: "",
-          tags: "",
+          tags: [],
           executions: [
             { side: "BUY", quantity: "", price: "", fee: "0", executedAt: now },
           ],

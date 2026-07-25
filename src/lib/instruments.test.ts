@@ -1,5 +1,10 @@
 import { describe, expect, it } from "vitest";
-import { formatPrice, priceDecimals, suggestPointValue } from "./instruments";
+import {
+  formatPrice,
+  priceDecimals,
+  suggestAssetClass,
+  suggestPointValue,
+} from "./instruments";
 
 describe("priceDecimals", () => {
   it("forex major/minor: 5 decimali", () => {
@@ -71,5 +76,25 @@ describe("suggestPointValue (F13)", () => {
     expect(suggestPointValue("PIPPO", "FUTURES")).toBeNull();
     expect(suggestPointValue("EURUSD", "STOCK")).toBeNull();
     expect(suggestPointValue("", "FUTURES")).toBeNull();
+  });
+});
+
+describe("suggestAssetClass (F17)", () => {
+  it("futures noti e metalli spot", () => {
+    expect(suggestAssetClass("ES")).toBe("FUTURES");
+    expect(suggestAssetClass("mnq")).toBe("FUTURES");
+    expect(suggestAssetClass("XAUUSD")).toBe("FOREX");
+  });
+
+  it("coppie forex con valuta maggiore", () => {
+    expect(suggestAssetClass("EURUSD")).toBe("FOREX");
+    expect(suggestAssetClass("GBPJPY")).toBe("FOREX");
+  });
+
+  it("nessuna certezza → null (mai un'ipotesi)", () => {
+    expect(suggestAssetClass("AAPL")).toBeNull();
+    expect(suggestAssetClass("PIPPO")).toBeNull();
+    expect(suggestAssetClass("ABCDEF")).toBeNull();
+    expect(suggestAssetClass("")).toBeNull();
   });
 });

@@ -2,10 +2,13 @@
 
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { Plus, Trash2 } from "lucide-react";
+import { Plus, Trash2, X } from "lucide-react";
 import { toast } from "sonner";
 import { createTradeAction, updateTradeAction } from "@/server/trades";
 import { ASSET_CLASSES, type TradeInput } from "@/lib/validations/trade";
+import { suggestAssetClass, suggestPointValue } from "@/lib/instruments";
+import { plannedRiskFromStop } from "@/lib/trade-compute";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -54,7 +57,7 @@ export type TradeFormValues = {
   strategyId: string;
   rating: string;
   notes: string;
-  tags: string; // separati da virgola
+  tags: string[];
   executions: ExecutionRow[];
 };
 
@@ -68,26 +71,175 @@ function emptyExecution(previous?: ExecutionRow): ExecutionRow {
   };
 }
 
+/**
+ * F17 — selettore tag con suggerimenti dai tag esistenti: chips rimovibili,
+ * Invio/virgola per aggiungere, suggerimenti filtrati mentre scrivi (niente
+ * tassonomia "fomo/FOMO" duplicata per un refuso).
+ */
+function TagPicker({
+  value,
+  suggestions,
+  onChange,
+}: {
+  value: string[];
+  suggestions: string[];
+  onChange: (tags: string[]) => void;
+}) {
+  const [draft, setDraft] = useState("");
+  const [focused, setFocused] = useState(false);
+
+  function add(tag: string) {
+    const trimmed = tag.trim();
+    if (trimmed === "") return;
+    // Dedup case-insensitive: riusa la grafia del tag esistente.
+    const existing =
+      suggestions.find((s) => s.toLowerCase() === trimmed.toLowerCase()) ??
+      value.find((s) => s.toLowerCase() === trimmed.toLowerCase());
+    const finalTag = existing ?? trimmed;
+    if (!value.includes(finalTag)) onChange([...value, finalTag]);
+    setDraft("");
+  }
+
+  const filtered = suggestions
+    .filter(
+      (s) =>
+        !value.some((v) => v.toLowerCase() === s.toLowerCase()) &&
+        s.toLowerCase().includes(draft.trim().toLowerCase()),
+    )
+    .slice(0, 8);
+
+  return (
+    <div className="flex flex-col gap-2">
+      <div className="flex min-h-9 flex-wrap items-center gap-1.5 rounded-md border bg-transparent px-2 py-1.5">
+        {value.map((tag) => (
+          <Badge key={tag} variant="secondary" className="gap-1 pr-1">
+            {tag}
+            <button
+              type="button"
+              onClick={() => onChange(value.filter((t) => t !== tag))}
+              aria-label={`Rimuovi tag ${tag}`}
+              className="inline-flex size-4 items-center justify-center rounded-full hover:bg-accent"
+            >
+              <X className="size-3" aria-hidden />
+            </button>
+          </Badge>
+        ))}
+        <input
+          id="trade-tags"
+          value={draft}
+          onChange={(e) => setDraft(e.target.value)}
+          onFocus={() => setFocused(true)}
+          onBlur={() => {
+            setFocused(false);
+            if (draft.trim() !== "") add(draft);
+          }}
+          onKeyDown={(e) => {
+            if (e.key === "Enter" || e.key === ",") {
+              e.preventDefault();
+              add(draft);
+            } else if (e.key === "Backspace" && draft === "" && value.length > 0) {
+              onChange(value.slice(0, -1));
+            }
+          }}
+          placeholder={value.length === 0 ? "Es. breakout, fomo…" : ""}
+          className="min-w-24 flex-1 bg-transparent text-sm outline-none placeholder:text-muted-foreground"
+          aria-label="Aggiungi tag"
+        />
+      </div>
+      {focused && filtered.length > 0 ? (
+        <div className="flex flex-wrap gap-1.5">
+          {filtered.map((tag) => (
+            <button
+              key={tag}
+              type="button"
+              // onMouseDown: scatta PRIMA del blur dell'input.
+              onMouseDown={(e) => {
+                e.preventDefault();
+                add(tag);
+              }}
+              className="rounded-full border px-2 py-0.5 text-xs text-muted-foreground hover:bg-accent hover:text-foreground"
+            >
+              {tag}
+            </button>
+          ))}
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
 export function TradeForm({
   mode,
   tradeId,
   accounts,
   strategies,
+  tagSuggestions,
   initialValues,
 }: {
   mode: "create" | "edit";
   tradeId?: string;
   accounts: { id: string; name: string; currency: string }[];
   strategies: { id: string; name: string }[];
+  /** F17 — tag esistenti dell'utente per i suggerimenti. */
+  tagSuggestions: string[];
   initialValues: TradeFormValues;
 }) {
   const router = useRouter();
   const [values, setValues] = useState<TradeFormValues>(initialValues);
   const [pending, startTransition] = useTransition();
 
+  // F17 — auto-compilazione con override: i suggerimenti (asset class, valore
+  // punto, rischio) agiscono SOLO finché l'utente non tocca il campo a mano.
+  // In modifica niente magie: i valori salvati non si toccano.
+  const [assetTouched, setAssetTouched] = useState(mode === "edit");
+  const [pointValueTouched, setPointValueTouched] = useState(mode === "edit");
+  const [riskTouched, setRiskTouched] = useState(
+    mode === "edit" || initialValues.initialRisk !== "",
+  );
+
   function set<K extends keyof TradeFormValues>(key: K, value: TradeFormValues[K]) {
     setValues((prev) => ({ ...prev, [key]: value }));
   }
+
+  /** F17 — simbolo → asset class e valore punto suggeriti (se non toccati). */
+  function onSymbolChange(symbol: string) {
+    setValues((prev) => {
+      const next = { ...prev, symbol };
+      const asset = suggestAssetClass(symbol);
+      if (!assetTouched && asset) next.assetClass = asset;
+      const pv = suggestPointValue(symbol, next.assetClass);
+      if (!pointValueTouched && pv) next.pointValue = pv;
+      return next;
+    });
+  }
+
+  function onAssetClassChange(assetClass: TradeFormValues["assetClass"]) {
+    setAssetTouched(true);
+    setValues((prev) => {
+      const next = { ...prev, assetClass };
+      const pv = suggestPointValue(prev.symbol, assetClass);
+      if (!pointValueTouched && pv) next.pointValue = pv;
+      return next;
+    });
+  }
+
+  // F17 — rischio suggerito da |entry − stop| × qty × valore punto.
+  const firstExecution = values.executions[0];
+  const riskSuggestion = plannedRiskFromStop({
+    entryPrice: firstExecution?.price ?? "",
+    plannedStop: values.plannedStop,
+    quantity: firstExecution?.quantity ?? "",
+    pointValue: values.pointValue,
+  });
+  // Finché il campo non è toccato, segue il suggerimento in tempo reale.
+  const effectiveRisk = riskTouched
+    ? values.initialRisk
+    : (riskSuggestion ?? values.initialRisk);
+
+  const pointValueSuggested =
+    !pointValueTouched &&
+    suggestPointValue(values.symbol, values.assetClass) === values.pointValue &&
+    values.pointValue !== "";
 
   function setExecution(index: number, patch: Partial<ExecutionRow>) {
     setValues((prev) => ({
@@ -115,22 +267,20 @@ export function TradeForm({
     }));
   }
 
-  function submit() {
+  /** F17 — "Crea e nuovo": salva e riparte pulito tenendo conto/strumento. */
+  function submit(andNew = false) {
     const payload: TradeInput = {
       tradingAccountId: values.tradingAccountId,
       symbol: values.symbol,
       assetClass: values.assetClass,
       pointValue: values.pointValue || "1",
-      initialRisk: values.initialRisk,
+      initialRisk: effectiveRisk,
       plannedStop: values.plannedStop,
       plannedTarget: values.plannedTarget,
       strategyId: values.strategyId === NO_STRATEGY ? "" : values.strategyId,
       rating: values.rating ? Number(values.rating) : undefined,
       notes: values.notes || undefined,
-      tags: values.tags
-        .split(",")
-        .map((t) => t.trim())
-        .filter(Boolean),
+      tags: values.tags,
       executions: values.executions,
     };
 
@@ -144,6 +294,31 @@ export function TradeForm({
         return;
       }
       toast.success(mode === "create" ? "Trade creato" : "Trade aggiornato");
+      if (andNew) {
+        // Riparte per il prossimo trade della serata: conto, simbolo, asset,
+        // valore punto e data restano; piano, esecuzioni e note ripartono.
+        setValues((prev) => ({
+          ...prev,
+          initialRisk: "",
+          plannedStop: "",
+          plannedTarget: "",
+          rating: "",
+          notes: "",
+          tags: [],
+          executions: [
+            {
+              side: "BUY",
+              quantity: "",
+              price: "",
+              fee: "0",
+              executedAt: prev.executions[0]?.executedAt ?? "",
+            },
+          ],
+        }));
+        setRiskTouched(false);
+        router.refresh();
+        return;
+      }
       router.push(`/trades/${result.tradeId}`);
       router.refresh();
     });
@@ -182,7 +357,7 @@ export function TradeForm({
             <Input
               id="trade-symbol"
               value={values.symbol}
-              onChange={(e) => set("symbol", e.target.value)}
+              onChange={(e) => onSymbolChange(e.target.value)}
               placeholder="Es. ES, EURUSD, AAPL"
             />
           </div>
@@ -190,7 +365,9 @@ export function TradeForm({
             <Label htmlFor="trade-asset">Asset class</Label>
             <Select
               value={values.assetClass}
-              onValueChange={(v) => set("assetClass", v as TradeFormValues["assetClass"])}
+              onValueChange={(v) =>
+                onAssetClassChange(v as TradeFormValues["assetClass"])
+              }
             >
               <SelectTrigger id="trade-asset" className="w-full">
                 <SelectValue />
@@ -210,11 +387,16 @@ export function TradeForm({
               id="trade-point-value"
               inputMode="decimal"
               value={values.pointValue}
-              onChange={(e) => set("pointValue", e.target.value)}
+              onChange={(e) => {
+                setPointValueTouched(true);
+                set("pointValue", e.target.value);
+              }}
               placeholder="1"
             />
             <p className="text-xs text-muted-foreground">
-              Moltiplicatore: ES=50, NQ=20, lotto forex=100000, azioni=1
+              {pointValueSuggested
+                ? `Dalla tabella per ${values.symbol.trim().toUpperCase()} — modificabile`
+                : "Moltiplicatore: ES=50, NQ=20, lotto forex=100000, azioni=1"}
             </p>
           </div>
           <div className="grid gap-2">
@@ -253,12 +435,11 @@ export function TradeForm({
             </Select>
           </div>
           <div className="grid gap-2 sm:col-span-2">
-            <Label htmlFor="trade-tags">Tag (separati da virgola)</Label>
-            <Input
-              id="trade-tags"
+            <Label htmlFor="trade-tags">Tag</Label>
+            <TagPicker
               value={values.tags}
-              onChange={(e) => set("tags", e.target.value)}
-              placeholder="Es. breakout, fomo, news"
+              suggestions={tagSuggestions}
+              onChange={(tags) => set("tags", tags)}
             />
           </div>
         </CardContent>
@@ -272,16 +453,6 @@ export function TradeForm({
           </CardDescription>
         </CardHeader>
         <CardContent className="grid gap-4 sm:grid-cols-3">
-          <div className="grid gap-2">
-            <Label htmlFor="trade-risk">Rischio iniziale (valuta conto)</Label>
-            <Input
-              id="trade-risk"
-              inputMode="decimal"
-              value={values.initialRisk}
-              onChange={(e) => set("initialRisk", e.target.value)}
-              placeholder="Es. 250.00"
-            />
-          </div>
           <div className="grid gap-2">
             <Label htmlFor="trade-stop">Stop loss pianificato</Label>
             <Input
@@ -301,6 +472,37 @@ export function TradeForm({
               onChange={(e) => set("plannedTarget", e.target.value)}
               placeholder="Prezzo"
             />
+          </div>
+          <div className="grid gap-2">
+            <Label htmlFor="trade-risk">Rischio iniziale (valuta conto)</Label>
+            <Input
+              id="trade-risk"
+              inputMode="decimal"
+              value={effectiveRisk}
+              onChange={(e) => {
+                setRiskTouched(true);
+                set("initialRisk", e.target.value);
+              }}
+              placeholder="Es. 250.00"
+            />
+            {!riskTouched && riskSuggestion !== null ? (
+              <p className="text-xs text-muted-foreground">
+                Calcolato: |entry − stop| × qty × valore punto — modificabile
+              </p>
+            ) : riskTouched &&
+              riskSuggestion !== null &&
+              riskSuggestion !== values.initialRisk ? (
+              <p className="text-xs text-muted-foreground">
+                Calcolato dal piano: {riskSuggestion}{" "}
+                <button
+                  type="button"
+                  className="underline hover:text-foreground"
+                  onClick={() => set("initialRisk", riskSuggestion)}
+                >
+                  Usa
+                </button>
+              </p>
+            ) : null}
           </div>
         </CardContent>
       </Card>
@@ -401,11 +603,22 @@ export function TradeForm({
         </CardContent>
       </Card>
 
-      <div className="flex items-center justify-end gap-3">
+      <div className="flex flex-wrap items-center justify-end gap-3">
         <Button type="button" variant="outline" onClick={() => router.back()} disabled={pending}>
           Annulla
         </Button>
-        <Button type="button" onClick={submit} disabled={pending}>
+        {mode === "create" ? (
+          <Button
+            type="button"
+            variant="outline"
+            onClick={() => submit(true)}
+            disabled={pending}
+          >
+            <Plus className="size-4" />
+            Crea e nuovo
+          </Button>
+        ) : null}
+        <Button type="button" onClick={() => submit(false)} disabled={pending}>
           {pending
             ? "Salvataggio…"
             : mode === "create"

@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   computeTrade,
+  plannedRiskFromStop,
   TradeComputeError,
   type ExecutionInput,
 } from "./trade-compute";
@@ -239,5 +240,63 @@ describe("computeTrade — validazioni", () => {
     expect(result.grossPnl).toBe("0.00");
     expect(result.netPnl).toBe("-1.00"); // solo fee
     expect(result.avgExitPrice).toBeNull();
+  });
+});
+
+describe("plannedRiskFromStop (F17)", () => {
+  it("|entry − stop| × qty × valore punto, arrotondato a 2 decimali", () => {
+    expect(
+      plannedRiskFromStop({
+        entryPrice: "5600",
+        plannedStop: "5590",
+        quantity: "2",
+        pointValue: "50",
+      }),
+    ).toBe("1000.00");
+    // short: stop sopra l'entry, stesso valore assoluto
+    expect(
+      plannedRiskFromStop({
+        entryPrice: "1.08500",
+        plannedStop: "1.08650",
+        quantity: "0.5",
+        pointValue: "100000",
+      }),
+    ).toBe("75.00");
+  });
+
+  it("campi mancanti, non numerici o rischio nullo → null", () => {
+    expect(
+      plannedRiskFromStop({
+        entryPrice: "",
+        plannedStop: "5590",
+        quantity: "2",
+        pointValue: "50",
+      }),
+    ).toBeNull();
+    expect(
+      plannedRiskFromStop({
+        entryPrice: "abc",
+        plannedStop: "5590",
+        quantity: "2",
+        pointValue: "50",
+      }),
+    ).toBeNull();
+    // stop = entry → rischio zero: mai suggerire 0
+    expect(
+      plannedRiskFromStop({
+        entryPrice: "5600",
+        plannedStop: "5600",
+        quantity: "2",
+        pointValue: "50",
+      }),
+    ).toBeNull();
+    expect(
+      plannedRiskFromStop({
+        entryPrice: "5600",
+        plannedStop: "5590",
+        quantity: "0",
+        pointValue: "50",
+      }),
+    ).toBeNull();
   });
 });
