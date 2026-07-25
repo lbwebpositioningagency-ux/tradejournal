@@ -4,7 +4,12 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/db";
-import { MAX_IMPORT_ROWS, persistTradeInputs } from "@/lib/import-core";
+import {
+  findExistingFingerprints,
+  MAX_IMPORT_ROWS,
+  persistTradeInputs,
+  rowFingerprint,
+} from "@/lib/import-core";
 import type { TradeInput } from "@/lib/validations/trade";
 import {
   importProfileSchema,
@@ -13,7 +18,13 @@ import {
 
 export type ImportResult =
   | { error: string }
-  | { success: true; imported: number; failed: { row: number; error: string }[] };
+  | {
+      success: true;
+      imported: number;
+      /** F14 — righe skippate perché identiche a trade già presenti. */
+      duplicates: number;
+      failed: { row: number; error: string }[];
+    };
 
 async function requireUserId(): Promise<string> {
   const session = await auth();
@@ -30,6 +41,10 @@ async function requireUserId(): Promise<string> {
 export async function importTradesAction(
   tradingAccountId: string,
   rows: TradeInput[],
+  options?: {
+    /** F14 — default false: le righe identiche a trade esistenti si saltano. */
+    importDuplicates?: boolean;
+  },
 ): Promise<ImportResult> {
   const userId = await requireUserId();
 
@@ -54,10 +69,55 @@ export async function importTradesAction(
     tradingAccountId,
     timezone: user.timezone,
     rows: rows.map((input) => ({ input })),
+    skipFingerprintDuplicates: !options?.importDuplicates,
   });
 
   revalidatePath("/trades");
-  return { success: true, imported: result.imported, failed: result.failed };
+  return {
+    success: true,
+    imported: result.imported,
+    duplicates: result.duplicates,
+    failed: result.failed,
+  };
+}
+
+/**
+ * F14 — conta le righe del batch identiche a trade già presenti sul conto
+ * (o duplicate tra loro), per il warning in anteprima PRIMA dell'import.
+ */
+export async function checkImportDuplicatesAction(
+  tradingAccountId: string,
+  rows: TradeInput[],
+): Promise<{ error?: string; duplicates?: number }> {
+  const userId = await requireUserId();
+  if (rows.length === 0 || rows.length > MAX_IMPORT_ROWS) {
+    return { duplicates: 0 };
+  }
+
+  const account = await prisma.tradingAccount.findFirst({
+    where: { id: tradingAccountId, userId },
+    select: { id: true },
+  });
+  if (!account) return { error: "Conto non trovato" };
+
+  const user = await prisma.user.findUniqueOrThrow({
+    where: { id: userId },
+    select: { timezone: true },
+  });
+
+  const seen = await findExistingFingerprints({
+    tradingAccountId,
+    timezone: user.timezone,
+    rows,
+  });
+  let duplicates = 0;
+  for (const input of rows) {
+    const fp = rowFingerprint(input, user.timezone);
+    if (fp === null) continue;
+    if (seen.has(fp)) duplicates += 1;
+    else seen.add(fp);
+  }
+  return { duplicates };
 }
 
 // ───────────────────────── Profili di mapping ─────────────────────────

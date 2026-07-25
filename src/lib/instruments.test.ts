@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { formatPrice, priceDecimals } from "./instruments";
+import { formatPrice, priceDecimals, suggestPointValue } from "./instruments";
 
 describe("priceDecimals", () => {
   it("forex major/minor: 5 decimali", () => {
@@ -46,5 +46,30 @@ describe("formatPrice", () => {
     expect(formatPrice(null, "ES", "FUTURES")).toBe("—");
     expect(formatPrice("", "ES", "FUTURES")).toBe("—");
     expect(formatPrice("abc", "ES", "FUTURES")).toBe("—");
+  });
+});
+
+describe("suggestPointValue (F13)", () => {
+  it("futures noti dalla tabella", () => {
+    expect(suggestPointValue("ES", "FUTURES")).toBe("50");
+    expect(suggestPointValue("mnq", "FUTURES")).toBe("2");
+    expect(suggestPointValue("CL", "FUTURES")).toBe("1000");
+  });
+
+  it("metalli spot anche come FOREX", () => {
+    expect(suggestPointValue("XAUUSD", "FOREX")).toBe("100");
+    expect(suggestPointValue("XAGUSD", "FOREX")).toBe("5000");
+  });
+
+  it("coppia forex a 6 lettere: lotto standard", () => {
+    expect(suggestPointValue("EURUSD", "FOREX")).toBe("100000");
+    expect(suggestPointValue("GBPJPY", "FOREX")).toBe("100000");
+  });
+
+  it("sconosciuti o asset diversi: null (mai un default inventato)", () => {
+    expect(suggestPointValue("AAPL", "STOCK")).toBeNull();
+    expect(suggestPointValue("PIPPO", "FUTURES")).toBeNull();
+    expect(suggestPointValue("EURUSD", "STOCK")).toBeNull();
+    expect(suggestPointValue("", "FUTURES")).toBeNull();
   });
 });

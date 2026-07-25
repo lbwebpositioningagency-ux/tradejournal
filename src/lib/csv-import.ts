@@ -1,6 +1,8 @@
+import Decimal from "decimal.js";
 import type { TradeInput } from "@/lib/validations/trade";
 import { ASSET_CLASSES } from "@/lib/validations/trade";
 import { isValidCalendarDate } from "@/lib/dates";
+import { suggestPointValue } from "@/lib/instruments";
 
 /**
  * Import CSV — modulo puro (nessuna dipendenza da React/Prisma/Papaparse).
@@ -282,13 +284,20 @@ export function buildTradeInput(
     });
   }
 
+  // F13 — valore punto PER RIGA: prima la tabella dei simboli noti (ES=50,
+  // NQ=20, GC=100, coppie forex=100.000…), poi il fallback dell'opzione file.
+  // Un CSV misto non usa più lo stesso moltiplicatore per tutti i simboli.
+  const symbol = get("symbol");
+  const pointValue =
+    suggestPointValue(symbol, options.assetClass) ?? (options.pointValue || "1");
+
   return {
     ok: true,
     input: {
       tradingAccountId: options.tradingAccountId,
-      symbol: get("symbol"),
+      symbol,
       assetClass: options.assetClass,
-      pointValue: options.pointValue || "1",
+      pointValue,
       initialRisk,
       notes: get("notes") || undefined,
       tags: [],
@@ -296,6 +305,88 @@ export function buildTradeInput(
     },
   };
 }
+
+/**
+ * F13 — Net P&L calcolato di una riga di anteprima (solo righe con uscita):
+ * (uscita − ingresso) × direzione × qty × valore punto − fee. Stesso identico
+ * modello di computeTrade per il caso flat 1-in/1-out; Decimal-safe.
+ * null = trade ancora aperto (nessun P&L da mostrare).
+ */
+export function previewNetPnl(input: TradeInput): string | null {
+  const entry = input.executions[0];
+  const exit = input.executions[1];
+  if (!entry || !exit) return null;
+  const sign = entry.side === "BUY" ? 1 : -1;
+  const gross = new Decimal(exit.price)
+    .minus(entry.price)
+    .times(sign)
+    .times(entry.quantity)
+    .times(input.pointValue ?? "1");
+  const fees = new Decimal(entry.fee ?? "0").plus(exit.fee ?? "0");
+  return gross.minus(fees).toFixed(2);
+}
+
+// ── F49 — preset broker predefiniti (punti di partenza, non profili utente) ──
+
+export interface BuiltinPreset {
+  name: string;
+  columns: Partial<Record<ImportTargetField, string>>;
+  dateFormat: CsvDateFormat;
+  assetClass: (typeof ASSET_CLASSES)[number];
+}
+
+/**
+ * Applicati con lo stesso filtro dei profili utente: le colonne assenti nel
+ * CSV vengono ignorate, quindi un preset "quasi giusto" resta un buon punto
+ * di partenza da correggere a mano.
+ */
+export const BUILTIN_PRESETS: BuiltinPreset[] = [
+  {
+    name: "NinjaTrader (Trade Performance)",
+    columns: {
+      symbol: "Instrument",
+      direction: "Market pos.",
+      quantity: "Qty",
+      entryPrice: "Entry price",
+      exitPrice: "Exit price",
+      entryAt: "Entry time",
+      exitAt: "Exit time",
+      fee: "Commission",
+    },
+    dateFormat: "us",
+    assetClass: "FUTURES",
+  },
+  {
+    name: "Generico inglese",
+    columns: {
+      symbol: "Symbol",
+      direction: "Side",
+      quantity: "Qty",
+      entryPrice: "Entry Price",
+      exitPrice: "Exit Price",
+      entryAt: "Entry Time",
+      exitAt: "Exit Time",
+      fee: "Fee",
+    },
+    dateFormat: "iso",
+    assetClass: "FUTURES",
+  },
+  {
+    name: "Generico italiano",
+    columns: {
+      symbol: "Simbolo",
+      direction: "Direzione",
+      quantity: "Quantità",
+      entryPrice: "Prezzo ingresso",
+      exitPrice: "Prezzo uscita",
+      entryAt: "Data ingresso",
+      exitAt: "Data uscita",
+      fee: "Commissioni",
+    },
+    dateFormat: "eu",
+    assetClass: "FUTURES",
+  },
+];
 
 /** Euristica di auto-mapping: header CSV → target field. */
 export function guessMapping(

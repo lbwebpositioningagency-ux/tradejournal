@@ -14,6 +14,115 @@ import { tradeInputSchema, type TradeInput } from "@/lib/validations/trade";
 
 export const MAX_IMPORT_ROWS = 2000;
 
+// ── F14 — fingerprint anti-duplicati per il re-import CSV ───────────────
+// Per un utente reale che esporta "da inizio mese" ogni settimana, il doppio
+// import è lo scenario normale: la chiave è (simbolo, orari, qty, prezzi) —
+// gli stessi campi che identificano il trade agli occhi del trader.
+
+/** Normalizza una stringa decimale per il confronto ("2.00000000" ≡ "2"). */
+function decKey(value: string | null | undefined): string {
+  if (value === null || value === undefined || value === "") return "";
+  try {
+    return new Decimal(value).toString();
+  } catch {
+    return value;
+  }
+}
+
+/** Fingerprint di un trade GIÀ salvato (timestamp UTC dal database). */
+export function tradeFingerprint(trade: {
+  symbol: string;
+  openedAt: Date;
+  closedAt: Date | null;
+  quantity: string;
+  avgEntryPrice: string;
+  avgExitPrice: string | null;
+}): string {
+  return [
+    trade.symbol.trim().toUpperCase(),
+    trade.openedAt.toISOString(),
+    trade.closedAt ? trade.closedAt.toISOString() : "",
+    decKey(trade.quantity),
+    decKey(trade.avgEntryPrice),
+    decKey(trade.avgExitPrice),
+  ].join("|");
+}
+
+/**
+ * Fingerprint di una riga di import (orari locali → UTC col fuso utente).
+ * null se le date non sono convertibili (la riga fallirà comunque più avanti
+ * nella pipeline con l'errore giusto).
+ */
+export function rowFingerprint(
+  input: TradeInput,
+  timezone: string,
+): string | null {
+  const entry = input.executions[0];
+  if (!entry) return null;
+  const exit = input.executions[1];
+  try {
+    return tradeFingerprint({
+      symbol: input.symbol,
+      openedAt: zonedInputToUtc(entry.executedAt, timezone),
+      closedAt: exit ? zonedInputToUtc(exit.executedAt, timezone) : null,
+      quantity: entry.quantity,
+      avgEntryPrice: entry.price,
+      avgExitPrice: exit ? exit.price : null,
+    });
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Fingerprint dei trade ESISTENTI sul conto nella finestra temporale coperta
+ * dalle righe (una sola query, mai tutta la tabella).
+ */
+export async function findExistingFingerprints(params: {
+  tradingAccountId: string;
+  timezone: string;
+  rows: TradeInput[];
+}): Promise<Set<string>> {
+  const { tradingAccountId, timezone, rows } = params;
+  const opened: Date[] = [];
+  for (const input of rows) {
+    const entry = input.executions[0];
+    if (!entry) continue;
+    try {
+      opened.push(zonedInputToUtc(entry.executedAt, timezone));
+    } catch {
+      // Data non parsabile: la riga verrà scartata dalla pipeline.
+    }
+  }
+  if (opened.length === 0) return new Set();
+  const min = new Date(Math.min(...opened.map((d) => d.getTime())));
+  const max = new Date(Math.max(...opened.map((d) => d.getTime())));
+
+  const existing = await prisma.trade.findMany({
+    where: { tradingAccountId, openedAt: { gte: min, lte: max } },
+    select: {
+      symbol: true,
+      openedAt: true,
+      closedAt: true,
+      quantity: true,
+      avgEntryPrice: true,
+      avgExitPrice: true,
+    },
+  });
+  return new Set(
+    existing.map((t) =>
+      tradeFingerprint({
+        symbol: t.symbol,
+        openedAt: t.openedAt,
+        closedAt: t.closedAt,
+        quantity: t.quantity.toString(),
+        avgEntryPrice: t.avgEntryPrice.toString(),
+        avgExitPrice: t.avgExitPrice?.toString() ?? null,
+      }),
+    ),
+  );
+}
+
 export interface ImportRow {
   input: TradeInput;
   /**
@@ -61,8 +170,15 @@ export async function persistTradeInputs(params: {
   tradingAccountId: string;
   timezone: string;
   rows: ImportRow[];
+  /**
+   * F14 — dedup per fingerprint (import CSV): righe identiche a trade già
+   * presenti sul conto (o duplicate nel batch stesso) vengono skippate.
+   * Il sync MT5 non lo usa: là la dedup è per ticket.
+   */
+  skipFingerprintDuplicates?: boolean;
 }): Promise<PersistResult> {
-  const { userId, tradingAccountId, timezone, rows } = params;
+  const { userId, tradingAccountId, timezone, rows, skipFingerprintDuplicates } =
+    params;
 
   // Dedup: ticket già sul conto (una sola query) + doppioni nello stesso batch.
   const tickets = rows
@@ -76,6 +192,15 @@ export async function persistTradeInputs(params: {
         })
       : [];
   const seen = new Set(existing.map((t) => t.brokerTicketId as string));
+
+  // F14 — fingerprint dei trade già presenti nella finestra del batch.
+  const seenFingerprints = skipFingerprintDuplicates
+    ? await findExistingFingerprints({
+        tradingAccountId,
+        timezone,
+        rows: rows.map((r) => r.input),
+      })
+    : new Set<string>();
 
   type PreparedRow = Parameters<typeof prisma.trade.create>[0]["data"];
   const prepared: PreparedRow[] = [];
@@ -92,6 +217,18 @@ export async function persistTradeInputs(params: {
         return;
       }
       seen.add(raw.brokerTicketId);
+    }
+
+    // F14 — riga identica a un trade già sul conto (o doppione nel batch).
+    if (skipFingerprintDuplicates) {
+      const fp = rowFingerprint(raw.input, timezone);
+      if (fp !== null) {
+        if (seenFingerprints.has(fp)) {
+          duplicates += 1;
+          return;
+        }
+        seenFingerprints.add(fp);
+      }
     }
 
     // Il conto è sempre quello del chiamante, mai quello del payload.

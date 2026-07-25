@@ -1,28 +1,34 @@
 "use client";
 
-import { useMemo, useRef, useState, useTransition } from "react";
+import { useEffect, useMemo, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import Papa from "papaparse";
 import { ArrowLeft, ArrowRight, FileUp, Save, Trash2, Upload } from "lucide-react";
 import { toast } from "sonner";
 import {
   buildTradeInput,
+  BUILTIN_PRESETS,
   guessMapping,
+  previewNetPnl,
   CSV_DATE_FORMATS,
   DATE_FORMAT_LABELS,
   FIELD_LABELS,
   IMPORT_TARGET_FIELDS,
   REQUIRED_FIELDS,
+  type BuiltinPreset,
   type CsvDateFormat,
   type ImportMapping,
   type ImportTargetField,
 } from "@/lib/csv-import";
+import { pnlColorClass } from "@/lib/money";
+import { cn } from "@/lib/utils";
 import {
   importProfileMappingSchema,
   type ImportProfileMapping,
 } from "@/lib/validations/import";
 import { ASSET_CLASSES, tradeInputSchema, type TradeInput } from "@/lib/validations/trade";
 import {
+  checkImportDuplicatesAction,
   deleteImportProfileAction,
   importTradesAction,
   saveImportProfileAction,
@@ -101,8 +107,18 @@ export function ImportWizard({
   const [pending, startTransition] = useTransition();
   const [importResult, setImportResult] = useState<{
     imported: number;
+    duplicates: number;
     failed: { row: number; error: string }[];
   } | null>(null);
+  // F49 — drag&drop del file; F14 — duplicati rilevati in anteprima
+  // (stato con le righe di riferimento: niente conteggi stale tra un
+  // cambio di mapping e l'altro).
+  const [dragging, setDragging] = useState(false);
+  const [dupState, setDupState] = useState<{
+    rows: TradeInput[];
+    count: number;
+  } | null>(null);
+  const [importDuplicates, setImportDuplicates] = useState(false);
 
   // ── Step 1: sorgente ──────────────────────────────────────────────────
 
@@ -127,6 +143,44 @@ export function ImportWizard({
     const reader = new FileReader();
     reader.onload = () => loadCsv(String(reader.result ?? ""));
     reader.readAsText(file);
+  }
+
+  // F49 — drag&drop: stesso percorso del file scelto da bottone.
+  function onDrop(e: React.DragEvent) {
+    e.preventDefault();
+    setDragging(false);
+    const file = e.dataTransfer.files?.[0];
+    if (!file) return;
+    if (!/\.csv$/i.test(file.name) && file.type !== "text/csv") {
+      toast.error("Trascina un file .csv");
+      return;
+    }
+    onFileSelected(file);
+  }
+
+  // F49 — preset broker: stesso filtro dei profili utente (colonne assenti
+  // nel CSV ignorate), quindi un preset è sempre un punto di partenza sicuro.
+  function applyPreset(preset: BuiltinPreset) {
+    const available = new Set(csv?.headers ?? []);
+    const filtered: Partial<Record<ImportTargetField, string>> = {};
+    let applied = 0;
+    for (const field of IMPORT_TARGET_FIELDS) {
+      const column = preset.columns[field];
+      if (column && available.has(column)) {
+        filtered[field] = column;
+        applied += 1;
+      }
+    }
+    if (applied === 0) {
+      toast.error(
+        `Nessuna colonna del preset «${preset.name}» trovata in questo CSV`,
+      );
+      return;
+    }
+    setColumns(filtered);
+    setDateFormat(preset.dateFormat);
+    setAssetClass(preset.assetClass);
+    toast.success(`Preset «${preset.name}» applicato (${applied} colonne)`);
   }
 
   // ── Step 2: mapping ───────────────────────────────────────────────────
@@ -220,15 +274,40 @@ export function ImportWizard({
     return { valid, errors };
   }, [csv, currentMapping, mappingComplete, accountId, assetClass, pointValue]);
 
+  // F14 — all'ingresso nell'anteprima: quante righe sono identiche a trade
+  // già presenti sul conto? (skip di default, opt-in per importarle comunque)
+  const validRows = preview?.valid ?? null;
+  useEffect(() => {
+    if (step !== 3 || !validRows || validRows.length === 0) return;
+    let cancelled = false;
+    checkImportDuplicatesAction(accountId, validRows).then((result) => {
+      if (cancelled) return;
+      if (result.error) toast.error(result.error);
+      else setDupState({ rows: validRows, count: result.duplicates ?? 0 });
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [step, validRows, accountId]);
+  // Conteggio valido solo se riferito ESATTAMENTE alle righe correnti.
+  const duplicates =
+    step === 3 && dupState && dupState.rows === validRows ? dupState.count : null;
+
   function runImport() {
     if (!preview || preview.valid.length === 0) return;
     startTransition(async () => {
-      const result = await importTradesAction(accountId, preview.valid);
+      const result = await importTradesAction(accountId, preview.valid, {
+        importDuplicates,
+      });
       if ("error" in result) {
         toast.error(result.error);
         return;
       }
-      setImportResult({ imported: result.imported, failed: result.failed });
+      setImportResult({
+        imported: result.imported,
+        duplicates: result.duplicates,
+        failed: result.failed,
+      });
       toast.success(`Importati ${result.imported} trade`);
       router.refresh();
     });
@@ -246,6 +325,9 @@ export function ImportWizard({
           <CardTitle className="text-base">Import completato</CardTitle>
           <CardDescription>
             {importResult.imported} trade importati in «{accountLabel}»
+            {importResult.duplicates > 0
+              ? ` · ${importResult.duplicates} duplicati saltati`
+              : ""}
             {importResult.failed.length > 0
               ? ` · ${importResult.failed.length} righe scartate`
               : ""}
@@ -293,7 +375,25 @@ export function ImportWizard({
             </CardDescription>
           </CardHeader>
           <CardContent className="flex flex-col gap-4">
-            <div>
+            {/* F49 — dropzone: trascina il file oppure scegli da bottone */}
+            <div
+              onDragOver={(e) => {
+                e.preventDefault();
+                setDragging(true);
+              }}
+              onDragLeave={() => setDragging(false)}
+              onDrop={onDrop}
+              className={cn(
+                "flex flex-col items-center justify-center gap-2 rounded-lg border-2 border-dashed p-8 text-center transition-colors",
+                dragging
+                  ? "border-primary bg-primary/5"
+                  : "border-border text-muted-foreground",
+              )}
+            >
+              <FileUp className="size-6" aria-hidden />
+              <p className="text-sm">
+                Trascina qui il file CSV del broker
+              </p>
               <input
                 ref={fileInputRef}
                 type="file"
@@ -303,7 +403,7 @@ export function ImportWizard({
               />
               <Button variant="outline" onClick={() => fileInputRef.current?.click()}>
                 <FileUp className="size-4" />
-                Scegli file CSV
+                …oppure scegli il file
               </Button>
             </div>
             <div className="grid gap-2">
@@ -434,7 +534,9 @@ export function ImportWizard({
                 </Select>
               </div>
               <div className="grid gap-2">
-                <Label htmlFor="import-point-value">Valore punto</Label>
+                <Label htmlFor="import-point-value">
+                  Valore punto (simboli non riconosciuti)
+                </Label>
                 <Input
                   id="import-point-value"
                   inputMode="decimal"
@@ -442,7 +544,10 @@ export function ImportWizard({
                   onChange={(e) => setPointValue(e.target.value)}
                 />
                 <p className="text-xs text-muted-foreground">
-                  Applicato a tutte le righe (ES=50, lotto forex=100000…)
+                  F13 — i simboli noti usano la tabella integrata (ES=50, NQ=20,
+                  GC=100, coppie forex=100.000…); questo valore vale solo per
+                  gli altri. Verifica in anteprima: c&apos;è la colonna del
+                  valore punto applicato.
                 </p>
               </div>
             </CardContent>
@@ -452,11 +557,25 @@ export function ImportWizard({
             <CardHeader>
               <CardTitle className="text-base">Profili di mapping</CardTitle>
               <CardDescription>
-                Salva questa configurazione per riusarla al prossimo export dello stesso
-                broker.
+                Parti da un preset comune o salva la tua configurazione per il
+                prossimo export dello stesso broker.
               </CardDescription>
             </CardHeader>
             <CardContent className="flex flex-col gap-3">
+              {/* F49 — preset predefiniti, punti di partenza non modificabili */}
+              <div className="flex flex-wrap items-center gap-2">
+                <span className="text-xs text-muted-foreground">Preset:</span>
+                {BUILTIN_PRESETS.map((preset) => (
+                  <Button
+                    key={preset.name}
+                    variant="outline"
+                    size="sm"
+                    onClick={() => applyPreset(preset)}
+                  >
+                    {preset.name}
+                  </Button>
+                ))}
+              </div>
               {profiles.length > 0 ? (
                 <div className="flex flex-wrap gap-2">
                   {profiles.map((profile) => (
@@ -532,13 +651,40 @@ export function ImportWizard({
                   {preview.valid.length} righe valide
                 </Badge>
                 {preview.errors.length > 0 ? (
-                  <Badge variant="outline" className="text-loss">
+                  <Badge variant="outline" className="mr-2 text-loss">
                     {preview.errors.length} righe con errori (verranno saltate)
+                  </Badge>
+                ) : null}
+                {duplicates !== null && duplicates > 0 ? (
+                  <Badge variant="outline" className="text-breakeven">
+                    {duplicates} righe identiche a trade già presenti
                   </Badge>
                 ) : null}
               </CardDescription>
             </CardHeader>
             <CardContent className="flex flex-col gap-4">
+              {/* F14 — dedup: skip di default, opt-in esplicito per forzare */}
+              {duplicates !== null && duplicates > 0 ? (
+                <div className="flex flex-col gap-2 rounded-md border border-dashed p-3 text-sm">
+                  <p>
+                    {duplicates === 1
+                      ? "1 riga è identica a un trade già presente"
+                      : `${duplicates} righe sono identiche a trade già presenti`}{" "}
+                    su «{accountLabel}» (stesso simbolo, orari, quantità e
+                    prezzi): di default vengono saltate, il re-import dello
+                    stesso CSV non crea doppioni.
+                  </p>
+                  <label className="flex items-center gap-2 text-muted-foreground">
+                    <input
+                      type="checkbox"
+                      className="size-4 accent-primary"
+                      checked={importDuplicates}
+                      onChange={(e) => setImportDuplicates(e.target.checked)}
+                    />
+                    Importa comunque anche i duplicati
+                  </label>
+                </div>
+              ) : null}
               {preview.errors.length > 0 ? (
                 <ul className="list-inside list-disc text-sm text-muted-foreground">
                   {preview.errors.slice(0, PREVIEW_ERRORS).map((e) => (
@@ -565,12 +711,17 @@ export function ImportWizard({
                         <TableHead>Ingresso</TableHead>
                         <TableHead>Uscita</TableHead>
                         <TableHead className="text-right">Fee</TableHead>
+                        <TableHead className="text-right">V. punto</TableHead>
+                        <TableHead className="text-right">Net P&L calc.</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
                       {preview.valid.slice(0, PREVIEW_ROWS).map((trade, i) => {
                         const entry = trade.executions[0];
                         const exit = trade.executions[1];
+                        // F13 — l'errore di moltiplicatore si vede QUI, prima
+                        // di confermare, non dopo in dashboard.
+                        const netPnl = previewNetPnl(trade);
                         return (
                           <TableRow key={i}>
                             <TableCell className="font-medium">
@@ -596,6 +747,17 @@ export function ImportWizard({
                             </TableCell>
                             <TableCell className="text-right tabular-nums">
                               {entry.fee}
+                            </TableCell>
+                            <TableCell className="text-right tabular-nums">
+                              {trade.pointValue}
+                            </TableCell>
+                            <TableCell
+                              className={cn(
+                                "text-right font-medium tabular-nums",
+                                netPnl !== null ? pnlColorClass(netPnl) : undefined,
+                              )}
+                            >
+                              {netPnl ?? "—"}
                             </TableCell>
                           </TableRow>
                         );

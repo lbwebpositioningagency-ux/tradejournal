@@ -5,6 +5,7 @@ import {
   normalizeDecimal,
   parseCsvDateTime,
   parseDirection,
+  previewNetPnl,
   type ImportMapping,
   type ImportOptions,
 } from "./csv-import";
@@ -261,5 +262,58 @@ describe("guessMapping", () => {
   it("non mappa header sconosciuti", () => {
     const guessed = guessMapping(["Foo", "Bar"]);
     expect(Object.keys(guessed)).toHaveLength(0);
+  });
+});
+
+describe("valore punto per riga (F13)", () => {
+  it("simbolo noto: usa la tabella, non l'opzione file", () => {
+    const nq = buildTradeInput({ ...validRow, Symbol: "NQ" }, mapping, options);
+    if (!nq.ok) throw new Error(nq.error);
+    expect(nq.input.pointValue).toBe("20");
+    const gc = buildTradeInput({ ...validRow, Symbol: "GC" }, mapping, options);
+    if (!gc.ok) throw new Error(gc.error);
+    expect(gc.input.pointValue).toBe("100");
+  });
+
+  it("simbolo sconosciuto: fallback sull'opzione file", () => {
+    const r = buildTradeInput({ ...validRow, Symbol: "PIPPO" }, mapping, options);
+    if (!r.ok) throw new Error(r.error);
+    expect(r.input.pointValue).toBe("50");
+  });
+
+  it("coppia forex standard: lotto 100000", () => {
+    const r = buildTradeInput(
+      { ...validRow, Symbol: "EURUSD" },
+      mapping,
+      { ...options, assetClass: "FOREX" },
+    );
+    if (!r.ok) throw new Error(r.error);
+    expect(r.input.pointValue).toBe("100000");
+  });
+});
+
+describe("previewNetPnl (F13)", () => {
+  it("long chiuso: (uscita − ingresso) × qty × punto − fee", () => {
+    const r = buildTradeInput(validRow, mapping, options);
+    if (!r.ok) throw new Error(r.error);
+    // ES: (5010.25 − 5000.25) × 2 × 50 − 8.40 = 991.60
+    expect(previewNetPnl(r.input)).toBe("991.60");
+  });
+
+  it("short in perdita: segno corretto", () => {
+    const r = buildTradeInput({ ...validRow, Side: "sell" }, mapping, options);
+    if (!r.ok) throw new Error(r.error);
+    // short da 5000.25 a 5010.25 = −10 pt × 2 × 50 − 8.40 = −1008.40
+    expect(previewNetPnl(r.input)).toBe("-1008.40");
+  });
+
+  it("trade aperto: null, mai zero finto", () => {
+    const r = buildTradeInput(
+      { ...validRow, "Exit Price": "", "Exit Time": "" },
+      mapping,
+      options,
+    );
+    if (!r.ok) throw new Error(r.error);
+    expect(previewNetPnl(r.input)).toBeNull();
   });
 });
