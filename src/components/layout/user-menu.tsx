@@ -34,7 +34,13 @@ export function UserMenu({
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
-        <Button variant="ghost" size="icon" className="rounded-full" aria-label="Menu utente">
+        {/* F28 — touch target ≥44px su mobile */}
+        <Button
+          variant="ghost"
+          size="icon"
+          className="rounded-full max-lg:size-11"
+          aria-label="Menu utente"
+        >
           <Avatar className="size-8">
             {image ? <AvatarImage src={image} alt={name ?? email} /> : null}
             <AvatarFallback className="text-xs">{initials}</AvatarFallback>

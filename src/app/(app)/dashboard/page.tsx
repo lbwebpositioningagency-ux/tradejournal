@@ -5,7 +5,13 @@ import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { getActiveAccountId, tradeAccountWhere } from "@/lib/active-account";
 import { ALL_ACCOUNTS } from "@/lib/constants";
-import { formatDateTime, secondsSince } from "@/lib/dates";
+import {
+  formatDateTime,
+  secondsSince,
+  todayKeyInZone,
+  zonedInputToUtc,
+} from "@/lib/dates";
+import { addMonths } from "@/lib/calendar";
 import { resolvePeriod } from "@/lib/period";
 import {
   avgLoss,
@@ -123,9 +129,22 @@ export default async function DashboardPage({
         }
       : accountWhere;
 
+  // F26 — mini-calendario del mese CORRENTE (fuso utente), indipendente dal
+  // filtro periodo come il Saldo conto; stesso scope conto/valuta.
+  const todayKey = todayKeyInZone(user.timezone);
+  const currentMonth = todayKey.slice(0, 7);
+  const monthFilter: StatsFilter = {
+    userId,
+    accountId: activeAccountId,
+    currency: scope.active,
+    from: zonedInputToUtc(`${currentMonth}-01T00:00`, user.timezone),
+    to: zonedInputToUtc(`${addMonths(currentMonth, 1)}-01T00:00`, user.timezone),
+  };
+
   const [
     agg,
     daily,
+    monthDaily,
     outcomes,
     baseBalance,
     lifetimeNetPnl,
@@ -138,6 +157,7 @@ export default async function DashboardPage({
   ] = await Promise.all([
       getTradeAggregates(filter),
       getDailyPnl(filter, user.timezone),
+      getDailyPnl(monthFilter, user.timezone),
       getRecentTradeOutcomes(filter),
       getStartingBalance(filter),
       getLifetimeNetPnl(filter),
@@ -210,6 +230,7 @@ export default async function DashboardPage({
       ? null
       : new Decimal(agg.rLossSum).abs().div(agg.rLosses).toFixed(4);
 
+  const layout = parseDashboardLayout(user.dashboardLayout);
   const data: DashboardData = {
     currency,
     // F6 — totali per valuta presenti nel periodo (per i totali affiancati) e
@@ -319,7 +340,19 @@ export default async function DashboardPage({
       currency: t.account.currency,
       openedAtLabel: formatDateTime(t.openedAt, user.timezone),
     })),
-    hidden: parseDashboardLayout(user.dashboardLayout).hidden,
+    hidden: layout.hidden,
+    // F26 — stato persistito dei toggle mobile (chiave separata dal desktop).
+    mobileLayout: layout.mobile,
+    // F26 — mini-calendario del mese corrente (mai filtrato dal periodo).
+    miniCalendar: {
+      month: currentMonth,
+      todayKey,
+      days: monthDaily.map((d) => ({
+        day: d.day,
+        netPnl: d.netPnl,
+        trades: d.trades,
+      })),
+    },
   };
 
   return <DashboardView data={data} />;

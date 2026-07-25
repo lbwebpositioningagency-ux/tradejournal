@@ -92,10 +92,11 @@ export function MobileNav() {
   return (
     <Sheet open={open} onOpenChange={setOpen}>
       <SheetTrigger asChild>
+        {/* F28 — touch target ≥44px su mobile (linea guida) */}
         <Button
           variant="ghost"
           size="icon"
-          className="lg:hidden"
+          className="size-11 lg:hidden"
           aria-label="Apri il menu di navigazione"
         >
           <Menu className="size-5" />

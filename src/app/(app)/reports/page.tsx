@@ -56,12 +56,7 @@ import { cn } from "@/lib/utils";
 import { PeriodFilter } from "@/components/filters/period-filter";
 import { CurrencyFilter } from "@/components/filters/currency-filter";
 import { ReportBarChart } from "@/components/reports/report-bar-chart";
-import {
-  Card,
-  CardContent,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
+import { CollapsibleCard } from "@/components/collapsible-card";
 import {
   Table,
   TableBody,
@@ -117,7 +112,81 @@ function BreakdownTable({
   currency: string;
 }) {
   return (
-    <div className="overflow-x-auto">
+    <>
+      {/* F27 — mobile (< md): card impilate col Net P&L SEMPRE in vista,
+          stesso trattamento della Trade View: niente colonne nascoste oltre
+          il bordo destro senza indizi. */}
+      <ul className="flex flex-col gap-2 md:hidden">
+        {rows.map((row) => {
+          const m = rowMetrics(row.aggregates);
+          const body = (
+            <>
+              <span className="flex items-center justify-between gap-2">
+                <span className="min-w-0 truncate text-sm font-medium">
+                  {row.label}
+                </span>
+                <span
+                  className={cn(
+                    "shrink-0 text-sm font-medium tabular-nums",
+                    pnlColorClass(row.aggregates.netPnl),
+                  )}
+                >
+                  {formatSignedMoney(row.aggregates.netPnl, currency)}
+                </span>
+              </span>
+              <span className="flex flex-wrap items-center gap-x-3 gap-y-0.5 text-xs tabular-nums text-muted-foreground">
+                <span>
+                  {row.aggregates.total} trade ({row.aggregates.wins}W/
+                  {row.aggregates.losses}L
+                  {row.aggregates.breakevens > 0
+                    ? `/${row.aggregates.breakevens}BE`
+                    : ""}
+                  )
+                </span>
+                <span>Win {m.winRate}</span>
+                <span>PF {m.profitFactor}</span>
+              </span>
+              <span className="flex flex-wrap items-center gap-x-3 gap-y-0.5 text-xs tabular-nums text-muted-foreground">
+                <span>
+                  Attesa/trade{" "}
+                  <span
+                    className={cn(
+                      "font-medium",
+                      m.expectancy !== null
+                        ? pnlColorClass(m.expectancy)
+                        : undefined,
+                    )}
+                  >
+                    {m.expectancy !== null
+                      ? formatSignedMoney(m.expectancy, currency)
+                      : "—"}
+                  </span>
+                </span>
+                <span>R medio {m.avgR}</span>
+              </span>
+            </>
+          );
+          const itemClass =
+            "flex flex-col gap-1 rounded-lg border bg-card p-3";
+          return (
+            <li key={row.key}>
+              {row.href ? (
+                <Link
+                  href={row.href}
+                  className={cn(itemClass, "transition-colors hover:bg-accent/50")}
+                >
+                  {body}
+                </Link>
+              ) : (
+                <div className={itemClass}>{body}</div>
+              )}
+            </li>
+          );
+        })}
+      </ul>
+
+      {/* Desktop (≥ md): tabella completa, invariata */}
+      <div className="hidden overflow-x-auto md:block">
       <Table>
         <TableHeader>
           <TableRow>
@@ -206,7 +275,8 @@ function BreakdownTable({
           })}
         </TableBody>
       </Table>
-    </div>
+      </div>
+    </>
   );
 }
 
@@ -390,32 +460,21 @@ export default async function ReportsPage({
         />
       ) : (
         <>
-          <Card>
-            <CardHeader>
-              <CardTitle className="stat-label">
-                Per simbolo
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <BreakdownTable
-                currency={currency}
-                rows={symbols.map((s) => ({
-                  key: s.symbol,
-                  label: s.symbol,
-                  aggregates: s,
-                  href: tradesHref({ symbol: s.symbol }),
-                }))}
-              />
-            </CardContent>
-          </Card>
+          {/* F27 — su mobile le sezioni sono collassabili (coerente con F26);
+              "Per simbolo" aperta di default: è il report #1. */}
+          <CollapsibleCard title="Per simbolo" defaultOpen>
+            <BreakdownTable
+              currency={currency}
+              rows={symbols.map((s) => ({
+                key: s.symbol,
+                label: s.symbol,
+                aggregates: s,
+                href: tradesHref({ symbol: s.symbol }),
+              }))}
+            />
+          </CollapsibleCard>
 
-          <Card>
-            <CardHeader>
-              <CardTitle className="stat-label">
-                Per strategia
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
+          <CollapsibleCard title="Per strategia">
               <BreakdownTable
                 currency={currency}
                 rows={strategies.map((s) => ({
@@ -437,16 +496,9 @@ export default async function ReportsPage({
                   }),
                 }))}
               />
-            </CardContent>
-          </Card>
+          </CollapsibleCard>
 
-          <Card>
-            <CardHeader>
-              <CardTitle className="stat-label">
-                Per tag
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
+          <CollapsibleCard title="Per tag">
               {tags.length === 0 ? (
                 <p className="py-8 text-center text-sm text-muted-foreground">
                   Nessun tag sui trade del periodo.
@@ -475,18 +527,11 @@ export default async function ReportsPage({
                   </p>
                 </>
               )}
-            </CardContent>
-          </Card>
+          </CollapsibleCard>
 
           {/* Tabelle a tutta larghezza: affiancate a 1280 taglierebbero le colonne */}
           <div className="flex flex-col gap-4">
-            <Card>
-              <CardHeader>
-                <CardTitle className="stat-label">
-                  Per direzione e asset class
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
+            <CollapsibleCard title="Per direzione e asset class">
                 <BreakdownTable
                   currency={currency}
                   rows={directionAssets.map((row) => ({
@@ -513,15 +558,8 @@ export default async function ReportsPage({
                     }),
                   }))}
                 />
-              </CardContent>
-            </Card>
-            <Card>
-              <CardHeader>
-                <CardTitle className="stat-label">
-                  Per mese
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
+            </CollapsibleCard>
+            <CollapsibleCard title="Per mese">
                 <BreakdownTable
                   currency={currency}
                   rows={months.map((row) => ({
@@ -535,47 +573,28 @@ export default async function ReportsPage({
                   Mesi di calendario nel tuo fuso, per chiusura del trade:
                   l&apos;unità di misura di payout e challenge.
                 </p>
-              </CardContent>
-            </Card>
+            </CollapsibleCard>
           </div>
 
           <div className="grid gap-4 lg:grid-cols-2">
-            <Card>
-              <CardHeader>
-                <CardTitle className="stat-label">
-                  Per ora di apertura (fuso {user.timezone})
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
+            <CollapsibleCard title={`Per ora di apertura (fuso ${user.timezone})`}>
                 <ReportBarChart points={hourSeries} suffix={suffix} />
                 <BestWorstLine points={hourSeries} currency={currency} unit="Ora" />
-              </CardContent>
-            </Card>
-            <Card>
-              <CardHeader>
-                <CardTitle className="stat-label">
-                  Per giorno della settimana (apertura)
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
+            </CollapsibleCard>
+            <CollapsibleCard title="Per giorno della settimana (apertura)">
                 <ReportBarChart points={weekdaySeries} suffix={suffix} />
                 <BestWorstLine
                   points={weekdaySeries}
                   currency={currency}
                   unit="Giorno"
                 />
-              </CardContent>
-            </Card>
+            </CollapsibleCard>
           </div>
 
-          <Card>
-            <CardHeader>
-              <CardTitle className="stat-label flex items-center gap-1">
-                Streak
-                <MetricInfo info={streaksInfo} />
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
+          <CollapsibleCard
+            title="Streak"
+            titleExtra={<MetricInfo info={streaksInfo} />}
+          >
               <div className="grid gap-4 sm:grid-cols-3">
                 <div>
                   <p className="text-xs text-muted-foreground">
@@ -616,8 +635,7 @@ export default async function ReportsPage({
                 breakeven interrompe la serie. La streak corrente parte dal
                 trade più recente.
               </p>
-            </CardContent>
-          </Card>
+          </CollapsibleCard>
         </>
       )}
     </div>

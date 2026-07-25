@@ -25,6 +25,7 @@ export const WIDGET_IDS = [
   "calmar",
   "sqn",
   "ulcer",
+  "mini-calendar",
   "open-positions",
   "trade-sequence",
   "r-distribution",
@@ -52,6 +53,7 @@ export const WIDGET_LABELS: Record<WidgetId, string> = {
   calmar: "Calmar Ratio",
   sqn: "SQN",
   ulcer: "Ulcer Index",
+  "mini-calendar": "Calendario del mese (mobile)",
   "open-positions": "Posizioni aperte",
   "trade-sequence": "Sequenza trade",
   "r-distribution": "Distribuzione R",
@@ -65,13 +67,29 @@ export const WIDGET_LABELS: Record<WidgetId, string> = {
   "recent-trades": "Ultimi trade",
 };
 
+/**
+ * F26 — stato dei toggle del layout MOBILE (metriche secondarie e analytics
+ * collassate sotto lg), persistito con chiave separata: il desktop non li usa.
+ */
+export const mobileLayoutSchema = z.object({
+  showAllMetrics: z.boolean().default(false),
+  showAnalytics: z.boolean().default(false),
+});
+export type MobileLayout = z.infer<typeof mobileLayoutSchema>;
+
+const MOBILE_DEFAULTS: MobileLayout = {
+  showAllMetrics: false,
+  showAnalytics: false,
+};
+
 /** Contenuto di `User.dashboardLayout` (Json). */
 export const dashboardLayoutSchema = z.object({
   hidden: z.array(z.enum(WIDGET_IDS)).default([]),
+  mobile: mobileLayoutSchema.default(MOBILE_DEFAULTS),
 });
 export type DashboardLayout = z.infer<typeof dashboardLayoutSchema>;
 
 export function parseDashboardLayout(raw: unknown): DashboardLayout {
   const parsed = dashboardLayoutSchema.safeParse(raw);
-  return parsed.success ? parsed.data : { hidden: [] };
+  return parsed.success ? parsed.data : { hidden: [], mobile: MOBILE_DEFAULTS };
 }

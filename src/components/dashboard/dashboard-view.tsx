@@ -1,9 +1,14 @@
 "use client";
 
-import { useMemo, useState, useTransition } from "react";
+import { useMemo, useRef, useState, useTransition } from "react";
 import Link from "next/link";
 import Decimal from "decimal.js";
-import { ChartLine as LineChartIcon, Settings2 } from "lucide-react";
+import {
+  ChartLine as LineChartIcon,
+  ChevronDown,
+  ChevronUp,
+  Settings2,
+} from "lucide-react";
 import { toast } from "sonner";
 import { saveDashboardLayoutAction } from "@/server/settings";
 import {
@@ -95,6 +100,7 @@ import {
 } from "./pnl-charts";
 import { ScoreGauge } from "./score-gauge";
 import { OnboardingHero } from "./onboarding-hero";
+import { MiniCalendar, type MiniCalendarDay } from "./mini-calendar";
 
 export interface DashboardData {
   currency: string;
@@ -197,6 +203,14 @@ export interface DashboardData {
     openedAtLabel: string;
   }[];
   hidden: WidgetId[];
+  /** F26 — stato persistito dei toggle mobile (chiave separata, desktop invariato). */
+  mobileLayout: { showAllMetrics: boolean; showAnalytics: boolean };
+  /** F26 — mini-calendario del mese corrente (mai filtrato dal periodo). */
+  miniCalendar: {
+    month: string;
+    todayKey: string;
+    days: MiniCalendarDay[];
+  };
 }
 
 const MASK = "•••";
@@ -235,6 +249,7 @@ function StatCard({
   size = "md",
   sub,
   children,
+  className,
 }: {
   label: string;
   info?: MetricInfoData;
@@ -244,6 +259,8 @@ function StatCard({
   size?: "sm" | "md" | "hero";
   sub?: React.ReactNode;
   children?: React.ReactNode;
+  /** F26 — es. nascondere la card su mobile quando le metriche sono collassate. */
+  className?: string;
 }) {
   const sizeClass =
     size === "hero"
@@ -252,7 +269,7 @@ function StatCard({
         ? "text-lg font-semibold tracking-tight tabular-nums" // coppie: a capo, mai troncate
         : "stat-value truncate";
   return (
-    <Card className="gap-2 py-4">
+    <Card className={cn("gap-2 py-4", className)}>
       <CardHeader className="px-4">
         <CardTitle className="stat-label flex items-center gap-1">
           {label}
@@ -345,6 +362,25 @@ export function DashboardView({ data }: { data: DashboardData }) {
   const [view, setView] = useState<ViewMode>("dollars");
   const [hidden, setHidden] = useState<WidgetId[]>(data.hidden);
   const [, startTransition] = useTransition();
+  // F26 — layout mobile: metriche secondarie e analytics collassate sotto lg
+  // ("come sta il mese" in 2 schermate, non 13). Stato persistito in
+  // dashboardLayout.mobile (chiave separata: il desktop non lo usa).
+  const [mobileLayout, setMobileLayout] = useState(data.mobileLayout);
+  // Ref sull'ultimo valore: due toggle ravvicinati non si perdono a vicenda
+  // (la closure sullo state sarebbe stale prima del re-render).
+  const mobileRef = useRef(data.mobileLayout);
+  const extraMetricCls = mobileLayout.showAllMetrics ? undefined : "max-lg:hidden";
+  const analyticsCls = mobileLayout.showAnalytics ? undefined : "max-lg:hidden";
+
+  function toggleMobile(key: "showAllMetrics" | "showAnalytics") {
+    const next = { ...mobileRef.current, [key]: !mobileRef.current[key] };
+    mobileRef.current = next;
+    setMobileLayout(next);
+    startTransition(async () => {
+      const result = await saveDashboardLayoutAction({ hidden, mobile: next });
+      if (result.error) toast.error(result.error);
+    });
+  }
 
   const masked = view === "privacy";
   const percentBaseMissing = new Decimal(data.baseBalance).isZero();
@@ -396,7 +432,11 @@ export function DashboardView({ data }: { data: DashboardData }) {
       : [...hidden, id];
     setHidden(next);
     startTransition(async () => {
-      const result = await saveDashboardLayoutAction({ hidden: next });
+      // Salva SEMPRE il layout completo: mai azzerare la chiave mobile.
+      const result = await saveDashboardLayoutAction({
+        hidden: next,
+        mobile: mobileRef.current,
+      });
       if (result.error) toast.error(result.error);
     });
   }
@@ -530,10 +570,11 @@ export function DashboardView({ data }: { data: DashboardData }) {
         </p>
       ) : null}
 
-      {/* Stat cards */}
-      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+      {/* Stat cards — su mobile: solo le card core, il resto dietro il toggle */}
+      <div className="grid gap-4 max-lg:order-1 sm:grid-cols-2 xl:grid-cols-4">
         {show("net-pnl") ? (
           <StatCard
+            className="max-lg:order-1"
             label="Net P&L"
             info={netPnlInfo}
             size="hero"
@@ -550,6 +591,7 @@ export function DashboardView({ data }: { data: DashboardData }) {
         ) : null}
         {show("win-rate") ? (
           <StatCard
+            className="max-lg:order-2"
             label="Trade Win %"
             info={winRateInfo}
             value={formatPercent(data.winRate)}
@@ -558,6 +600,7 @@ export function DashboardView({ data }: { data: DashboardData }) {
         ) : null}
         {show("profit-factor") ? (
           <StatCard
+            className={cn("max-lg:order-4", extraMetricCls)}
             label="Profit Factor"
             info={profitFactorInfo}
             value={
@@ -572,6 +615,7 @@ export function DashboardView({ data }: { data: DashboardData }) {
         ) : null}
         {show("day-win-rate") ? (
           <StatCard
+            className={cn("max-lg:order-5", extraMetricCls)}
             label="Day Win %"
             info={dayWinRateInfo}
             value={formatPercent(data.dayWinRate)}
@@ -580,6 +624,7 @@ export function DashboardView({ data }: { data: DashboardData }) {
         ) : null}
         {show("avg-win-loss") ? (
           <StatCard
+            className={cn("max-lg:order-6", extraMetricCls)}
             label="Avg Win / Loss"
             info={avgWinLossInfo}
             value={data.payoff !== null ? `${ratio(data.payoff)}×` : "—"}
@@ -598,6 +643,7 @@ export function DashboardView({ data }: { data: DashboardData }) {
         ) : null}
         {show("expectancy") ? (
           <StatCard
+            className={cn("max-lg:order-7", extraMetricCls)}
             label="Expectancy"
             info={expectancyInfo}
             value={data.expectancy !== null ? money(data.expectancy, data.expectancyR) : "—"}
@@ -611,6 +657,7 @@ export function DashboardView({ data }: { data: DashboardData }) {
         ) : null}
         {show("max-drawdown") ? (
           <StatCard
+            className={cn("max-lg:order-8", extraMetricCls)}
             label="Max Drawdown"
             info={maxDrawdownInfo}
             value={ddValue}
@@ -626,6 +673,7 @@ export function DashboardView({ data }: { data: DashboardData }) {
         ) : null}
         {show("streaks") ? (
           <StatCard
+            className="max-lg:order-3"
             label="Streak correnti"
             info={streaksInfo}
             value={
@@ -641,7 +689,13 @@ export function DashboardView({ data }: { data: DashboardData }) {
 
       {/* Metriche avanzate (FASE 9): ratio adimensionali, visibili anche in
           privacy come gli altri ratio; lo Sharpe è la secondaria del Sortino */}
-      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+      <div
+        className={cn(
+          "grid gap-4 max-lg:order-2 sm:grid-cols-2 xl:grid-cols-4",
+          extraMetricCls,
+        )}
+        data-section="advanced-metrics"
+      >
         {show("sortino") ? (
           <StatCard
             label="Sortino Ratio"
@@ -695,10 +749,36 @@ export function DashboardView({ data }: { data: DashboardData }) {
         ) : null}
       </div>
 
-      {/* Sequenza trade: una barra per trade chiuso, in ordine cronologico */}
+      {/* F26 — toggle mobile in CODA al gruppo metriche (core + rivelate) */}
+      <div className="max-lg:order-3 lg:hidden">
+        <Button
+          variant="outline"
+          className="w-full"
+          onClick={() => toggleMobile("showAllMetrics")}
+          aria-expanded={mobileLayout.showAllMetrics}
+        >
+          {mobileLayout.showAllMetrics ? (
+            <ChevronUp className="size-4" />
+          ) : (
+            <ChevronDown className="size-4" />
+          )}
+          {mobileLayout.showAllMetrics ? "Meno metriche" : "Tutte le metriche"}
+        </Button>
+      </div>
+
+      {/* F26 — mini-calendario del mese corrente, solo mobile */}
+      {show("mini-calendar") ? (
+        <MiniCalendar
+          className="max-lg:order-4 lg:hidden"
+          month={data.miniCalendar.month}
+          todayKey={data.miniCalendar.todayKey}
+          days={data.miniCalendar.days}
+        />
+      ) : null}
+
       {/* F33 — posizioni aperte: card dedicata, solo quando ce ne sono */}
       {show("open-positions") && data.openPositions.length > 0 ? (
-        <Card>
+        <Card className="max-lg:order-6">
           <CardHeader>
             <CardTitle className="stat-label">
               Posizioni aperte ({data.openPositions.length})
@@ -754,12 +834,30 @@ export function DashboardView({ data }: { data: DashboardData }) {
         </Card>
       ) : null}
 
+      {/* F26 — toggle mobile per l'analytics (grafici, sessioni, W&L) */}
+      <div className="max-lg:order-7 lg:hidden">
+        <Button
+          variant="outline"
+          className="w-full"
+          onClick={() => toggleMobile("showAnalytics")}
+          aria-expanded={mobileLayout.showAnalytics}
+        >
+          {mobileLayout.showAnalytics ? (
+            <ChevronUp className="size-4" />
+          ) : (
+            <ChevronDown className="size-4" />
+          )}
+          {mobileLayout.showAnalytics ? "Nascondi analytics" : "Analytics e grafici"}
+        </Button>
+      </div>
+
       <div
         className={cn(
-          "grid gap-4",
+          "grid gap-4 max-lg:order-8",
           show("trade-sequence") && show("r-distribution")
             ? "xl:grid-cols-2"
             : undefined,
+          analyticsCls,
         )}
       >
         {show("trade-sequence") ? (
@@ -841,7 +939,7 @@ export function DashboardView({ data }: { data: DashboardData }) {
       </div>
 
       {/* Winners & Losers · Best/Worst Days */}
-      <div className="grid gap-4 xl:grid-cols-2">
+      <div className={cn("grid gap-4 max-lg:order-9 xl:grid-cols-2", analyticsCls)}>
         {show("winners-losers") ? (
           <Card>
             <CardHeader>
@@ -1020,7 +1118,7 @@ export function DashboardView({ data }: { data: DashboardData }) {
 
       {/* Performance per sessione (fasce UTC) */}
       {show("sessions") ? (
-        <Card>
+        <Card className={cn("max-lg:order-10", analyticsCls)}>
           <CardHeader>
             <CardTitle className="stat-label flex items-center gap-1">
               Performance per sessione
@@ -1047,7 +1145,7 @@ export function DashboardView({ data }: { data: DashboardData }) {
       ) : null}
 
       {/* Grafici */}
-      <div className="grid gap-4 lg:grid-cols-3">
+      <div className={cn("grid gap-4 max-lg:order-11 lg:grid-cols-3", analyticsCls)}>
         {show("score") ? (
           <Card>
             <CardHeader>
@@ -1120,7 +1218,8 @@ export function DashboardView({ data }: { data: DashboardData }) {
         ) : null}
       </div>
 
-      <div className="grid gap-4 lg:grid-cols-3">
+      {/* F26 — su mobile saldo + ultimi trade salgono subito dopo il calendario */}
+      <div className="grid gap-4 max-lg:order-5 lg:grid-cols-3">
         {show("daily-pnl") ? (
           <Card className="lg:col-span-2">
             <CardHeader>
@@ -1144,7 +1243,7 @@ export function DashboardView({ data }: { data: DashboardData }) {
             </CardContent>
           </Card>
         ) : null}
-        <div className="flex flex-col gap-4">
+        <div className="flex flex-col gap-4 max-lg:order-first">
           {show("balance") && !inR ? (
             <StatCard
               label="Saldo conto"

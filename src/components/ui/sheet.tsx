@@ -70,14 +70,15 @@ function SheetContent({
         {children}
         {showCloseButton && (
           <SheetPrimitive.Close data-slot="sheet-close" asChild>
+            {/* F28 — area di tap ≥44px su mobile (era 28×28) */}
             <Button
               variant="ghost"
-              className="absolute top-3 right-3"
+              className="absolute top-1.5 right-1.5 max-lg:size-11 lg:top-3 lg:right-3"
               size="icon-sm"
             >
               <XIcon
               />
-              <span className="sr-only">Close</span>
+              <span className="sr-only">Chiudi</span>
             </Button>
           </SheetPrimitive.Close>
         )}

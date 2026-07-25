@@ -16,8 +16,16 @@ export function ThemeToggle() {
     () => false,
   );
 
+  // F28 — touch target ≥44px su mobile, dimensione standard da lg in su.
   if (!mounted) {
-    return <Button variant="ghost" size="icon" aria-label="Cambia tema" />;
+    return (
+      <Button
+        variant="ghost"
+        size="icon"
+        className="max-lg:size-11"
+        aria-label="Cambia tema"
+      />
+    );
   }
 
   const isDark = resolvedTheme === "dark";
@@ -25,6 +33,7 @@ export function ThemeToggle() {
     <Button
       variant="ghost"
       size="icon"
+      className="max-lg:size-11"
       aria-label={isDark ? "Passa al tema chiaro" : "Passa al tema scuro"}
       onClick={() => setTheme(isDark ? "light" : "dark")}
     >
