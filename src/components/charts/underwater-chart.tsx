@@ -11,12 +11,14 @@ import {
 import type { UnderwaterPoint } from "@/lib/metrics";
 import { formatDayKey } from "@/lib/dates";
 import { CHART } from "@/components/charts/chart-spec";
+import { useChartAnimation } from "@/components/charts/use-chart-animation";
 
 /**
  * W4 — underwater plot: area rossa sotto lo zero, profondità = drawdown %
  * dal picco. Stile SOLO da chart-spec; conversione a number solo qui.
  */
 export function UnderwaterChart({ points }: { points: UnderwaterPoint[] }) {
+  const animate = useChartAnimation();
   const data = points.map((p) => ({
     day: p.day,
     // frazione ≤ 0 → percentuale per il rendering
@@ -55,6 +57,7 @@ export function UnderwaterChart({ points }: { points: UnderwaterPoint[] }) {
           contentStyle={CHART.tooltipStyle}
         />
         <Area
+          isAnimationActive={animate}
           type="monotone"
           dataKey="pct"
           stroke="var(--loss)"

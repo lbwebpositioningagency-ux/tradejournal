@@ -11,6 +11,7 @@ import {
   YAxis,
 } from "recharts";
 import { CHART, ClampMark, pnlChartColor } from "@/components/charts/chart-spec";
+import { useChartAnimation } from "@/components/charts/use-chart-animation";
 import { clampLimit, clampValue } from "@/lib/chart-clamp";
 
 /**
@@ -40,6 +41,7 @@ export function TradeSequenceChart({
   /** Vista privacy: assi e importi mascherati. */
   masked?: boolean;
 }) {
+  const animate = useChartAnimation();
   // F23 — clamp visivo degli outlier: il disegno è troncato (▲/▼ sul punto),
   // il tooltip mostra sempre il valore reale.
   const raw = points.map((p) => Number(p.netPnl));
@@ -85,7 +87,9 @@ export function TradeSequenceChart({
           cursor={CHART.cursor}
           contentStyle={CHART.tooltipStyle}
         />
-        <Bar dataKey="value" name="Net P&L" radius={CHART.barRadius}>
+        <Bar dataKey="value" name="Net P&L" radius={CHART.barRadius}
+          isAnimationActive={animate}
+        >
           {data.map((point) => (
             <Cell key={point.index} fill={pnlChartColor(point.value)} />
           ))}

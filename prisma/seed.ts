@@ -2,10 +2,7 @@ import "dotenv/config";
 import bcrypt from "bcryptjs";
 import { PrismaPg } from "@prisma/adapter-pg";
 import { PrismaClient } from "../src/generated/prisma/client";
-import {
-  computeTrade,
-  type ExecutionInput,
-} from "../src/lib/trade-compute";
+import { computeTrade, type ExecutionInput } from "../src/lib/trade-compute";
 import { seedSim1 } from "./seed-sim1";
 import { DEMO_ACCOUNT_NAME, DEMO_USER_EMAIL } from "../src/lib/constants";
 
@@ -208,9 +205,23 @@ async function main() {
 
   // Strategie
   const strategyDefs = [
-    { name: "Breakout ORB", color: "#2563eb", description: "Breakout del range di apertura (15m) con conferma di volume." },
-    { name: "Pullback EMA", color: "#10b981", description: "Rientro sulla EMA 20 in trend, ingresso su candela di rifiuto." },
-    { name: "News fade", color: "#f59e0b", description: "Fade del movimento iniziale su news ad alto impatto." },
+    {
+      name: "Breakout ORB",
+      color: "#2563eb",
+      description:
+        "Breakout del range di apertura (15m) con conferma di volume.",
+    },
+    {
+      name: "Pullback EMA",
+      color: "#10b981",
+      description:
+        "Rientro sulla EMA 20 in trend, ingresso su candela di rifiuto.",
+    },
+    {
+      name: "News fade",
+      color: "#f59e0b",
+      description: "Fade del movimento iniziale su news ad alto impatto.",
+    },
   ];
   const strategies = [];
   for (const def of strategyDefs) {
@@ -266,14 +277,20 @@ async function main() {
       const qtyStr = qty.toFixed(spec.qtyDecimals);
 
       // Prezzo di ingresso: base + drift stagionale + rumore giornaliero
-      const drift = Math.sin(dayIndex / 9) * spec.dailyVol * 3 + dayIndex * spec.dailyVol * 0.02;
+      const drift =
+        Math.sin(dayIndex / 9) * spec.dailyVol * 3 +
+        dayIndex * spec.dailyVol * 0.02;
       const noise = randBetween(-spec.dailyVol, spec.dailyVol);
       const entryPrice = spec.basePrice + drift + noise;
 
       // Esito: ~55% win; R vincenti 0.4-2.8, perdenti -0.25/-1.15
       const isWin = chance(0.55);
-      const rMultiple = isWin ? randBetween(0.4, 2.8) : -randBetween(0.25, 1.15);
-      const riskMoney = useFutures ? randBetween(150, 600) : randBetween(60, 300);
+      const rMultiple = isWin
+        ? randBetween(0.4, 2.8)
+        : -randBetween(0.25, 1.15);
+      const riskMoney = useFutures
+        ? randBetween(150, 600)
+        : randBetween(60, 300);
       const pointValueNum = Number(spec.pointValue);
       const priceMove = (rMultiple * riskMoney) / (qty * pointValueNum);
       const signedMove = direction === "LONG" ? priceMove : -priceMove;
@@ -282,12 +299,15 @@ async function main() {
       // Orari
       const entryMinute = minuteCursor + Math.floor(randBetween(0, 45));
       const durationMin = Math.floor(randBetween(5, 180));
-      minuteCursor = entryMinute + durationMin + Math.floor(randBetween(10, 60));
+      minuteCursor =
+        entryMinute + durationMin + Math.floor(randBetween(10, 60));
       const entryAt = new Date(d.getTime() + entryMinute * 60_000);
       const exitAt = new Date(entryAt.getTime() + durationMin * 60_000);
 
-      const entrySide = direction === "LONG" ? ("BUY" as const) : ("SELL" as const);
-      const exitSide = direction === "LONG" ? ("SELL" as const) : ("BUY" as const);
+      const entrySide =
+        direction === "LONG" ? ("BUY" as const) : ("SELL" as const);
+      const exitSide =
+        direction === "LONG" ? ("SELL" as const) : ("BUY" as const);
       const feeSide = (q: number) => (q * spec.feePerUnitSide).toFixed(2);
 
       const executions: ExecutionInput[] = [
@@ -303,13 +323,17 @@ async function main() {
       // 30% scale-out in due uscite parziali (i trade APERTI sono scenari
       // deterministici aggiunti dopo il loop, mai lasciati al caso dell'RNG)
       if (chance(0.3) && qty > (spec.qtyDecimals === 0 ? 1 : 0.15)) {
-        const firstPortion = spec.qtyDecimals === 0
-          ? Math.max(1, Math.floor(qty * 0.6))
-          : Math.round(qty * 0.6 * 100) / 100;
-        const rest = spec.qtyDecimals === 0
-          ? qty - firstPortion
-          : Math.round((qty - firstPortion) * 100) / 100;
-        const midAt = new Date(entryAt.getTime() + Math.floor(durationMin * 0.55) * 60_000);
+        const firstPortion =
+          spec.qtyDecimals === 0
+            ? Math.max(1, Math.floor(qty * 0.6))
+            : Math.round(qty * 0.6 * 100) / 100;
+        const rest =
+          spec.qtyDecimals === 0
+            ? qty - firstPortion
+            : Math.round((qty - firstPortion) * 100) / 100;
+        const midAt = new Date(
+          entryAt.getTime() + Math.floor(durationMin * 0.55) * 60_000,
+        );
         const midMove = signedMove * randBetween(0.5, 0.85);
         executions.push(
           {
@@ -357,12 +381,15 @@ async function main() {
       const computed = computeTrade(executions, {
         pointValue: spec.pointValue,
         initialRisk,
+        plannedStop,
+        plannedTarget,
       });
 
       // Tag: setup sempre-ish, errori sui loss, emozioni sparse
       const tradeTagIds = new Set<string>();
       if (chance(0.8)) tradeTagIds.add(tagIds.get(pick(SETUP_TAGS))!);
-      if (!isWin && chance(0.5)) tradeTagIds.add(tagIds.get(pick(MISTAKE_TAGS))!);
+      if (!isWin && chance(0.5))
+        tradeTagIds.add(tagIds.get(pick(MISTAKE_TAGS))!);
       if (chance(0.3)) tradeTagIds.add(tagIds.get(pick(EMOTION_TAGS))!);
 
       const strategy = chance(0.7) ? pick(strategies) : null;
@@ -388,12 +415,21 @@ async function main() {
           plannedStop,
           plannedTarget,
           rMultiple: computed.rMultiple,
+          targetR: computed.targetR,
           strategyId: strategy?.id ?? null,
           rating: chance(0.7) ? Math.ceil(randBetween(0.01, 5)) : null,
           executions: { create: executions },
           tags: { create: [...tradeTagIds].map((tagId) => ({ tagId })) },
           ...(note
-            ? { notes: { create: { userId: user.id, type: "TRADE" as const, content: note } } }
+            ? {
+                notes: {
+                  create: {
+                    userId: user.id,
+                    type: "TRADE" as const,
+                    content: note,
+                  },
+                },
+              }
             : {}),
         },
       });
@@ -480,6 +516,8 @@ async function main() {
     const computed = computeTrade(scenario.executions, {
       pointValue: scenario.pointValue,
       initialRisk: scenario.initialRisk,
+      plannedStop: scenario.plannedStop,
+      plannedTarget: scenario.plannedTarget,
     });
     await prisma.trade.create({
       data: {
@@ -501,6 +539,7 @@ async function main() {
         plannedStop: scenario.plannedStop,
         plannedTarget: scenario.plannedTarget,
         rMultiple: computed.rMultiple,
+        targetR: computed.targetR,
         executions: { create: scenario.executions },
       },
     });

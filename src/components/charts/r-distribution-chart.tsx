@@ -11,6 +11,7 @@ import {
 } from "recharts";
 import type { RDistPoint } from "@/lib/reports";
 import { CHART } from "@/components/charts/chart-spec";
+import { useChartAnimation } from "@/components/charts/use-chart-animation";
 
 /**
  * Istogramma degli R-multiple (F32): quanti trade per fascia di 0,5R.
@@ -20,6 +21,7 @@ import { CHART } from "@/components/charts/chart-spec";
  */
 export function RDistributionChart({ points }: { points: RDistPoint[] }) {
   const data = points.map((p) => ({ ...p }));
+  const animate = useChartAnimation();
   return (
     <ResponsiveContainer width="100%" height={CHART.height}>
       <BarChart data={data} margin={CHART.margin}>
@@ -49,7 +51,12 @@ export function RDistributionChart({ points }: { points: RDistPoint[] }) {
           cursor={CHART.cursor}
           contentStyle={CHART.tooltipStyle}
         />
-        <Bar dataKey="count" name="Trade" radius={CHART.barRadius}>
+        <Bar
+          dataKey="count"
+          name="Trade"
+          radius={CHART.barRadius}
+          isAnimationActive={animate}
+        >
           {data.map((point) => (
             <Cell
               key={point.label}

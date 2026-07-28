@@ -94,7 +94,7 @@ describe.skipIf(!hasDb)("conto demo SIM1 su Postgres", () => {
     expect(account.user.passwordHash).toBeNull();
   });
 
-  it("sul DB ci sono i 199 trade chiusi + 2 aperti della fixture", async () => {
+  it("sul DB ci sono i 200 trade chiusi + 2 aperti della fixture", async () => {
     const [closed, open] = await Promise.all([
       prisma.trade.count({
         where: { tradingAccountId: demoAccountId, status: "CLOSED" },
@@ -103,7 +103,7 @@ describe.skipIf(!hasDb)("conto demo SIM1 su Postgres", () => {
         where: { tradingAccountId: demoAccountId, status: "OPEN" },
       }),
     ]);
-    expect(closed).toBe(199);
+    expect(closed).toBe(200);
     expect(open).toBe(2);
   });
 
@@ -121,10 +121,10 @@ describe.skipIf(!hasDb)("conto demo SIM1 su Postgres", () => {
       ]),
     );
     expect(actual).toEqual({
-      ES: { trades: 49, net: "10597.00" },
-      NQ: { trades: 50, net: "9730.20" },
-      GC: { trades: 55, net: "10735.00" },
-      CL: { trades: 45, net: "-1595.00" },
+      ES: { trades: 47, net: "10676.20" },
+      NQ: { trades: 53, net: "13021.80" },
+      GC: { trades: 56, net: "10765.00" },
+      CL: { trades: 44, net: "435.00" },
     });
   });
 
@@ -133,7 +133,7 @@ describe.skipIf(!hasDb)("conto demo SIM1 su Postgres", () => {
       userId,
       accountId: ALL_ACCOUNTS,
     });
-    // Solo il trade dell'utente di test: i 199 di SIM1 restano fuori.
+    // Solo il trade dell'utente di test: i 200 di SIM1 restano fuori.
     expect(aggregates.total).toBe(1);
     expect(aggregates.netPnl).toBe("100.00");
 
@@ -154,8 +154,8 @@ describe.skipIf(!hasDb)("conto demo SIM1 su Postgres", () => {
       userId: demoAccount.userId,
       accountId: demoAccountId,
     });
-    expect(aggregates.total).toBe(199);
-    expect(aggregates.netPnl).toBe("29467.20");
+    expect(aggregates.total).toBe(200);
+    expect(aggregates.netPnl).toBe("34898.00");
   });
 
   it("le scritture sul conto demo non trovano nulla da modificare", async () => {

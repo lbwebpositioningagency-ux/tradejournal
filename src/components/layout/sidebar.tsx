@@ -5,6 +5,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
   BarChart3,
+  ChartScatter,
   CalendarDays,
   Globe,
   LayoutDashboard,
@@ -28,6 +29,7 @@ const NAV_ITEMS = [
   { href: "/day", label: "Day View", icon: CalendarDays },
   { href: "/trades", label: "Trade View", icon: Table2 },
   { href: "/reports", label: "Reports", icon: BarChart3 },
+  { href: "/analytics", label: "Analytics", icon: ChartScatter },
   { href: "/macro-desk", label: "Macro Desk", icon: Globe },
   { href: "/strategies", label: "Strategies", icon: Target },
   { href: "/settings", label: "Impostazioni", icon: Settings },

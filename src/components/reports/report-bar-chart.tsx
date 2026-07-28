@@ -11,6 +11,7 @@ import {
 } from "recharts";
 import type { BucketPoint } from "@/lib/reports";
 import { CHART, pnlChartColor } from "@/components/charts/chart-spec";
+import { useChartAnimation } from "@/components/charts/use-chart-animation";
 
 /**
  * Barre per bucket categorici (ora del giorno, giorno della settimana).
@@ -31,6 +32,7 @@ export function ReportBarChart({
   points: BucketPoint[];
   suffix: string;
 }) {
+  const animate = useChartAnimation();
   const data: ChartDatum[] = points.map((p) => ({
     label: p.label,
     value: Number(p.netPnl),
@@ -65,7 +67,9 @@ export function ReportBarChart({
           cursor={CHART.cursor}
           contentStyle={CHART.tooltipStyle}
         />
-        <Bar dataKey="value" name="Net P&L" radius={CHART.barRadius}>
+        <Bar dataKey="value" name="Net P&L" radius={CHART.barRadius}
+          isAnimationActive={animate}
+        >
           {data.map((point) => (
             <Cell
               key={point.label}

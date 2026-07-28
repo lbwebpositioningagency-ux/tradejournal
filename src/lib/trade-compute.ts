@@ -1,4 +1,5 @@
 import Decimal from "decimal.js";
+import { targetRMultiple } from "@/lib/metrics/plan";
 
 /**
  * Motore di ricalcolo dei campi denormalizzati di un Trade a partire dalle
@@ -39,6 +40,10 @@ export interface ComputeOptions {
   pointValue?: string;
   /** Rischio iniziale in valuta conto: abilita il calcolo dell'R-multiple. */
   initialRisk?: string | null;
+  /** Stop pianificato (prezzo): con il target abilita il calcolo del target R. */
+  plannedStop?: string | null;
+  /** Target pianificato (prezzo). */
+  plannedTarget?: string | null;
 }
 
 export interface ComputedTrade {
@@ -60,6 +65,8 @@ export interface ComputedTrade {
   netPnl: string;
   /** netPnl / initialRisk (scala 4), null se rischio assente o zero */
   rMultiple: string | null;
+  /** |target − entry| / |entry − stop| (scala 4), null se il piano manca o non è valido */
+  targetR: string | null;
 }
 
 export class TradeComputeError extends Error {}
@@ -163,6 +170,16 @@ export function computeTrade(
     rMultiple = r.toFixed(4);
   }
 
+  // Target R del piano, denormalizzato QUI perché ogni percorso di scrittura
+  // (form, import CSV, sync MT5, seed) passa già da computeTrade: nessuno può
+  // dimenticarsene. La formula resta una sola, in metrics/plan.ts.
+  const targetR = targetRMultiple({
+    direction,
+    entry: avgEntry.toFixed(8),
+    plannedStop: options.plannedStop ?? null,
+    plannedTarget: options.plannedTarget ?? null,
+  });
+
   return {
     direction,
     status: isClosed ? "CLOSED" : "OPEN",
@@ -175,6 +192,7 @@ export function computeTrade(
     fees: fees.toFixed(2),
     netPnl: netPnl.toFixed(2),
     rMultiple,
+    targetR,
   };
 }
 

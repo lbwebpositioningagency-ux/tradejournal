@@ -348,8 +348,10 @@ export function buildSim1Dataset(seed: number = SIM1_SEED): Sim1Trade[] {
       const roll = rand();
       let realizedR: number;
       if (forced === "win" || (forced === null && roll < hitRate)) {
-        // Uscita al target (o appena prima): slippage realistico.
-        realizedR = plan.targetR * (0.92 + rand() * 0.08);
+        // Target COLPITO: l'uscita avviene AL prezzo target, non appena
+        // prima — un ordine limite si riempie al suo prezzo. Ogni tanto un
+        // filo oltre (uscita a mercato su un allungo).
+        realizedR = plan.targetR * (rand() < 0.8 ? 1 : 1 + rand() * 0.06);
       } else if (forced === "loss") {
         realizedR = -(0.9 + rand() * 0.25);
       } else if (roll < hitRate + (1 - hitRate) * 0.35) {

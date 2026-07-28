@@ -65,6 +65,23 @@ function parse(value: string | null): Decimal | null {
   }
 }
 
+/**
+ * TARGET R del piano: |target − entry| / |entry − stop|, con la direzione
+ * gestita correttamente. Null se manca un prezzo o se stop/target stanno dal
+ * lato sbagliato (piano non valido).
+ *
+ * È la STESSA quantità che `planVsOutcome` espone come `plannedR`, estratta
+ * perché serve anche fuori dal dettaglio trade: viene denormalizzata su
+ * `Trade.targetR` alla scrittura, esattamente come `rMultiple`, così le
+ * distribuzioni per target R si aggregano in SQL senza che nessuno
+ * ri-derivi la formula per conto proprio.
+ */
+export function targetRMultiple(
+  input: Pick<PlanVsOutcomeInput, "direction" | "entry" | "plannedStop" | "plannedTarget">,
+): string | null {
+  return planVsOutcome({ ...input, exit: null }).plannedR;
+}
+
 export function planVsOutcome(input: PlanVsOutcomeInput): PlanVsOutcome {
   const sign = input.direction === "LONG" ? 1 : -1;
   const entry = parse(input.entry);

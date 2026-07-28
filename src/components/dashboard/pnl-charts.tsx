@@ -13,6 +13,7 @@ import {
   YAxis,
 } from "recharts";
 import { CHART, ClampMark, pnlChartColor } from "@/components/charts/chart-spec";
+import { useChartAnimation } from "@/components/charts/use-chart-animation";
 import { clampLimit, clampValue } from "@/lib/chart-clamp";
 
 /**
@@ -60,6 +61,7 @@ export function CumulativePnlChart({
   masked: boolean;
   suffix: string;
 }) {
+  const animate = useChartAnimation();
   const last = points.at(-1)?.cumulative ?? 0;
   const color = pnlChartColor(last === 0 ? 1 : last);
   return (
@@ -91,6 +93,7 @@ export function CumulativePnlChart({
           contentStyle={CHART.tooltipStyle}
         />
         <Area
+          isAnimationActive={animate}
           type="monotone"
           dataKey="cumulative"
           name="Cumulativo"
@@ -112,6 +115,7 @@ export function DailyPnlChart({
   masked: boolean;
   suffix: string;
 }) {
+  const animate = useChartAnimation();
   // F23 — clamp visivo degli outlier: disegno troncato (▲/▼), tooltip reale.
   const limit = clampLimit(points.map((p) => p.value));
   const data = points.map((p) => {
@@ -148,7 +152,9 @@ export function DailyPnlChart({
           cursor={CHART.cursor}
           contentStyle={CHART.tooltipStyle}
         />
-        <Bar dataKey="drawn" name="Giornata" radius={CHART.barRadius}>
+        <Bar dataKey="drawn" name="Giornata" radius={CHART.barRadius}
+          isAnimationActive={animate}
+        >
           {data.map((point) => (
             <Cell key={point.day} fill={pnlChartColor(point.value)} />
           ))}

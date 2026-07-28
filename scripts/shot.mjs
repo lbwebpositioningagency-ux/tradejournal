@@ -13,16 +13,13 @@
  *
  * Più URL: ripetere --url/--name in coppia nello stesso ordine.
  *
- * LIMITE NOTO (non è un difetto dell'app): alcune card con Recharts escono
- * in foto coi soli assi. I ResponsiveContainer misurano la card una volta e
- * fuori da un browser che compone i frame leggono la larghezza PRIMA che la
- * griglia a due colonne si risolva, così le serie vengono disegnate oltre il
- * bordo della card. Nel DOM i dati ci sono (verificato: 199 barre nella
- * Sequenza trade, aree in Underwater e Monte Carlo) e in un browser vero il
- * ResizeObserver corregge subito. Lo stesso artefatto è presente negli
- * screenshot delle fasi precedenti. Tentativi già fatti e SCARTATI perché
- * peggiorano: resize del viewport all'altezza del documento, nudge di 1px,
- * evento resize forzato, passata di scroll, finestra headful.
+ * Grafici: le animazioni d'ingresso di Recharts girano su
+ * requestAnimationFrame, che in un browser headless non scatta mai — barre,
+ * aree e punti restano a scala zero e le card si fotografano VUOTE (era
+ * l'artefatto degli screenshot delle fasi precedenti). Qui si emula
+ * `prefers-reduced-motion: reduce`, che i componenti rispettano davvero
+ * (src/components/charts/use-chart-animation.ts): niente animazione, dati
+ * disegnati subito, foto veritiere.
  */
 import { spawn } from "node:child_process";
 import { mkdir, writeFile, rm } from "node:fs/promises";
@@ -138,6 +135,13 @@ async function main() {
     deviceScaleFactor: 1,
     mobile: args.width < 500,
   });
+  // Reduced motion: le animazioni d'ingresso di Recharts girano su
+  // requestAnimationFrame, che senza frame composti non scatta mai — barre e
+  // punti resterebbero a scala zero e i grafici uscirebbero VUOTI in foto.
+  // I componenti rispettano la media query (use-chart-animation.ts).
+  await client.send("Emulation.setEmulatedMedia", {
+    features: [{ name: "prefers-reduced-motion", value: "reduce" }],
+  });
 
   const origin = new URL(args.urls[0]).origin;
 
@@ -160,6 +164,16 @@ async function main() {
     });
     if (result.exceptionDetails) {
       throw new Error("Login fallito: " + JSON.stringify(result.exceptionDetails));
+    }
+    // Il rate limiting del login (10 tentativi/15 min per email, FASE 9) vale
+    // anche per queste sessioni di screenshot: senza questo controllo si
+    // fotografa la pagina di login credendo di aver fotografato l'app.
+    const status = result.result?.value;
+    if (status !== 200) {
+      throw new Error(
+        `Login rifiutato (HTTP ${status}). Se hai appena fatto molti screenshot, ` +
+          "è il rate limiting: attendi qualche minuto.",
+      );
     }
   }
 

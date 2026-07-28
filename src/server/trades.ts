@@ -15,8 +15,7 @@ import {
 } from "@/lib/validations/trade";
 
 export type TradeActionResult =
-  | { error: string }
-  | { success: true; tradeId: string };
+  { error: string } | { success: true; tradeId: string };
 
 async function requireUserId(): Promise<string> {
   const session = await auth();
@@ -31,7 +30,9 @@ async function requireUserId(): Promise<string> {
 async function prepareTradeData(userId: string, input: TradeInput) {
   const parsed = tradeInputSchema.safeParse(input);
   if (!parsed.success) {
-    return { error: parsed.error.issues[0]?.message ?? "Dati non validi" } as const;
+    return {
+      error: parsed.error.issues[0]?.message ?? "Dati non validi",
+    } as const;
   }
   const data = parsed.data;
 
@@ -71,9 +72,12 @@ async function prepareTradeData(userId: string, input: TradeInput) {
     computed = computeTrade(executions, {
       pointValue: data.pointValue,
       initialRisk: data.initialRisk ?? null,
+      plannedStop: data.plannedStop ?? null,
+      plannedTarget: data.plannedTarget ?? null,
     });
   } catch (error) {
-    if (error instanceof TradeComputeError) return { error: error.message } as const;
+    if (error instanceof TradeComputeError)
+      return { error: error.message } as const;
     throw error;
   }
 
@@ -81,7 +85,10 @@ async function prepareTradeData(userId: string, input: TradeInput) {
 }
 
 /** Upsert dei tag per nome e ritorno degli id (sempre dell'utente). */
-async function resolveTagIds(userId: string, names: string[]): Promise<string[]> {
+async function resolveTagIds(
+  userId: string,
+  names: string[],
+): Promise<string[]> {
   const unique = [...new Set(names.map((n) => n.trim()).filter(Boolean))];
   const ids: string[] = [];
   for (const name of unique) {
@@ -96,7 +103,9 @@ async function resolveTagIds(userId: string, names: string[]): Promise<string[]>
   return ids;
 }
 
-export async function createTradeAction(input: TradeInput): Promise<TradeActionResult> {
+export async function createTradeAction(
+  input: TradeInput,
+): Promise<TradeActionResult> {
   const userId = await requireUserId();
   const prepared = await prepareTradeData(userId, input);
   if (prepared.error !== undefined) return { error: prepared.error };
@@ -124,6 +133,7 @@ export async function createTradeAction(input: TradeInput): Promise<TradeActionR
       plannedStop: data.plannedStop ?? null,
       plannedTarget: data.plannedTarget ?? null,
       rMultiple: computed.rMultiple,
+      targetR: computed.targetR,
       strategyId: data.strategyId ?? null,
       rating: data.rating ?? null,
       executions: { create: executions },
@@ -187,6 +197,7 @@ export async function updateTradeAction(
         plannedStop: data.plannedStop ?? null,
         plannedTarget: data.plannedTarget ?? null,
         rMultiple: computed.rMultiple,
+        targetR: computed.targetR,
         strategyId: data.strategyId ?? null,
         rating: data.rating ?? null,
         executions: { create: executions },

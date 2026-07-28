@@ -11,12 +11,14 @@ import {
 } from "recharts";
 import type { MonteCarloStep } from "@/lib/metrics";
 import { CHART } from "@/components/charts/chart-spec";
+import { useChartAnimation } from "@/components/charts/use-chart-animation";
 
 /**
  * W4 — fasce Monte Carlo: banda 5–95% (chiara), banda 25–75% (piena) e
  * mediana. Colori dal tema, stile da chart-spec.
  */
 export function MonteCarloChart({ steps }: { steps: MonteCarloStep[] }) {
+  const animate = useChartAnimation();
   const data = steps.map((s) => ({
     trade: s.trade,
     outer: [s.p05, s.p95] as [number, number],
@@ -55,18 +57,21 @@ export function MonteCarloChart({ steps }: { steps: MonteCarloStep[] }) {
           contentStyle={CHART.tooltipStyle}
         />
         <Area
+          isAnimationActive={animate}
           dataKey="outer"
           stroke="none"
           fill="var(--primary)"
           fillOpacity={0.1}
         />
         <Area
+          isAnimationActive={animate}
           dataKey="inner"
           stroke="none"
           fill="var(--primary)"
           fillOpacity={0.22}
         />
         <Line
+          isAnimationActive={animate}
           dataKey="median"
           stroke="var(--primary)"
           strokeWidth={CHART.strokeWidth}

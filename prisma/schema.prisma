@@ -181,6 +181,11 @@ model Trade {
   plannedStop   Decimal? @db.Decimal(18, 8)
   plannedTarget Decimal? @db.Decimal(18, 8)
   rMultiple     Decimal? @db.Decimal(10, 4) // netPnl / initialRisk, denormalizzato
+  // Target R del piano: |target − entry| / |entry − stop| (segni per direzione).
+  // Denormalizzato come rMultiple e calcolato dalla STESSA funzione
+  // (metrics/plan.ts → targetRMultiple): le distribuzioni per target R si
+  // aggregano in SQL senza ri-derivare la formula altrove.
+  targetR Decimal? @db.Decimal(10, 4)
 
   strategyId String?
   rating     Int? // 1-5, opzionale

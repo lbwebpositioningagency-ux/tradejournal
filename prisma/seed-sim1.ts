@@ -107,6 +107,8 @@ export async function seedSim1(
     const computed = computeTrade(trade.executions, {
       pointValue: trade.pointValue,
       initialRisk: trade.initialRisk,
+      plannedStop: trade.plannedStop,
+      plannedTarget: trade.plannedTarget,
     });
     netPnl += Number(computed.netPnl);
 
@@ -131,6 +133,7 @@ export async function seedSim1(
         plannedStop: trade.plannedStop,
         plannedTarget: trade.plannedTarget,
         rMultiple: computed.rMultiple,
+        targetR: computed.targetR,
         strategyId: strategyIds.get(trade.strategy) ?? null,
         rating: trade.rating,
         executions: { create: trade.executions },
@@ -163,8 +166,10 @@ export async function seedSim1(
 }
 
 function categoryFor(tag: string): "SETUP" | "MISTAKE" | "EMOTION" | "CUSTOM" {
-  if (["breakout", "pullback", "reversal", "range"].includes(tag)) return "SETUP";
-  if (["fomo", "revenge", "oversize", "early-exit"].includes(tag)) return "MISTAKE";
+  if (["breakout", "pullback", "reversal", "range"].includes(tag))
+    return "SETUP";
+  if (["fomo", "revenge", "oversize", "early-exit"].includes(tag))
+    return "MISTAKE";
   if (["disciplina", "ansia", "tilt"].includes(tag)) return "EMOTION";
   return "CUSTOM";
 }

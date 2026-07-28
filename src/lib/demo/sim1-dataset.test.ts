@@ -40,6 +40,8 @@ function compute(trade: Sim1Trade) {
   return computeTrade(trade.executions, {
     pointValue: trade.pointValue,
     initialRisk: trade.initialRisk,
+    plannedStop: trade.plannedStop,
+    plannedTarget: trade.plannedTarget,
   });
 }
 
@@ -108,13 +110,14 @@ describe("SIM1 — integrità del P&L (golden)", () => {
         { trades: perSymbolCount.get(symbol), net: net.toFixed(2) },
       ]),
     );
-    // CL in perdita di proposito: il breakdown "per simbolo" deve poter
-    // mostrare uno strumento che costa soldi anche in un conto profittevole.
+    // CL è lo strumento marginale del conto (+435 su 44 trade, contro i
+    // ~10-13k degli altri): il breakdown "per simbolo" ha così qualcosa da
+    // dire, non quattro righe tutte uguali.
     expect(actual).toEqual({
-      ES: { trades: 49, net: "10597.00" },
-      NQ: { trades: 50, net: "9730.20" },
-      GC: { trades: 55, net: "10735.00" },
-      CL: { trades: 45, net: "-1595.00" },
+      ES: { trades: 47, net: "10676.20" },
+      NQ: { trades: 53, net: "13021.80" },
+      GC: { trades: 56, net: "10765.00" },
+      CL: { trades: 44, net: "435.00" },
     });
   });
 
@@ -123,7 +126,7 @@ describe("SIM1 — integrità del P&L (golden)", () => {
       (sum, trade) => sum.plus(compute(trade).netPnl),
       new Decimal(0),
     );
-    expect(total.toFixed(2)).toBe("29467.20");
+    expect(total.toFixed(2)).toBe("34898.00");
   });
 });
 
@@ -147,29 +150,29 @@ describe("SIM1 — metriche golden", () => {
 
   it("conteggi e somme", () => {
     expect(aggregates).toEqual({
-      total: 199,
-      wins: 97,
-      losses: 102,
+      total: 200,
+      wins: 96,
+      losses: 104,
       breakevens: 0,
-      netPnl: "29467.20",
-      winSum: "73630.00",
-      lossSum: "-44162.80",
-      fees: "1367.80",
+      netPnl: "34898.00",
+      winSum: "78980.90",
+      lossSum: "-44082.90",
+      fees: "1372.00",
     });
   });
 
   it("win rate, profit factor, expectancy, payoff", () => {
-    expect(winRate(aggregates.wins, aggregates.total)).toBe("0.4874");
-    expect(profitFactor(aggregates.winSum, aggregates.lossSum)).toBe("1.6672");
-    expect(expectancy(aggregates)).toBe("148.08");
-    expect(avgWin(aggregates.winSum, aggregates.wins)).toBe("759.07");
-    expect(avgLoss(aggregates.lossSum, aggregates.losses)).toBe("432.97");
+    expect(winRate(aggregates.wins, aggregates.total)).toBe("0.4800");
+    expect(profitFactor(aggregates.winSum, aggregates.lossSum)).toBe("1.7916");
+    expect(expectancy(aggregates)).toBe("174.49");
+    expect(avgWin(aggregates.winSum, aggregates.wins)).toBe("822.72");
+    expect(avgLoss(aggregates.lossSum, aggregates.losses)).toBe("423.87");
     expect(
       payoffRatio(
         avgWin(aggregates.winSum, aggregates.wins),
         avgLoss(aggregates.lossSum, aggregates.losses),
       ),
-    ).toBe("1.7532");
+    ).toBe("1.9410");
   });
 
   it("drawdown reale sulla curva di equity giornaliera", () => {
@@ -182,12 +185,12 @@ describe("SIM1 — metriche golden", () => {
       .sort(([a], [b]) => a.localeCompare(b))
       .map(([day, netPnl]) => ({ day, netPnl: netPnl.toFixed(2), trades: 0 }));
 
-    expect(daily.length).toBe(167);
+    expect(daily.length).toBe(166);
     expect(maxDrawdown(daily, SIM1_INITIAL_BALANCE)).toEqual({
-      maxDrawdown: "9305.50",
-      maxDrawdownPct: "0.1410",
-      date: "2025-09-15",
-      avgDrawdown: "2592.73",
+      maxDrawdown: "9080.50",
+      maxDrawdownPct: "0.1349",
+      date: "2025-09-12",
+      avgDrawdown: "2310.36",
     });
   });
 });
@@ -259,6 +262,38 @@ describe("SIM1 — il dataset esercita davvero ogni metrica", () => {
       }),
     );
     expect(buckets.size).toBe(4);
+  });
+
+  it("l'hit rate cala al crescere del target R (il senso della §3)", () => {
+    // Un'uscita al target è un ordine LIMITE: si riempie AL prezzo target.
+    // Se il dataset facesse uscire i "target raggiunti" appena prima, il
+    // prezzo non toccherebbe mai il target e l'hit rate sarebbe ~0 — che è
+    // esattamente il difetto trovato costruendo questa analisi.
+    const buckets = new Map<string, { n: number; hits: number }>();
+    for (const trade of dataset) {
+      const computed = compute(trade);
+      const target = new Decimal(trade.plannedTarget);
+      const exit = new Decimal(computed.avgExitPrice!);
+      const sign = trade.direction === "LONG" ? 1 : -1;
+      const hit = exit.minus(target).times(sign).gte(0);
+      const tr = Number(computed.targetR);
+      const key = tr <= 1 ? "le1" : tr <= 2 ? "1to2" : tr <= 3 ? "2to3" : "gt3";
+      const bucket = buckets.get(key) ?? { n: 0, hits: 0 };
+      bucket.n += 1;
+      if (hit) bucket.hits += 1;
+      buckets.set(key, bucket);
+    }
+    const rate = (key: string) => {
+      const b = buckets.get(key)!;
+      return b.hits / b.n;
+    };
+    // Tutti e quattro i bucket sono popolati e l'hit rate scende.
+    expect([...buckets.keys()].sort()).toEqual(["1to2", "2to3", "gt3", "le1"]);
+    expect(rate("le1")).toBeGreaterThan(rate("1to2"));
+    expect(rate("1to2")).toBeGreaterThan(rate("gt3"));
+    // E resta un hit rate VERO, non zero per un artefatto di generazione.
+    expect(rate("le1")).toBeGreaterThan(0.4);
+    expect(rate("gt3")).toBeGreaterThan(0);
   });
 
   it("ha streak lunghe, in vittoria e in perdita", () => {

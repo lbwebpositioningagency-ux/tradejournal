@@ -156,7 +156,10 @@ export interface PersistResult {
 function isDivergent(computedNet: string, brokerProfit: string): boolean {
   const computed = new Decimal(computedNet);
   const broker = new Decimal(brokerProfit);
-  const tolerance = Decimal.max(new Decimal("0.01"), broker.abs().times("0.01"));
+  const tolerance = Decimal.max(
+    new Decimal("0.01"),
+    broker.abs().times("0.01"),
+  );
   return computed.minus(broker).abs().gt(tolerance);
 }
 
@@ -177,8 +180,13 @@ export async function persistTradeInputs(params: {
    */
   skipFingerprintDuplicates?: boolean;
 }): Promise<PersistResult> {
-  const { userId, tradingAccountId, timezone, rows, skipFingerprintDuplicates } =
-    params;
+  const {
+    userId,
+    tradingAccountId,
+    timezone,
+    rows,
+    skipFingerprintDuplicates,
+  } = params;
 
   // Dedup: ticket già sul conto (una sola query) + doppioni nello stesso batch.
   const tickets = rows
@@ -257,6 +265,8 @@ export async function persistTradeInputs(params: {
       const computed = computeTrade(executions, {
         pointValue: data.pointValue,
         initialRisk: data.initialRisk ?? null,
+        plannedStop: data.plannedStop ?? null,
+        plannedTarget: data.plannedTarget ?? null,
       });
 
       // La prima execution del payload è l'ingresso per costruzione
@@ -302,6 +312,7 @@ export async function persistTradeInputs(params: {
         netPnl: computed.netPnl,
         initialRisk: data.initialRisk ?? null,
         rMultiple: computed.rMultiple,
+        targetR: computed.targetR,
         brokerTicketId: raw.brokerTicketId ?? null,
         executions: { create: executions },
         ...(data.notes
