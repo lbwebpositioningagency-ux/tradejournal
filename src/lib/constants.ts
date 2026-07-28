@@ -3,6 +3,16 @@ export const ACTIVE_ACCOUNT_COOKIE = "tj-account";
 /** Valore speciale del cookie: tutti i conti non archiviati insieme. */
 export const ALL_ACCOUNTS = "all";
 
+/**
+ * CONTO DEMO GLOBALE "SIM1" — costanti condivise tra app e seed.
+ * Il modello e le regole di scope stanno in src/lib/demo-account.ts (che
+ * dipende da Prisma: il seed importa solo da qui).
+ */
+export const DEMO_USER_EMAIL = "sim1@demo.tradejournal.local";
+export const DEMO_ACCOUNT_NAME = "SIM1";
+export const DEMO_READONLY_MESSAGE =
+  "Il conto demo SIM1 è in sola lettura: crea un tuo conto per inserire trade.";
+
 /** Cookie del colore di accento (FASE 10): data-accent su <html>. */
 export const ACCENT_COOKIE = "tj-accent";
 

@@ -6,6 +6,7 @@ import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { zonedInputToUtc } from "@/lib/dates";
 import { computeTrade, TradeComputeError } from "@/lib/trade-compute";
+import { DEMO_READONLY_MESSAGE } from "@/lib/constants";
 import {
   tradeInputSchema,
   tradeReviewSchema,
@@ -36,9 +37,13 @@ async function prepareTradeData(userId: string, input: TradeInput) {
 
   const account = await prisma.tradingAccount.findFirst({
     where: { id: data.tradingAccountId, userId },
-    select: { id: true },
+    select: { id: true, isDemo: true },
   });
   if (!account) return { error: "Conto non trovato" } as const;
+  // Il conto demo globale appartiene a un utente di sistema, quindi il filtro
+  // per userId qui sopra lo esclude già. Guardia esplicita comunque: rende
+  // l'invariante "SIM1 è in sola lettura" dichiarata e testabile.
+  if (account.isDemo) return { error: DEMO_READONLY_MESSAGE } as const;
 
   if (data.strategyId) {
     const strategy = await prisma.strategy.findFirst({
@@ -145,7 +150,7 @@ export async function updateTradeAction(
   const userId = await requireUserId();
 
   const existing = await prisma.trade.findFirst({
-    where: { id: tradeId, account: { userId } },
+    where: { id: tradeId, account: { userId, isDemo: false } },
     select: { id: true },
   });
   if (!existing) return { error: "Trade non trovato" };
@@ -208,7 +213,7 @@ export async function deleteTradeAction(
   const userId = await requireUserId();
 
   const result = await prisma.trade.deleteMany({
-    where: { id: tradeId, account: { userId } },
+    where: { id: tradeId, account: { userId, isDemo: false } },
   });
   if (result.count === 0) return { error: "Trade non trovato" };
 
@@ -234,7 +239,7 @@ export async function reviewTradeAction(
   const data = parsed.data;
 
   const trade = await prisma.trade.findFirst({
-    where: { id: tradeId, account: { userId } },
+    where: { id: tradeId, account: { userId, isDemo: false } },
     select: { id: true },
   });
   if (!trade) return { error: "Trade non trovato" };

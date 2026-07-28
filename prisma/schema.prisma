@@ -128,6 +128,12 @@ model TradingAccount {
   initialBalance Decimal @default(0) @db.Decimal(14, 2)
   isArchived     Boolean @default(false)
 
+  // Conto DEMO globale (SIM1): appartiene a un utente di sistema ed è
+  // visibile in sola lettura a TUTTI gli utenti (una sola copia condivisa).
+  // Non entra mai in "Tutti i conti": lo scope demo si attiva solo quando il
+  // conto è selezionato esplicitamente (vedi src/lib/demo-account.ts).
+  isDemo Boolean @default(false)
+
   // F36 — regole prop firm (opzionali: attive solo se valorizzate).
   // Importi POSITIVI in valuta conto; il tracking è sul cumulato dei trade
   // chiusi per giornata (approssimazione dichiarata: niente equity intraday).

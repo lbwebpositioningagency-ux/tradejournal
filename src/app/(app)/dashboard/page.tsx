@@ -3,7 +3,8 @@ import { redirect } from "next/navigation";
 import Decimal from "decimal.js";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/db";
-import { getActiveAccountId, tradeAccountWhere } from "@/lib/active-account";
+import { tradeAccountWhere } from "@/lib/active-account";
+import { resolveTradeScope } from "@/lib/demo-account";
 import { ALL_ACCOUNTS } from "@/lib/constants";
 import {
   formatDateTime,
@@ -75,21 +76,27 @@ export default async function DashboardPage({
 }) {
   const session = await auth();
   if (!session?.user?.id) redirect("/login");
-  const userId = session.user.id;
+  const sessionUserId = session.user.id;
 
   const params = await searchParams;
 
-  const [user, activeAccountId] = await Promise.all([
+  // Scope dei dati: coincide con l'utente loggato, tranne quando il conto
+  // attivo è il demo globale SIM1 (allora le query sui trade girano
+  // sull'utente di sistema). Gli artefatti PERSONALI — qui il profilo e il
+  // layout dei widget — restano sempre dell'utente vero.
+  const [user, tradeScope] = await Promise.all([
     prisma.user.findUniqueOrThrow({
-      where: { id: userId },
+      where: { id: sessionUserId },
       select: {
         timezone: true,
         baseCurrency: true,
         dashboardLayout: true,
       },
     }),
-    getActiveAccountId(),
+    resolveTradeScope(sessionUserId),
   ]);
+  const userId = tradeScope.userId;
+  const activeAccountId = tradeScope.accountId;
 
   const period = resolvePeriod(params, user.timezone);
 

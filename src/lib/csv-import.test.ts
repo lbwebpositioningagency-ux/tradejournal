@@ -317,3 +317,73 @@ describe("previewNetPnl (F13)", () => {
     expect(previewNetPnl(r.input)).toBeNull();
   });
 });
+
+describe("piano di trade dall'import (stop/target)", () => {
+  const planMapping = {
+    ...mapping,
+    columns: {
+      ...mapping.columns,
+      plannedStop: "Stop Loss",
+      plannedTarget: "Take Profit",
+    },
+  };
+
+  it("importa stop e target pianificati come prezzi", () => {
+    const result = buildTradeInput(
+      { ...validRow, "Stop Loss": "4990,25", "Take Profit": "5020.25" },
+      planMapping,
+      options,
+    );
+    if (!result.ok) throw new Error(result.error);
+    expect(result.input.plannedStop).toBe("4990.25");
+    expect(result.input.plannedTarget).toBe("5020.25");
+  });
+
+  it("colonne assenti o vuote lasciano il piano nullo, senza scartare la riga", () => {
+    const empty = buildTradeInput(
+      { ...validRow, "Stop Loss": "", "Take Profit": "" },
+      planMapping,
+      options,
+    );
+    if (!empty.ok) throw new Error(empty.error);
+    expect(empty.input.plannedStop).toBeUndefined();
+    expect(empty.input.plannedTarget).toBeUndefined();
+
+    const missing = buildTradeInput(validRow, mapping, options);
+    if (!missing.ok) throw new Error(missing.error);
+    expect(missing.input.plannedStop).toBeUndefined();
+  });
+
+  it("uno stop non numerico o non positivo scarta la riga con un errore parlante", () => {
+    const bad = buildTradeInput(
+      { ...validRow, "Stop Loss": "abc" },
+      planMapping,
+      options,
+    );
+    expect(bad.ok).toBe(false);
+    if (bad.ok) throw new Error("doveva fallire");
+    expect(bad.error).toContain("Stop pianificato");
+
+    const zero = buildTradeInput(
+      { ...validRow, "Stop Loss": "0" },
+      planMapping,
+      options,
+    );
+    expect(zero.ok).toBe(false);
+  });
+
+  it("l'auto-mapping riconosce gli header dei broker", () => {
+    const guessed = guessMapping([
+      "Symbol",
+      "Side",
+      "Qty",
+      "Entry Price",
+      "Stop Loss",
+      "Take Profit",
+    ]);
+    expect(guessed.plannedStop).toBe("Stop Loss");
+    expect(guessed.plannedTarget).toBe("Take Profit");
+    expect(guessMapping(["SL", "TP"]).plannedStop).toBe("SL");
+    expect(guessMapping(["SL", "TP"]).plannedTarget).toBe("TP");
+  });
+});

@@ -27,7 +27,7 @@ export async function saveMt5SourceAction(
   const data = parsed.data;
 
   const account = await prisma.tradingAccount.findFirst({
-    where: { id: data.tradingAccountId, userId },
+    where: { id: data.tradingAccountId, userId, isDemo: false },
     select: { id: true },
   });
   if (!account) return { error: "Conto non trovato" };

@@ -16,6 +16,8 @@ export type AccountOption = {
   id: string;
   name: string;
   currency: string;
+  /** Conto demo globale SIM1: etichettato e in sola lettura. */
+  isDemo?: boolean;
 };
 
 export function AccountSwitcher({
@@ -41,7 +43,14 @@ export function AccountSwitcher({
         <SelectItem value={ALL_ACCOUNTS}>Tutti i conti</SelectItem>
         {accounts.map((account) => (
           <SelectItem key={account.id} value={account.id}>
-            {account.name} · {account.currency}
+            <span className="flex items-center gap-1.5">
+              {account.name} · {account.currency}
+              {account.isDemo && (
+                <span className="rounded bg-primary/15 px-1.5 py-0.5 text-2xs font-medium uppercase tracking-wide text-primary">
+                  Demo
+                </span>
+              )}
+            </span>
           </SelectItem>
         ))}
       </SelectContent>

@@ -5,7 +5,7 @@ import Decimal from "decimal.js";
 import { BarChart3, CalendarCheck } from "lucide-react";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/db";
-import { getActiveAccountId } from "@/lib/active-account";
+import { resolveTradeScope } from "@/lib/demo-account";
 import { ALL_ACCOUNTS } from "@/lib/constants";
 import {
   currentStreak,
@@ -321,16 +321,19 @@ export default async function ReportsPage({
 }) {
   const session = await auth();
   if (!session?.user?.id) redirect("/login");
-  const userId = session.user.id;
+  const sessionUserId = session.user.id;
 
-  const [user, activeAccountId, params] = await Promise.all([
+  const [user, tradeScope, params] = await Promise.all([
     prisma.user.findUniqueOrThrow({
-      where: { id: userId },
+      where: { id: sessionUserId },
       select: { timezone: true, baseCurrency: true },
     }),
-    getActiveAccountId(),
+    resolveTradeScope(sessionUserId),
     searchParams,
   ]);
+  // Scope dei dati: utente di sistema quando il conto attivo è il demo SIM1.
+  const userId = tradeScope.userId;
+  const activeAccountId = tradeScope.accountId;
 
   const period = resolvePeriod(params, user.timezone);
   const baseFilter: StatsFilter = {

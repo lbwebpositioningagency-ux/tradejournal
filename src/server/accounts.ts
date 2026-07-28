@@ -142,8 +142,10 @@ export async function setActiveAccountAction(accountId: string): Promise<void> {
   const userId = await requireUserId();
 
   if (accountId !== ALL_ACCOUNTS) {
+    // Selezionabili: i conti dell'utente e il conto DEMO globale (sola
+    // lettura, condiviso da tutti). Qualunque altro id viene ignorato.
     const account = await prisma.tradingAccount.findFirst({
-      where: { id: accountId, userId },
+      where: { id: accountId, OR: [{ userId }, { isDemo: true }] },
       select: { id: true },
     });
     if (!account) return;

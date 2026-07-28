@@ -1,7 +1,8 @@
 import type { NextRequest } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/db";
-import { getActiveAccountId, tradeAccountWhere } from "@/lib/active-account";
+import { tradeAccountWhere } from "@/lib/active-account";
+import { resolveTradeScope } from "@/lib/demo-account";
 import { toCsv } from "@/lib/csv";
 import { resolvePeriod } from "@/lib/period";
 import {
@@ -51,18 +52,22 @@ export async function GET(request: NextRequest) {
   if (!session?.user?.id) {
     return Response.json({ error: "Non autorizzato" }, { status: 401 });
   }
-  const userId = session.user.id;
+  const sessionUserId = session.user.id;
 
   const params: Record<string, string | undefined> = {};
   for (const [key, value] of request.nextUrl.searchParams) params[key] = value;
 
-  const [user, activeAccountId] = await Promise.all([
+  const [user, tradeScope] = await Promise.all([
     prisma.user.findUniqueOrThrow({
-      where: { id: userId },
+      where: { id: sessionUserId },
       select: { timezone: true },
     }),
-    getActiveAccountId(),
+    resolveTradeScope(sessionUserId),
   ]);
+  // Stesso scope della Trade View: esportare il conto demo è LETTURA, quindi
+  // legittimo (l'export non modifica nulla).
+  const userId = tradeScope.userId;
+  const activeAccountId = tradeScope.accountId;
 
   const filters = parseTradeFilters(params);
   const period = resolvePeriod(params, user.timezone);

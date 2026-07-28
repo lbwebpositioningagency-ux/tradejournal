@@ -11,7 +11,8 @@ import {
 } from "lucide-react";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/db";
-import { getActiveAccountId, tradeAccountWhere } from "@/lib/active-account";
+import { tradeAccountWhere } from "@/lib/active-account";
+import { resolveTradeScope } from "@/lib/demo-account";
 import { ALL_ACCOUNTS } from "@/lib/constants";
 import { addDays, isValidDateKey } from "@/lib/calendar";
 import { dayNotesByPhase } from "@/lib/day-journal";
@@ -84,19 +85,22 @@ export default async function DayViewPage({
 }) {
   const session = await auth();
   if (!session?.user?.id) redirect("/login");
-  const userId = session.user.id;
+  const sessionUserId = session.user.id;
 
   const { date } = await params;
   if (!isValidDateKey(date)) notFound();
 
-  const [user, activeAccountId, { cur }] = await Promise.all([
+  const [user, tradeScope, { cur }] = await Promise.all([
     prisma.user.findUniqueOrThrow({
-      where: { id: userId },
+      where: { id: sessionUserId },
       select: { timezone: true, baseCurrency: true },
     }),
-    getActiveAccountId(),
+    resolveTradeScope(sessionUserId),
     searchParams,
   ]);
+  // Scope dei dati: utente di sistema quando il conto attivo è il demo SIM1.
+  const userId = tradeScope.userId;
+  const activeAccountId = tradeScope.accountId;
   // F6 — valuta di scope passata dal calendario (?cur): il totale del giorno
   // non somma mai valute diverse.
   const scopeCurrency = typeof cur === "string" && cur ? cur : undefined;
@@ -144,7 +148,9 @@ export default async function DayViewPage({
     }),
     prisma.note.findMany({
       where: {
-        userId,
+        // Journal e allegati sono PERSONALI: restano dell'utente vero anche
+        // mentre si guardano i trade del conto demo.
+        userId: sessionUserId,
         type: "DAILY",
         dayDate: new Date(`${date}T00:00:00.000Z`),
       },
@@ -158,7 +164,7 @@ export default async function DayViewPage({
         }),
     // Allegati di giornata (F16b): mai selezionare `data` nei listing.
     prisma.attachment.findMany({
-      where: { userId, dayDate: new Date(`${date}T00:00:00.000Z`) },
+      where: { userId: sessionUserId, dayDate: new Date(`${date}T00:00:00.000Z`) },
       orderBy: { createdAt: "asc" },
       select: { id: true, fileName: true, mimeType: true, size: true },
     }),
@@ -251,8 +257,9 @@ export default async function DayViewPage({
         </div>
         {/* F44 — frecce sui GIORNI OPERATIVI: mai pagine vuote a catena */}
         <div className="flex items-center gap-2">
-          {/* W5 — il rito serale: revisione trade per trade + Post-Market */}
-          {trades.length > 0 ? (
+          {/* W5 — il rito serale: revisione trade per trade + Post-Market.
+              Scrive sui trade: non compare sul conto demo (sola lettura). */}
+          {trades.length > 0 && !tradeScope.isDemo ? (
             <Button asChild variant="outline">
               <Link href={`/day/${date}/review`}>
                 <ClipboardCheck className="size-4" />

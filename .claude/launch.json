@@ -11,7 +11,7 @@
     {
       "name": "tradejournal-prod",
       "runtimeExecutable": "npm",
-      "runtimeArgs": ["run", "start"],
+      "runtimeArgs": ["run", "start:verify"],
       "port": 3100,
       "autoPort": true
     }

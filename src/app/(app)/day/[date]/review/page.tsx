@@ -5,7 +5,8 @@ import Decimal from "decimal.js";
 import { ArrowLeft } from "lucide-react";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/db";
-import { getActiveAccountId, tradeAccountWhere } from "@/lib/active-account";
+import { tradeAccountWhere } from "@/lib/active-account";
+import { resolveTradeScope } from "@/lib/demo-account";
 import { addDays, isValidDateKey } from "@/lib/calendar";
 import { zonedInputToUtc } from "@/lib/dates";
 import { profitFactor, winRate } from "@/lib/metrics";
@@ -32,13 +33,18 @@ export default async function DayReviewPage({
   const { date } = await params;
   if (!isValidDateKey(date)) notFound();
 
-  const [user, activeAccountId] = await Promise.all([
+  const [user, tradeScope] = await Promise.all([
     prisma.user.findUniqueOrThrow({
       where: { id: userId },
       select: { timezone: true },
     }),
-    getActiveAccountId(),
+    resolveTradeScope(userId),
   ]);
+
+  // La revisione SCRIVE sui trade: sul conto demo (sola lettura) non ha senso
+  // aprirla nemmeno per sbaglio — si torna alla Day View.
+  if (tradeScope.isDemo) redirect(`/day/${date}`);
+  const activeAccountId = tradeScope.accountId;
 
   const start = zonedInputToUtc(`${date}T00:00`, user.timezone);
   const end = zonedInputToUtc(`${addDays(date, 1)}T00:00`, user.timezone);

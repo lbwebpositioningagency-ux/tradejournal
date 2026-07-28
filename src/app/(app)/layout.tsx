@@ -5,6 +5,7 @@ import { Plus } from "lucide-react";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { ACTIVE_ACCOUNT_COOKIE, ALL_ACCOUNTS } from "@/lib/constants";
+import { getDemoAccount } from "@/lib/demo-account";
 import { Button } from "@/components/ui/button";
 import { MobileNav, Sidebar } from "@/components/layout/sidebar";
 import { AccountSwitcher } from "@/components/layout/account-switcher";
@@ -20,11 +21,30 @@ export default async function AppLayout({
   const session = await auth();
   if (!session?.user?.id) redirect("/login");
 
-  const accounts = await prisma.tradingAccount.findMany({
-    where: { userId: session.user.id, isArchived: false },
-    orderBy: { createdAt: "asc" },
-    select: { id: true, name: true, currency: true },
-  });
+  // Conti dell'utente + il conto DEMO globale SIM1, che tutti vedono in sola
+  // lettura (appartiene a un utente di sistema, quindi non entra mai in
+  // "Tutti i conti": si seleziona solo esplicitamente).
+  const [ownAccounts, demoAccount] = await Promise.all([
+    prisma.tradingAccount.findMany({
+      where: { userId: session.user.id, isArchived: false },
+      orderBy: { createdAt: "asc" },
+      select: { id: true, name: true, currency: true },
+    }),
+    getDemoAccount(),
+  ]);
+  const accounts = [
+    ...ownAccounts.map((a) => ({ ...a, isDemo: false })),
+    ...(demoAccount
+      ? [
+          {
+            id: demoAccount.id,
+            name: demoAccount.name,
+            currency: demoAccount.currency,
+            isDemo: true,
+          },
+        ]
+      : []),
+  ];
 
   const cookieValue = (await cookies()).get(ACTIVE_ACCOUNT_COOKIE)?.value;
   const activeAccountId =

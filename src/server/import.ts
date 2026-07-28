@@ -54,7 +54,7 @@ export async function importTradesAction(
   }
 
   const account = await prisma.tradingAccount.findFirst({
-    where: { id: tradingAccountId, userId },
+    where: { id: tradingAccountId, userId, isDemo: false },
     select: { id: true },
   });
   if (!account) return { error: "Conto non trovato" };
@@ -95,7 +95,7 @@ export async function checkImportDuplicatesAction(
   }
 
   const account = await prisma.tradingAccount.findFirst({
-    where: { id: tradingAccountId, userId },
+    where: { id: tradingAccountId, userId, isDemo: false },
     select: { id: true },
   });
   if (!account) return { error: "Conto non trovato" };

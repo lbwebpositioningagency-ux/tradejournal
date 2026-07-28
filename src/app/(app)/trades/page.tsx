@@ -9,12 +9,14 @@ import {
   ChevronRight,
   Download,
   FileUp,
+  Lock,
   Plus,
   Table2,
 } from "lucide-react";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/db";
-import { getActiveAccountId, tradeAccountWhere } from "@/lib/active-account";
+import { tradeAccountWhere } from "@/lib/active-account";
+import { resolveTradeScope } from "@/lib/demo-account";
 import { formatDateTime } from "@/lib/dates";
 import { formatPrice } from "@/lib/instruments";
 import { formatRMultiple, formatSignedMoney, pnlColorClass } from "@/lib/money";
@@ -61,18 +63,23 @@ export default async function TradesPage({
 }) {
   const session = await auth();
   if (!session?.user?.id) redirect("/login");
-  const userId = session.user.id;
+  const sessionUserId = session.user.id;
 
   const params = await searchParams;
   const page = Math.max(1, Number(typeof params.page === "string" ? params.page : 1) || 1);
 
-  const [user, activeAccountId] = await Promise.all([
+  const [user, tradeScope] = await Promise.all([
     prisma.user.findUniqueOrThrow({
-      where: { id: userId },
+      where: { id: sessionUserId },
       select: { timezone: true, baseCurrency: true },
     }),
-    getActiveAccountId(),
+    resolveTradeScope(sessionUserId),
   ]);
+  // Scope dei dati: utente di sistema quando il conto attivo è il demo SIM1
+  // (che porta con sé anche le SUE strategie e i SUOI tag nei filtri).
+  const userId = tradeScope.userId;
+  const activeAccountId = tradeScope.accountId;
+  const isDemo = tradeScope.isDemo;
 
   const filters = parseTradeFilters(params);
   const activeCount = countActiveFilters(filters);
@@ -187,18 +194,29 @@ export default async function TradesPage({
               <span className="max-sm:hidden">Esporta CSV</span>
             </a>
           </Button>
-          <Button asChild variant="outline">
-            <Link href="/import">
-              <FileUp className="size-4" />
-              <span className="max-sm:hidden">Importa CSV</span>
-            </Link>
-          </Button>
-          <Button asChild>
-            <Link href="/trades/new">
-              <Plus className="size-4" />
-              <span className="max-sm:hidden">Nuovo trade</span>
-            </Link>
-          </Button>
+          {/* SIM1 è in sola lettura: import e inserimento non hanno senso qui
+              (l'export resta: leggere il conto demo è legittimo). */}
+          {isDemo ? (
+            <Badge variant="outline" className="gap-1">
+              <Lock className="size-3" />
+              Conto demo · sola lettura
+            </Badge>
+          ) : (
+            <>
+              <Button asChild variant="outline">
+                <Link href="/import">
+                  <FileUp className="size-4" />
+                  <span className="max-sm:hidden">Importa CSV</span>
+                </Link>
+              </Button>
+              <Button asChild>
+                <Link href="/trades/new">
+                  <Plus className="size-4" />
+                  <span className="max-sm:hidden">Nuovo trade</span>
+                </Link>
+              </Button>
+            </>
+          )}
         </div>
       </div>
 

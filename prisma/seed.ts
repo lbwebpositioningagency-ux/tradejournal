@@ -6,6 +6,8 @@ import {
   computeTrade,
   type ExecutionInput,
 } from "../src/lib/trade-compute";
+import { seedSim1 } from "./seed-sim1";
+import { DEMO_ACCOUNT_NAME, DEMO_USER_EMAIL } from "../src/lib/constants";
 
 /**
  * Seed: utente demo + 2 conti + strategie + tag + ~200 trade realistici
@@ -507,6 +509,12 @@ async function main() {
 
   console.log(
     `Seed completato: ${user.email} (password: ${DEMO_PASSWORD}) — ${created} trade generati (2 aperti + 1 overnight deterministici)`,
+  );
+
+  // ── Conto demo GLOBALE SIM1: condiviso da tutti gli utenti, sola lettura ──
+  const sim1 = await seedSim1(prisma, DEMO_USER_EMAIL, DEMO_ACCOUNT_NAME);
+  console.log(
+    `Conto demo ${DEMO_ACCOUNT_NAME}: ${sim1.closed} trade chiusi + ${sim1.open} aperti — net ${sim1.netPnl} USD`,
   );
 }
 

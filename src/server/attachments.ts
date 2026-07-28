@@ -59,7 +59,7 @@ export async function uploadAttachmentAction(
   let dayDate: Date | null = null;
   if (target.kind === "trade") {
     const trade = await prisma.trade.findFirst({
-      where: { id: target.tradeId, account: { userId } },
+      where: { id: target.tradeId, account: { userId, isDemo: false } },
       select: { id: true },
     });
     if (!trade) return { error: "Trade non trovato" };

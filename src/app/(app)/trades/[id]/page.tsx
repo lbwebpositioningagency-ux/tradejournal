@@ -1,9 +1,10 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
-import { ArrowLeft, ChevronLeft, ChevronRight, Pencil } from "lucide-react";
+import { ArrowLeft, ChevronLeft, ChevronRight, Lock, Pencil } from "lucide-react";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/db";
+import { resolveTradeScope } from "@/lib/demo-account";
 import { formatDateTime, formatDurationSec, todayKeyInZone } from "@/lib/dates";
 import { biasAlignment, macroAssetForSymbol } from "@/lib/macro-desk";
 import { formatPrice } from "@/lib/instruments";
@@ -54,13 +55,20 @@ export default async function TradeDetailPage({
 }) {
   const session = await auth();
   if (!session?.user?.id) redirect("/login");
-  const userId = session.user.id;
+  const sessionUserId = session.user.id;
 
   const { id } = await params;
 
+  // Scope dei dati: il dettaglio di un trade del conto demo è consultabile da
+  // chiunque (sola lettura), quindi la ownership si valuta sull'utente dello
+  // scope attivo, non necessariamente su quello loggato.
+  const tradeScope = await resolveTradeScope(sessionUserId);
+  const userId = tradeScope.userId;
+  const isDemo = tradeScope.isDemo;
+
   const [user, trade] = await Promise.all([
     prisma.user.findUniqueOrThrow({
-      where: { id: userId },
+      where: { id: sessionUserId },
       select: { timezone: true },
     }),
     prisma.trade.findFirst({
@@ -104,7 +112,8 @@ export default async function TradeDetailPage({
       select: { id: true, symbol: true },
     }),
     prisma.attachment.findMany({
-      where: { userId, tradeId: trade.id },
+      // Gli allegati sono PERSONALI: mai quelli dell'utente di sistema.
+      where: { userId: sessionUserId, tradeId: trade.id },
       orderBy: { createdAt: "asc" },
       select: { id: true, fileName: true, mimeType: true, size: true },
     }),
@@ -289,13 +298,23 @@ export default async function TradeDetailPage({
               <ChevronRight className="size-4" />
             </Button>
           )}
-          <Button asChild variant="outline" size="sm" className="max-sm:px-2.5">
-            <Link href={`/trades/${trade.id}/edit`} aria-label="Modifica trade">
-              <Pencil className="size-4" />
-              <span className="max-sm:hidden">Modifica</span>
-            </Link>
-          </Button>
-          <DeleteTradeButton tradeId={trade.id} symbol={trade.symbol} />
+          {/* Conto demo in sola lettura: niente affordance di scrittura. */}
+          {isDemo ? (
+            <Badge variant="outline" className="gap-1">
+              <Lock className="size-3" />
+              Sola lettura
+            </Badge>
+          ) : (
+            <>
+              <Button asChild variant="outline" size="sm" className="max-sm:px-2.5">
+                <Link href={`/trades/${trade.id}/edit`} aria-label="Modifica trade">
+                  <Pencil className="size-4" />
+                  <span className="max-sm:hidden">Modifica</span>
+                </Link>
+              </Button>
+              <DeleteTradeButton tradeId={trade.id} symbol={trade.symbol} />
+            </>
+          )}
         </div>
       </div>
 
@@ -401,10 +420,13 @@ export default async function TradeDetailPage({
         </CardContent>
       </Card>
 
-      <AttachmentsCard
-        target={{ kind: "trade", tradeId: trade.id }}
-        attachments={attachments}
-      />
+      {/* Allegare file a un trade demo scriverebbe su dati non tuoi. */}
+      {!isDemo && (
+        <AttachmentsCard
+          target={{ kind: "trade", tradeId: trade.id }}
+          attachments={attachments}
+        />
+      )}
 
       <Card>
         <CardHeader>

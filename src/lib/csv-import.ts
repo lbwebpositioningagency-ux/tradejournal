@@ -23,6 +23,10 @@ export const IMPORT_TARGET_FIELDS = [
   "exitAt",
   "fee",
   "initialRisk",
+  // Piano del trade: alimentano "Piano vs esito" e la distribuzione dei
+  // ritorni per target R. Opzionali: senza di loro il target R è "N/D".
+  "plannedStop",
+  "plannedTarget",
   "notes",
 ] as const;
 
@@ -46,6 +50,8 @@ export const FIELD_LABELS: Record<ImportTargetField, string> = {
   exitAt: "Data/ora uscita",
   fee: "Commissioni (totali del trade)",
   initialRisk: "Rischio iniziale",
+  plannedStop: "Stop pianificato (prezzo)",
+  plannedTarget: "Target pianificato (prezzo)",
   notes: "Note",
 };
 
@@ -267,6 +273,24 @@ export function buildTradeInput(
     initialRisk = parsed;
   }
 
+  // Piano di trade (opzionale): prezzi, quindi stessa normalizzazione dei
+  // prezzi di ingresso/uscita. Una colonna assente o vuota lascia il campo
+  // nullo — il trade resta valido, semplicemente senza target R.
+  let plannedStop: string | undefined;
+  let plannedTarget: string | undefined;
+  for (const field of ["plannedStop", "plannedTarget"] as const) {
+    if (get(field) === "") continue;
+    const parsed = normalizeDecimal(get(field));
+    if (parsed === null || Number(parsed) <= 0) {
+      return {
+        ok: false,
+        error: `${FIELD_LABELS[field]} non valido: "${get(field)}"`,
+      };
+    }
+    if (field === "plannedStop") plannedStop = parsed;
+    else plannedTarget = parsed;
+  }
+
   const entrySide = direction === "LONG" ? ("BUY" as const) : ("SELL" as const);
   const exitSide = direction === "LONG" ? ("SELL" as const) : ("BUY" as const);
 
@@ -299,6 +323,8 @@ export function buildTradeInput(
       assetClass: options.assetClass,
       pointValue,
       initialRisk,
+      plannedStop,
+      plannedTarget,
       notes: get("notes") || undefined,
       tags: [],
       executions,
@@ -402,6 +428,9 @@ export function guessMapping(
     exitAt: /(exit.*(time|date)|close.*(time|date)|data.*(uscita|chiusura)|orario.*uscita|^closed$)/i,
     fee: /^(fee|fees|commission|commissioni|commissions|costi)$/i,
     initialRisk: /^(risk|rischio|initial.*risk|risk.*amount)$/i,
+    // "stop loss"/"take profit" sono i nomi che usano davvero i broker.
+    plannedStop: /^(stop|stop.?loss|sl|stop.*price|prezzo.*stop|stop.*pianificato)$/i,
+    plannedTarget: /^(target|take.?profit|tp|target.*price|prezzo.*target|target.*pianificato|obiettivo)$/i,
     notes: /^(note|notes|comment|commento|description)$/i,
   };
 
