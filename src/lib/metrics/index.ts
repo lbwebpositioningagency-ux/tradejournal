@@ -41,3 +41,13 @@ export {
   type PlanVsOutcome,
   type PlanVsOutcomeInput,
 } from "./plan";
+export {
+  propFirmStatus,
+  propDailyLossInfo,
+  propDrawdownInfo,
+  propTargetInfo,
+  propDaysInfo,
+  type PropFirmRules,
+  type PropFirmStatus,
+  type PropDrawdownType,
+} from "./prop-firm";

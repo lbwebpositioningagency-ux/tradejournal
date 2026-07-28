@@ -113,6 +113,12 @@ enum DayPhase {
   POSTMARKET // dopo la chiusura
 }
 
+// F36 — tipo di drawdown massimo delle regole prop firm.
+enum PropDrawdownType {
+  STATIC // dal saldo iniziale
+  TRAILING // dal picco di equity
+}
+
 model TradingAccount {
   id             String  @id @default(cuid())
   userId         String
@@ -121,6 +127,15 @@ model TradingAccount {
   currency       String  @default("USD")
   initialBalance Decimal @default(0) @db.Decimal(14, 2)
   isArchived     Boolean @default(false)
+
+  // F36 — regole prop firm (opzionali: attive solo se valorizzate).
+  // Importi POSITIVI in valuta conto; il tracking è sul cumulato dei trade
+  // chiusi per giornata (approssimazione dichiarata: niente equity intraday).
+  propDailyLossLimit Decimal?          @db.Decimal(14, 2)
+  propMaxDrawdown    Decimal?          @db.Decimal(14, 2)
+  propDrawdownType   PropDrawdownType?
+  propProfitTarget   Decimal?          @db.Decimal(14, 2)
+  propMinTradingDays Int?
 
   user          User           @relation(fields: [userId], references: [id], onDelete: Cascade)
   trades        Trade[]

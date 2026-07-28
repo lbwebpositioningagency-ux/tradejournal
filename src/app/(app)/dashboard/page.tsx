@@ -20,6 +20,7 @@ import {
   coveredDays,
   classifyOutcome,
   compositeScoreParts,
+  propFirmStatus,
   currentDayStreak,
   currentStreak,
   dayStats,
@@ -141,6 +142,33 @@ export default async function DashboardPage({
     to: zonedInputToUtc(`${addMonths(currentMonth, 1)}-01T00:00`, user.timezone),
   };
 
+  // F36 — conti (nello scope attivo) con almeno una regola prop attiva.
+  const propAccounts = await prisma.tradingAccount.findMany({
+    where: {
+      userId,
+      isArchived: false,
+      ...(activeAccountId !== ALL_ACCOUNTS ? { id: activeAccountId } : {}),
+      OR: [
+        { propDailyLossLimit: { not: null } },
+        { propMaxDrawdown: { not: null } },
+        { propProfitTarget: { not: null } },
+        { propMinTradingDays: { not: null } },
+      ],
+    },
+    orderBy: { createdAt: "asc" },
+    select: {
+      id: true,
+      name: true,
+      currency: true,
+      initialBalance: true,
+      propDailyLossLimit: true,
+      propMaxDrawdown: true,
+      propDrawdownType: true,
+      propProfitTarget: true,
+      propMinTradingDays: true,
+    },
+  });
+
   const [
     agg,
     daily,
@@ -229,6 +257,34 @@ export default async function DashboardPage({
     agg.rLosses === 0
       ? null
       : new Decimal(agg.rLossSum).abs().div(agg.rLosses).toFixed(4);
+
+  // F36 — stato regole prop PER CONTO: serie giornaliera COMPLETA del singolo
+  // conto (mai filtrata dal periodo), ognuno nella propria valuta.
+  const propStatuses = await Promise.all(
+    propAccounts.map(async (account) => {
+      const accountDaily = await getDailyPnl(
+        { userId, accountId: account.id },
+        user.timezone,
+      );
+      return {
+        id: account.id,
+        name: account.name,
+        currency: account.currency,
+        status: propFirmStatus({
+          rules: {
+            dailyLossLimit: account.propDailyLossLimit?.toString() ?? null,
+            maxDrawdown: account.propMaxDrawdown?.toString() ?? null,
+            drawdownType: account.propDrawdownType ?? "STATIC",
+            profitTarget: account.propProfitTarget?.toString() ?? null,
+            minTradingDays: account.propMinTradingDays,
+          },
+          initialBalance: account.initialBalance.toString(),
+          daily: accountDaily.map((d) => ({ day: d.day, netPnl: d.netPnl })),
+          todayKey,
+        }),
+      };
+    }),
+  );
 
   const layout = parseDashboardLayout(user.dashboardLayout);
   const data: DashboardData = {
@@ -329,6 +385,11 @@ export default async function DashboardPage({
       : null,
     // F32 — istogramma R (bin 0,5R + colonna BE) da aggregato SQL completo.
     rDistribution: fillRDistribution(rDistributionRows, BE_BIN),
+    // F36 — regole prop per conto (solo conti con almeno una regola).
+    propAccounts: propStatuses.filter(
+      (p): p is typeof p & { status: NonNullable<typeof p.status> } =>
+        p.status !== null,
+    ),
     daily: daily.map((d) => ({ day: d.day, netPnl: d.netPnl, rSum: d.rSum })),
     recent: recentTrades.map((t) => ({
       id: t.id,

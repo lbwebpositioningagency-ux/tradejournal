@@ -35,6 +35,12 @@ type AccountData = {
   broker: string;
   currency: string;
   initialBalance: string;
+  // F36 — regole prop firm ("" = non attiva).
+  propDailyLossLimit: string;
+  propMaxDrawdown: string;
+  propDrawdownType: "STATIC" | "TRAILING";
+  propProfitTarget: string;
+  propMinTradingDays: string;
 };
 
 type Props =
@@ -129,6 +135,73 @@ export function AccountFormDialog({ mode, account }: Props) {
               />
             </div>
           </div>
+          {/* F36 — regole prop firm: opzionali, campi vuoti = regola spenta */}
+          <fieldset className="grid gap-4 rounded-md border p-3">
+            <legend className="px-1 text-sm font-medium">
+              Regole prop firm (opzionale)
+            </legend>
+            <p className="-mt-2 text-xs text-muted-foreground">
+              Importi positivi in valuta conto. Il tracking usa le chiusure di
+              giornata dei trade chiusi (niente equity intraday).
+            </p>
+            <div className="grid gap-4 sm:grid-cols-2">
+              <div className="grid gap-2">
+                <Label htmlFor="account-daily-loss">Daily loss limit</Label>
+                <Input
+                  id="account-daily-loss"
+                  name="propDailyLossLimit"
+                  inputMode="decimal"
+                  placeholder="Es. 1500"
+                  defaultValue={account?.propDailyLossLimit}
+                />
+              </div>
+              <div className="grid gap-2">
+                <Label htmlFor="account-profit-target">Profit target</Label>
+                <Input
+                  id="account-profit-target"
+                  name="propProfitTarget"
+                  inputMode="decimal"
+                  placeholder="Es. 2500"
+                  defaultValue={account?.propProfitTarget}
+                />
+              </div>
+              <div className="grid gap-2">
+                <Label htmlFor="account-max-dd">Max drawdown</Label>
+                <Input
+                  id="account-max-dd"
+                  name="propMaxDrawdown"
+                  inputMode="decimal"
+                  placeholder="Es. 3000"
+                  defaultValue={account?.propMaxDrawdown}
+                />
+              </div>
+              <div className="grid gap-2">
+                <Label htmlFor="account-dd-type">Tipo di drawdown</Label>
+                <Select
+                  name="propDrawdownType"
+                  defaultValue={account?.propDrawdownType ?? "STATIC"}
+                >
+                  <SelectTrigger id="account-dd-type" className="w-full">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="STATIC">Statico (dal saldo iniziale)</SelectItem>
+                    <SelectItem value="TRAILING">Trailing (dal picco)</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="grid gap-2">
+                <Label htmlFor="account-min-days">Giorni minimi di trading</Label>
+                <Input
+                  id="account-min-days"
+                  name="propMinTradingDays"
+                  inputMode="numeric"
+                  placeholder="Es. 10"
+                  defaultValue={account?.propMinTradingDays}
+                />
+              </div>
+            </div>
+          </fieldset>
           {state?.error ? (
             <p role="alert" className="text-sm text-destructive">
               {state.error}

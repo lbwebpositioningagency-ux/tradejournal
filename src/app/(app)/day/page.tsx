@@ -80,7 +80,8 @@ export default async function DayCalendarPage({
       ? null
       : prisma.tradingAccount.findFirst({
           where: { id: activeAccountId, userId },
-          select: { currency: true },
+          // F36 — daily loss limit del conto: barra di consumo nelle celle.
+          select: { currency: true, propDailyLossLimit: true },
         }),
   ]);
   const scope = resolveCurrencyScope(currencyTotals, params.cur);
@@ -107,6 +108,18 @@ export default async function DayCalendarPage({
   const noteDays = new Set(
     noteRows.map((n) => n.dayDate!.toISOString().slice(0, 10)),
   );
+
+  // F36 — barra del daily loss limit nelle celle: percentuale consumata dal
+  // giorno (solo display; visibile solo con conto singolo e regola attiva).
+  const dailyLossLimit = activeAccount?.propDailyLossLimit?.toString() ?? null;
+  function dailyLossPct(netPnl: string): number | null {
+    if (dailyLossLimit === null) return null;
+    const loss = new Decimal(netPnl).neg();
+    if (loss.lte(0)) return null;
+    return Decimal.min(100, loss.div(dailyLossLimit).times(100))
+      .toDecimalPlaces(0)
+      .toNumber();
+  }
 
   const monthNet = sumPnl(daily.map((d) => d.netPnl));
   const monthTrades = daily.reduce((acc, d) => acc + d.trades, 0);
@@ -264,6 +277,22 @@ export default async function DayCalendarPage({
                                 {data.trades} trade
                               </span>
                             </span>
+                            {(() => {
+                              // F36 — quanto del daily loss limit ha consumato
+                              // questo giorno (solo giorni in perdita).
+                              const pct = dailyLossPct(data.netPnl);
+                              return pct !== null ? (
+                                <span
+                                  className="mt-auto block h-1 overflow-hidden rounded-full bg-muted"
+                                  title={`${pct}% del daily loss limit`}
+                                >
+                                  <span
+                                    className="block h-full rounded-full bg-loss"
+                                    style={{ width: `${pct}%` }}
+                                  />
+                                </span>
+                              ) : null;
+                            })()}
                           </>
                         ) : null}
                       </Link>
@@ -319,6 +348,9 @@ export default async function DayCalendarPage({
                 ? " · tutti i conti non archiviati"
                 : ""}
             . I giorni seguono il tuo fuso orario.
+            {dailyLossLimit
+              ? " La barra rossa è la quota del daily loss limit consumata dal giorno (chiusure di giornata, niente equity intraday)."
+              : ""}
           </p>
         </CardContent>
       </Card>

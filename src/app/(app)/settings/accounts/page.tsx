@@ -56,6 +56,15 @@ export default async function AccountsPage() {
                     broker: account.broker ?? "",
                     currency: account.currency,
                     initialBalance: account.initialBalance.toString(),
+                    propDailyLossLimit:
+                      account.propDailyLossLimit?.toString() ?? "",
+                    propMaxDrawdown: account.propMaxDrawdown?.toString() ?? "",
+                    propDrawdownType: account.propDrawdownType ?? "STATIC",
+                    propProfitTarget: account.propProfitTarget?.toString() ?? "",
+                    propMinTradingDays:
+                      account.propMinTradingDays !== null
+                        ? String(account.propMinTradingDays)
+                        : "",
                   }}
                 />
                 <AccountRowActions
