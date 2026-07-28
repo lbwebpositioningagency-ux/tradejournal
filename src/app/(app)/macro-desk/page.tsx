@@ -4,7 +4,7 @@ import { redirect } from "next/navigation";
 import { ChartSpline, ChevronRight, Globe, Target } from "lucide-react";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/db";
-import { biasColorClass } from "@/lib/macro-desk";
+import { BIAS_SHORT_LABELS, biasColorClass } from "@/lib/macro-desk";
 import { cn } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -17,13 +17,6 @@ import {
 import { EmptyState } from "@/components/empty-state";
 
 export const metadata: Metadata = { title: "Macro Desk" };
-
-/** F48 — bias leggibili nello storico (erano troncati a "RIAL/RIBA/NEUT"). */
-const BIAS_SHORT_LABELS: Record<string, string> = {
-  RIALZISTA: "Rialzo",
-  RIBASSISTA: "Ribasso",
-  NEUTRALE: "Neutrale",
-};
 
 const ASSET_LABELS = [
   { key: "Xau", label: "Oro (XAUUSD)" },

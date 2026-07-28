@@ -61,3 +61,10 @@ export function biasColorClass(biasValue: string): string {
   if (known === "RIBASSISTA") return "text-loss";
   return "text-breakeven";
 }
+
+/** F48/F40 — bias leggibili e compatti, unica fonte per storico e journal. */
+export const BIAS_SHORT_LABELS: Record<string, string> = {
+  RIALZISTA: "Rialzo",
+  RIBASSISTA: "Ribasso",
+  NEUTRALE: "Neutrale",
+};

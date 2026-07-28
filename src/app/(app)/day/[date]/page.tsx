@@ -9,6 +9,7 @@ import { getActiveAccountId, tradeAccountWhere } from "@/lib/active-account";
 import { ALL_ACCOUNTS } from "@/lib/constants";
 import { addDays, isValidDateKey } from "@/lib/calendar";
 import { dayNotesByPhase } from "@/lib/day-journal";
+import { BIAS_SHORT_LABELS, biasColorClass } from "@/lib/macro-desk";
 import { formatDateTime, todayKeyInZone, zonedInputToUtc } from "@/lib/dates";
 import {
   classifyOutcome,
@@ -121,7 +122,8 @@ export default async function DayViewPage({
     ? todayKeyInZone(user.timezone, nextOperative.closedAt)
     : null;
 
-  const [trades, dayNotes, activeAccount, attachments] = await Promise.all([
+  const [trades, dayNotes, activeAccount, attachments, macroReport] =
+    await Promise.all([
     prisma.trade.findMany({
       where: {
         ...accountWhere,
@@ -153,6 +155,25 @@ export default async function DayViewPage({
       where: { userId, dayDate: new Date(`${date}T00:00:00.000Z`) },
       orderBy: { createdAt: "asc" },
       select: { id: true, fileName: true, mimeType: true, size: true },
+    }),
+    // F40 — il bias macro del giorno sopra il Premarket (dato di istanza,
+    // stesso convenzionale @db.Date del journal). Nessun report = niente riga.
+    prisma.macroDeskReport.findUnique({
+      where: {
+        type_reportDate: {
+          type: "DAILY",
+          reportDate: new Date(`${date}T00:00:00.000Z`),
+        },
+      },
+      select: {
+        id: true,
+        biasXau: true,
+        biasWti: true,
+        biasIdx: true,
+        confidenceXau: true,
+        confidenceWti: true,
+        confidenceIdx: true,
+      },
     }),
   ]);
 
@@ -470,6 +491,33 @@ export default async function DayViewPage({
       <Card>
         <CardHeader>
           <CardTitle className="text-base">Journal di giornata</CardTitle>
+          {/* F40 — il bias macro del giorno dove serve: sopra il Premarket */}
+          {macroReport ? (
+            <p className="text-xs text-muted-foreground">
+              Bias del giorno:{" "}
+              <span className={cn("font-medium", biasColorClass(macroReport.biasXau))}>
+                Oro {BIAS_SHORT_LABELS[macroReport.biasXau] ?? macroReport.biasXau}{" "}
+                {macroReport.confidenceXau}%
+              </span>
+              {" · "}
+              <span className={cn("font-medium", biasColorClass(macroReport.biasWti))}>
+                Petrolio {BIAS_SHORT_LABELS[macroReport.biasWti] ?? macroReport.biasWti}{" "}
+                {macroReport.confidenceWti}%
+              </span>
+              {" · "}
+              <span className={cn("font-medium", biasColorClass(macroReport.biasIdx))}>
+                Indici {BIAS_SHORT_LABELS[macroReport.biasIdx] ?? macroReport.biasIdx}{" "}
+                {macroReport.confidenceIdx}%
+              </span>
+              {" — "}
+              <Link
+                href={`/macro-desk/${macroReport.id}`}
+                className="underline underline-offset-2 hover:text-foreground"
+              >
+                apri il report
+              </Link>
+            </p>
+          ) : null}
         </CardHeader>
         <CardContent>
           <DayNoteEditor date={date} initialByPhase={dayNotesByPhase(dayNotes)} />

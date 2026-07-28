@@ -453,3 +453,11 @@ Finding chiusi: **F7, F18, F21, F22 (preview approvata), F23, F24, F41, F42, F43
 12. **F18 — glossario**: termini tecnici di settore in inglese (Win Rate, Profit Factor, Streak, Winners & Losers, nomi delle viste), frasi e unità in italiano — streak correnti ora "4 trade in win" / "3 giornate in loss".
 
 **Verificato:** lint ✅ · typecheck ✅ · **429/429 test** ✅ (nuovi: `chart-clamp` 6, `formatSignedCompact` 2, finestre sessioni con fusi IANA validati) · build di produzione ✅ · sessioni riconciliate con SQL indipendente (Londra 82/+21.732,10 · NY 36/+10.027,80 · Fuori 2/+841,60 — identiche in tabella al centesimo) · screenshot before/after in `docs/premium-20260724/fase11/` (dashboard, calendario, day view, macro desk, trades; dark+light) + `proposta-f22-tabella-sessioni__dark.png` approvata.
+
+## ✅ PREMIUM — FASE 12 «Macro Desk collegato» (28/07/2026)
+Finding chiuso: **F40** (la cross-analysis bias×trade è W2, Fase 13).
+
+1. **Riga "Bias del giorno" sopra il journal** (Day View): per le giornate con un report DAILY (match esatto su `reportDate`, stessa convenzione `@db.Date` del journal — nessun report, nessuna riga: mai bias "riciclati" da giorni vecchi), la testata del Journal mostra "Oro Rialzo 62% · Petrolio Neutrale 55% · Indici Ribasso 48%" coi colori semantici del bias e il link "apri il report" al dettaglio. Il piano Premarket si scrive ora con il contesto macro davanti.
+2. Etichette bias unificate: `BIAS_SHORT_LABELS` spostata in `lib/macro-desk.ts`, unica fonte per storico (F48) e journal (F40).
+
+**Verificato:** lint ✅ · typecheck ✅ · **429/429 test** ✅ · build di produzione ✅ · riga verificata sul giorno reale col report (22/07: presenza, etichette leggibili colorate, link al dettaglio funzionante nel markup) e assenza sulle giornate senza report · screenshot before/after in `docs/premium-20260724/fase12/` (1280/390 dark + 1280 light).
