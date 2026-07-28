@@ -6,6 +6,7 @@ import {
   type StatsFilter,
 } from "@/lib/queries/stats";
 import { SESSION_WINDOWS, type SessionRow } from "@/lib/sessions";
+import { MACRO_ASSET_SYMBOLS, type MacroAsset } from "@/lib/macro-desk";
 
 /**
  * Aggregazioni SQL per i Reports (FASE 8). Stesse regole di stats.ts:
@@ -231,6 +232,51 @@ export async function getSessionBreakdown(
       END AS "session",
       ${AGGREGATE_COLUMNS}
     ${FROM_TRADES}
+    WHERE ${whereClosedTrades(filter)}
+    GROUP BY 1
+  `);
+}
+
+// ── W2 — Bias × Esecuzione ──────────────────────────────────────────────
+
+export interface BiasAlignmentRow extends BreakdownAggregates {
+  /** ALIGNED = col bias · AGAINST = contro · UNRATED = non classificabile. */
+  alignment: "ALIGNED" | "AGAINST" | "UNRATED";
+}
+
+/**
+ * W2 — performance col bias vs contro il bias del Macro Desk: ogni trade
+ * XAU/WTI/indici è confrontato col report DAILY del suo giorno di APERTURA
+ * (fuso utente). UNRATED = simbolo fuori dal desk, giorno senza report o
+ * bias NEUTRALE (un bias neutro non è né permesso né divieto).
+ */
+export async function getBiasAlignmentBreakdown(
+  filter: StatsFilter,
+  timezone: string,
+): Promise<BiasAlignmentRow[]> {
+  const symbols = (asset: MacroAsset) =>
+    Prisma.join(MACRO_ASSET_SYMBOLS[asset].map((s) => Prisma.sql`${s}`));
+  return prisma.$queryRaw<BiasAlignmentRow[]>(Prisma.sql`
+    SELECT
+      CASE
+        WHEN bias."value" IS NULL OR bias."value" = 'NEUTRALE' THEN 'UNRATED'
+        WHEN (t."direction" = 'LONG'  AND bias."value" = 'RIALZISTA')
+          OR (t."direction" = 'SHORT' AND bias."value" = 'RIBASSISTA') THEN 'ALIGNED'
+        ELSE 'AGAINST'
+      END AS "alignment",
+      ${AGGREGATE_COLUMNS}
+    ${FROM_TRADES}
+    LEFT JOIN "MacroDeskReport" r
+      ON r."type" = 'DAILY'
+     AND r."reportDate" = ((t."openedAt" AT TIME ZONE 'UTC') AT TIME ZONE ${timezone})::date
+    CROSS JOIN LATERAL (
+      SELECT CASE
+        WHEN UPPER(t."symbol") IN (${symbols("XAU")}) THEN r."biasXau"
+        WHEN UPPER(t."symbol") IN (${symbols("WTI")}) THEN r."biasWti"
+        WHEN UPPER(t."symbol") IN (${symbols("IDX")}) THEN r."biasIdx"
+        ELSE NULL
+      END AS "value"
+    ) bias
     WHERE ${whereClosedTrades(filter)}
     GROUP BY 1
   `);

@@ -42,6 +42,18 @@ export {
   type PlanVsOutcomeInput,
 } from "./plan";
 export {
+  underwaterSeries,
+  underwaterInfo,
+  type UnderwaterPoint,
+} from "./underwater";
+export {
+  monteCarloR,
+  monteCarloInfo,
+  MONTE_CARLO_MIN_TRADES,
+  type MonteCarloResult,
+  type MonteCarloStep,
+} from "./monte-carlo";
+export {
   propFirmStatus,
   propDailyLossInfo,
   propDrawdownInfo,

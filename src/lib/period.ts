@@ -74,7 +74,7 @@ const ROLLING_DAYS: Partial<Record<PeriodPreset, number>> = {
 };
 
 /** Lunedì (ISO) della settimana che contiene la chiave giorno data. */
-function mondayOf(dayKey: string): string {
+export function mondayOf(dayKey: string): string {
   const [y, m, d] = dayKey.split("-").map(Number);
   const weekday = new Date(Date.UTC(y, m - 1, d)).getUTCDay(); // 0 = domenica
   return addDays(dayKey, -((weekday + 6) % 7));

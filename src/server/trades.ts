@@ -6,7 +6,12 @@ import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { zonedInputToUtc } from "@/lib/dates";
 import { computeTrade, TradeComputeError } from "@/lib/trade-compute";
-import { tradeInputSchema, type TradeInput } from "@/lib/validations/trade";
+import {
+  tradeInputSchema,
+  tradeReviewSchema,
+  type TradeInput,
+  type TradeReviewInput,
+} from "@/lib/validations/trade";
 
 export type TradeActionResult =
   | { error: string }
@@ -208,5 +213,63 @@ export async function deleteTradeAction(
   if (result.count === 0) return { error: "Trade non trovato" };
 
   revalidatePath("/trades");
+  return { success: true };
+}
+
+/**
+ * W5 — revisione guidata: aggiorna SOLO strategia, valutazione e tag del
+ * trade e aggiunge un'eventuale nota. Le esecuzioni e i numeri non si
+ * toccano: è journaling, non editing.
+ */
+export async function reviewTradeAction(
+  tradeId: string,
+  input: TradeReviewInput,
+): Promise<{ error?: string; success?: boolean }> {
+  const userId = await requireUserId();
+
+  const parsed = tradeReviewSchema.safeParse(input);
+  if (!parsed.success) {
+    return { error: parsed.error.issues[0]?.message ?? "Dati non validi" };
+  }
+  const data = parsed.data;
+
+  const trade = await prisma.trade.findFirst({
+    where: { id: tradeId, account: { userId } },
+    select: { id: true },
+  });
+  if (!trade) return { error: "Trade non trovato" };
+
+  if (data.strategyId) {
+    const strategy = await prisma.strategy.findFirst({
+      where: { id: data.strategyId, userId },
+      select: { id: true },
+    });
+    if (!strategy) return { error: "Strategia non trovata" };
+  }
+
+  const tagIds = await resolveTagIds(userId, data.tags);
+
+  await prisma.$transaction(async (tx) => {
+    await tx.trade.update({
+      where: { id: tradeId },
+      data: {
+        strategyId: data.strategyId || null,
+        rating: data.rating,
+      },
+    });
+    await tx.tradeTag.deleteMany({ where: { tradeId } });
+    if (tagIds.length > 0) {
+      await tx.tradeTag.createMany({
+        data: tagIds.map((tagId) => ({ tradeId, tagId })),
+      });
+    }
+    if (data.note) {
+      await tx.note.create({
+        data: { userId, type: "TRADE", tradeId, content: data.note },
+      });
+    }
+  });
+
+  revalidatePath(`/trades/${tradeId}`);
   return { success: true };
 }

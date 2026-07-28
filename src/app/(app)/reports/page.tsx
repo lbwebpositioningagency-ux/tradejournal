@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import Decimal from "decimal.js";
-import { BarChart3 } from "lucide-react";
+import { BarChart3, CalendarCheck } from "lucide-react";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { getActiveAccountId } from "@/lib/active-account";
@@ -34,6 +34,7 @@ import {
   type BucketPoint,
 } from "@/lib/reports";
 import {
+  getBiasAlignmentBreakdown,
   getDirectionAssetBreakdown,
   getHourBreakdown,
   getMonthBreakdown,
@@ -57,6 +58,7 @@ import { PeriodFilter } from "@/components/filters/period-filter";
 import { CurrencyFilter } from "@/components/filters/currency-filter";
 import { ReportBarChart } from "@/components/reports/report-bar-chart";
 import { CollapsibleCard } from "@/components/collapsible-card";
+import { Button } from "@/components/ui/button";
 import {
   Table,
   TableBody,
@@ -354,7 +356,7 @@ export default async function ReportsPage({
   const filter: StatsFilter = { ...baseFilter, currency: scope.active };
   const currency = scope.active ?? activeAccount?.currency ?? user.baseCurrency;
 
-  const [strategies, tags, symbols, directionAssets, months, hours, weekdays, streaks, outcomes] =
+  const [strategies, tags, symbols, directionAssets, months, hours, weekdays, streaks, outcomes, biasRows] =
     await Promise.all([
       getStrategyBreakdown(filter),
       getTagBreakdown(filter),
@@ -365,7 +367,13 @@ export default async function ReportsPage({
       getWeekdayBreakdown(filter, user.timezone),
       getStreakStats(filter),
       getRecentTradeOutcomes(filter),
+      getBiasAlignmentBreakdown(filter, user.timezone),
     ]);
+  // W2 — bias × esecuzione: righe classificate e non.
+  const biasAligned = biasRows.find((r) => r.alignment === "ALIGNED");
+  const biasAgainst = biasRows.find((r) => r.alignment === "AGAINST");
+  const biasUnrated = biasRows.find((r) => r.alignment === "UNRATED");
+  const biasRated = (biasAligned?.total ?? 0) + (biasAgainst?.total ?? 0);
   const totalTrades = strategies.reduce((acc, s) => acc + s.total, 0);
   const hourSeries = fillHourSeries(hours);
   const weekdaySeries = fillWeekdaySeries(weekdays);
@@ -437,6 +445,13 @@ export default async function ReportsPage({
           ) : null}
         </div>
         <div className="flex flex-wrap items-center gap-2">
+          {/* W3 — la review del venerdì generata dai dati */}
+          <Button asChild variant="outline">
+            <Link href="/reports/settimana">
+              <CalendarCheck className="size-4" />
+              Report settimanale
+            </Link>
+          </Button>
           {scope.multi ? (
             <CurrencyFilter
               currencies={currencyTotals.map((t) => t.currency)}
@@ -575,6 +590,70 @@ export default async function ReportsPage({
                 </p>
             </CollapsibleCard>
           </div>
+
+          {/* W2 — il cerchio che si chiude: performance col bias vs contro */}
+          <CollapsibleCard title="Bias × esecuzione (Macro Desk)">
+            {biasRated > 0 ? (
+              <>
+                <BreakdownTable
+                  currency={currency}
+                  rows={[
+                    ...(biasAligned
+                      ? [
+                          {
+                            key: "aligned",
+                            label: (
+                              <span className="font-medium text-profit">
+                                Col bias del giorno
+                              </span>
+                            ),
+                            aggregates: biasAligned,
+                          },
+                        ]
+                      : []),
+                    ...(biasAgainst
+                      ? [
+                          {
+                            key: "against",
+                            label: (
+                              <span className="font-medium text-loss">
+                                Contro il bias
+                              </span>
+                            ),
+                            aggregates: biasAgainst,
+                          },
+                        ]
+                      : []),
+                    ...(biasUnrated
+                      ? [
+                          {
+                            key: "unrated",
+                            label: (
+                              <span className="text-muted-foreground">
+                                Non classificati
+                              </span>
+                            ),
+                            aggregates: biasUnrated,
+                          },
+                        ]
+                      : []),
+                  ]}
+                />
+                <p className="mt-2 text-xs text-muted-foreground">
+                  Ogni trade su oro/petrolio/indici è confrontato col bias del
+                  report DAILY del suo giorno di APERTURA: LONG col Rialzo (o
+                  SHORT col Ribasso) = col bias. Non classificati: simboli
+                  fuori dal desk, giornate senza report o bias Neutrale.
+                </p>
+              </>
+            ) : (
+              <p className="text-sm text-muted-foreground">
+                Nessun trade classificabile: servono report DAILY del Macro
+                Desk nei giorni di apertura dei trade su oro, petrolio o
+                indici.
+              </p>
+            )}
+          </CollapsibleCard>
 
           <div className="grid gap-4 lg:grid-cols-2">
             <CollapsibleCard title={`Per ora di apertura (fuso ${user.timezone})`}>

@@ -68,3 +68,45 @@ export const BIAS_SHORT_LABELS: Record<string, string> = {
   RIBASSISTA: "Ribasso",
   NEUTRALE: "Neutrale",
 };
+
+// ── W2 — Bias × Esecuzione ──────────────────────────────────────────────
+
+export type MacroAsset = "XAU" | "WTI" | "IDX";
+
+/**
+ * Simboli riconosciuti per ciascun asset del Macro Desk (spot, futures CME
+ * mini/micro e CFD comuni). Unica fonte per SQL e classificazione per-trade.
+ */
+export const MACRO_ASSET_SYMBOLS: Record<MacroAsset, string[]> = {
+  XAU: ["XAUUSD", "GC", "MGC", "GOLD"],
+  WTI: ["CL", "MCL", "WTI", "USOIL", "WTICOUSD"],
+  IDX: [
+    "ES", "MES", "NQ", "MNQ", "YM", "MYM", "RTY", "M2K",
+    "FDAX", "FESX", "US500", "NAS100", "US30", "GER40",
+  ],
+};
+
+/** Asset macro di un simbolo, o null se il simbolo non è coperto dal desk. */
+export function macroAssetForSymbol(symbol: string): MacroAsset | null {
+  const s = symbol.trim().toUpperCase();
+  for (const asset of ["XAU", "WTI", "IDX"] as const) {
+    if (MACRO_ASSET_SYMBOLS[asset].includes(s)) return asset;
+  }
+  return null;
+}
+
+export type BiasAlignment = "ALIGNED" | "AGAINST";
+
+/**
+ * Allineamento di un trade al bias del giorno: LONG con Rialzo (o SHORT con
+ * Ribasso) = col bias; l'opposto = contro. NEUTRALE non classifica nulla:
+ * un bias neutro non è né un permesso né un divieto.
+ */
+export function biasAlignment(
+  direction: "LONG" | "SHORT",
+  bias: string,
+): BiasAlignment | null {
+  if (bias === "RIALZISTA") return direction === "LONG" ? "ALIGNED" : "AGAINST";
+  if (bias === "RIBASSISTA") return direction === "SHORT" ? "ALIGNED" : "AGAINST";
+  return null;
+}

@@ -4,7 +4,8 @@ import { notFound, redirect } from "next/navigation";
 import { ArrowLeft, ChevronLeft, ChevronRight, Pencil } from "lucide-react";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/db";
-import { formatDateTime, formatDurationSec } from "@/lib/dates";
+import { formatDateTime, formatDurationSec, todayKeyInZone } from "@/lib/dates";
+import { biasAlignment, macroAssetForSymbol } from "@/lib/macro-desk";
 import { formatPrice } from "@/lib/instruments";
 import {
   formatMoney,
@@ -79,7 +80,7 @@ export default async function TradeDetailPage({
   // Prev/next nella cronologia dell'utente (stesso ordine della lista trade:
   // openedAt, con id come tie-break stabile). "Precedente" = aperto prima.
   // Gli allegati sono in una query dedicata: MAI includere `data` nei listing.
-  const [prevTrade, nextTrade, attachments] = await Promise.all([
+  const [prevTrade, nextTrade, attachments, macroReport] = await Promise.all([
     prisma.trade.findFirst({
       where: {
         account: { userId },
@@ -107,6 +108,18 @@ export default async function TradeDetailPage({
       orderBy: { createdAt: "asc" },
       select: { id: true, fileName: true, mimeType: true, size: true },
     }),
+    // W2 — bias del giorno di APERTURA per il badge col/contro bias.
+    prisma.macroDeskReport.findUnique({
+      where: {
+        type_reportDate: {
+          type: "DAILY",
+          reportDate: new Date(
+            `${todayKeyInZone(user.timezone, trade.openedAt)}T00:00:00.000Z`,
+          ),
+        },
+      },
+      select: { biasXau: true, biasWti: true, biasIdx: true },
+    }),
   ]);
 
   const currency = trade.account.currency;
@@ -125,6 +138,19 @@ export default async function TradeDetailPage({
     plannedTarget: trade.plannedTarget ? trade.plannedTarget.toString() : null,
   });
   const hasPlanInput = trade.plannedStop !== null || trade.plannedTarget !== null;
+
+  // W2 — allineamento al bias macro del giorno di apertura (solo asset del
+  // desk con report DAILY e bias non neutro: mai classificazioni a forza).
+  const macroAsset = macroAssetForSymbol(trade.symbol);
+  const dayBias =
+    macroReport && macroAsset
+      ? macroAsset === "XAU"
+        ? macroReport.biasXau
+        : macroAsset === "WTI"
+          ? macroReport.biasWti
+          : macroReport.biasIdx
+      : null;
+  const alignment = dayBias ? biasAlignment(trade.direction, dayBias) : null;
 
   // Nota onesta sotto ai numeri: spiega PERCHÉ un valore è "—" invece di
   // lasciare il dubbio (dati insufficienti / piano non valido / trade aperto).
@@ -209,6 +235,15 @@ export default async function TradeDetailPage({
               <Badge variant={trade.status === "OPEN" ? "default" : "secondary"}>
                 {trade.status === "OPEN" ? "Aperto" : "Chiuso"}
               </Badge>
+              {alignment ? (
+                <Badge
+                  variant="outline"
+                  className={alignment === "ALIGNED" ? "text-profit" : "text-loss"}
+                  title="Confronto col bias del Macro Desk del giorno di apertura"
+                >
+                  {alignment === "ALIGNED" ? "Col bias macro" : "Contro il bias macro"}
+                </Badge>
+              ) : null}
             </div>
             <p
               className={cn(

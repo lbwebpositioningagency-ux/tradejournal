@@ -2,7 +2,13 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import Decimal from "decimal.js";
-import { ArrowLeft, CalendarOff, ChevronLeft, ChevronRight } from "lucide-react";
+import {
+  ArrowLeft,
+  CalendarOff,
+  ChevronLeft,
+  ChevronRight,
+  ClipboardCheck,
+} from "lucide-react";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { getActiveAccountId, tradeAccountWhere } from "@/lib/active-account";
@@ -245,6 +251,15 @@ export default async function DayViewPage({
         </div>
         {/* F44 — frecce sui GIORNI OPERATIVI: mai pagine vuote a catena */}
         <div className="flex items-center gap-2">
+          {/* W5 — il rito serale: revisione trade per trade + Post-Market */}
+          {trades.length > 0 ? (
+            <Button asChild variant="outline">
+              <Link href={`/day/${date}/review`}>
+                <ClipboardCheck className="size-4" />
+                <span className="max-sm:hidden">Revisione guidata</span>
+              </Link>
+            </Button>
+          ) : null}
           {prevDayKey ? (
             <Button
               asChild

@@ -88,6 +88,19 @@ export const FROM_TRADES = Prisma.sql`
   JOIN "TradingAccount" a ON a."id" = t."tradingAccountId"
 `;
 
+/**
+ * W4 — tutti gli R-multiple dei trade chiusi dello scope (per il bootstrap
+ * Monte Carlo). Solo la colonna che serve, come stringhe decimali.
+ */
+export async function getRMultiples(filter: StatsFilter): Promise<string[]> {
+  const rows = await prisma.$queryRaw<{ r: string }[]>(Prisma.sql`
+    SELECT t."rMultiple"::text AS "r"
+    ${FROM_TRADES}
+    WHERE ${whereClosedTrades(filter)} AND t."rMultiple" IS NOT NULL
+  `);
+  return rows.map((row) => row.r);
+}
+
 /** Riga della distribuzione R (F32): un bin da 0,5R, conteggiato in SQL. */
 export interface RDistributionRow {
   /**

@@ -73,3 +73,16 @@ export const tradeInputSchema = z.object({
 
 export type TradeInput = z.input<typeof tradeInputSchema>;
 export type ParsedTradeInput = z.output<typeof tradeInputSchema>;
+
+/**
+ * W5 — revisione guidata di fine giornata: patch leggera per trade
+ * (strategia, valutazione, tag, una riga di nota), MAI le esecuzioni.
+ */
+export const tradeReviewSchema = z.object({
+  strategyId: z.string().optional(),
+  rating: z.number().int().min(1).max(5).nullable(),
+  tags: z.array(z.string().trim().min(1).max(40)).max(20),
+  note: z.string().trim().max(2000).optional(),
+});
+
+export type TradeReviewInput = z.infer<typeof tradeReviewSchema>;
