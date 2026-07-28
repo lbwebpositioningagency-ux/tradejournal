@@ -1,10 +1,14 @@
+import Link from "next/link";
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
+import { Plus } from "lucide-react";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { ACTIVE_ACCOUNT_COOKIE, ALL_ACCOUNTS } from "@/lib/constants";
+import { Button } from "@/components/ui/button";
 import { MobileNav, Sidebar } from "@/components/layout/sidebar";
 import { AccountSwitcher } from "@/components/layout/account-switcher";
+import { GlobalShortcuts } from "@/components/layout/global-shortcuts";
 import { ThemeToggle } from "@/components/layout/theme-toggle";
 import { UserMenu } from "@/components/layout/user-menu";
 
@@ -38,6 +42,21 @@ export default async function AppLayout({
             <AccountSwitcher accounts={accounts} activeAccountId={activeAccountId} />
           </div>
           <div className="flex items-center gap-1">
+            {/* F47 — quick-add: il gesto più frequente sempre a un click ("n") */}
+            <Button
+              asChild
+              variant="ghost"
+              size="icon"
+              className="max-lg:size-11"
+            >
+              <Link
+                href="/trades/new"
+                aria-label="Nuovo trade (scorciatoia: n)"
+                title="Nuovo trade (n)"
+              >
+                <Plus className="size-4" />
+              </Link>
+            </Button>
             <ThemeToggle />
             <UserMenu
               name={session.user.name ?? null}
@@ -47,6 +66,7 @@ export default async function AppLayout({
           </div>
         </header>
         <main className="flex-1 p-6">{children}</main>
+        <GlobalShortcuts />
       </div>
     </div>
   );

@@ -25,6 +25,7 @@ import { getCurrencyBreakdown, getDailyPnl } from "@/lib/queries/stats";
 import { resolveCurrencyScope } from "@/lib/currency-scope";
 import { cn } from "@/lib/utils";
 import { CurrencyFilter } from "@/components/filters/currency-filter";
+import { MonthPicker } from "./month-picker";
 import { MetricInfo } from "@/components/metric-info";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -33,15 +34,7 @@ export const metadata: Metadata = { title: "Calendario" };
 
 const WEEKDAY_LABELS = ["Lun", "Mar", "Mer", "Gio", "Ven", "Sab", "Dom"];
 
-function monthLabel(month: string): string {
-  // Mezzogiorno UTC: la label del mese non può scivolare di giorno in nessun fuso.
-  const label = new Intl.DateTimeFormat("it-IT", {
-    month: "long",
-    year: "numeric",
-    timeZone: "UTC",
-  }).format(new Date(`${month}-01T12:00:00Z`));
-  return label.charAt(0).toUpperCase() + label.slice(1);
-}
+// (la label testuale del mese è sostituita dal month-picker, F42)
 
 export default async function DayCalendarPage({
   searchParams,
@@ -126,6 +119,25 @@ export default async function DayCalendarPage({
   const greenDays = daily.filter((d) => new Decimal(d.netPnl).gt(0)).length;
   const weeks = buildMonthWeeks(month);
 
+  // F42 — tinta SCALARE delle celle: l'intensità segue l'entità del giorno
+  // rispetto al giorno più grande del mese (3 fasce), non più binaria.
+  const maxAbsDay = daily.reduce((acc, d) => {
+    const abs = new Decimal(d.netPnl).abs();
+    return abs.gt(acc) ? abs : acc;
+  }, new Decimal(0));
+  function dayTone(netPnl: string): string {
+    const value = new Decimal(netPnl);
+    if (value.isZero()) return "bg-breakeven/10 hover:bg-breakeven/20";
+    const ratio = maxAbsDay.isZero()
+      ? new Decimal(1)
+      : value.abs().div(maxAbsDay);
+    const tier = ratio.gt("0.66") ? 3 : ratio.gt("0.33") ? 2 : 1;
+    const palette = value.gt(0)
+      ? ["bg-profit/10 hover:bg-profit/20", "bg-profit/20 hover:bg-profit/30", "bg-profit/30 hover:bg-profit/40"]
+      : ["bg-loss/10 hover:bg-loss/20", "bg-loss/20 hover:bg-loss/30", "bg-loss/30 hover:bg-loss/40"];
+    return palette[tier - 1];
+  }
+
   return (
     <div className="flex flex-col gap-4">
       <div className="flex flex-wrap items-center justify-between gap-3">
@@ -170,9 +182,8 @@ export default async function DayCalendarPage({
               <ChevronLeft className="size-4" />
             </Link>
           </Button>
-          <span className="w-40 text-center text-sm font-medium">
-            {monthLabel(month)}
-          </span>
+          {/* F42 — month-picker: salto diretto senza frecce ±1 in serie */}
+          <MonthPicker month={month} />
           <Button asChild variant="outline" size="icon" aria-label="Mese successivo">
             <Link href={`/day?month=${addMonths(month, 1)}`}>
               <ChevronRight className="size-4" />
@@ -228,13 +239,7 @@ export default async function DayCalendarPage({
                       );
                     }
 
-                    const tone = data
-                      ? new Decimal(data.netPnl).gt(0)
-                        ? "bg-profit/10 hover:bg-profit/20"
-                        : new Decimal(data.netPnl).lt(0)
-                          ? "bg-loss/10 hover:bg-loss/20"
-                          : "bg-breakeven/10 hover:bg-breakeven/20"
-                      : "hover:bg-accent";
+                    const tone = data ? dayTone(data.netPnl) : "hover:bg-accent";
 
                     return (
                       <Link

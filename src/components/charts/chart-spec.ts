@@ -1,3 +1,5 @@
+import { createElement } from "react";
+
 /**
  * SPECIFICA UNICA dei grafici (FASE 10): ogni grafico Recharts dell'app
  * (barre, aree, sparkline, gauge) consuma QUESTE costanti — mai valori
@@ -38,4 +40,36 @@ export function pnlChartColor(value: number, hasData = true): string {
   if (value > 0) return "var(--profit)";
   if (value < 0) return "var(--loss)";
   return "var(--breakeven)";
+}
+
+/**
+ * F23 — indicatore di barra TRONCATA (▲ sopra i positivi, ▼ sotto i
+ * negativi): il tooltip mostra il valore reale. Da usare come `content`
+ * di un LabelList con dataKey che vale ±1 sui punti troncati, 0 altrove.
+ */
+export function ClampMark(props: unknown): React.ReactElement | null {
+  const { x, y, width, height, value } = props as {
+    x?: number;
+    y?: number;
+    width?: number;
+    height?: number;
+    value?: number;
+  };
+  if (!value || x === undefined || y === undefined) return null;
+  const cx = x + (width ?? 0) / 2;
+  const positive = value > 0;
+  // Rect SVG: y è il bordo alto; per i negativi il fondo è y + height.
+  const cy = positive ? y - 3 : y + (height ?? 0) + 9;
+  // createElement: questo file resta .ts (nessun JSX).
+  return createElement(
+    "text",
+    {
+      x: cx,
+      y: cy,
+      textAnchor: "middle",
+      fontSize: 9,
+      fill: "var(--muted-foreground)",
+    },
+    positive ? "▲" : "▼",
+  );
 }

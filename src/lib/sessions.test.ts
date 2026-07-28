@@ -1,16 +1,26 @@
 import { describe, expect, it } from "vitest";
 import {
   fillSessionSeries,
-  SESSION_BOUNDS_UTC,
+  SESSION_WINDOWS,
   SESSIONS,
 } from "./sessions";
 
 describe("sessioni di mercato", () => {
-  it("i confini UTC coprono le 24 ore senza buchi né overlap", () => {
-    const { asiaEnd, londonEnd, newYorkEnd } = SESSION_BOUNDS_UTC;
-    expect(asiaEnd).toBeLessThan(londonEnd);
-    expect(londonEnd).toBeLessThan(newYorkEnd);
-    expect(newYorkEnd).toBeLessThanOrEqual(24);
+  it("F7: finestre nel fuso dell'exchange, in ordine di priorità NY → Londra → Asia", () => {
+    expect(SESSION_WINDOWS.map((w) => w.session)).toEqual([
+      "NEWYORK",
+      "LONDON",
+      "ASIA",
+    ]);
+    for (const window of SESSION_WINDOWS) {
+      expect(window.startMin).toBeGreaterThanOrEqual(0);
+      expect(window.endMin).toBeGreaterThan(window.startMin);
+      expect(window.endMin).toBeLessThanOrEqual(24 * 60);
+      // Fuso IANA reale: Intl deve accettarlo (protegge da refusi).
+      expect(() =>
+        new Intl.DateTimeFormat("en-US", { timeZone: window.timezone }),
+      ).not.toThrow();
+    }
     expect(SESSIONS).toEqual(["ASIA", "LONDON", "NEWYORK", "OFF"]);
   });
 

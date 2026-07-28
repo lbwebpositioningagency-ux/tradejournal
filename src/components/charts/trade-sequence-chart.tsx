@@ -4,12 +4,14 @@ import {
   Bar,
   BarChart,
   Cell,
+  LabelList,
   ResponsiveContainer,
   Tooltip,
   XAxis,
   YAxis,
 } from "recharts";
-import { CHART, pnlChartColor } from "@/components/charts/chart-spec";
+import { CHART, ClampMark, pnlChartColor } from "@/components/charts/chart-spec";
+import { clampLimit, clampValue } from "@/lib/chart-clamp";
 
 /**
  * Sequenza dei trade ("trade candles"): una barra verde/rossa per ogni trade
@@ -38,23 +40,28 @@ export function TradeSequenceChart({
   /** Vista privacy: assi e importi mascherati. */
   masked?: boolean;
 }) {
-  const data = points.map((p, i) => ({
-    index: i + 1,
-    label: p.label,
-    symbol: p.symbol,
-    value: Number(p.netPnl),
-  }));
+  // F23 — clamp visivo degli outlier: il disegno è troncato (▲/▼ sul punto),
+  // il tooltip mostra sempre il valore reale.
+  const raw = points.map((p) => Number(p.netPnl));
+  const limit = clampLimit(raw);
+  const data = points.map((p, i) => {
+    const { display, clamped } = clampValue(raw[i], limit);
+    return {
+      index: i + 1,
+      label: p.label,
+      symbol: p.symbol,
+      value: display,
+      real: raw[i],
+      clampSign: clamped ? Math.sign(raw[i]) : 0,
+    };
+  });
 
   return (
     <ResponsiveContainer width="100%" height={CHART.height}>
       <BarChart data={data} margin={CHART.margin}>
-        <XAxis
-          dataKey="index"
-          tick={CHART.axisTick}
-          tickLine={false}
-          axisLine={false}
-          minTickGap={30}
-        />
+        {/* F21 — niente tick: erano i numeri d'ordine del trade nel set,
+            informazione nulla. Data/simbolo restano nel tooltip. */}
+        <XAxis dataKey="index" tick={false} tickLine={false} axisLine={false} height={4} />
         <YAxis
           tick={masked ? false : CHART.axisTick}
           tickLine={false}
@@ -62,11 +69,13 @@ export function TradeSequenceChart({
           width={masked ? 8 : CHART.yAxisWidth}
         />
         <Tooltip
-          formatter={(value: number | string | readonly (number | string)[] | undefined) =>
-            masked
-              ? "•••"
-              : `${Number(Array.isArray(value) ? value[0] : (value ?? 0)).toLocaleString("it-IT", { maximumFractionDigits: 2 })}${suffix}`
-          }
+          formatter={(_value, _name, item) => {
+            if (masked) return "•••";
+            const p = item?.payload as { real: number; clampSign: number } | undefined;
+            const real = p?.real ?? 0;
+            const text = `${real.toLocaleString("it-IT", { maximumFractionDigits: 2 })}${suffix}`;
+            return p?.clampSign ? `${text} (barra troncata)` : text;
+          }}
           labelFormatter={(_, payload) => {
             const p = payload?.[0]?.payload as
               | { index: number; symbol: string; label: string }
@@ -80,6 +89,7 @@ export function TradeSequenceChart({
           {data.map((point) => (
             <Cell key={point.index} fill={pnlChartColor(point.value)} />
           ))}
+          <LabelList dataKey="clampSign" content={ClampMark} />
         </Bar>
       </BarChart>
     </ResponsiveContainer>

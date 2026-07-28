@@ -68,16 +68,16 @@ export function formatRMultiple(value: string): string {
 
 /**
  * Importo compatto con segno per spazi stretti (celle del calendario):
- * niente simbolo valuta (indicata una volta nella testata), 0 decimali da
- * 1000 in su, 2 sotto. Solo display.
+ * niente simbolo valuta (indicata una volta nella testata) e SEMPRE zero
+ * decimali (F43: "+1581" e "+640,86" nella stessa griglia erano precisioni
+ * miste; i totali esatti al centesimo stanno in testata). Solo display.
  */
 export function formatSignedCompact(value: string, locale = "it-IT"): string {
   const num = Number(value);
   if (!Number.isFinite(num)) return "—";
-  const compact = Math.abs(num) >= 1000;
   return new Intl.NumberFormat(locale, {
-    minimumFractionDigits: compact ? 0 : 2,
-    maximumFractionDigits: compact ? 0 : 2,
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 0,
     signDisplay: "exceptZero",
   }).format(num);
 }

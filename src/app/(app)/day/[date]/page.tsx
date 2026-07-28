@@ -9,10 +9,12 @@ import { getActiveAccountId, tradeAccountWhere } from "@/lib/active-account";
 import { ALL_ACCOUNTS } from "@/lib/constants";
 import { addDays, isValidDateKey } from "@/lib/calendar";
 import { dayNotesByPhase } from "@/lib/day-journal";
-import { formatDateTime, zonedInputToUtc } from "@/lib/dates";
+import { formatDateTime, todayKeyInZone, zonedInputToUtc } from "@/lib/dates";
 import {
   classifyOutcome,
   netPnlInfo,
+  profitFactor,
+  profitFactorInfo,
   streakSummary,
   streaksInfo,
   winRate,
@@ -99,6 +101,26 @@ export default async function DayViewPage({
 
   const accountWhere = tradeAccountWhere(userId, activeAccountId, scopeCurrency);
 
+  // F44 — navigazione ai GIORNI OPERATIVI (con trade chiusi), non ±1 a vuoto.
+  const [prevOperative, nextOperative] = await Promise.all([
+    prisma.trade.findFirst({
+      where: { ...accountWhere, status: "CLOSED", closedAt: { lt: start } },
+      orderBy: { closedAt: "desc" },
+      select: { closedAt: true },
+    }),
+    prisma.trade.findFirst({
+      where: { ...accountWhere, status: "CLOSED", closedAt: { gte: end } },
+      orderBy: { closedAt: "asc" },
+      select: { closedAt: true },
+    }),
+  ]);
+  const prevDayKey = prevOperative?.closedAt
+    ? todayKeyInZone(user.timezone, prevOperative.closedAt)
+    : null;
+  const nextDayKey = nextOperative?.closedAt
+    ? todayKeyInZone(user.timezone, nextOperative.closedAt)
+    : null;
+
   const [trades, dayNotes, activeAccount, attachments] = await Promise.all([
     prisma.trade.findMany({
       where: {
@@ -150,13 +172,26 @@ export default async function DayViewPage({
   let wins = 0;
   let losses = 0;
   let breakevens = 0;
+  // F44 — qualità del giorno: PF e R totale/medio dai trade già caricati.
+  let winSum = new Decimal(0);
+  let lossSum = new Decimal(0);
+  let rSum = new Decimal(0);
+  let rCount = 0;
   for (const trade of trades) {
     const pnl = new Decimal(trade.netPnl.toString());
     net = net.plus(pnl);
     fees = fees.plus(trade.fees.toString());
-    if (pnl.gt(0)) wins += 1;
-    else if (pnl.lt(0)) losses += 1;
-    else breakevens += 1;
+    if (pnl.gt(0)) {
+      wins += 1;
+      winSum = winSum.plus(pnl);
+    } else if (pnl.lt(0)) {
+      losses += 1;
+      lossSum = lossSum.plus(pnl);
+    } else breakevens += 1;
+    if (trade.rMultiple !== null) {
+      rSum = rSum.plus(trade.rMultiple.toString());
+      rCount += 1;
+    }
     intradayPoints.push({
       time: trade.closedAt ? timeFormat.format(trade.closedAt) : "—",
       symbol: trade.symbol,
@@ -164,6 +199,7 @@ export default async function DayViewPage({
     });
   }
   const dayWinRate = winRate(wins, trades.length);
+  const dayProfitFactor = profitFactor(winSum.toFixed(2), lossSum.toFixed(2));
   const dayRuns = streakSummary(
     trades.map((t) => classifyOutcome(t.netPnl.toString())),
   );
@@ -186,17 +222,50 @@ export default async function DayViewPage({
             </p>
           </div>
         </div>
+        {/* F44 — frecce sui GIORNI OPERATIVI: mai pagine vuote a catena */}
         <div className="flex items-center gap-2">
-          <Button asChild variant="outline" size="icon" aria-label="Giorno precedente">
-            <Link href={`/day/${addDays(date, -1)}`}>
+          {prevDayKey ? (
+            <Button
+              asChild
+              variant="outline"
+              size="icon"
+              aria-label={`Giorno operativo precedente (${prevDayKey})`}
+            >
+              <Link href={`/day/${prevDayKey}`}>
+                <ChevronLeft className="size-4" />
+              </Link>
+            </Button>
+          ) : (
+            <Button
+              variant="outline"
+              size="icon"
+              disabled
+              aria-label="Nessun giorno operativo precedente"
+            >
               <ChevronLeft className="size-4" />
-            </Link>
-          </Button>
-          <Button asChild variant="outline" size="icon" aria-label="Giorno successivo">
-            <Link href={`/day/${addDays(date, 1)}`}>
+            </Button>
+          )}
+          {nextDayKey ? (
+            <Button
+              asChild
+              variant="outline"
+              size="icon"
+              aria-label={`Giorno operativo successivo (${nextDayKey})`}
+            >
+              <Link href={`/day/${nextDayKey}`}>
+                <ChevronRight className="size-4" />
+              </Link>
+            </Button>
+          ) : (
+            <Button
+              variant="outline"
+              size="icon"
+              disabled
+              aria-label="Nessun giorno operativo successivo"
+            >
               <ChevronRight className="size-4" />
-            </Link>
-          </Button>
+            </Button>
+          )}
         </div>
       </div>
 
@@ -231,15 +300,33 @@ export default async function DayViewPage({
             <p className="stat-sub mt-1">{trades.length} trade chiusi</p>
           </CardContent>
         </Card>
+        {/* F44 — al posto della card "Conto" (contenuto quasi nullo): la
+            qualità del giorno — PF e R, il conto resta nel sottotitolo. */}
         <Card className="gap-2 py-4">
           <CardHeader className="px-4">
-            <CardTitle className="stat-label">Conto</CardTitle>
+            <CardTitle className="stat-label flex items-center gap-1">
+              Qualità del giorno
+              <MetricInfo info={profitFactorInfo} />
+            </CardTitle>
           </CardHeader>
           <CardContent className="px-4">
-            <p className="stat-value truncate">
-              {activeAccountId === ALL_ACCOUNTS ? "Tutti i conti" : trades[0]?.account.name ?? "—"}
+            <p className="stat-value">
+              PF{" "}
+              {dayProfitFactor !== null
+                ? formatRMultiple(dayProfitFactor).slice(0, -1)
+                : wins > 0
+                  ? "∞"
+                  : "—"}
             </p>
-            <p className="stat-sub mt-1">Valuta {currency}</p>
+            <p className="stat-sub mt-1">
+              {rCount > 0
+                ? `R totale ${formatRMultiple(rSum.toFixed(4))} su ${rCount} trade con rischio`
+                : "Nessun trade con rischio definito"}
+              {" · "}
+              {activeAccountId === ALL_ACCOUNTS
+                ? `tutti i conti (${currency})`
+                : trades[0]?.account.name ?? currency}
+            </p>
           </CardContent>
         </Card>
       </div>
@@ -249,7 +336,7 @@ export default async function DayViewPage({
           <Card>
             <CardHeader>
               <CardTitle className="stat-label">
-                P&L cumulativo intraday
+                P&L cumulativo (progressione per trade)
               </CardTitle>
             </CardHeader>
             <CardContent>
@@ -257,6 +344,11 @@ export default async function DayViewPage({
                 points={intradayPoints}
                 suffix={` ${currency}`}
               />
+              {/* F24 — onestà dell'asse: un punto per trade, non una scala tempo */}
+              <p className="stat-sub mt-1">
+                Un punto per trade chiuso, in ordine di chiusura: la distanza
+                orizzontale non è tempo.
+              </p>
             </CardContent>
           </Card>
           <Card>

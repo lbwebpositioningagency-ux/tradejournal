@@ -4,6 +4,7 @@ import {
   formatPercent,
   formatPercentOfBase,
   formatRMultiple,
+  formatSignedCompact,
   formatSignedMoney,
   formatSignedShort,
   pnlColorClass,
@@ -137,5 +138,18 @@ describe("pnlColorClass", () => {
 
   it("grigio per input non numerico", () => {
     expect(pnlColorClass("n/a")).toBe("text-breakeven");
+  });
+});
+
+describe("formatSignedCompact (F43)", () => {
+  it("sempre zero decimali: precisione uniforme nella griglia", () => {
+    expect(formatSignedCompact("1581")).toBe("+1581");
+    expect(formatSignedCompact("640.86")).toBe("+641");
+    expect(formatSignedCompact("-594.20")).toBe("-594");
+    expect(formatSignedCompact("0")).toBe("0");
+  });
+
+  it("input non numerico → em dash", () => {
+    expect(formatSignedCompact("abc")).toBe("—");
   });
 });

@@ -78,7 +78,7 @@ import {
 } from "@/components/charts/trade-sequence-chart";
 import { RDistributionChart } from "@/components/charts/r-distribution-chart";
 import type { RDistPoint } from "@/lib/reports";
-import { SessionRadars } from "@/components/charts/session-radar";
+import { SessionTable } from "./session-table";
 import { cn, pluralize } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -477,14 +477,21 @@ function StreakBadge({
   streak: StreakResult;
   unit: "trade" | "day";
 }) {
-  const many = `${unit}s`;
+  // F18 — glossario: termine tecnico (win/loss) in inglese, frase in
+  // italiano — "4 trade in win", "3 giornate in loss".
+  const unitLabel = (count: number) =>
+    unit === "trade" ? "trade" : pluralize(count, "giornata", "giornate");
   if (streak.direction === "NONE" || streak.length === 0) {
-    return <span className="text-breakeven">— {many}</span>;
+    return (
+      <span className="text-breakeven">
+        — {unit === "trade" ? "trade" : "giornate"}
+      </span>
+    );
   }
   return (
     <span className={streak.direction === "WIN" ? "text-profit" : "text-loss"}>
-      {streak.length} {streak.direction === "WIN" ? "win" : "loss"}{" "}
-      {pluralize(streak.length, unit, many)}
+      {streak.length} {unitLabel(streak.length)} in{" "}
+      {streak.direction === "WIN" ? "win" : "loss"}
     </span>
   );
 }
@@ -1094,9 +1101,24 @@ export function DashboardView({ data }: { data: DashboardData }) {
         ) : null}
       </div>
 
-      {/* Winners & Losers · Best/Worst Days */}
+      {/* Winners & Losers · Best/Worst Days.
+          F41 — con zero trade nel periodo: UN solo messaggio compatto al
+          posto di due pannelli pieni di zeri e trattini. */}
       <div className={cn("grid gap-4 max-lg:order-9 xl:grid-cols-2", analyticsCls)}>
-        {show("winners-losers") ? (
+        {data.totalTrades === 0 &&
+        (show("winners-losers") || show("best-worst-days")) ? (
+          <Card className="xl:col-span-2">
+            <CardContent>
+              <EmptyState
+                compact
+                icon={LineChartIcon}
+                title="Nessun trade chiuso nel periodo"
+                description="Winners & Losers e Best/Worst Days si popolano coi trade chiusi: allarga il periodo."
+              />
+            </CardContent>
+          </Card>
+        ) : null}
+        {data.totalTrades > 0 && show("winners-losers") ? (
           <Card>
             <CardHeader>
               <CardTitle className="stat-label">Winners &amp; Losers</CardTitle>
@@ -1189,7 +1211,7 @@ export function DashboardView({ data }: { data: DashboardData }) {
             </CardContent>
           </Card>
         ) : null}
-        {show("best-worst-days") ? (
+        {data.totalTrades > 0 && show("best-worst-days") ? (
           <Card>
             <CardHeader>
               <CardTitle className="stat-label">Best/Worst Days</CardTitle>
@@ -1272,7 +1294,8 @@ export function DashboardView({ data }: { data: DashboardData }) {
         ) : null}
       </div>
 
-      {/* Performance per sessione (fasce UTC) */}
+      {/* F22 — performance per sessione: tabella compatta con barre (F7:
+          classificazione nel fuso dell'exchange) */}
       {show("sessions") ? (
         <Card className={cn("max-lg:order-10", analyticsCls)}>
           <CardHeader>
@@ -1283,7 +1306,7 @@ export function DashboardView({ data }: { data: DashboardData }) {
           </CardHeader>
           <CardContent>
             {data.totalTrades > 0 ? (
-              <SessionRadars
+              <SessionTable
                 sessions={data.sessions}
                 currency={data.currency}
                 masked={masked}
@@ -1293,7 +1316,7 @@ export function DashboardView({ data }: { data: DashboardData }) {
                 compact
                 icon={LineChartIcon}
                 title="Nessun trade chiuso nel periodo"
-                description="I radar si popolano con i trade chiusi per sessione."
+                description="La tabella si popola con i trade chiusi per sessione."
               />
             )}
           </CardContent>

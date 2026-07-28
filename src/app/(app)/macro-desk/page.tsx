@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { ChartSpline, Globe, Target } from "lucide-react";
+import { ChartSpline, ChevronRight, Globe, Target } from "lucide-react";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { biasColorClass } from "@/lib/macro-desk";
@@ -17,6 +17,13 @@ import {
 import { EmptyState } from "@/components/empty-state";
 
 export const metadata: Metadata = { title: "Macro Desk" };
+
+/** F48 — bias leggibili nello storico (erano troncati a "RIAL/RIBA/NEUT"). */
+const BIAS_SHORT_LABELS: Record<string, string> = {
+  RIALZISTA: "Rialzo",
+  RIBASSISTA: "Ribasso",
+  NEUTRALE: "Neutrale",
+};
 
 const ASSET_LABELS = [
   { key: "Xau", label: "Oro (XAUUSD)" },
@@ -187,11 +194,13 @@ export default async function MacroDeskPage() {
               <CardTitle className="stat-label">Storico recente</CardTitle>
             </CardHeader>
             <CardContent className="flex flex-col gap-1">
+              {/* F48 — etichette leggibili (niente "RIAL/RIBA/NEUT") e
+                  affordance di click esplicita (freccia + bordo hover) */}
               {history.map((report) => (
                 <Link
                   key={report.id}
                   href={`/macro-desk/${report.id}`}
-                  className="flex flex-wrap items-center justify-between gap-2 rounded-md px-1 py-1.5 text-sm transition-colors hover:bg-accent"
+                  className="group flex flex-wrap items-center justify-between gap-2 rounded-md border border-transparent px-2 py-1.5 text-sm transition-colors hover:border-border hover:bg-accent"
                 >
                   <span className="flex items-center gap-2">
                     <Badge variant={report.type === "DAILY" ? "secondary" : "outline"}>
@@ -210,11 +219,15 @@ export default async function MacroDeskPage() {
                             {label.split(" ")[0]}
                           </span>
                           <span className={cn("font-medium", biasColorClass(bias))}>
-                            {bias.slice(0, 4)} {confidence}%
+                            {BIAS_SHORT_LABELS[bias] ?? bias} {confidence}%
                           </span>
                         </span>
                       );
                     })}
+                    <ChevronRight
+                      className="size-4 text-muted-foreground/50 transition-colors group-hover:text-foreground"
+                      aria-hidden
+                    />
                   </span>
                 </Link>
               ))}

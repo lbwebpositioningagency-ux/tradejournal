@@ -6,12 +6,14 @@ import {
   Bar,
   BarChart,
   Cell,
+  LabelList,
   ResponsiveContainer,
   Tooltip,
   XAxis,
   YAxis,
 } from "recharts";
-import { CHART, pnlChartColor } from "@/components/charts/chart-spec";
+import { CHART, ClampMark, pnlChartColor } from "@/components/charts/chart-spec";
+import { clampLimit, clampValue } from "@/lib/chart-clamp";
 
 /**
  * Grafici P&L della dashboard. I punti arrivano già aggregati per giorno dal
@@ -110,9 +112,15 @@ export function DailyPnlChart({
   masked: boolean;
   suffix: string;
 }) {
+  // F23 — clamp visivo degli outlier: disegno troncato (▲/▼), tooltip reale.
+  const limit = clampLimit(points.map((p) => p.value));
+  const data = points.map((p) => {
+    const { display, clamped } = clampValue(p.value, limit);
+    return { ...p, drawn: display, clampSign: clamped ? Math.sign(p.value) : 0 };
+  });
   return (
     <ResponsiveContainer width="100%" height={CHART.height}>
-      <BarChart data={points} margin={CHART.margin}>
+      <BarChart data={data} margin={CHART.margin}>
         <XAxis
           dataKey="day"
           tickFormatter={shortDay}
@@ -128,14 +136,23 @@ export function DailyPnlChart({
           width={masked ? 8 : CHART.yAxisWidth}
         />
         <Tooltip
-          formatter={tooltipFormatter(masked, suffix)}
+          formatter={(_value, _name, item) => {
+            const p = item?.payload as
+              | { value: number; clampSign: number }
+              | undefined;
+            const formatted = tooltipFormatter(masked, suffix)(p?.value ?? 0);
+            return p?.clampSign && !masked
+              ? `${formatted} (barra troncata)`
+              : formatted;
+          }}
           cursor={CHART.cursor}
           contentStyle={CHART.tooltipStyle}
         />
-        <Bar dataKey="value" name="Giornata" radius={CHART.barRadius}>
-          {points.map((point) => (
+        <Bar dataKey="drawn" name="Giornata" radius={CHART.barRadius}>
+          {data.map((point) => (
             <Cell key={point.day} fill={pnlChartColor(point.value)} />
           ))}
+          <LabelList dataKey="clampSign" content={ClampMark} />
         </Bar>
       </BarChart>
     </ResponsiveContainer>

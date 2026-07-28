@@ -5,7 +5,7 @@ import {
   whereClosedTrades,
   type StatsFilter,
 } from "@/lib/queries/stats";
-import { SESSION_BOUNDS_UTC, type SessionRow } from "@/lib/sessions";
+import { SESSION_WINDOWS, type SessionRow } from "@/lib/sessions";
 
 /**
  * Aggregazioni SQL per i Reports (FASE 8). Stesse regole di stats.ts:
@@ -204,21 +204,29 @@ export async function getWeekdayBreakdown(
 }
 
 /**
- * Breakdown per SESSIONE di mercato (fasce UTC di src/lib/sessions.ts,
- * sull'ora di APERTURA). openedAt è un timestamp naive salvato in UTC:
- * EXTRACT(HOUR) restituisce direttamente l'ora UTC, nessun AT TIME ZONE
- * (le sessioni sono definite in UTC, non nel fuso utente).
+ * Breakdown per SESSIONE di mercato (F7): classificazione sull'ora di
+ * APERTURA nel FUSO DELL'EXCHANGE (finestre e priorità da
+ * src/lib/sessions.ts), col doppio AT TIME ZONE standard del progetto —
+ * l'ora legale non sposta più i trade nella sessione sbagliata.
  */
 export async function getSessionBreakdown(
   filter: StatsFilter,
 ): Promise<SessionRow[]> {
-  const { asiaEnd, londonEnd, newYorkEnd } = SESSION_BOUNDS_UTC;
+  // Minuti locali dell'exchange per ciascuna finestra, in ordine di priorità.
+  const [ny, london, tokyo] = SESSION_WINDOWS;
+  const localMinutes = (timezone: string) => Prisma.sql`
+    (EXTRACT(HOUR FROM (t."openedAt" AT TIME ZONE 'UTC') AT TIME ZONE ${timezone}) * 60
+     + EXTRACT(MINUTE FROM (t."openedAt" AT TIME ZONE 'UTC') AT TIME ZONE ${timezone}))
+  `;
   return prisma.$queryRaw<SessionRow[]>(Prisma.sql`
     SELECT
       CASE
-        WHEN EXTRACT(HOUR FROM t."openedAt") < ${asiaEnd} THEN 'ASIA'
-        WHEN EXTRACT(HOUR FROM t."openedAt") < ${londonEnd} THEN 'LONDON'
-        WHEN EXTRACT(HOUR FROM t."openedAt") < ${newYorkEnd} THEN 'NEWYORK'
+        WHEN ${localMinutes(ny.timezone)} >= ${ny.startMin}
+         AND ${localMinutes(ny.timezone)} < ${ny.endMin} THEN 'NEWYORK'
+        WHEN ${localMinutes(london.timezone)} >= ${london.startMin}
+         AND ${localMinutes(london.timezone)} < ${london.endMin} THEN 'LONDON'
+        WHEN ${localMinutes(tokyo.timezone)} >= ${tokyo.startMin}
+         AND ${localMinutes(tokyo.timezone)} < ${tokyo.endMin} THEN 'ASIA'
         ELSE 'OFF'
       END AS "session",
       ${AGGREGATE_COLUMNS}
