@@ -360,6 +360,26 @@ model MacroDeskReport {
   summary String? // sintesi breve per le card
   payload Json // report completo, per il dettaglio in pagina
 
+  // ───── Scorecard a Expected Move (payload v2) ─────
+  // Campi ADDITIVI: i report v1 restano validi e li lasciano a null.
+  // Vengono conservati come JSON e letti da un parser difensivo
+  // (src/lib/macro-desk-bias-record.ts), stessa convenzione già usata per il
+  // payload del dettaglio: il desk è un sistema esterno, la sua forma può
+  // cambiare e l'app non deve rompersi né perdere dati.
+
+  /** Versione dello schema inviato dal desk. null = legacy v1. */
+  schemaVersion Int?
+  /** false = report informativo, fuori da OGNI conteggio della scorecard. */
+  scorecardEligible Boolean?
+  /** Prima riga del nuovo track record (una sola volta). */
+  trackRecordStart Boolean @default(false)
+  /** Weekly Bias Record: la dichiarazione della settimana + il monitoraggio. */
+  biasRecord Json?
+  /** Verdetto del desk sulla settimana conclusa (solo WEEKLY). */
+  resolved Json?
+  /** Stato giornaliero degli asset (solo DAILY). */
+  monitor Json?
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 

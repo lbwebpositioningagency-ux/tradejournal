@@ -69,6 +69,25 @@ export const macroDeskReportSchema = z.object({
   payload: z
     .unknown()
     .refine((v) => v !== undefined && v !== null, "payload obbligatorio"),
+
+  // ───── Campi v2 (scorecard a Expected Move) ─────
+  // Tutti OPZIONALI: un report v1 resta valido e non li invia. I blocchi
+  // strutturati (`biasRecord`, `resolved`, `monitor`) NON si validano campo
+  // per campo qui di proposito — il desk è un sistema esterno che evolve, e
+  // rifiutare un report intero per una chiave inattesa perderebbe il dato.
+  // Si accettano come JSON, si conservano interi, e la lettura passa da un
+  // parser difensivo (src/lib/macro-desk-bias-record.ts) che scarta il
+  // malformato e tiene il valido. Stessa scelta già fatta per `payload`.
+  schemaVersion: z
+    .number()
+    .int("schemaVersion deve essere un intero")
+    .positive("schemaVersion deve essere positivo")
+    .optional(),
+  scorecardEligible: z.boolean().optional(),
+  trackRecordStart: z.boolean().optional(),
+  biasRecord: z.unknown().optional(),
+  resolved: z.unknown().optional(),
+  monitor: z.unknown().optional(),
 });
 
 export type MacroDeskReportInput = z.infer<typeof macroDeskReportSchema>;
