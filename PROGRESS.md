@@ -607,3 +607,16 @@ Due nuove sezioni su `/analytics`, che condividono filtri (strumento, direzione,
 **Verificato:** lint ✅ · typecheck ✅ · **605/605 test** ✅ (21 nuovi: riproducibilità col seed, valori attesi noti su SIM1, gate sotto i 30 R, tetto iterazioni, differenza fra i due modelli di rischio, rovina quasi certa con R tutti negativi, fallback del parametrico, coerenza equity/ritorno, istogramma che copre tutti i path, probabilità di drawdown monotone, conversione mesi→trade) · build di produzione ✅.
 
 **Limite noto degli screenshot (strumento, non app):** su questa pagina — ora sei grafici e una simulazione da 5.000 path — la cattura headless produce card vuote per tutti i grafici tranne l'istogramma, anche alzando l'attesa a 13 s e dopo aver aggiunto i confini Suspense. La correttezza è stata verificata **per misura nel DOM** della build di produzione: 6 SVG, 4 aree del fan, 1 linea mediana, 60 barre, contenitori con larghezze corrette, zero errori in console. Tentativi fatti e scartati: attese più lunghe, cattura del solo viewport, Suspense.
+
+### ▶ Prossimi passi (decisi con l'utente il 29/07/2026, non ancora fatti)
+
+**§2 — Rolling metrics.** Assente del tutto: nessun modulo, nessuna query. Da fare:
+- **Due finestre distinte, da dichiarare in UI come tali** (è il punto su cui è facile confondersi): Sharpe — ed eventualmente Sortino — **annualizzati ×√252 su finestra di 252 giorni di trading**, calcolati dai ritorni GIORNALIERI aggregati con i giorni senza trade a ritorno 0 e risk-free configurabile (default 0); e separatamente le metriche journal-native (win rate, expectancy in R e in valuta, profit factor, R medio) su **finestra a numero-trade**, preset 30/50/100.
+- Attenzione: `sortino.ts` e `sharpe.ts` esistenti lavorano sui **P&L giornalieri in valuta e NON sono annualizzati** (limite dichiarato nella FASE 9). Per il rolling servono *ritorni*: l'assunzione da usare è `P&L giorno / equity a inizio giornata`, da dichiarare in pagina.
+- Vista: serie multi-linea con metriche attivabili singolarmente, valore corrente vs range storico; stessa palette e stessi assi dell'underwater esistente.
+
+**§3 — Metriche pro.** Già presenti e da NON rifare: Sortino, Calmar, profit factor, gross profit/loss, avg win/loss, payoff, streak massima e corrente. Da implementare: **break-even win rate**, **distribuzione delle lunghezze di streak**, **concentrazione top-N** (% del profitto dai migliori N trade), **R² dell'equity curve** rispetto a una retta, **Kelly/optimal-f** (solo display, con caveat forte e visibile), **risk of ruin analitico** in formula chiusa — complementare, non sostitutivo, di quello empirico del Monte Carlo appena fatto.
+- **Giorno della settimana: NON duplicare.** Esiste già in Reports (`getWeekdayBreakdown`, stesse colonne aggregate). Decisione dell'utente: lasciarla lì e metterci un rimando dalla sezione metriche pro. Stessa logica per cui in Fase 16 si è riusato `fillRDistribution` invece di riscriverlo.
+- **MAE/MFE: ancora rinviata.** Il dato non esiste nel modello (verificato di nuovo il 29/07: nessuna colonna, nessun campo di import). Non va implementata a metà.
+
+**Nota operativa sugli screenshot:** su `/analytics` la cattura headless non rende i grafici (vedi Fase 20). Verificare per misura nel DOM finché non si trova una soluzione.
