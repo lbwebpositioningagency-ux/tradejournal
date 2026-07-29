@@ -183,12 +183,6 @@ async function main() {
       broker: "NinjaTrader",
       currency: "USD",
       initialBalance: "25000.00",
-      // F36 — regole prop firm dimostrative (solo DB freschi: upsert update {}).
-      propDailyLossLimit: "1500.00",
-      propMaxDrawdown: "3000.00",
-      propDrawdownType: "TRAILING",
-      propProfitTarget: "40000.00",
-      propMinTradingDays: 10,
     },
   });
   const forexAccount = await prisma.tradingAccount.upsert({

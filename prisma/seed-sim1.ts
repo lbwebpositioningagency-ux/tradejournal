@@ -61,13 +61,6 @@ export async function seedSim1(
       currency: "USD",
       initialBalance: SIM1_INITIAL_BALANCE,
       isDemo: true,
-      // Regole prop firm dimostrative: nessuna è violata dallo storico
-      // (il max drawdown reale del dataset è ~14%, sotto il limite).
-      propDailyLossLimit: "2500.00",
-      propMaxDrawdown: "12000.00",
-      propDrawdownType: "TRAILING",
-      propProfitTarget: "30000.00",
-      propMinTradingDays: 10,
     },
   });
 

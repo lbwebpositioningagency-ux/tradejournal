@@ -22,7 +22,6 @@ import {
   classifyOutcome,
   compositeScoreParts,
   monteCarloR,
-  propFirmStatus,
   underwaterSeries,
   currentDayStreak,
   currentStreak,
@@ -152,33 +151,6 @@ export default async function DashboardPage({
     to: zonedInputToUtc(`${addMonths(currentMonth, 1)}-01T00:00`, user.timezone),
   };
 
-  // F36 — conti (nello scope attivo) con almeno una regola prop attiva.
-  const propAccounts = await prisma.tradingAccount.findMany({
-    where: {
-      userId,
-      isArchived: false,
-      ...(activeAccountId !== ALL_ACCOUNTS ? { id: activeAccountId } : {}),
-      OR: [
-        { propDailyLossLimit: { not: null } },
-        { propMaxDrawdown: { not: null } },
-        { propProfitTarget: { not: null } },
-        { propMinTradingDays: { not: null } },
-      ],
-    },
-    orderBy: { createdAt: "asc" },
-    select: {
-      id: true,
-      name: true,
-      currency: true,
-      initialBalance: true,
-      propDailyLossLimit: true,
-      propMaxDrawdown: true,
-      propDrawdownType: true,
-      propProfitTarget: true,
-      propMinTradingDays: true,
-    },
-  });
-
   const [
     agg,
     daily,
@@ -270,54 +242,6 @@ export default async function DashboardPage({
     agg.rLosses === 0
       ? null
       : new Decimal(agg.rLossSum).abs().div(agg.rLosses).toFixed(4);
-
-  // F36 — stato regole prop PER CONTO: serie giornaliera COMPLETA del singolo
-  // conto (mai filtrata dal periodo), ognuno nella propria valuta.
-  const propStatuses = await Promise.all(
-    propAccounts.map(async (account) => {
-      const accountFilter: StatsFilter = { userId, accountId: account.id };
-      const [accountDaily, accountAgg] = await Promise.all([
-        getDailyPnl(accountFilter, user.timezone),
-        getTradeAggregates(accountFilter),
-      ]);
-      const status = propFirmStatus({
-        rules: {
-          dailyLossLimit: account.propDailyLossLimit?.toString() ?? null,
-          maxDrawdown: account.propMaxDrawdown?.toString() ?? null,
-          drawdownType: account.propDrawdownType ?? "STATIC",
-          profitTarget: account.propProfitTarget?.toString() ?? null,
-          minTradingDays: account.propMinTradingDays,
-        },
-        initialBalance: account.initialBalance.toString(),
-        daily: accountDaily.map((d) => ({ day: d.day, netPnl: d.netPnl })),
-        todayKey,
-      });
-      // W1 — la riga preventiva: col TUO avg loss, quanti trade di margine
-      // restano oggi prima del daily loss limit. Storico del conto, Decimal.
-      // avgLoss è per convenzione POSITIVA (valore assoluto).
-      const accountAvgLoss = avgLoss(accountAgg.lossSum, accountAgg.losses);
-      let marginTrades: number | null = null;
-      if (
-        status?.dailyLoss &&
-        !status.dailyLoss.breached &&
-        accountAvgLoss !== null &&
-        new Decimal(accountAvgLoss).gt(0)
-      ) {
-        marginTrades = new Decimal(status.dailyLoss.remaining)
-          .div(accountAvgLoss)
-          .floor()
-          .toNumber();
-      }
-      return {
-        id: account.id,
-        name: account.name,
-        currency: account.currency,
-        status,
-        avgLoss: accountAvgLoss,
-        marginTrades,
-      };
-    }),
-  );
 
   const layout = parseDashboardLayout(user.dashboardLayout);
   const data: DashboardData = {
@@ -422,11 +346,6 @@ export default async function DashboardPage({
     // TUOI R storici (null sotto la soglia: gate onesto).
     underwater: underwaterSeries(daily, baseBalance),
     monteCarlo: monteCarloR(rMultiples),
-    // F36 — regole prop per conto (solo conti con almeno una regola).
-    propAccounts: propStatuses.filter(
-      (p): p is typeof p & { status: NonNullable<typeof p.status> } =>
-        p.status !== null,
-    ),
     daily: daily.map((d) => ({ day: d.day, netPnl: d.netPnl, rSum: d.rSum })),
     recent: recentTrades.map((t) => ({
       id: t.id,

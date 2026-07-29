@@ -22,21 +22,7 @@ function parseAccountForm(formData: FormData) {
     broker: formData.get("broker") ?? "",
     currency: formData.get("currency"),
     initialBalance: formData.get("initialBalance") || "0",
-    // F36 — regole prop: vuoto = regola spenta (null azzera anche su update).
-    propDailyLossLimit: formData.get("propDailyLossLimit") ?? "",
-    propMaxDrawdown: formData.get("propMaxDrawdown") ?? "",
-    propDrawdownType: formData.get("propDrawdownType") || "STATIC",
-    propProfitTarget: formData.get("propProfitTarget") ?? "",
-    propMinTradingDays: formData.get("propMinTradingDays") ?? "",
   });
-  if (!parsed.success) return parsed;
-  // Il tipo di drawdown ha senso solo con un max DD attivo.
-  if (parsed.data.propMaxDrawdown === null) {
-    return {
-      success: true as const,
-      data: { ...parsed.data, propDrawdownType: null },
-    };
-  }
   return parsed;
 }
 

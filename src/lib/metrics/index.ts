@@ -53,13 +53,3 @@ export {
   type MonteCarloResult,
   type MonteCarloStep,
 } from "./monte-carlo";
-export {
-  propFirmStatus,
-  propDailyLossInfo,
-  propDrawdownInfo,
-  propTargetInfo,
-  propDaysInfo,
-  type PropFirmRules,
-  type PropFirmStatus,
-  type PropDrawdownType,
-} from "./prop-firm";

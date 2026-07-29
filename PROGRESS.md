@@ -553,3 +553,25 @@ Branch `scorecard-expected-move`. La Scorecard passa da hit-rate giornaliera clo
 **Verificato:** lint ✅ · typecheck ✅ · **580/580 test** ✅ (37 nuovi sulla regola e sul parser — soglie esatte al limite, neutrale che sfonda e rientra, EM assente, percorso vuoto, ramo attivato, invalidazione al primo giorno, NULLO fuori dal denominatore, soppressione della hit-rate sotto soglia; 4 di integrazione sulla persistenza v2) · build di produzione ✅ · pagina verificata su build di produzione con 6 settimane sintetiche (18 righe = una per settimana per asset, 68 report storici correttamente dichiarati "esclusi", regola del neutrale visibile nei dati) · screenshot in `docs/premium-20260728/scorecard-em/` · dati di prova rimossi, 68 report storici intatti.
 
 **Nota sui criteri di accettazione del brief:** "storico azzerato con backup" è stato **superato da una decisione esplicita dell'utente** dopo il §5.2: niente cancellazione, quindi niente backup da consegnare. Tutto il resto è rispettato.
+
+## ✅ FASE 17 «Rimozione Prop Firm Rules» (29/07/2026) — §1
+Funzionalità eliminata, non nascosta.
+
+**Rimosso dal codice applicativo:** modulo `metrics/prop-firm.ts` e i suoi 13 test · widget "Regole prop firm" della dashboard, i componenti `PropRuleBar`/`PropAccountPanel` e la query dei conti con regole · barra del daily loss limit nelle celle del calendario · fieldset "Regole prop firm" e preset per firm (FTMO/FundedNext/generico) nel dialog dei conti · campi nello schema Zod dei conti e nel parsing della server action · id widget `prop-rules` dal layout persistito · regole dimostrative dai due seed. Diff netto: **31 aggiunte, 513 rimozioni**.
+
+**Verificato che non restino orfani:** nessun riferimento residuo nel codice (`grep` su tutto `src/`, esclusi i falsi positivi `Props`/"propria"), nessuna voce di menu o rotta dedicata da rimuovere (la funzionalità viveva in widget e form, non aveva una pagina propria), nessun link rotto.
+
+**Correzione fattuale al brief:** non esiste una tabella `prop_firm_rules`. La migrazione con quel nome ha aggiunto **cinque colonne a `TradingAccount`** (`propDailyLossLimit`, `propMaxDrawdown`, `propDrawdownType`, `propProfitTarget`, `propMinTradingDays`) più l'enum `PropDrawdownType`. Colonne e migrazione **restano in piedi**, come da istruzione: il codice ha semplicemente smesso di usarle. Sono ora orfane — la proposta di rimozione è nel riepilogo, da eseguire solo dopo conferma esplicita.
+
+**Verificato:** lint ✅ · typecheck ✅ · **567/567 test** ✅ (13 in meno: quelli del modulo rimosso) · build di produzione ✅ · screenshot before/after in `docs/premium-20260729/fase17/`.
+
+## ✅ FASE 18 «Audit contrasto nei grafici» (29/07/2026) — §4
+Testo nero su fondo scuro nei tooltip dei grafici: **causa unica trovata e corretta alla radice**.
+
+**La causa non era nel nostro codice.** La ricerca di colori hardcoded (`#000`, `black`, `text-black`, `fill`/`stroke` inline) su tutto `src/` non ha prodotto nulla: ogni colore passa già dai token, e tutti gli `<text>` SVG scritti a mano hanno un `fill` esplicito. Il nero arrivava da **Recharts**: `DefaultTooltipContent` applica a ogni riga del tooltip `color: entry.color || '#000'` — con `'#000'` **hardcodato** nei suoi default. Quando la serie non ha un colore proprio (i grafici a barre colorati per `<Cell>`, dove il colore sta sulla cella) il fallback vince e il testo esce nero sul fondo scuro del popover. `contentStyle`, che il progetto già passava ovunque, non basta: Recharts applica `itemStyle` **dopo**.
+
+**Fix:** due token nuovi in `chart-spec.ts` (`tooltipItemStyle`, `tooltipLabelStyle`) su `--popover-foreground`, applicati a tutti e 8 i tooltip Recharts dell'app. Nessun colore inventato: si riusa il token del tema introdotto in Fase 15, che è già validato AA sulla superficie del popover dal test `theme-contrast`.
+
+**Perché era sistemico e non due casi isolati:** i due segnalati (distribuzione R e P&L giornaliero) sono esattamente i grafici a barre per `Cell`; lo stesso difetto era presente anche in Sequenza trade, Underwater, Monte Carlo, P&L cumulativo, intraday della Day View e barre dei Reports — otto grafici su cinque pagine.
+
+**Verificato con misura, non a vista:** hover simulato su ogni grafico di dashboard, analytics e reports in build di produzione, leggendo il **colore computato** di `.recharts-tooltip-item`: tutti a `lab(97.08 …)` (≈ bianco, il valore di `--popover-foreground` in dark), **nessun `rgb(0, 0, 0)`**. lint ✅ · typecheck ✅ · 567/567 test ✅ · build ✅.

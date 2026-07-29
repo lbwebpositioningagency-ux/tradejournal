@@ -46,10 +46,6 @@ import {
   maxDrawdownInfo,
   netPnlInfo,
   profitFactorInfo,
-  propDailyLossInfo,
-  propDaysInfo,
-  propDrawdownInfo,
-  propTargetInfo,
   rDistributionInfo,
   scoreInfo,
   sharpeInfo,
@@ -68,7 +64,6 @@ import {
   type DrawdownResult,
   type MetricInfoData,
   type MonteCarloResult,
-  type PropFirmStatus,
   type StreakResult,
   type StreakSummary,
   type UnderwaterPoint,
@@ -193,16 +188,6 @@ export interface DashboardData {
   underwater: UnderwaterPoint[];
   /** W4 — proiezione bootstrap sugli R storici (null sotto la soglia). */
   monteCarlo: MonteCarloResult | null;
-  /** F36 — regole prop firm per conto (solo conti con almeno una regola). */
-  propAccounts: {
-    id: string;
-    name: string;
-    currency: string;
-    status: PropFirmStatus;
-    /** W1 — avg loss storico del conto (POSITIVO, |media perdite|) e margine trade residui oggi. */
-    avgLoss: string | null;
-    marginTrades: number | null;
-  }[];
   /** F33 — posizioni aperte del conto attivo (mai filtrate dal periodo). */
   openPositions: {
     id: string;
@@ -249,141 +234,6 @@ function ratio(value: string | null): string {
 /** "2.00000000" → "2" · "0.50000000" → "0.5" (solo display). */
 function trimQty(value: string): string {
   return value.includes(".") ? value.replace(/\.?0+$/, "") : value;
-}
-
-/** F36 — barra di consumo/avanzamento di una regola prop. */
-function PropRuleBar({
-  label,
-  info,
-  fraction,
-  barClass,
-  text,
-}: {
-  label: string;
-  info: MetricInfoData;
-  /** Frazione 0-1+ (clampata al 100% solo visivamente). */
-  fraction: string;
-  barClass: string;
-  text: React.ReactNode;
-}) {
-  const pct = Math.min(100, Math.max(0, Math.round(Number(fraction) * 100)));
-  return (
-    <div className="flex flex-col gap-1">
-      <div className="flex items-center justify-between gap-2">
-        <span className="stat-label flex items-center gap-1">
-          {label}
-          <MetricInfo info={info} />
-        </span>
-        <span className="text-xs tabular-nums text-muted-foreground">{text}</span>
-      </div>
-      <div className="h-1.5 overflow-hidden rounded-full bg-muted">
-        <div
-          className={cn("h-full rounded-full", barClass)}
-          style={{ width: `${pct}%` }}
-        />
-      </div>
-    </div>
-  );
-}
-
-/** F36 — stato regole prop di UN conto (valuta del conto, mai mischiata). */
-function PropAccountPanel({
-  account,
-  masked,
-}: {
-  account: DashboardData["propAccounts"][number];
-  masked: boolean;
-}) {
-  const s = account.status;
-  const money = (v: string) => (masked ? MASK : formatMoney(v, account.currency));
-  return (
-    <div className="flex flex-col gap-3 rounded-lg border p-3">
-      <div className="flex items-center justify-between gap-2">
-        <span className="truncate font-medium">{account.name}</span>
-        {s.anyBreached ? (
-          <Badge variant="outline" className="text-loss">
-            Regole violate
-          </Badge>
-        ) : (
-          <Badge variant="outline" className="text-profit">
-            In regola
-          </Badge>
-        )}
-      </div>
-      {s.dailyLoss ? (
-        <PropRuleBar
-          label="Daily loss (oggi)"
-          info={propDailyLossInfo}
-          fraction={s.dailyLoss.used}
-          barClass={s.dailyLoss.breached ? "bg-loss" : "bg-primary"}
-          text={
-            s.dailyLoss.breached
-              ? `VIOLATO · perdita ${money(s.dailyLoss.lossToday)} su ${money(s.dailyLoss.limit)}`
-              : `${formatPercent(s.dailyLoss.used, 0)} usato · restano ${money(s.dailyLoss.remaining)}`
-          }
-        />
-      ) : null}
-      {/* W1 — la riga preventiva che i journal non hanno: margine in trade */}
-      {s.dailyLoss && !s.dailyLoss.breached && account.marginTrades !== null ? (
-        <p className="text-xs text-muted-foreground">
-          Col tuo avg loss ({masked ? MASK : `−${formatMoney(account.avgLoss!, account.currency)}`}
-          ) hai margine per{" "}
-          <span
-            className={cn(
-              "font-semibold",
-              account.marginTrades <= 1 ? "text-loss" : "text-foreground",
-            )}
-          >
-            ~{account.marginTrades} trade
-          </span>{" "}
-          prima del limite di oggi.
-        </p>
-      ) : null}
-      {s.drawdown ? (
-        <PropRuleBar
-          label={`Max drawdown (${s.drawdown.type === "TRAILING" ? "trailing" : "statico"})`}
-          info={propDrawdownInfo}
-          fraction={s.drawdown.used}
-          barClass={s.drawdown.breached ? "bg-loss" : "bg-primary"}
-          text={
-            s.drawdown.breached
-              ? `VIOLATO · pavimento ${money(s.drawdown.floor)}`
-              : `${formatPercent(s.drawdown.used, 0)} usato · pavimento ${money(s.drawdown.floor)}`
-          }
-        />
-      ) : null}
-      {s.profitTarget ? (
-        <PropRuleBar
-          label="Profit target"
-          info={propTargetInfo}
-          fraction={s.profitTarget.progress}
-          barClass="bg-profit"
-          text={
-            s.profitTarget.reached
-              ? `Raggiunto · ${money(s.profitTarget.netPnl)} su ${money(s.profitTarget.target)}`
-              : `${formatPercent(s.profitTarget.progress, 0)} · mancano ${money(s.profitTarget.remaining)}`
-          }
-        />
-      ) : null}
-      {s.tradingDays ? (
-        <div className="flex items-center justify-between gap-2">
-          <span className="stat-label flex items-center gap-1">
-            Giornate operative
-            <MetricInfo info={propDaysInfo} />
-          </span>
-          <span
-            className={cn(
-              "text-xs tabular-nums",
-              s.tradingDays.reached ? "text-profit" : "text-muted-foreground",
-            )}
-          >
-            {s.tradingDays.done}/{s.tradingDays.required}
-            {s.tradingDays.reached ? " · minimo raggiunto" : ""}
-          </span>
-        </div>
-      ) : null}
-    </div>
-  );
 }
 
 /**
@@ -944,30 +794,6 @@ export function DashboardView({ data }: { data: DashboardData }) {
         />
       ) : null}
 
-      {/* F36 — regole prop firm: il termometro del conto, solo se configurate */}
-      {show("prop-rules") && data.propAccounts.length > 0 ? (
-        <Card className="max-lg:order-6">
-          <CardHeader>
-            <CardTitle className="stat-label">Regole prop firm</CardTitle>
-          </CardHeader>
-          <CardContent className="flex flex-col gap-3">
-            <div className="grid gap-3 xl:grid-cols-2">
-              {data.propAccounts.map((account) => (
-                <PropAccountPanel
-                  key={account.id}
-                  account={account}
-                  masked={masked}
-                />
-              ))}
-            </div>
-            <p className="stat-sub">
-              Calcolato sulle chiusure di giornata dei trade chiusi nel tuo
-              fuso: approssimazione dichiarata, niente equity intraday né
-              floating P&amp;L.
-            </p>
-          </CardContent>
-        </Card>
-      ) : null}
 
       {/* F33 — posizioni aperte: card dedicata, solo quando ce ne sono */}
       {show("open-positions") && data.openPositions.length > 0 ? (
