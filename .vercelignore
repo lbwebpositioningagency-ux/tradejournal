@@ -1,0 +1,18 @@
+# File che non devono finire nell'upload verso Vercel.
+# Senza questo, il deploy da CLI carica anche l'output di build locale
+# (.next, oltre 2 GB dopo qualche build) e gli screenshot di verifica
+# (docs/, decine di MB): l'upload si interrompe.
+
+node_modules
+.next
+out
+
+# Screenshot before/after delle fasi: documentazione, non codice servito.
+docs
+
+# Verifiche e strumenti che girano solo in locale.
+coverage
+scripts
+
+# Expert Advisor MetaTrader: si installa nel terminale, non sul server.
+mt5
