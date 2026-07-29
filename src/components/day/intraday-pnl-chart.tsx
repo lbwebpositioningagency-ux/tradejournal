@@ -77,6 +77,8 @@ export function IntradayPnlChart({
             return symbol ? `${label} · ${symbol}` : String(label);
           }}
           contentStyle={CHART.tooltipStyle}
+          itemStyle={CHART.tooltipItemStyle}
+          labelStyle={CHART.tooltipLabelStyle}
         />
         <Area
           type="monotone"

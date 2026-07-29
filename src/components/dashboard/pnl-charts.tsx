@@ -91,6 +91,8 @@ export function CumulativePnlChart({
           formatter={tooltipFormatter(masked, suffix)}
           labelFormatter={(label) => (label === "" ? "Inizio" : String(label))}
           contentStyle={CHART.tooltipStyle}
+          itemStyle={CHART.tooltipItemStyle}
+          labelStyle={CHART.tooltipLabelStyle}
         />
         <Area
           isAnimationActive={animate}
@@ -151,6 +153,8 @@ export function DailyPnlChart({
           }}
           cursor={CHART.cursor}
           contentStyle={CHART.tooltipStyle}
+          itemStyle={CHART.tooltipItemStyle}
+          labelStyle={CHART.tooltipLabelStyle}
         />
         <Bar dataKey="drawn" name="Giornata" radius={CHART.barRadius}
           isAnimationActive={animate}

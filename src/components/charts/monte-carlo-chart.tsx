@@ -55,6 +55,8 @@ export function MonteCarloChart({ steps }: { steps: MonteCarloStep[] }) {
           labelFormatter={(label) => `Trade simulato #${label}`}
           cursor={CHART.cursor}
           contentStyle={CHART.tooltipStyle}
+          itemStyle={CHART.tooltipItemStyle}
+          labelStyle={CHART.tooltipLabelStyle}
         />
         <Area
           isAnimationActive={animate}

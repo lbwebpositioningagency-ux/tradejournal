@@ -66,6 +66,8 @@ export function ReportBarChart({
           }}
           cursor={CHART.cursor}
           contentStyle={CHART.tooltipStyle}
+          itemStyle={CHART.tooltipItemStyle}
+          labelStyle={CHART.tooltipLabelStyle}
         />
         <Bar dataKey="value" name="Net P&L" radius={CHART.barRadius}
           isAnimationActive={animate}

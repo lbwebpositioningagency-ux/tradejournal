@@ -55,6 +55,8 @@ export function UnderwaterChart({ points }: { points: UnderwaterPoint[] }) {
           labelFormatter={(label) => formatDayKey(String(label))}
           cursor={CHART.cursor}
           contentStyle={CHART.tooltipStyle}
+          itemStyle={CHART.tooltipItemStyle}
+          labelStyle={CHART.tooltipLabelStyle}
         />
         <Area
           isAnimationActive={animate}

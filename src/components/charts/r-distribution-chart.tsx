@@ -50,6 +50,8 @@ export function RDistributionChart({ points }: { points: RDistPoint[] }) {
           }}
           cursor={CHART.cursor}
           contentStyle={CHART.tooltipStyle}
+          itemStyle={CHART.tooltipItemStyle}
+          labelStyle={CHART.tooltipLabelStyle}
         />
         <Bar
           dataKey="count"

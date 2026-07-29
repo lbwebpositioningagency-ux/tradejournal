@@ -20,7 +20,7 @@ export const CHART = {
   yAxisWidth: 52,
   /** Cursore hover dei BarChart. */
   cursor: { fill: "var(--muted)", opacity: 0.4 },
-  /** Stile tooltip identico ovunque. */
+  /** Stile tooltip identico ovunque (il CONTENITORE). */
   tooltipStyle: {
     background: "var(--popover)",
     border: "1px solid var(--border)",
@@ -29,6 +29,18 @@ export const CHART = {
     fontSize: 12,
     boxShadow: "var(--shadow-overlay)",
   } as const,
+  /**
+   * Stile delle RIGHE del tooltip. Non è un doppione di `tooltipStyle`:
+   * Recharts scrive `color: '#000'` HARDCODATO su ogni riga quando la serie
+   * non ha un colore proprio — ed è il caso dei grafici a barre colorati per
+   * `<Cell>` (distribuzione R, P&L giornaliero, sequenza trade, barre dei
+   * report), dove il colore sta sulla cella e non sulla serie. Il risultato
+   * era testo nero sul fondo scuro del popover: illeggibile in dark mode.
+   * `contentStyle` non basta, perché Recharts applica `itemStyle` DOPO.
+   */
+  tooltipItemStyle: { color: "var(--popover-foreground)" } as const,
+  /** Etichetta del tooltip (la riga del titolo), stesso motivo. */
+  tooltipLabelStyle: { color: "var(--popover-foreground)" } as const,
   /** Opacità del gradiente di riempimento delle aree. */
   areaFillFrom: 0.35,
   areaFillTo: 0.02,
