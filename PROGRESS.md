@@ -628,10 +628,37 @@ Due sezioni nuove su `/analytics`, e **due finestre diverse dichiarate come tali
 
 **Verificato:** lint ✅ · typecheck ✅ · **630/630 test** ✅ (25 nuovi: 21 unitari sul modulo puro — riempimento dei soli feriali, weekend operativo non scartato, equity scorrevole, ritorno non definito a equity ≤ 0, valori noti di Sharpe/Sortino, risk-free scalato a giornaliero, deviazione nulla → null, propagazione dei null nella finestra, mediana e sua posizione nel range; 4 di integrazione sul DB reale che confrontano la **finestra SQL con la stessa finestra ricalcolata in TypeScript** trade per trade, più campionamento che non perde l'ultimo punto) · build di produzione ✅ · verificato su build di produzione con SIM1 e col conto dell'utente (fallback a 60 sedute, preset più lunghi disabilitati, avvertenza sulle poche finestre) · screenshot **con grafici veri** in `docs/premium-20260729/fase21/`.
 
+## ✅ FASE 22 «Metriche pro» (29/07/2026) — §3
+Tre card su `/analytics`. Le metriche di base (Sortino, Calmar, profit factor, payoff, streak) **non sono state rifatte**: restano dove sono.
+
+**Break-even win rate** — `BE% = 1/(1+payoff)`. Smonta la domanda sbagliata ("qual è un buon win rate?"): con payoff 3 basta il 25%, con payoff 0,5 non basta il 66%. In pagina si mostra la **distanza** dal proprio win rate, che è il numero che conta. SIM1: soglia 34,00%, win rate 48,00%, margine +14 punti.
+
+**R² dell'equity** — regressione lineare sull'equity per seduta. Dichiarato esplicitamente che **non è un voto di qualità**: anche una discesa regolare ha R² ≈ 1, quindi il riquadro mostra sempre R² *e* pendenza col colore del segno. SIM1: 72,34% con +54,79 USD a seduta su 401 sedute.
+
+**Kelly e optimal f** — Kelly binario dal win rate e dal payoff; l'**optimal f alla Vince** cercata sui R realizzati massimizzando la media geometrica di `1 + f × R`, con le f che azzererebbero il conto su un solo trade del campione escluse per costruzione. Gate a 30 trade: su venti sarebbe un numero preciso e privo di significato. Caveat in pagina, non in un tooltip: **non sono size consigliate**, sono il limite oltre il quale nessuna teoria dà ragione. SIM1: Kelly 21,21%, optimal f 18,00%.
+
+**Risk of ruin analitico** — formula chiusa, complementare a quello empirico del Monte Carlo. Modello dichiarato: rischio fisso per trade, capitale in **unità di perdita media** (è quella la grandezza che governa la rovina, non l'importo assoluto), `RoR ≈ e^(−θU)` con θ radice di `p·e^(−θb) + q·e^θ = 1`. **Per payoff = 1 la formula è esatta** e si riduce alla rovina del giocatore `(q/p)^U`: c'è un test che lo verifica sul valore noto. Senza edge restituisce 1 — la risposta corretta, che va detta. La card spiega perché i due numeri non sono confrontabili alla lettera (orizzonte infinito e azzeramento contro orizzonte finito e soglia al 50%).
+
+**Distribuzione delle streak** — le lunghezze delle serie sono contate **in SQL** con gaps-and-islands (la differenza fra progressivo globale e progressivo dentro l'esito è costante finché l'esito non cambia): nessuna sequenza di trade portata in JS. I breakeven spezzano le serie, come in `streaks.ts`. La parte che serve davvero è il confronto con l'**attesa per puro caso** — `E[L] ≈ ln(n(1−p))/ln(1/p)` — perché la domanda dopo sei perdite di fila è "è successo qualcosa o è normale?". Su SIM1: serie di perdite più lunga 9 contro un'attesa di 7,0, con l'avvertenza che il confronto assume trade indipendenti.
+
+**Concentrazione del profitto** — quota del profitto lordo dai migliori 1/3/5/10 trade e dal decile superiore, con la colonna che conta davvero: **quanto resta togliendoli**, e un badge quando il periodo va in perdita senza di loro. Il decile compare **solo se è un gruppo diverso** dalle fasce fisse: con 96 vincenti il 10% sono 10 trade e ripetere la riga farebbe sembrare due misure ciò che è una sola.
+
+**Rimando invece di duplicato:** la performance per giorno della settimana resta in Reports (`getWeekdayBreakdown`) con un link dalla card, come deciso.
+
+**Due correzioni nate dalla verifica sui dati veri:**
+1. Il risk of ruin analitico su SIM1 vale ~1e-33 e la scala 4 delle frazioni lo azzerava *prima* della formattazione: il modulo ora restituisce cifre significative (deviazione dalla convenzione, motivata nel codice) e la UI ha `formatPercentSmall`, che distingue "0,00%" da "< 0,01%". Applicato anche al risk of ruin del Monte Carlo (Fase 20).
+2. Il decile duplicava "Top 10" (vedi sopra).
+
+**MAE/MFE: ancora rinviata**, il dato non esiste nel modello.
+
+**Verificato:** lint ✅ · typecheck ✅ · **35 test nuovi** sui sei moduli (valori noti a mano per ognuno: BE% a payoff 1/3/0,5, Kelly 60%/payoff 1 → 20%, rovina del giocatore `(2/3)^10`, R² 1 su retta perfetta e pendenza negativa in discesa, attesa di 5,6 su 100 trade al 50%, più i degeneri — payoff nullo, nessun edge, equity piatta, profitto lordo zero, meno di 3 punti) · build di produzione ✅ · pagina verificata per misura nel DOM e a schermo su SIM1 e sul conto dell'utente · screenshot in `docs/premium-20260729/fase22/`.
+
+**Nota:** durante questa fase un'altra sessione stava lavorando nello stesso repo (termometro volatilità per Macro Desk). I file di quella feature non fanno parte di questa fase e non vanno mescolati nel commit; il conteggio totale dei test riportato da `npm test` include anche i suoi.
+
 ### ▶ Prossimi passi
 
-**§3 — Metriche pro.** Già presenti e da NON rifare: Sortino, Calmar, profit factor, gross profit/loss, avg win/loss, payoff, streak massima e corrente. Da implementare: **break-even win rate**, **distribuzione delle lunghezze di streak**, **concentrazione top-N** (% del profitto dai migliori N trade), **R² dell'equity curve** rispetto a una retta, **Kelly/optimal-f** (solo display, con caveat forte e visibile), **risk of ruin analitico** in formula chiusa — complementare, non sostitutivo, di quello empirico del Monte Carlo appena fatto.
-- **Giorno della settimana: NON duplicare.** Esiste già in Reports (`getWeekdayBreakdown`, stesse colonne aggregate). Decisione dell'utente: lasciarla lì e metterci un rimando dalla sezione metriche pro. Stessa logica per cui in Fase 16 si è riusato `fillRDistribution` invece di riscriverlo.
-- **MAE/MFE: ancora rinviata.** Il dato non esiste nel modello (verificato di nuovo il 29/07: nessuna colonna, nessun campo di import). Non va implementata a metà.
+**Il piano premium è completo** (§1 Monte Carlo, §2 rolling metrics, §3 metriche pro).
+- **MAE/MFE: rinviata** finché il dato non esiste nel modello. Servirebbe: colonne su `Trade`, campi di import CSV/MT5, e un modo di popolarle per lo storico — non va implementata a metà.
+- **Giorno della settimana:** resta in Reports, con il rimando da Analytics. Non duplicare.
 
 **Nota operativa sugli screenshot: risolta nella Fase 21.** Su `/analytics` i grafici uscivano vuoti per colpa di `captureBeyondViewport`, non del numero di grafici: usare `node scripts/shot.mjs --scroll-to "<titolo della card>"` (viewport singolo, layout stabile). Per le verifiche numeriche c'è `scripts/measure.mjs`, che valuta un'espressione nel DOM della build di produzione dopo il login.

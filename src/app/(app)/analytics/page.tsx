@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import Link from "next/link";
 import { Suspense } from "react";
 import Decimal from "decimal.js";
 import { redirect } from "next/navigation";
@@ -17,8 +18,34 @@ import {
   getHourPerformance,
   getDurationPerformance,
   getRollingTradeWindow,
+  getProAggregates,
+  getStreakRuns,
+  getTopConcentration,
   type AnalyticsFilter,
 } from "@/lib/queries/analytics";
+import {
+  avgLoss,
+  avgWin,
+  breakEvenWinRate,
+  breakEvenWinRateInfo,
+  concentration,
+  concentrationInfo,
+  equityFitInfo,
+  equityLinearFit,
+  expectedLongestRun,
+  kellyFraction,
+  kellyInfo,
+  optimalF,
+  payoffRatio,
+  riskOfRuinAnalytic,
+  riskOfRuinAnalyticInfo,
+  streakDistribution,
+  streakDistributionInfo,
+  winRate as winRateOf,
+  winRateMargin,
+} from "@/lib/metrics";
+import { StreakDistributionChart } from "@/components/analytics/streak-distribution-chart";
+import { ConcentrationTable } from "@/components/analytics/concentration-table";
 import {
   DAY_WINDOWS,
   DURATION_BUCKETS,
@@ -81,6 +108,7 @@ import { BE_BIN } from "@/lib/queries/stats";
 import {
   formatMoney,
   formatPercent,
+  formatPercentSmall,
   formatRMultiple,
   pnlColorClass,
 } from "@/lib/money";
@@ -404,6 +432,62 @@ export default async function AnalyticsPage({
     ),
   );
 
+  // §3 — METRICHE PRO. Gli aggregati rispettano i filtri della pagina; R²
+  // ed equity vengono dalla serie di conto (come il rolling annualizzato).
+  const [proAgg, streakRuns, concentrationRow] = await Promise.all([
+    getProAggregates(filter),
+    getStreakRuns(filter),
+    getTopConcentration(filter),
+  ]);
+
+  const proWinRate = winRateOf(proAgg.wins, proAgg.total);
+  const proAvgWin = avgWin(proAgg.winSum, proAgg.wins);
+  const proAvgLoss = avgLoss(proAgg.lossSum, proAgg.losses);
+  const proPayoff = payoffRatio(proAvgWin, proAvgLoss);
+
+  const beWinRate = breakEvenWinRate(proPayoff);
+  const beMargin = winRateMargin(proWinRate, beWinRate);
+  const kelly = kellyFraction(proWinRate, proPayoff);
+  const optF = optimalF(mcR);
+  const equityFit = equityLinearFit(returnsSeries.map((d) => d.equityStart));
+
+  // Capitale in unità di perdita media: è la grandezza che governa la
+  // rovina, non l'importo assoluto. Un conto da 100.000 che rischia 10.000
+  // a trade è più fragile di uno da 10.000 che ne rischia 100.
+  const ruinUnits =
+    proAvgLoss !== null && new Decimal(proAvgLoss).gt(0)
+      ? new Decimal(startingEquity).div(proAvgLoss).toFixed(4)
+      : null;
+  const ruinAnalytic =
+    proWinRate !== null && proPayoff !== null && ruinUnits !== null
+      ? riskOfRuinAnalytic({
+          winRate: proWinRate,
+          payoff: proPayoff,
+          units: ruinUnits,
+        })
+      : null;
+
+  const streaks = streakDistribution(streakRuns);
+  const lossProbability =
+    proAgg.total > 0
+      ? new Decimal(proAgg.losses).div(proAgg.total).toFixed(4)
+      : null;
+  const winProbability =
+    proAgg.total > 0
+      ? new Decimal(proAgg.wins).div(proAgg.total).toFixed(4)
+      : null;
+  const expectedLossRun = lossProbability
+    ? expectedLongestRun(proAgg.total, lossProbability)
+    : null;
+  const expectedWinRun = winProbability
+    ? expectedLongestRun(proAgg.total, winProbability)
+    : null;
+
+  const profitConcentration = concentration({
+    ...concentrationRow,
+    netPnl: proAgg.netPnl,
+  });
+
   const hourSegments = fillHourSegments(hourRows);
   const durationSegments = fillDurationSegments(durationRows);
   const bestHour = bestAndWorst(hourSegments, (s) => s.avgR);
@@ -576,7 +660,7 @@ export default async function AnalyticsPage({
                     />
                     <StatBox
                       label="Risk of ruin"
-                      value={formatPercent(simulation.riskOfRuin.toFixed(4))}
+                      value={formatPercentSmall(simulation.riskOfRuin.toFixed(4))}
                       sub="soglia: perdita del 50%"
                       tone={simulation.riskOfRuin > 0.05 ? "loss" : undefined}
                       info={riskOfRuinInfo}
@@ -785,6 +869,194 @@ export default async function AnalyticsPage({
                   icon={Activity}
                   title="Storico troppo corto per una finestra mobile"
                   description="Servono almeno 30 trade chiusi: sotto quella soglia la serie mostrerebbe soltanto l'assestamento iniziale."
+                />
+              )}
+            </CardContent>
+          </Card>
+
+          {/* §3 — metriche pro: quattro numeri che rispondono a domande
+              diverse da quelle della dashboard. */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-base">Metriche pro</CardTitle>
+              <CardDescription>
+                Le metriche di base (Sortino, Calmar, profit factor, payoff,
+                streak) restano in dashboard: qui ci sono quelle che servono a
+                decidere, non a fotografare.
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="flex flex-col gap-4">
+              <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+                <StatBox
+                  label="Break-even win rate"
+                  value={beWinRate === null ? "—" : formatPercent(beWinRate)}
+                  sub={
+                    proWinRate !== null && beMargin !== null
+                      ? `il tuo è ${formatPercent(proWinRate)} · margine ${
+                          new Decimal(beMargin).gte(0) ? "+" : ""
+                        }${formatPercent(beMargin)}`
+                      : "payoff non calcolabile"
+                  }
+                  tone={
+                    beMargin === null
+                      ? undefined
+                      : new Decimal(beMargin).gt(0)
+                        ? "profit"
+                        : "loss"
+                  }
+                  info={breakEvenWinRateInfo}
+                />
+                <StatBox
+                  label="Regolarità equity (R²)"
+                  value={
+                    equityFit.r2 === null ? "—" : formatPercent(equityFit.r2)
+                  }
+                  sub={
+                    equityFit.slope === null
+                      ? "serie troppo corta"
+                      : `pendenza ${formatMoney(equityFit.slope, currency)} a seduta · ${equityFit.points} sedute`
+                  }
+                  tone={
+                    equityFit.slope === null
+                      ? undefined
+                      : new Decimal(equityFit.slope).gte(0)
+                        ? "profit"
+                        : "loss"
+                  }
+                  info={equityFitInfo}
+                />
+                <StatBox
+                  label="Kelly"
+                  value={kelly === null ? "—" : formatPercent(kelly)}
+                  sub={
+                    optF
+                      ? `optimal f ${formatPercent(optF.f)} su ${optF.sampleSize} R · usane una frazione`
+                      : "optimal f: servono 30 trade con rischio"
+                  }
+                  info={kellyInfo}
+                />
+                <StatBox
+                  label="Risk of ruin (analitico)"
+                  value={formatPercentSmall(ruinAnalytic)}
+                  sub={
+                    simulation
+                      ? `Monte Carlo (perdita del 50%): ${formatPercentSmall(simulation.riskOfRuin.toFixed(4))}`
+                      : "formula chiusa, azzeramento del conto"
+                  }
+                  tone={
+                    ruinAnalytic !== null &&
+                    new Decimal(ruinAnalytic).gt("0.05")
+                      ? "loss"
+                      : undefined
+                  }
+                  info={riskOfRuinAnalyticInfo}
+                />
+              </div>
+
+              {/* Le due misure di rovina non sono confrontabili alla lettera:
+                  vanno lette per quello che ciascuna assume. */}
+              <p className="rounded-md border border-dashed p-3 text-xs text-muted-foreground">
+                <strong className="text-foreground">
+                  Le due misure di rovina rispondono a domande diverse.
+                </strong>{" "}
+                Quella analitica assume rischio fisso per trade e orizzonte
+                infinito, e misura l&apos;azzeramento del conto; quella del
+                Monte Carlo ricampiona i tuoi R su un orizzonte finito e usa
+                come soglia la perdita del 50%. Se divergono, la differenza
+                sta nelle ipotesi — ed è un&apos;informazione. Kelly e optimal
+                f non sono size consigliate: sono il limite oltre il quale
+                nessuna teoria ti dà ragione.
+              </p>
+
+              <p className="text-xs text-muted-foreground">
+                Cerchi la performance per giorno della settimana? Sta in{" "}
+                <Link href="/reports" className="underline underline-offset-2">
+                  Reports
+                </Link>{" "}
+                e non è duplicata qui: stesse colonne, un posto solo.
+              </p>
+            </CardContent>
+          </Card>
+
+          {/* §3 — distribuzione delle lunghezze di streak. */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2 text-base">
+                Distribuzione delle streak
+                <MetricInfo info={streakDistributionInfo} />
+              </CardTitle>
+              <CardDescription>
+                Quante volte è capitata una serie di 2, 3, 5 trade consecutivi
+                dello stesso segno. I breakeven spezzano le serie.
+                {streaks.longestLoss > 0 && expectedLossRun !== null && (
+                  <>
+                    {" "}
+                    La tua serie di perdite più lunga è di{" "}
+                    <strong>{streaks.longestLoss}</strong> trade, contro le{" "}
+                    <strong>
+                      {expectedLossRun.replace(".", ",")}
+                    </strong>{" "}
+                    che il puro caso produrrebbe su {proAgg.total} trade con
+                    il tuo win rate
+                    {new Decimal(streaks.longestLoss).lte(
+                      new Decimal(expectedLossRun).plus(1),
+                    )
+                      ? ": dentro la norma, non è successo niente al tuo sistema."
+                      : ": più lunga dell'attesa, ma il confronto assume trade indipendenti."}
+                  </>
+                )}
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="flex flex-col gap-3">
+              {streaks.bars.length > 0 ? (
+                <>
+                  <StreakDistributionChart bars={streaks.bars} />
+                  <p className="text-xs text-muted-foreground">
+                    {streaks.winRuns} serie di vincite (la più lunga{" "}
+                    {streaks.longestWin}
+                    {expectedWinRun !== null &&
+                      `, attesa ${expectedWinRun.replace(".", ",")}`}
+                    ) · {streaks.lossRuns} serie di perdite (la più lunga{" "}
+                    {streaks.longestLoss}).
+                  </p>
+                </>
+              ) : (
+                <EmptyState
+                  compact
+                  icon={Activity}
+                  title="Nessuna serie da mostrare"
+                  description="Servono trade chiusi con esito diverso da breakeven."
+                />
+              )}
+            </CardContent>
+          </Card>
+
+          {/* §3 — concentrazione del profitto. */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2 text-base">
+                Concentrazione del profitto
+                <MetricInfo info={concentrationInfo} />
+              </CardTitle>
+              <CardDescription>
+                Quanta parte del profitto lordo (
+                {formatMoney(profitConcentration.grossProfit, currency)} su{" "}
+                {profitConcentration.winners} trade vincenti) viene dai
+                migliori, e cosa resterebbe togliendoli.
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              {profitConcentration.slices.length > 0 ? (
+                <ConcentrationTable
+                  data={profitConcentration}
+                  currency={currency}
+                />
+              ) : (
+                <EmptyState
+                  compact
+                  icon={Target}
+                  title="Nessun trade vincente nel periodo"
+                  description="La concentrazione si misura sul profitto lordo: senza vincenti non c'è nulla da ripartire."
                 />
               )}
             </CardContent>

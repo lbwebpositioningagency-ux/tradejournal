@@ -54,6 +54,39 @@ export {
   type MonteCarloStep,
 } from "./monte-carlo";
 export {
+  breakEvenWinRate,
+  winRateMargin,
+  breakEvenWinRateInfo,
+} from "./break-even";
+export {
+  kellyFraction,
+  optimalF,
+  kellyInfo,
+  OPTIMAL_F_MIN_TRADES,
+  type OptimalF,
+} from "./kelly";
+export {
+  riskOfRuinAnalytic,
+  riskOfRuinAnalyticInfo,
+  type RiskOfRuinInput,
+} from "./risk-of-ruin";
+export {
+  concentration,
+  concentrationInfo,
+  type Concentration,
+  type ConcentrationInput,
+  type ConcentrationSlice,
+} from "./concentration";
+export { equityLinearFit, equityFitInfo, type EquityFit } from "./equity-fit";
+export {
+  streakDistribution,
+  expectedLongestRun,
+  streakDistributionInfo,
+  type StreakBar,
+  type StreakDistribution,
+  type StreakRun,
+} from "./streak-distribution";
+export {
   dailyReturns,
   rollingRatios,
   rollingTradePoints,

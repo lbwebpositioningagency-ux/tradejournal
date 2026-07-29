@@ -397,3 +397,111 @@ export interface RollingTradeWindowRow extends SegmentAggregates {
   /** Giorno di chiusura di quel trade, nel fuso utente. */
   day: string;
 }
+
+// ── §3 — metriche pro ───────────────────────────────────────────────────
+
+/**
+ * Aggregati dello scope con i filtri della pagina (simbolo, direzione).
+ * `getTradeAggregates` in stats.ts non li applica — è la versione dashboard —
+ * e usarla qui farebbe convivere nella stessa card numeri filtrati e non.
+ */
+export async function getProAggregates(
+  filter: AnalyticsFilter,
+): Promise<SegmentAggregates> {
+  const rows = await prisma.$queryRaw<SegmentAggregates[]>(Prisma.sql`
+    SELECT ${SEGMENT_COLUMNS}
+    ${FROM_TRADES}
+    WHERE ${analyticsWhere(filter)}
+  `);
+  return rows[0];
+}
+
+export interface StreakRunRow {
+  outcome: "WIN" | "LOSS";
+  length: number;
+  count: number;
+}
+
+/**
+ * Lunghezze delle serie consecutive, contate in SQL con la tecnica
+ * gaps-and-islands: la differenza fra il progressivo globale e quello
+ * dentro l'esito resta COSTANTE finché l'esito non cambia, quindi è la
+ * chiave della serie. Così le streak si contano senza portare in JS la
+ * sequenza dei trade.
+ *
+ * I BREAKEVEN formano serie proprie e vengono scartati alla fine: l'effetto
+ * è che spezzano le serie di win e di loss, la stessa convenzione di
+ * `metrics/streaks.ts`.
+ */
+export async function getStreakRuns(
+  filter: AnalyticsFilter,
+): Promise<StreakRunRow[]> {
+  return prisma.$queryRaw<StreakRunRow[]>(Prisma.sql`
+    WITH ordinati AS (
+      SELECT
+        CASE
+          WHEN t."netPnl" > 0 THEN 'WIN'
+          WHEN t."netPnl" < 0 THEN 'LOSS'
+          ELSE 'BREAKEVEN'
+        END AS "outcome",
+        ROW_NUMBER() OVER (ORDER BY t."closedAt", t."id") AS "rn"
+      ${FROM_TRADES}
+      WHERE ${analyticsWhere(filter)}
+    ), isole AS (
+      SELECT "outcome",
+             "rn" - ROW_NUMBER() OVER (PARTITION BY "outcome" ORDER BY "rn") AS "isola"
+      FROM ordinati
+    ), serie AS (
+      SELECT "outcome", COUNT(*)::int AS "length"
+      FROM isole
+      GROUP BY "outcome", "isola"
+    )
+    SELECT "outcome", "length", COUNT(*)::int AS "count"
+    FROM serie
+    WHERE "outcome" <> 'BREAKEVEN'
+    GROUP BY 1, 2
+    ORDER BY 1, 2
+  `);
+}
+
+export interface ConcentrationRow {
+  top1: string | null;
+  top3: string | null;
+  top5: string | null;
+  top10: string | null;
+  topDecile: string | null;
+  grossProfit: string;
+  winners: number;
+}
+
+/**
+ * Concentrazione del profitto: somme cumulate dei vincenti migliori. Il
+ * ranking e i tagli stanno in SQL — in JS arriva UNA riga, non la lista dei
+ * trade ordinata per P&L.
+ */
+export async function getTopConcentration(
+  filter: AnalyticsFilter,
+): Promise<ConcentrationRow> {
+  const rows = await prisma.$queryRaw<ConcentrationRow[]>(Prisma.sql`
+    WITH vincenti AS (
+      SELECT t."netPnl",
+             ROW_NUMBER() OVER (ORDER BY t."netPnl" DESC, t."id") AS "rn"
+      ${FROM_TRADES}
+      WHERE ${analyticsWhere(filter)} AND t."netPnl" > 0
+    )
+    SELECT
+      (SUM("netPnl") FILTER (WHERE "rn" <= 1))::text  AS "top1",
+      (SUM("netPnl") FILTER (WHERE "rn" <= 3))::text  AS "top3",
+      (SUM("netPnl") FILTER (WHERE "rn" <= 5))::text  AS "top5",
+      (SUM("netPnl") FILTER (WHERE "rn" <= 10))::text AS "top10",
+      -- Il decile va calcolato su un conteggio COSTANTE: una window function
+      -- dentro un FILTER non è ammessa (le finestre girano dopo gli aggregati).
+      (SUM("netPnl") FILTER (
+        WHERE "rn" <= (SELECT CEIL(COUNT(*) * 0.1) FROM vincenti)
+      ))::text AS "topDecile",
+      COALESCE(SUM("netPnl"), 0)::text                AS "grossProfit",
+      COUNT(*)::int                                   AS "winners"
+    FROM vincenti
+  `);
+  return rows[0];
+}

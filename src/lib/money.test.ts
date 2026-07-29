@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   formatMoney,
   formatPercent,
+  formatPercentSmall,
   formatPercentOfBase,
   formatRMultiple,
   formatSignedCompact,
@@ -75,6 +76,22 @@ describe("formatPercent", () => {
   it("trattino per null o non numerico", () => {
     expect(formatPercent(null)).toBe("—");
     expect(formatPercent("abc")).toBe("—");
+  });
+});
+
+describe("formatPercentSmall", () => {
+  it("distingue lo zero esatto da un valore che si arrotonda a zero", () => {
+    expect(formatPercentSmall("0")).toBe("0,00%");
+    expect(formatPercentSmall("0.0000001")).toBe("< 0,01%");
+  });
+
+  it("sopra la soglia si comporta come formatPercent", () => {
+    expect(formatPercentSmall("0.0234")).toBe("2,34%");
+    expect(formatPercentSmall("0.0001")).toBe("0,01%");
+  });
+
+  it("trattino per null", () => {
+    expect(formatPercentSmall(null)).toBe("—");
   });
 });
 

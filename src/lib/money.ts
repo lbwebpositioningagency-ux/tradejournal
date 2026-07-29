@@ -137,6 +137,30 @@ export function formatPercent(fraction: string | null, decimals = 2): string {
 }
 
 /**
+ * Come `formatPercent`, ma distingue lo ZERO ESATTO da un valore piccolissimo
+ * che si arrotonderebbe a zero: "0,00%" e "< 0,01%" dicono cose diverse, e
+ * per una probabilità di rovina la differenza è tutta.
+ */
+export function formatPercentSmall(
+  fraction: string | null,
+  decimals = 2,
+): string {
+  if (fraction === null) return "—";
+  let dec: Decimal;
+  try {
+    dec = new Decimal(fraction);
+  } catch {
+    return "—";
+  }
+  if (!dec.isFinite()) return "—";
+  const floor = new Decimal(1).div(new Decimal(10).pow(decimals + 2));
+  if (dec.gt(0) && dec.lt(floor)) {
+    return `< ${formatPercent(floor.toString(), decimals)}`;
+  }
+  return formatPercent(fraction, decimals);
+}
+
+/**
  * Vista %: un importo come percentuale del saldo di riferimento, con segno.
  * "1798.50" su base "35000" → "+5.14%". Base nulla o zero → "—". Solo display.
  */
