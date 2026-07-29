@@ -1,5 +1,6 @@
 import { timingSafeEqual } from "node:crypto";
-import type { Prisma, PrismaClient } from "@/generated/prisma/client";
+import { Prisma } from "@/generated/prisma/client";
+import type { PrismaClient } from "@/generated/prisma/client";
 import type { MacroBias, MacroDeskReportInput } from "@/lib/validations/macro-desk";
 
 /**
@@ -27,6 +28,19 @@ export function isAuthorizedMacroRequest(
 type MacroDeskDb = Pick<PrismaClient, "macroDeskReport">;
 
 /**
+ * Blocchi v2 opzionali → colonna Json. `undefined` (campo assente) diventa
+ * `null`: Prisma tratterebbe `undefined` come "non toccare la colonna", e un
+ * report che smette di inviare un blocco lascerebbe in giro quello vecchio.
+ */
+function toJson(
+  value: unknown,
+): Prisma.InputJsonValue | typeof Prisma.DbNull {
+  return value === undefined || value === null
+    ? Prisma.DbNull
+    : (value as Prisma.InputJsonValue);
+}
+
+/**
  * Upsert su (type, reportDate): il re-invio dello stesso report aggiorna la
  * riga esistente, mai duplicati. reportDate "YYYY-MM-DD" → mezzanotte UTC
  * (stessa convenzione di Note.dayDate).
@@ -46,6 +60,15 @@ export async function upsertMacroDeskReport(
     confidenceIdx: input.assets.idx.confidence,
     summary: input.summary ?? null,
     payload: input.payload as Prisma.InputJsonValue,
+    // Campi v2: conservati integri. Un report v1 non li invia e li lascia a
+    // null — è proprio l'assenza di `schemaVersion` che lo tiene fuori dalla
+    // scorecard, senza bisogno di cancellare nulla.
+    schemaVersion: input.schemaVersion ?? null,
+    scorecardEligible: input.scorecardEligible ?? null,
+    trackRecordStart: input.trackRecordStart ?? false,
+    biasRecord: toJson(input.biasRecord),
+    resolved: toJson(input.resolved),
+    monitor: toJson(input.monitor),
   };
   return db.macroDeskReport.upsert({
     where: { type_reportDate: { type: input.type, reportDate } },
