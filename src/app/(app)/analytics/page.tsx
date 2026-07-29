@@ -1,4 +1,6 @@
 import type { Metadata } from "next";
+import { Suspense } from "react";
+import Decimal from "decimal.js";
 import { redirect } from "next/navigation";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/db";
@@ -24,6 +26,21 @@ import {
   fillHourSegments,
   hourPerformanceInfo,
 } from "@/lib/metrics";
+import {
+  DEFAULT_SIMS,
+  HORIZON_PRESETS,
+  horizonFromMonths,
+  monteCarloLab,
+  monteCarloLabInfo,
+  riskOfRuinInfo,
+  tradesPerDay,
+} from "@/lib/metrics/monte-carlo-lab";
+import { getRMultiples, getDailyPnl, getStartingBalance, getLifetimeNetPnl } from "@/lib/queries/stats";
+import { MonteCarloControls } from "@/components/analytics/monte-carlo-controls";
+import {
+  MonteCarloFan,
+  MonteCarloHistogram,
+} from "@/components/analytics/monte-carlo-fan";
 import { SegmentPerformanceChart } from "@/components/analytics/segment-performance-chart";
 import { SegmentTable } from "@/components/analytics/segment-table";
 import {
@@ -34,7 +51,13 @@ import {
 } from "@/lib/metrics/return-distribution";
 import { fillRDistribution } from "@/lib/reports";
 import { BE_BIN } from "@/lib/queries/stats";
-import { formatPercent, formatRMultiple } from "@/lib/money";
+import {
+  formatMoney,
+  formatPercent,
+  formatRMultiple,
+  pnlColorClass,
+} from "@/lib/money";
+import { cn } from "@/lib/utils";
 import { MetricInfo } from "@/components/metric-info";
 import { EmptyState } from "@/components/empty-state";
 import { BarChart3, Crosshair, Target } from "lucide-react";
@@ -62,6 +85,40 @@ export const metadata: Metadata = { title: "Analytics" };
  * denormalizzati dalla pipeline): qui si aggrega e si mostra, non si
  * ricalcola.
  */
+/** Riquadro di sintesi della simulazione: valore grande + contesto. */
+function StatBox({
+  label,
+  value,
+  sub,
+  tone,
+  info,
+}: {
+  label: string;
+  value: string;
+  sub?: string;
+  tone?: "profit" | "loss";
+  info?: React.ComponentProps<typeof MetricInfo>["info"];
+}) {
+  return (
+    <div className="rounded-lg border p-3">
+      <div className="stat-label flex items-center gap-1">
+        {label}
+        {info ? <MetricInfo info={info} /> : null}
+      </div>
+      <div
+        className={cn(
+          "stat-value mt-1",
+          tone === "profit" && "text-profit",
+          tone === "loss" && "text-loss",
+        )}
+      >
+        {value}
+      </div>
+      {sub ? <div className="stat-sub mt-0.5">{sub}</div> : null}
+    </div>
+  );
+}
+
 export default async function AnalyticsPage({
   searchParams,
 }: {
@@ -117,6 +174,63 @@ export default async function AnalyticsPage({
       getDurationPerformance(filter, DURATION_BUCKETS),
     ]);
 
+  // §1 — Monte Carlo: gli R storici dello scope sono l'urna del bootstrap, il
+  // saldo reale è il punto di partenza dell'equity simulata. La serie
+  // giornaliera serve solo a stimare la frequenza di trade (orizzonte
+  // temporale), non entra nella simulazione.
+  const [mcR, mcDaily, mcStartBalance, mcLifetime] = await Promise.all([
+    getRMultiples(filter),
+    getDailyPnl(filter, user.timezone),
+    getStartingBalance(filter),
+    getLifetimeNetPnl(filter),
+  ]);
+  const startingEquity = new Decimal(mcStartBalance).plus(mcLifetime).toFixed(2);
+
+  const perDay =
+    mcDaily.length >= 2
+      ? tradesPerDay(
+          mcDaily.reduce((a, d) => a + d.trades, 0),
+          Math.max(
+            1,
+            Math.round(
+              (new Date(mcDaily.at(-1)!.day).getTime() -
+                new Date(mcDaily[0].day).getTime()) /
+                86_400_000,
+            ) + 1,
+          ),
+        )
+      : null;
+
+  const mcMonths = typeof params.mcM === "string" ? Number(params.mcM) : null;
+  const horizonFromParam =
+    typeof params.mcH === "string" ? Number(params.mcH) : null;
+  const mcHorizon =
+    (mcMonths ? horizonFromMonths(mcMonths, perDay) : null) ??
+    (horizonFromParam && HORIZON_PRESETS.includes(horizonFromParam as 100)
+      ? horizonFromParam
+      : 250);
+  const mcRiskMode =
+    params.mcMode === "fixed-amount" ? "fixed-amount" : "fixed-fractional";
+  const mcRiskPct = typeof params.mcRisk === "string" ? params.mcRisk : "0.01";
+  const mcMethod = params.mcMet === "parametric" ? "parametric" : "bootstrap";
+  // Rischio di default in importo fisso: il rischio medio storico dell'utente.
+  const mcRisk =
+    mcRiskMode === "fixed-fractional"
+      ? mcRiskPct
+      : new Decimal(startingEquity).times("0.01").toFixed(2);
+
+  const simulation =
+    Number(startingEquity) > 0
+      ? monteCarloLab(mcR, {
+          horizon: mcHorizon,
+          sims: DEFAULT_SIMS,
+          startingEquity,
+          riskPerTrade: mcRisk,
+          riskMode: mcRiskMode,
+          method: mcMethod,
+        })
+      : null;
+
   const buckets = targetRBucketStats(bucketRows);
   const totals = targetRTotals(buckets);
   const histogramPoints = fillRDistribution(histogram, BE_BIN);
@@ -165,11 +279,13 @@ export default async function AnalyticsPage({
             />
           </div>
         </div>
-        <AnalyticsFilters
-          symbols={symbols}
-          symbol={symbol}
-          direction={direction}
-        />
+        <Suspense fallback={<div className="h-9" />}>
+          <AnalyticsFilters
+            symbols={symbols}
+            symbol={symbol}
+            direction={direction}
+          />
+        </Suspense>
       </div>
 
       {coverage.total === 0 ? (
@@ -249,6 +365,162 @@ export default async function AnalyticsPage({
                   icon={Target}
                   title="Nessun trade con target pianificato"
                   description="Compila stop e target nel piano del trade (o mappali nell'import CSV) per vedere questa analisi."
+                />
+              )}
+            </CardContent>
+          </Card>
+
+          {/* §1 — simulazione Monte Carlo. */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2 text-base">
+                Simulazione Monte Carlo
+                <MetricInfo info={monteCarloLabInfo} />
+              </CardTitle>
+              <CardDescription>
+                {simulation
+                  ? `${simulation.sims.toLocaleString("it-IT")} scenari da ${simulation.horizon} trade, ricampionando i tuoi ${simulation.sampleSize} R storici.`
+                  : "Servono almeno 30 trade con rischio definito per una proiezione onesta."}
+                {mcMonths && perDay && simulation
+                  ? ` Orizzonte temporale convertito in ${simulation.horizon} trade con la tua frequenza storica (${perDay.toFixed(2).replace(".", ",")} trade al giorno): assume che tu continui a operare con lo stesso ritmo.`
+                  : ""}
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="flex flex-col gap-4">
+              <Suspense fallback={<div className="h-20" />}>
+                <MonteCarloControls
+                  horizon={mcHorizon}
+                  riskPct={mcRiskPct}
+                  riskMode={mcRiskMode}
+                  method={mcMethod}
+                  monthsAvailable={perDay !== null}
+                />
+              </Suspense>
+
+              {simulation ? (
+                <>
+                  <MonteCarloFan
+                    fan={simulation.fan}
+                    startingEquity={Number(startingEquity)}
+                    currency={currency}
+                  />
+
+                  <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+                    <StatBox
+                      label="P(in profitto)"
+                      value={formatPercent(simulation.probProfit.toFixed(4))}
+                      tone={simulation.probProfit >= 0.5 ? "profit" : "loss"}
+                    />
+                    <StatBox
+                      label="Max drawdown mediano"
+                      value={formatPercent(simulation.maxDrawdown.median.toFixed(4))}
+                      sub={`95° percentile ${formatPercent(simulation.maxDrawdown.p95.toFixed(4))}`}
+                    />
+                    <StatBox
+                      label="Risk of ruin"
+                      value={formatPercent(simulation.riskOfRuin.toFixed(4))}
+                      sub="soglia: perdita del 50%"
+                      tone={simulation.riskOfRuin > 0.05 ? "loss" : undefined}
+                      info={riskOfRuinInfo}
+                    />
+                    <StatBox
+                      label="Ritorno mediano"
+                      value={formatPercent(simulation.finalReturn.p50.toFixed(4))}
+                      tone={simulation.finalReturn.p50 >= 0 ? "profit" : "loss"}
+                    />
+                  </div>
+
+                  <div className="grid gap-4 lg:grid-cols-2">
+                    <div>
+                      <h3 className="stat-label mb-2">Equity finale</h3>
+                      <MonteCarloHistogram
+                        bars={simulation.histogram}
+                        currency={currency}
+                      />
+                    </div>
+                    <div>
+                      <h3 className="stat-label mb-2">Percentili</h3>
+                      <div className="overflow-x-auto">
+                        <table className="w-full text-sm">
+                          <thead>
+                            <tr className="border-b text-left text-xs text-muted-foreground">
+                              <th className="py-2 pr-3 font-medium">Scenario</th>
+                              <th className="py-2 pr-3 text-right font-medium">
+                                Equity finale
+                              </th>
+                              <th className="py-2 text-right font-medium">Ritorno</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {(
+                              [
+                                ["Peggiore (5%)", "p05"],
+                                ["Sfavorevole (25%)", "p25"],
+                                ["Mediano", "p50"],
+                                ["Favorevole (75%)", "p75"],
+                                ["Migliore (95%)", "p95"],
+                              ] as const
+                            ).map(([label, key]) => (
+                              <tr key={key} className="border-b last:border-0">
+                                <td className="py-2 pr-3">{label}</td>
+                                <td className="py-2 pr-3 text-right tabular-nums">
+                                  {formatMoney(
+                                    simulation.finalEquity[key].toFixed(2),
+                                    currency,
+                                  )}
+                                </td>
+                                <td
+                                  className={cn(
+                                    "py-2 text-right font-medium tabular-nums",
+                                    pnlColorClass(
+                                      simulation.finalReturn[key].toFixed(4),
+                                    ),
+                                  )}
+                                >
+                                  {formatPercent(
+                                    simulation.finalReturn[key].toFixed(4),
+                                  )}
+                                </td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                      <p className="mt-3 text-xs text-muted-foreground">
+                        Probabilità di superare un drawdown:{" "}
+                        {simulation.probDrawdownOver
+                          .map(
+                            (d) =>
+                              `${formatPercent(String(d.threshold))} → ${formatPercent(d.probability.toFixed(4))}`,
+                          )
+                          .join(" · ")}
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* Caveat obbligatorio, in pagina e non nascosto in un tooltip. */}
+                  <p className="rounded-md border border-dashed p-3 text-xs text-muted-foreground">
+                    <strong className="text-foreground">
+                      Questa non è una previsione.
+                    </strong>{" "}
+                    La simulazione assume trade indipendenti e una distribuzione
+                    dei risultati stabile nel tempo: la realtà raggruppa le
+                    perdite, cambia regime, e cambia anche il tuo comportamento
+                    dopo un drawdown. Serve a farsi un&apos;idea della{" "}
+                    <em>variabilità</em> — quanto può andare male una serie
+                    normale — non del risultato che otterrai. Non è un consiglio
+                    finanziario.
+                    {simulation.method === "parametric"
+                      ? " Il metodo parametrico usa solo win rate e R medio: perde code e asimmetria della tua distribuzione reale, ed è qui soltanto come confronto."
+                      : ""}
+                  </p>
+                </>
+              ) : (
+                <EmptyState
+                  compact
+                  icon={BarChart3}
+                  title="Storico troppo corto per simulare"
+                  description="Servono almeno 30 trade chiusi con rischio definito: sotto quella soglia la proiezione direbbe più del dato che la sostiene."
                 />
               )}
             </CardContent>
