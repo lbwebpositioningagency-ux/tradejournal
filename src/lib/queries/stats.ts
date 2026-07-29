@@ -342,6 +342,25 @@ export async function getLifetimeNetPnl(
 }
 
 /**
+ * P&L netto chiuso PRIMA di una data: serve a ricostruire l'equity di
+ * partenza della serie quando il periodo selezionato non parte dall'inizio
+ * dello storico (rolling metrics). Senza `before` non c'è nulla da sommare:
+ * la serie parte dal saldo iniziale.
+ */
+export async function getNetPnlBefore(
+  filter: Pick<StatsFilter, "userId" | "accountId" | "currency">,
+  before?: Date,
+): Promise<string> {
+  if (!before) return "0";
+  const rows = await prisma.$queryRaw<{ netPnl: string }[]>(Prisma.sql`
+    SELECT COALESCE(SUM(t."netPnl"), 0)::text AS "netPnl"
+    ${FROM_TRADES}
+    WHERE ${whereClosedTrades({ ...filter, to: before })}
+  `);
+  return rows[0].netPnl;
+}
+
+/**
  * Somma dei saldi iniziali dei conti considerati: base della curva di equity
  * per il calcolo del drawdown percentuale.
  */

@@ -54,6 +54,26 @@ export {
   type MonteCarloStep,
 } from "./monte-carlo";
 export {
+  dailyReturns,
+  rollingRatios,
+  rollingTradePoints,
+  seriesRange,
+  rollingRatiosInfo,
+  rollingTradeInfo,
+  DAY_WINDOWS,
+  TRADE_WINDOWS,
+  FEW_WINDOWS_THRESHOLD,
+  ROLLING_TRADE_METRICS,
+  TRADING_DAYS_PER_YEAR,
+  type DailyReturn,
+  type DayWindow,
+  type TradeWindow,
+  type RollingRatioPoint,
+  type RollingTradePoint,
+  type RollingTradeMetricKey,
+  type SeriesRange,
+} from "./rolling";
+export {
   segmentMetrics,
   fillHourSegments,
   fillDurationSegments,

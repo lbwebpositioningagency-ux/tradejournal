@@ -1,5 +1,6 @@
 import { Prisma } from "@/generated/prisma/client";
 import { prisma } from "@/lib/db";
+import { TRADE_WINDOWS } from "@/lib/metrics/rolling";
 import {
   FROM_TRADES,
   whereClosedTrades,
@@ -310,4 +311,89 @@ export async function getDurationPerformance(
     WHERE ${analyticsWhere(filter)} AND t."closedAt" IS NOT NULL
     GROUP BY 1
   `);
+}
+
+// ── §2 — rolling metrics su finestra a numero di trade ──────────────────
+
+/**
+ * Aggregati della finestra mobile per OGNI trade: gli stessi di
+ * SEGMENT_COLUMNS, ma calcolati con una window function invece che con un
+ * GROUP BY. È l'unico modo di ottenere una serie rolling senza portare in JS
+ * l'intera lista dei trade — il frame `ROWS BETWEEN n-1 PRECEDING AND
+ * CURRENT ROW` sposta la finestra dentro il database.
+ */
+const ROLLING_COLUMNS = Prisma.sql`
+  (COUNT(*) OVER w)::int                                          AS "total",
+  (COUNT(*) FILTER (WHERE t."netPnl" > 0) OVER w)::int            AS "wins",
+  (COUNT(*) FILTER (WHERE t."netPnl" < 0) OVER w)::int            AS "losses",
+  (COUNT(*) FILTER (WHERE t."netPnl" = 0) OVER w)::int            AS "breakevens",
+  COALESCE(SUM(t."netPnl") OVER w, 0)::text                       AS "netPnl",
+  COALESCE(SUM(t."netPnl") FILTER (WHERE t."netPnl" > 0) OVER w, 0)::text AS "winSum",
+  COALESCE(SUM(t."netPnl") FILTER (WHERE t."netPnl" < 0) OVER w, 0)::text AS "lossSum",
+  COALESCE(SUM(t."rMultiple") OVER w, 0)::text                    AS "rSum",
+  (COUNT(t."rMultiple") OVER w)::int                              AS "rCount"
+`;
+
+/**
+ * Serie rolling delle metriche journal-native.
+ *
+ * `window` NON viene passato come parametro ma interpolato: PostgreSQL non
+ * accetta un placeholder nell'offset del frame. È sicuro perché il valore
+ * viene prima validato contro i preset (`TRADE_WINDOWS`) e ridotto a intero
+ * — mai un numero che arriva dai searchParams senza passare di lì.
+ *
+ * Solo le finestre PIENE (`total = window`) entrano nella serie: i primi
+ * n-1 trade darebbero metriche calcolate su meno dati con la stessa
+ * etichetta, ed è esattamente il tipo di grafico che sembra dire qualcosa
+ * mentre mostra solo l'assestamento iniziale.
+ *
+ * La serie è poi CAMPIONATA a `limit` punti (un trader con 5.000 trade non
+ * ha bisogno di 5.000 punti su un grafico largo 800 px): si tiene un punto
+ * ogni k più l'ultimo, che è quello che conta e non deve mai sparire.
+ */
+export async function getRollingTradeWindow(
+  filter: AnalyticsFilter,
+  timezone: string,
+  window: number,
+  limit = 400,
+): Promise<RollingTradeWindowRow[]> {
+  const size = Math.trunc(window);
+  if (!TRADE_WINDOWS.includes(size as (typeof TRADE_WINDOWS)[number])) {
+    throw new Error(`Finestra rolling non ammessa: ${window}`);
+  }
+  const frame = Prisma.raw(String(size - 1));
+
+  return prisma.$queryRaw<RollingTradeWindowRow[]>(Prisma.sql`
+    WITH rolled AS (
+      SELECT
+        (ROW_NUMBER() OVER (ORDER BY t."closedAt", t."id"))::int AS "idx",
+        to_char((t."closedAt" AT TIME ZONE 'UTC') AT TIME ZONE ${timezone}, 'YYYY-MM-DD') AS "day",
+        ${ROLLING_COLUMNS}
+      ${FROM_TRADES}
+      WHERE ${analyticsWhere(filter)}
+      WINDOW w AS (
+        ORDER BY t."closedAt", t."id"
+        ROWS BETWEEN ${frame} PRECEDING AND CURRENT ROW
+      )
+    ), piene AS (
+      SELECT *,
+        ROW_NUMBER() OVER (ORDER BY "idx") AS "rn",
+        COUNT(*) OVER ()                   AS "n"
+      FROM rolled
+      WHERE "total" = ${size}
+    )
+    SELECT "idx", "day", "total", "wins", "losses", "breakevens",
+           "netPnl", "winSum", "lossSum", "rSum", "rCount"
+    FROM piene
+    WHERE "rn" % GREATEST(1, CEIL("n"::numeric / ${limit})::int) = 0
+       OR "rn" = "n"
+    ORDER BY "idx" ASC
+  `);
+}
+
+export interface RollingTradeWindowRow extends SegmentAggregates {
+  /** Progressivo del trade più recente della finestra (1-based). */
+  idx: number;
+  /** Giorno di chiusura di quel trade, nel fuso utente. */
+  day: string;
 }

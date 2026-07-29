@@ -16,15 +16,27 @@ import {
   getTargetVsRealized,
   getHourPerformance,
   getDurationPerformance,
+  getRollingTradeWindow,
   type AnalyticsFilter,
 } from "@/lib/queries/analytics";
 import {
+  DAY_WINDOWS,
   DURATION_BUCKETS,
+  FEW_WINDOWS_THRESHOLD,
+  ROLLING_TRADE_METRICS,
+  TRADE_WINDOWS,
   bestAndWorst,
+  dailyReturns,
   durationPerformanceInfo,
   fillDurationSegments,
   fillHourSegments,
   hourPerformanceInfo,
+  rollingRatios,
+  rollingRatiosInfo,
+  rollingTradeInfo,
+  rollingTradePoints,
+  seriesRange,
+  type SeriesRange,
 } from "@/lib/metrics";
 import {
   DEFAULT_SIMS,
@@ -35,8 +47,23 @@ import {
   riskOfRuinInfo,
   tradesPerDay,
 } from "@/lib/metrics/monte-carlo-lab";
-import { getRMultiples, getDailyPnl, getStartingBalance, getLifetimeNetPnl } from "@/lib/queries/stats";
+import {
+  getRMultiples,
+  getDailyPnl,
+  getStartingBalance,
+  getLifetimeNetPnl,
+  getNetPnlBefore,
+} from "@/lib/queries/stats";
 import { MonteCarloControls } from "@/components/analytics/monte-carlo-controls";
+import {
+  RollingRatioChart,
+  RollingTradeChart,
+} from "@/components/analytics/rolling-charts";
+import { RollingWindowControl } from "@/components/analytics/rolling-controls";
+import {
+  MetricRangeStrip,
+  type MetricRangeRow,
+} from "@/components/analytics/metric-range-strip";
 import {
   MonteCarloFan,
   MonteCarloHistogram,
@@ -60,7 +87,7 @@ import {
 import { cn } from "@/lib/utils";
 import { MetricInfo } from "@/components/metric-info";
 import { EmptyState } from "@/components/empty-state";
-import { BarChart3, Crosshair, Target } from "lucide-react";
+import { Activity, BarChart3, Crosshair, Target } from "lucide-react";
 import { PeriodFilter } from "@/components/filters/period-filter";
 import { CurrencyFilter } from "@/components/filters/currency-filter";
 import { AnalyticsFilters } from "@/components/analytics/analytics-filters";
@@ -118,6 +145,77 @@ function StatBox({
     </div>
   );
 }
+
+/**
+ * Sceglie la finestra rolling: quella richiesta se lo storico la sostiene,
+ * altrimenti la più lunga che ci sta dentro. null = nemmeno la più corta è
+ * sostenibile, e allora si mostra il gate invece di un grafico con due punti.
+ * I preset sono in ordine crescente.
+ */
+function pickWindow<T extends number>(
+  presets: readonly T[],
+  requested: number,
+  available: number,
+): T | null {
+  const fitting = presets.filter((p) => p <= available);
+  if (fitting.length === 0) return null;
+  const asked = presets.find((p) => p === requested);
+  return asked !== undefined && asked <= available
+    ? asked
+    : fitting[fitting.length - 1];
+}
+
+/** Riga della strip "corrente vs range storico", già formattata. */
+function rangeRow(
+  label: string,
+  range: SeriesRange,
+  format: (value: string) => string,
+  /** Soglia sopra la quale il valore corrente è "buono" (0, 1…). */
+  goodAbove?: string,
+): MetricRangeRow {
+  const show = (value: string | null) => (value === null ? "—" : format(value));
+  return {
+    label,
+    current: show(range.current),
+    min: show(range.min),
+    max: show(range.max),
+    median: show(range.median),
+    position: range.position === null ? null : Number(range.position),
+    medianPosition:
+      range.medianPosition === null ? null : Number(range.medianPosition),
+    tone:
+      goodAbove === undefined || range.current === null
+        ? undefined
+        : new Decimal(range.current).gt(goodAbove)
+          ? "profit"
+          : "loss",
+  };
+}
+
+/**
+ * Avvertenza sulle serie corte. Le finestre mobili si sovrappongono: due
+ * punti vicini condividono quasi tutti i dati, quindi poche finestre non
+ * sono poche osservazioni indipendenti — sono quasi una sola. Il grafico
+ * resta visibile (il dato non si nasconde), ma con il contesto accanto.
+ */
+function FewWindowsNote({ count, unit }: { count: number; unit: string }) {
+  if (count >= FEW_WINDOWS_THRESHOLD) return null;
+  return (
+    <p className="text-xs text-muted-foreground">
+      Solo {count} {unit} piene nel periodo: i valori sono corretti ma poco
+      informativi come <em>serie</em> — le finestre si sovrappongono quasi
+      del tutto, quindi il range storico qui sopra è costruito su pochi dati
+      indipendenti. Serve più storico prima di leggerci un andamento.
+    </p>
+  );
+}
+
+/** Rapporti adimensionali (Sharpe, Sortino, profit factor): due decimali. */
+const formatRatio = (value: string) =>
+  Number(value).toLocaleString("it-IT", {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  });
 
 export default async function AnalyticsPage({
   searchParams,
@@ -245,6 +343,66 @@ export default async function AnalyticsPage({
   // Valuta di visualizzazione: quella dello scope (mai una somma cross-valuta).
   const currency =
     currencyScope.active ?? user.baseCurrency;
+
+  // §2 — ROLLING METRICS.
+  //
+  // I ritorni giornalieri sono un fatto di CONTO, non di strumento: la serie
+  // riusa `mcDaily` (getDailyPnl ignora i filtri simbolo/direzione) e parte
+  // dall'equity a INIZIO periodo — saldo iniziale più il P&L chiuso prima
+  // del periodo selezionato. Senza quest'ultimo pezzo un periodo che inizia
+  // a metà storia dividerebbe per il solo saldo iniziale, gonfiando ogni
+  // ritorno di un conto cresciuto nel frattempo.
+  const pnlBeforePeriod = await getNetPnlBefore(
+    { userId, accountId, currency: currencyScope.active },
+    period.from,
+  );
+  const seriesEquity = new Decimal(mcStartBalance)
+    .plus(pnlBeforePeriod)
+    .toFixed(2);
+  const returnsSeries = new Decimal(seriesEquity).gt(0)
+    ? dailyReturns(mcDaily, seriesEquity)
+    : [];
+
+  const dayWindow = pickWindow(
+    DAY_WINDOWS,
+    Number(params.rw),
+    returnsSeries.length,
+  );
+  const ratioPoints = dayWindow ? rollingRatios(returnsSeries, dayWindow) : [];
+  const ratioRangeRows: MetricRangeRow[] = [
+    rangeRow("Sharpe", seriesRange(ratioPoints.map((p) => p.sharpe)), formatRatio, "0"),
+    rangeRow("Sortino", seriesRange(ratioPoints.map((p) => p.sortino)), formatRatio, "0"),
+  ];
+
+  // La finestra a trade, invece, rispetta i filtri della pagina: lì ogni
+  // punto è una statistica di trade, non di conto.
+  const tradeWindow = pickWindow(
+    TRADE_WINDOWS,
+    Number(params.rt),
+    coverage.total,
+  );
+  const tradePoints = rollingTradePoints(
+    tradeWindow
+      ? await getRollingTradeWindow(filter, user.timezone, tradeWindow)
+      : [],
+  );
+  const unitFormat: Record<
+    (typeof ROLLING_TRADE_METRICS)[number]["unit"],
+    (value: string) => string
+  > = {
+    percent: (v) => formatPercent(v),
+    r: (v) => formatRMultiple(v),
+    money: (v) => formatMoney(v, currency),
+    ratio: formatRatio,
+  };
+  const tradeRangeRows: MetricRangeRow[] = ROLLING_TRADE_METRICS.map((m) =>
+    rangeRow(
+      m.label,
+      seriesRange(tradePoints.map((p) => p[m.key])),
+      unitFormat[m.unit],
+      m.reference ?? undefined,
+    ),
+  );
 
   const hourSegments = fillHourSegments(hourRows);
   const durationSegments = fillDurationSegments(durationRows);
@@ -521,6 +679,112 @@ export default async function AnalyticsPage({
                   icon={BarChart3}
                   title="Storico troppo corto per simulare"
                   description="Servono almeno 30 trade chiusi con rischio definito: sotto quella soglia la proiezione direbbe più del dato che la sostiene."
+                />
+              )}
+            </CardContent>
+          </Card>
+
+          {/* §2 — rolling Sharpe/Sortino sui RITORNI giornalieri. */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2 text-base">
+                Sharpe e Sortino rolling
+                <MetricInfo info={rollingRatiosInfo} />
+              </CardTitle>
+              <CardDescription>
+                {dayWindow
+                  ? `Finestra mobile di ${dayWindow} sedute, annualizzata ×√252 (${ratioPoints.length} finestre piene).`
+                  : "Servono almeno 60 sedute nel periodo selezionato."}{" "}
+                Ritorno di una giornata = P&amp;L del giorno ÷ equity a inizio
+                giornata; le sedute senza trade entrano a ritorno 0 e il
+                risk-free è 0. Il calcolo è sull&apos;intero conto: i filtri
+                strumento e direzione non si applicano qui, perché
+                l&apos;equity non è di un singolo strumento.
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="flex flex-col gap-4">
+              <Suspense fallback={<div className="h-9" />}>
+                <RollingWindowControl
+                  param="rw"
+                  value={dayWindow ?? DAY_WINDOWS[0]}
+                  options={DAY_WINDOWS}
+                  label="Finestra"
+                  suffix="sedute"
+                  maxAvailable={returnsSeries.length}
+                />
+              </Suspense>
+
+              {ratioPoints.length > 0 ? (
+                <>
+                  <RollingRatioChart points={ratioPoints} />
+                  <MetricRangeStrip rows={ratioRangeRows} />
+                  <FewWindowsNote count={ratioPoints.length} unit="finestre" />
+                  {/* Differenza dichiarata, non lasciata scoprire. */}
+                  <p className="rounded-md border border-dashed p-3 text-xs text-muted-foreground">
+                    Questi due valori{" "}
+                    <strong className="text-foreground">
+                      non coincidono con lo Sharpe e il Sortino della
+                      dashboard
+                    </strong>
+                    : quelli sono calcolati sui P&amp;L giornalieri in valuta e
+                    non sono annualizzati, quindi cambiano se cambia la
+                    dimensione del conto. Qui si parte dai ritorni, che sono
+                    confrontabili fra conti di taglia diversa e con qualunque
+                    altra strategia.
+                  </p>
+                </>
+              ) : (
+                <EmptyState
+                  compact
+                  icon={Activity}
+                  title="Storico troppo corto per una finestra mobile"
+                  description="Servono almeno 60 sedute (giorni feriali dal primo all'ultimo trade del periodo) perché una sola finestra sia piena."
+                />
+              )}
+            </CardContent>
+          </Card>
+
+          {/* §2 — metriche journal su finestra a NUMERO DI TRADE. */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2 text-base">
+                Metriche rolling per finestra di trade
+                <MetricInfo info={rollingTradeInfo} />
+              </CardTitle>
+              <CardDescription>
+                {tradeWindow
+                  ? `Ogni punto riassume i ${tradeWindow} trade fino a quello (${tradePoints.length} punti mostrati).`
+                  : "Servono almeno 30 trade chiusi nel periodo selezionato."}{" "}
+                La finestra è a numero di trade, non a giorni: una pausa
+                dall&apos;operatività non diluisce il dato. Una metrica alla
+                volta, perché win rate, R, valuta e profit factor non stanno
+                sulla stessa scala.
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="flex flex-col gap-4">
+              <Suspense fallback={<div className="h-9" />}>
+                <RollingWindowControl
+                  param="rt"
+                  value={tradeWindow ?? TRADE_WINDOWS[0]}
+                  options={TRADE_WINDOWS}
+                  label="Finestra"
+                  suffix="trade"
+                  maxAvailable={coverage.total}
+                />
+              </Suspense>
+
+              {tradePoints.length > 0 ? (
+                <>
+                  <RollingTradeChart points={tradePoints} currency={currency} />
+                  <MetricRangeStrip rows={tradeRangeRows} />
+                  <FewWindowsNote count={tradePoints.length} unit="finestre" />
+                </>
+              ) : (
+                <EmptyState
+                  compact
+                  icon={Activity}
+                  title="Storico troppo corto per una finestra mobile"
+                  description="Servono almeno 30 trade chiusi: sotto quella soglia la serie mostrerebbe soltanto l'assestamento iniziale."
                 />
               )}
             </CardContent>
