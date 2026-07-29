@@ -198,7 +198,7 @@ async function main() {
     const url = args.urls[i];
     const name = args.names[i] ?? `shot-${i + 1}`;
     await client.send("Page.navigate", { url });
-    await sleep(args.wait ?? 3500);
+    await sleep(args.wait ?? 7000);
 
 
     // Pagina intera SENZA cambiare il viewport: `captureBeyondViewport`

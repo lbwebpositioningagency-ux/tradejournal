@@ -12,8 +12,20 @@ import {
   getRHistogram,
   getTargetRBuckets,
   getTargetVsRealized,
+  getHourPerformance,
+  getDurationPerformance,
   type AnalyticsFilter,
 } from "@/lib/queries/analytics";
+import {
+  DURATION_BUCKETS,
+  bestAndWorst,
+  durationPerformanceInfo,
+  fillDurationSegments,
+  fillHourSegments,
+  hourPerformanceInfo,
+} from "@/lib/metrics";
+import { SegmentPerformanceChart } from "@/components/analytics/segment-performance-chart";
+import { SegmentTable } from "@/components/analytics/segment-table";
 import {
   targetRBucketStats,
   targetRTotals,
@@ -94,13 +106,16 @@ export default async function AnalyticsPage({
     direction,
   };
 
-  const [coverage, bucketRows, histogram, scatter, symbols] = await Promise.all([
-    getPlanCoverage(filter),
-    getTargetRBuckets(filter),
-    getRHistogram(filter),
-    getTargetVsRealized(filter),
-    getAnalyticsSymbols({ ...base, currency: currencyScope.active }),
-  ]);
+  const [coverage, bucketRows, histogram, scatter, symbols, hourRows, durationRows] =
+    await Promise.all([
+      getPlanCoverage(filter),
+      getTargetRBuckets(filter),
+      getRHistogram(filter),
+      getTargetVsRealized(filter),
+      getAnalyticsSymbols({ ...base, currency: currencyScope.active }),
+      getHourPerformance(filter, user.timezone),
+      getDurationPerformance(filter, DURATION_BUCKETS),
+    ]);
 
   const buckets = targetRBucketStats(bucketRows);
   const totals = targetRTotals(buckets);
@@ -112,6 +127,15 @@ export default async function AnalyticsPage({
     direction: p.direction,
     hit: p.hit,
   }));
+
+  // Valuta di visualizzazione: quella dello scope (mai una somma cross-valuta).
+  const currency =
+    currencyScope.active ?? user.baseCurrency;
+
+  const hourSegments = fillHourSegments(hourRows);
+  const durationSegments = fillDurationSegments(durationRows);
+  const bestHour = bestAndWorst(hourSegments, (s) => s.avgR);
+  const bestDuration = bestAndWorst(durationSegments, (s) => s.avgR);
 
   const senzaR = coverage.total - coverage.withR;
   const senzaPiano = coverage.withR - coverage.withTargetR;
@@ -227,6 +251,80 @@ export default async function AnalyticsPage({
                   description="Compila stop e target nel piano del trade (o mappali nell'import CSV) per vedere questa analisi."
                 />
               )}
+            </CardContent>
+          </Card>
+
+          {/* §2 — performance per fascia oraria (ora di APERTURA). */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2 text-base">
+                Performance per fascia oraria
+                <MetricInfo info={hourPerformanceInfo} />
+              </CardTitle>
+              <CardDescription>
+                Fasce di un&apos;ora sull&apos;orario di <strong>apertura</strong>{" "}
+                del trade, nel tuo fuso ({user.timezone.replace("_", " ")}).
+                {bestHour.best && bestHour.worst && (
+                  <>
+                    {" "}
+                    Migliore <strong>{bestHour.best.label}</strong> (
+                    {formatRMultiple(bestHour.best.avgR!)} su{" "}
+                    {bestHour.best.total} trade) · peggiore{" "}
+                    <strong>{bestHour.worst.label}</strong> (
+                    {formatRMultiple(bestHour.worst.avgR!)} su{" "}
+                    {bestHour.worst.total}). Le fasce con meno di 5 trade non
+                    entrano in questo confronto.
+                  </>
+                )}
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="flex flex-col gap-4">
+              <SegmentPerformanceChart
+                points={hourSegments}
+                currency={currency}
+                ariaLabel="Performance per fascia oraria"
+              />
+              <SegmentTable
+                rows={hourSegments.filter((s) => !s.empty)}
+                currency={currency}
+                segmentLabel="Fascia oraria"
+              />
+            </CardContent>
+          </Card>
+
+          {/* §3 — performance per durata del trade. */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2 text-base">
+                Performance per durata
+                <MetricInfo info={durationPerformanceInfo} />
+              </CardTitle>
+              <CardDescription>
+                Quanto rende il trade al variare di quanto lo tieni aperto
+                (chiusura − apertura). I confini delle fasce sono tarati sulla
+                distribuzione reale dei trade, non fissati a priori.
+                {bestDuration.best && bestDuration.worst && (
+                  <>
+                    {" "}
+                    Migliore <strong>{bestDuration.best.label}</strong> (
+                    {formatRMultiple(bestDuration.best.avgR!)}) · peggiore{" "}
+                    <strong>{bestDuration.worst.label}</strong> (
+                    {formatRMultiple(bestDuration.worst.avgR!)}).
+                  </>
+                )}
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="flex flex-col gap-4">
+              <SegmentPerformanceChart
+                points={durationSegments}
+                currency={currency}
+                ariaLabel="Performance per durata del trade"
+              />
+              <SegmentTable
+                rows={durationSegments}
+                currency={currency}
+                segmentLabel="Durata"
+              />
             </CardContent>
           </Card>
 

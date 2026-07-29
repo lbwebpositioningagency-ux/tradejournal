@@ -53,3 +53,19 @@ export {
   type MonteCarloResult,
   type MonteCarloStep,
 } from "./monte-carlo";
+export {
+  segmentMetrics,
+  fillHourSegments,
+  fillDurationSegments,
+  bestAndWorst,
+  hourLabel,
+  DURATION_BUCKETS,
+  SMALL_SAMPLE_THRESHOLD,
+  hourPerformanceInfo,
+  durationPerformanceInfo,
+  type SegmentAggregates,
+  type SegmentMetrics,
+  type HourSegment,
+  type DurationSegment,
+  type DurationBucketKey,
+} from "./segment-performance";
