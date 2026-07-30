@@ -58,12 +58,12 @@ describe("riproducibilità", () => {
 
   it("valori attesi noti col seed di default (SIM1)", () => {
     const r = monteCarloLab(rValues, base)!;
-    expect(r.finalEquity.p05).toBeCloseTo(73774.08, 1);
-    expect(r.finalEquity.p50).toBeCloseTo(106170.68, 1);
-    expect(r.finalEquity.p95).toBeCloseTo(153579.85, 1);
-    expect(r.maxDrawdown.median).toBeCloseTo(0.091, 3);
-    expect(r.maxDrawdown.p95).toBeCloseTo(0.1497, 3);
-    expect(r.probProfit).toBeCloseTo(0.9994, 4);
+    expect(r.finalEquity.p05).toBeCloseTo(63346.0, 1);
+    expect(r.finalEquity.p50).toBeCloseTo(88372.53, 1);
+    expect(r.finalEquity.p95).toBeCloseTo(123914.31, 1);
+    expect(r.maxDrawdown.median).toBeCloseTo(0.094, 3);
+    expect(r.maxDrawdown.p95).toBeCloseTo(0.162, 3);
+    expect(r.probProfit).toBeCloseTo(0.9972, 4);
   });
 });
 

@@ -166,32 +166,35 @@ describe("bucket di durata — golden su SIM1", () => {
   });
 
   it("conteggi per fascia (valori noti dal dataset)", () => {
-    expect(segments.map((s) => s.total)).toEqual([17, 35, 21, 35, 29, 42, 21]);
+    expect(segments.map((s) => s.total)).toEqual([50, 85, 60, 126, 96, 112, 94]);
   });
 
   it("metriche della fascia più profittevole", () => {
-    const oltre12h = segments.find((s) => s.bucket === "gt12h")!;
-    expect(oltre12h.label).toBe("> 12 h");
-    expect(oltre12h.winRate).toBe("0.5238");
-    expect(oltre12h.avgR).toBe("0.6519");
-    expect(oltre12h.expectancy).toBe("380.92");
-    expect(oltre12h.netPnl).toBe("7999.40");
+    const unaDueOre = segments.find((s) => s.bucket === "1to2h")!;
+    expect(unaDueOre.label).toBe("1-2 h");
+    expect(unaDueOre.winRate).toBe("0.5397");
+    expect(unaDueOre.avgR).toBe("0.3712");
+    expect(unaDueOre.expectancy).toBe("167.91");
+    expect(unaDueOre.netPnl).toBe("21156.60");
   });
 
-  it("metriche della fascia in perdita", () => {
+  it("metriche della fascia peggiore", () => {
+    // Peggiore per R medio, NON in perdita: anche questo è un caso che la
+    // UI deve saper mostrare senza drammatizzarlo (verde tenue, non rosso).
     const mezzora = segments.find((s) => s.bucket === "30to60m")!;
-    expect(mezzora.winRate).toBe("0.3810");
-    expect(mezzora.avgR).toBe("-0.1142");
-    expect(mezzora.netPnl).toBe("-837.90");
+    expect(mezzora.winRate).toBe("0.4667");
+    expect(mezzora.avgR).toBe("0.1071");
+    expect(mezzora.netPnl).toBe("1435.20");
   });
 
-  it("i dati NON confermano l'ipotesi che i trade lunghi rendano peggio", () => {
-    // La metrica deve mostrare i dati, non la conclusione attesa: su SIM1
-    // l'R medio CRESCE con la durata. Il test fissa il comportamento del
-    // modulo, non un pregiudizio sul risultato.
-    const breve = segments.find((s) => s.bucket === "lt15m")!;
-    const lungo = segments.find((s) => s.bucket === "gt12h")!;
-    expect(Number(lungo.avgR)).toBeGreaterThan(Number(breve.avgR));
+  it("la relazione durata→rendimento non è monotona: la metrica non ha pregiudizi", () => {
+    // Sul dataset attuale il picco dell'R medio sta nelle fasce CENTRALI
+    // (15-30m e 1-2h), non agli estremi: né "i trade lunghi rendono peggio"
+    // né il suo contrario. Il modulo mostra i dati, non una tesi — e questo
+    // test fissa proprio l'assenza di monotonia.
+    const byKey = new Map(segments.map((s) => [s.bucket, Number(s.avgR)]));
+    expect(byKey.get("1to2h")!).toBeGreaterThan(byKey.get("lt15m")!);
+    expect(byKey.get("1to2h")!).toBeGreaterThan(byKey.get("gt12h")!);
   });
 });
 
@@ -200,7 +203,7 @@ describe("bestAndWorst", () => {
 
   it("trova il migliore e il peggiore per R medio", () => {
     const { best, worst } = bestAndWorst(segments, (s) => s.avgR);
-    expect(best!.bucket).toBe("gt12h");
+    expect(best!.bucket).toBe("1to2h");
     expect(worst!.bucket).toBe("30to60m");
   });
 
@@ -224,7 +227,7 @@ describe("bestAndWorst", () => {
       },
     ];
     // Due trade fortunati non devono diventare "la fascia migliore".
-    expect(bestAndWorst(conRumore, (s) => s.avgR).best!.label).toBe("> 12 h");
+    expect(bestAndWorst(conRumore, (s) => s.avgR).best!.label).toBe("1-2 h");
     expect(
       bestAndWorst(conRumore, (s) => s.avgR, { includeSmallSamples: true }).best!
         .label,

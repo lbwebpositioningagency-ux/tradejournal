@@ -838,7 +838,7 @@ export default async function AnalyticsPage({
               <CardDescription>
                 {tradeWindow
                   ? `Ogni punto riassume i ${tradeWindow} trade fino a quello (${tradePoints.length} punti mostrati).`
-                  : "Servono almeno 30 trade chiusi nel periodo selezionato."}{" "}
+                  : "Servono almeno 50 trade chiusi nel periodo selezionato."}{" "}
                 La finestra è a numero di trade, non a giorni: una pausa
                 dall&apos;operatività non diluisce il dato. Una metrica alla
                 volta, perché win rate, R, valuta e profit factor non stanno
@@ -868,7 +868,7 @@ export default async function AnalyticsPage({
                   compact
                   icon={Activity}
                   title="Storico troppo corto per una finestra mobile"
-                  description="Servono almeno 30 trade chiusi: sotto quella soglia la serie mostrerebbe soltanto l'assestamento iniziale."
+                  description="Servono almeno 50 trade chiusi: sotto quella soglia la serie mostrerebbe soltanto l'assestamento iniziale."
                 />
               )}
             </CardContent>

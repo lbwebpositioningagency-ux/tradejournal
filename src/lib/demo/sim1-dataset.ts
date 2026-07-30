@@ -41,8 +41,12 @@ function mulberry32(seed: number) {
  * factor sotto 2,5, drawdown reale a doppia cifra, streak lunghe ma non
  * inverosimili). I dati non sono ritoccati a posteriori: cambia solo quale
  * flusso pseudocasuale viene estratto.
+ *
+ * Ri-scansionato nella Fase 23 dopo l'aumento di densità (il vecchio
+ * 20260850 produceva un drawdown massimo del 7%, sotto la soglia dichiarata):
+ * 20260862 → 623 trade, win rate 49,3%, PF 1,53, max DD 14,7%.
  */
-export const SIM1_SEED = 20260850;
+export const SIM1_SEED = 20260862;
 
 /** Saldo iniziale del conto demo (USD). */
 export const SIM1_INITIAL_BALANCE = "50000.00";
@@ -283,8 +287,15 @@ function expectations(
 }
 
 /**
- * Genera il dataset completo del conto demo: ~200 trade chiusi su oltre 18
+ * Genera il dataset completo del conto demo: ~600 trade chiusi su oltre 18
  * mesi più 2 posizioni ancora aperte (per il widget "Posizioni aperte").
+ *
+ * Densità ALZATA nella Fase 23 (da ~0,5 a ~1,5 trade/giorno, profilo da day
+ * trader attivo): i preset rolling a numero-trade arrivano a 500 e con i 200
+ * trade storici nemmeno il demo avrebbe avuto una finestra piena da
+ * mostrare. Il PERIODO resta lo stesso: i regimi datati (drawdown estate
+ * 2025, recupero) alimentano underwater, Calmar e Monte Carlo e non vanno
+ * spostati.
  */
 export function buildSim1Dataset(seed: number = SIM1_SEED): Sim1Trade[] {
   const rand = mulberry32(seed);
@@ -293,15 +304,15 @@ export function buildSim1Dataset(seed: number = SIM1_SEED): Sim1Trade[] {
 
   for (let dayIdx = 0; dayIdx < days.length; dayIdx++) {
     const day = days[dayIdx];
-    // ~0,5 trade per giornata operativa: i ~200 trade coprono TUTTI i 18+ mesi
-    // (il tetto non deve scattare prima della fine, altrimenti le finestre
-    // rolling a 252 giorni e il Monte Carlo temporale perdono respiro).
-    if (rand() > 0.42) continue;
-    const tradesToday = rand() < 0.18 ? 2 : 1;
+    // ~1,5 trade per giornata operativa; il tetto è un fusibile che non deve
+    // scattare prima della fine del periodo, altrimenti le finestre rolling
+    // e il Monte Carlo temporale perdono respiro.
+    if (rand() > 0.85) continue;
+    const tradesToday = rand() < 0.75 ? 2 : 1;
 
     for (let k = 0; k < tradesToday; k++) {
       const index = trades.length;
-      if (index >= 200) break;
+      if (index >= 640) break;
 
       const spec = SYMBOLS[Math.floor(rand() * SYMBOLS.length)];
       const direction: "LONG" | "SHORT" = rand() < 0.52 ? "LONG" : "SHORT";

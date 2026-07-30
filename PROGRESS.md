@@ -655,6 +655,21 @@ Tre card su `/analytics`. Le metriche di base (Sortino, Calmar, profit factor, p
 
 **Nota:** durante questa fase un'altra sessione stava lavorando nello stesso repo (termometro volatilità per Macro Desk). I file di quella feature non fanno parte di questa fase e non vanno mescolati nel commit; il conteggio totale dei test riportato da `npm test` include anche i suoi.
 
+## ✅ FASE 23 «Preset rolling 50/100/250/500 + SIM1 esteso» (30/07/2026)
+I preset della finestra rolling a numero-trade passano da 30/50/100 a **50/100/250/500** (le finestre a sedute per Sharpe/Sortino — 60/120/252 — restano invariate, confermate dall'utente).
+
+**Checkpoint sollevato e decisione presa.** Il brief assumeva che SIM1 coprisse tutti e quattro i preset, ma SIM1 aveva **200 trade chiusi**: 250 e 500 sarebbero risultati disabilitati ovunque, demo compreso, e il golden test SQL-vs-TypeScript sulle finestre lunghe sarebbe stato impossibile «sui dati reali». Decisione dell'utente: **estendere SIM1 a ~600 trade**.
+
+**Come è stato esteso — densità, non periodo.** Alzata la frequenza da ~0,5 a ~1,5 trade/giorno (profilo da day trader attivo, tetto-fusibile a 640) mantenendo lo STESSO arco temporale: i regimi datati (drawdown estate 2025, recupero) alimentano underwater, Calmar e Monte Carlo e non andavano spostati. Cambiare il flusso RNG invalida il seed scelto: **ri-scansionato coi criteri già dichiarati nel file** (win rate 45-55%, PF < 2,5, DD a doppia cifra, netto positivo — mai ritoccare i dati, si sceglie solo quale flusso pseudocasuale estrarre) → `SIM1_SEED = 20260862`: **623 trade chiusi**, win rate 49,28%, PF 1,53, net +71.718,90 USD, max DD 11,59%, 374 giornate operative.
+
+**Golden rigenerati, con una narrativa che si è invertita.** Tutti i valori attesi SIM1 sono stati ricalcolati (dataset test, demo-account integration, segment-performance, Monte Carlo lab). Il caso interessante: sul vecchio dataset «l'R medio cresce con la durata» (fissato da un test della Fase 19); sul nuovo il picco sta nelle fasce CENTRALI (1-2h migliore, 30-60m peggiore ma NON in perdita). Il test è stato riscritto per fissare **l'assenza di monotonia** — il modulo mostra i dati, non una tesi — invece di forzare la vecchia conclusione su dati nuovi.
+
+**Golden nuovi sulle finestre lunghe** (`rolling.integration.test.ts`): 250 e 500 verificate col metodo della Fase 21 (finestra SQL vs ricalcolo TypeScript trade per trade sul DB reale), più un test-sentinella che pretende ≥ 500 trade su SIM1 — se il conto demo torna sotto, il golden lungo diventerebbe un no-op silenzioso e il test lo dice.
+
+**UI:** nessun componente toccato — i preset arrivano da `TRADE_WINDOWS` (unica fonte). Aggiornati i due testi «almeno 30 trade» → 50 e la formula del tooltip. Verificato su build di produzione: SIM1 con finestra 500 → 124 finestre piene e grafico disegnato; conto reale (91 trade) → 100/250/500 disabilitati con «Servono almeno N trade: nello scope attuale ce ne sono 91», fallback su 50. Le soglie del Monte Carlo (30 R) e dell'optimal f (30 trade) sono soglie DIVERSE e restano invariate.
+
+**Verificato:** lint ✅ · typecheck ✅ · **804/804 test** ✅ (il totale include i test della sessione parallela sul Macro Desk) · build di produzione ✅ · seed locale rilanciato (415 → 838 trade totali nel DB) · screenshot in `docs/premium-20260730/fase23/` (SIM1 1280+390, conto reale 1280; i "before" sono gli screenshot della Fase 21 con i preset 30/50/100) · **seed di produzione da rilanciare dopo il deploy** (`DATABASE_URL=<neon> npm run db:seed:sim1`, script scoped al solo SIM1).
+
 ### ▶ Prossimi passi
 
 **Il piano premium è completo** (§1 Monte Carlo, §2 rolling metrics, §3 metriche pro).

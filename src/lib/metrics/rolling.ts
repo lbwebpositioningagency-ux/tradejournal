@@ -47,8 +47,14 @@ const ANNUALIZATION = new Decimal(TRADING_DAYS_PER_YEAR).sqrt();
 export const DAY_WINDOWS = [60, 120, 252] as const;
 export type DayWindow = (typeof DAY_WINDOWS)[number];
 
-/** Finestre a numero di trade. */
-export const TRADE_WINDOWS = [30, 50, 100] as const;
+/**
+ * Finestre a numero di trade. Allargate nella Fase 23 (da 30/50/100): con
+ * uno storico da centinaia di trade la finestra corta è rumore, e 250/500
+ * mostrano la deriva lenta che le finestre piccole non possono vedere. Chi
+ * ha meno storico vede i preset lunghi disabilitati col motivo — regola
+ * della Fase 21, invariata.
+ */
+export const TRADE_WINDOWS = [50, 100, 250, 500] as const;
 export type TradeWindow = (typeof TRADE_WINDOWS)[number];
 
 /**
@@ -350,5 +356,5 @@ export const rollingTradeInfo: MetricInfoData = {
   description:
     "Le stesse metriche del journal (win rate, R medio, expectancy, profit factor) calcolate sugli ultimi N trade e fatte scorrere nel tempo: mostrano se la forma attuale è dentro o fuori dalla tua normalità. La finestra è a numero di trade, non a giorni — una pausa dall'operatività non diluisce il dato.",
   formula:
-    "Ogni punto = metriche degli N trade fino a quello, con N = 30/50/100 · solo finestre piene",
+    "Ogni punto = metriche degli N trade fino a quello, con N = 50/100/250/500 · solo finestre piene",
 };

@@ -110,14 +110,14 @@ describe("SIM1 — integrità del P&L (golden)", () => {
         { trades: perSymbolCount.get(symbol), net: net.toFixed(2) },
       ]),
     );
-    // CL è lo strumento marginale del conto (+435 su 44 trade, contro i
-    // ~10-13k degli altri): il breakdown "per simbolo" ha così qualcosa da
+    // ES è lo strumento marginale del conto (+5,4k su 154 trade, contro i
+    // ~27-30k di GC e NQ): il breakdown "per simbolo" ha così qualcosa da
     // dire, non quattro righe tutte uguali.
     expect(actual).toEqual({
-      ES: { trades: 47, net: "10676.20" },
-      NQ: { trades: 53, net: "13021.80" },
-      GC: { trades: 56, net: "10765.00" },
-      CL: { trades: 44, net: "435.00" },
+      ES: { trades: 154, net: "5398.90" },
+      NQ: { trades: 150, net: "26885.00" },
+      GC: { trades: 151, net: "30000.00" },
+      CL: { trades: 168, net: "9435.00" },
     });
   });
 
@@ -126,7 +126,7 @@ describe("SIM1 — integrità del P&L (golden)", () => {
       (sum, trade) => sum.plus(compute(trade).netPnl),
       new Decimal(0),
     );
-    expect(total.toFixed(2)).toBe("34898.00");
+    expect(total.toFixed(2)).toBe("71718.90");
   });
 });
 
@@ -150,29 +150,29 @@ describe("SIM1 — metriche golden", () => {
 
   it("conteggi e somme", () => {
     expect(aggregates).toEqual({
-      total: 200,
-      wins: 96,
-      losses: 104,
+      total: 623,
+      wins: 307,
+      losses: 316,
       breakevens: 0,
-      netPnl: "34898.00",
-      winSum: "78980.90",
-      lossSum: "-44082.90",
-      fees: "1372.00",
+      netPnl: "71718.90",
+      winSum: "206904.20",
+      lossSum: "-135185.30",
+      fees: "4233.60",
     });
   });
 
   it("win rate, profit factor, expectancy, payoff", () => {
-    expect(winRate(aggregates.wins, aggregates.total)).toBe("0.4800");
-    expect(profitFactor(aggregates.winSum, aggregates.lossSum)).toBe("1.7916");
-    expect(expectancy(aggregates)).toBe("174.49");
-    expect(avgWin(aggregates.winSum, aggregates.wins)).toBe("822.72");
-    expect(avgLoss(aggregates.lossSum, aggregates.losses)).toBe("423.87");
+    expect(winRate(aggregates.wins, aggregates.total)).toBe("0.4928");
+    expect(profitFactor(aggregates.winSum, aggregates.lossSum)).toBe("1.5305");
+    expect(expectancy(aggregates)).toBe("115.12");
+    expect(avgWin(aggregates.winSum, aggregates.wins)).toBe("673.96");
+    expect(avgLoss(aggregates.lossSum, aggregates.losses)).toBe("427.80");
     expect(
       payoffRatio(
         avgWin(aggregates.winSum, aggregates.wins),
         avgLoss(aggregates.lossSum, aggregates.losses),
       ),
-    ).toBe("1.9410");
+    ).toBe("1.5754");
   });
 
   it("drawdown reale sulla curva di equity giornaliera", () => {
@@ -185,12 +185,12 @@ describe("SIM1 — metriche golden", () => {
       .sort(([a], [b]) => a.localeCompare(b))
       .map(([day, netPnl]) => ({ day, netPnl: netPnl.toFixed(2), trades: 0 }));
 
-    expect(daily.length).toBe(166);
+    expect(daily.length).toBe(374);
     expect(maxDrawdown(daily, SIM1_INITIAL_BALANCE)).toEqual({
-      maxDrawdown: "9080.50",
-      maxDrawdownPct: "0.1349",
-      date: "2025-09-12",
-      avgDrawdown: "2310.36",
+      maxDrawdown: "9013.20",
+      maxDrawdownPct: "0.1159",
+      date: "2025-09-29",
+      avgDrawdown: "3048.17",
     });
   });
 });

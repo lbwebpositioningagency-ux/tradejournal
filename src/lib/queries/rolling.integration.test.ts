@@ -16,7 +16,9 @@ import Decimal from "decimal.js";
 
 const hasDb = Boolean(process.env.DATABASE_URL);
 const ROME = "Europe/Rome";
-const WINDOW = 30;
+const WINDOW = 50;
+/** Fase 23: le due finestre lunghe nuove, verificate con lo stesso metodo. */
+const LONG_WINDOWS = [250, 500] as const;
 
 describe.skipIf(!hasDb)("rolling metrics su dati reali", () => {
   /* eslint-disable @typescript-eslint/no-explicit-any */
@@ -83,6 +85,37 @@ describe.skipIf(!hasDb)("rolling metrics su dati reali", () => {
     expect(last.rCount).toBe(
       slice.filter((t) => t.rMultiple !== null).length,
     );
+  });
+
+  it("le finestre lunghe (250, 500) coincidono col ricalcolo TS sui dati reali", async () => {
+    if (!filter) return;
+
+    for (const window of LONG_WINDOWS) {
+      if (trades.length < window) continue;
+      const rows = await getRollingTradeWindow(filter, ROME, window);
+      expect(rows.length).toBeGreaterThan(0);
+      const last = rows[rows.length - 1];
+      expect(last.idx).toBe(trades.length);
+
+      const slice = trades.slice(trades.length - window);
+      const netPnl = slice.reduce(
+        (acc, t) => acc.plus(t.netPnl),
+        new Decimal(0),
+      );
+      const wins = slice.filter((t) => new Decimal(t.netPnl).gt(0)).length;
+
+      expect(last.total).toBe(window);
+      expect(last.wins).toBe(wins);
+      expect(new Decimal(last.netPnl).toFixed(2)).toBe(netPnl.toFixed(2));
+    }
+  });
+
+  it("SIM1 sostiene TUTTI i preset: il test lungo non deve saltare in silenzio", () => {
+    if (!filter) return;
+    // Se questo cade, il conto demo è tornato sotto i 500 trade e il golden
+    // sulle finestre lunghe sopra è diventato un no-op: sistemare il seed,
+    // non questo numero.
+    expect(trades.length).toBeGreaterThanOrEqual(500);
   });
 
   it("solo finestre piene, indici crescenti e ultimo punto sempre presente", async () => {

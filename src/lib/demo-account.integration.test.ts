@@ -103,7 +103,7 @@ describe.skipIf(!hasDb)("conto demo SIM1 su Postgres", () => {
         where: { tradingAccountId: demoAccountId, status: "OPEN" },
       }),
     ]);
-    expect(closed).toBe(200);
+    expect(closed).toBe(623);
     expect(open).toBe(2);
   });
 
@@ -121,10 +121,10 @@ describe.skipIf(!hasDb)("conto demo SIM1 su Postgres", () => {
       ]),
     );
     expect(actual).toEqual({
-      ES: { trades: 47, net: "10676.20" },
-      NQ: { trades: 53, net: "13021.80" },
-      GC: { trades: 56, net: "10765.00" },
-      CL: { trades: 44, net: "435.00" },
+      ES: { trades: 154, net: "5398.90" },
+      NQ: { trades: 150, net: "26885.00" },
+      GC: { trades: 151, net: "30000.00" },
+      CL: { trades: 168, net: "9435.00" },
     });
   });
 
@@ -154,8 +154,8 @@ describe.skipIf(!hasDb)("conto demo SIM1 su Postgres", () => {
       userId: demoAccount.userId,
       accountId: demoAccountId,
     });
-    expect(aggregates.total).toBe(200);
-    expect(aggregates.netPnl).toBe("34898.00");
+    expect(aggregates.total).toBe(623);
+    expect(aggregates.netPnl).toBe("71718.90");
   });
 
   it("le scritture sul conto demo non trovano nulla da modificare", async () => {
