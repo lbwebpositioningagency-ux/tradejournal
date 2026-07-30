@@ -109,6 +109,129 @@ export function simulateEquityCurves(
   return { paths, mean };
 }
 
+// ── Fase 34b — statistiche e bande derivate dai percorsi ─────────────────
+//
+// Tutto DERIVATO da `paths`: nessuna seconda simulazione, così tabella e
+// bande raccontano esattamente le linee che si vedono nel grafico. Con
+// poche linee (default 20) i percentili estremi sono grezzi — è il prezzo
+// dichiarato di leggere le stesse curve del grafico invece di un campione
+// più largo.
+
+export interface Percentiles {
+  p05: number;
+  p25: number;
+  p50: number;
+  p75: number;
+  p95: number;
+}
+
+function percentileOf(sorted: number[], p: number): number {
+  if (sorted.length === 0) return 0;
+  const index = Math.min(
+    sorted.length - 1,
+    Math.max(0, Math.round(p * (sorted.length - 1))),
+  );
+  return sorted[index];
+}
+
+function percentiles(values: number[]): Percentiles {
+  const sorted = [...values].sort((a, b) => a - b);
+  return {
+    p05: percentileOf(sorted, 0.05),
+    p25: percentileOf(sorted, 0.25),
+    p50: percentileOf(sorted, 0.5),
+    p75: percentileOf(sorted, 0.75),
+    p95: percentileOf(sorted, 0.95),
+  };
+}
+
+/** Perdita frazionaria che si considera "rovina" (come il vecchio MC). */
+export const RUIN_THRESHOLD = 0.5;
+
+export interface EquitySimulatorStats {
+  /** P(equity finale > equity iniziale). */
+  probProfit: number;
+  /** Equity finale in valuta, per percentile di scenario. */
+  finalEquity: Percentiles;
+  /** Ritorno finale come frazione dell'equity iniziale (0.25 = +25%). */
+  finalReturn: Percentiles;
+  /** Max drawdown come frazione del picco, per percentile di scenario. */
+  maxDrawdown: Percentiles;
+  /** P(l'equity scende sotto la soglia di rovina in un momento qualunque). */
+  riskOfRuin: number;
+  lines: number;
+}
+
+/** Max drawdown frazionario (dal picco) di un singolo percorso. */
+export function pathMaxDrawdown(path: number[]): number {
+  let peak = -Infinity;
+  let maxDd = 0;
+  for (const v of path) {
+    if (v > peak) peak = v;
+    const dd = peak > 0 ? (peak - v) / peak : 0;
+    if (dd > maxDd) maxDd = dd;
+  }
+  return maxDd;
+}
+
+export function equityStatsFromPaths(
+  paths: number[][],
+  startEquity: number,
+): EquitySimulatorStats | null {
+  if (paths.length === 0 || !Number.isFinite(startEquity) || startEquity <= 0)
+    return null;
+
+  const finals = paths.map((p) => p[p.length - 1]);
+  const drawdowns = paths.map(pathMaxDrawdown);
+  const ruinFloor = startEquity * (1 - RUIN_THRESHOLD);
+
+  return {
+    probProfit: finals.filter((v) => v > startEquity).length / paths.length,
+    finalEquity: percentiles(finals),
+    finalReturn: percentiles(finals.map((v) => (v - startEquity) / startEquity)),
+    maxDrawdown: percentiles(drawdowns),
+    riskOfRuin:
+      paths.filter((p) => p.some((v) => v <= ruinFloor)).length / paths.length,
+    lines: paths.length,
+  };
+}
+
+export interface EquityBandPoint {
+  mean: number;
+  /** Deviazione standard di POPOLAZIONE (÷N) dell'equity al passo. */
+  sd: number;
+  /** media ± 1σ (~68% degli esiti), pavimento a zero. */
+  inner: [number, number];
+  /** media ± 2σ (~95% degli esiti), pavimento a zero. */
+  outer: [number, number];
+}
+
+/** Bande di deviazione standard per passo, dagli STESSI percorsi del grafico. */
+export function equityBandsFromPaths(paths: number[][]): EquityBandPoint[] {
+  if (paths.length === 0) return [];
+  const steps = paths[0].length;
+  const bands: EquityBandPoint[] = new Array(steps);
+  for (let t = 0; t < steps; t++) {
+    let sum = 0;
+    for (const path of paths) sum += path[t];
+    const mean = sum / paths.length;
+    let squares = 0;
+    for (const path of paths) {
+      const d = path[t] - mean;
+      squares += d * d;
+    }
+    const sd = Math.sqrt(squares / paths.length);
+    bands[t] = {
+      mean,
+      sd,
+      // L'equity non può essere negativa: la banda non deve suggerirlo.
+      inner: [Math.max(0, mean - sd), mean + sd],
+      outer: [Math.max(0, mean - 2 * sd), mean + 2 * sd],
+    };
+  }
+  return bands;
+}
+
 export const equitySimulatorInfo: MetricInfoData = {
   label: "Equity curve simulator",
   description:

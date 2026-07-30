@@ -2,8 +2,9 @@
 
 import { useId, useState } from "react";
 import {
+  Area,
+  ComposedChart,
   Line,
-  LineChart,
   ReferenceLine,
   ResponsiveContainer,
   Tooltip,
@@ -15,10 +16,21 @@ import { useChartAnimation } from "@/components/charts/use-chart-animation";
 import {
   SIM_MAX_LINES,
   SIM_MAX_TRADES,
+  equityBandsFromPaths,
+  equityStatsFromPaths,
+  RUIN_THRESHOLD,
   simulateEquityCurves,
   type EquityRiskMode,
   type EquitySimulatorResult,
+  type EquitySimulatorStats,
 } from "@/lib/metrics/equity-simulator";
+import {
+  formatMoney,
+  formatPercent,
+  formatPercentSmall,
+  pnlColorClass,
+} from "@/lib/money";
+import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -143,11 +155,12 @@ export function EquitySimulator({
     (value: string) =>
       setForm((f) => ({ ...f, [key]: value }));
 
+  const bands = result === null ? [] : equityBandsFromPaths(result.paths);
   const rows =
     result === null
       ? []
       : result.mean.map((mean, t) => {
-          const row: Record<string, number | null> = { trade: t };
+          const row: Record<string, number | number[] | null> = { trade: t };
           let lo = Infinity;
           let hi = -Infinity;
           result.paths.forEach((path, i) => {
@@ -161,10 +174,20 @@ export function EquitySimulator({
           row.mean = scale === "log" && mean <= 0 ? null : mean;
           row.lo = lo;
           row.hi = hi;
+          // Bande ±1σ/±2σ come range [min, max]; in log una banda che tocca
+          // lo zero non è disegnabile e si interrompe, come le linee.
+          const band = bands[t];
+          row.inner =
+            scale === "log" && band.inner[0] <= 0 ? null : [...band.inner];
+          row.outer =
+            scale === "log" && band.outer[0] <= 0 ? null : [...band.outer];
+          row.sd = band.sd;
           return row;
         });
 
   const startEquity = parseNum(applied.form.startEquity);
+  const stats: EquitySimulatorStats | null =
+    result === null ? null : equityStatsFromPaths(result.paths, startEquity);
 
   return (
     <div className="flex flex-col gap-4">
@@ -283,83 +306,282 @@ export function EquitySimulator({
           100% dell&apos;equity.
         </p>
       ) : (
-        <ResponsiveContainer width="100%" height={320}>
-          <LineChart data={rows} margin={CHART.margin}>
-            <XAxis
-              dataKey="trade"
-              type="number"
-              domain={[0, "dataMax"]}
-              tick={CHART.axisTick}
-              tickLine={false}
-              axisLine={false}
-              minTickGap={24}
-            />
-            <YAxis
-              scale={scale === "log" ? "log" : "linear"}
-              domain={scale === "log" ? ["auto", "auto"] : ["auto", "auto"]}
-              tick={CHART.axisTick}
-              tickLine={false}
-              axisLine={false}
-              width={CHART.yAxisWidth}
-              tickFormatter={fmtEquity}
-              allowDataOverflow
-            />
-            {Number.isFinite(startEquity) && (scale !== "log" || startEquity > 0) ? (
-              <ReferenceLine
-                y={startEquity}
-                className="stroke-muted-foreground"
-                strokeDasharray="4 4"
+        <>
+          <ResponsiveContainer width="100%" height={320}>
+            <ComposedChart data={rows} margin={CHART.margin}>
+              <XAxis
+                dataKey="trade"
+                type="number"
+                domain={[0, "dataMax"]}
+                tick={CHART.axisTick}
+                tickLine={false}
+                axisLine={false}
+                minTickGap={24}
               />
-            ) : null}
-            <Tooltip
-              content={({ active, payload, label }) => {
-                if (!active || !payload?.length) return null;
-                const row = payload[0].payload as {
-                  mean: number | null;
-                  lo: number;
-                  hi: number;
-                };
-                return (
-                  <div style={CHART.tooltipStyle} className="px-3 py-2">
-                    <div style={CHART.tooltipLabelStyle} className="font-medium">
-                      Trade #{label}
+              <YAxis
+                scale={scale === "log" ? "log" : "linear"}
+                domain={["auto", "auto"]}
+                tick={CHART.axisTick}
+                tickLine={false}
+                axisLine={false}
+                width={CHART.yAxisWidth}
+                tickFormatter={fmtEquity}
+                allowDataOverflow
+              />
+              {Number.isFinite(startEquity) &&
+              (scale !== "log" || startEquity > 0) ? (
+                <ReferenceLine
+                  y={startEquity}
+                  className="stroke-muted-foreground"
+                  strokeDasharray="4 4"
+                />
+              ) : null}
+              <Tooltip
+                content={({ active, payload, label }) => {
+                  if (!active || !payload?.length) return null;
+                  const row = payload[0].payload as {
+                    mean: number | null;
+                    lo: number;
+                    hi: number;
+                    sd: number;
+                  };
+                  const range = (k: number) =>
+                    row.mean === null
+                      ? "—"
+                      : `${fmtEquity(Math.max(0, row.mean - k * row.sd))} – ${fmtEquity(row.mean + k * row.sd)}`;
+                  return (
+                    <div style={CHART.tooltipStyle} className="px-3 py-2">
+                      <div style={CHART.tooltipLabelStyle} className="font-medium">
+                        Trade #{label}
+                      </div>
+                      <div style={CHART.tooltipItemStyle}>
+                        Media: {row.mean === null ? "0" : fmtEquity(row.mean)}{" "}
+                        {currency}
+                      </div>
+                      <div style={CHART.tooltipItemStyle}>±1σ (68%): {range(1)}</div>
+                      <div style={CHART.tooltipItemStyle}>±2σ (95%): {range(2)}</div>
+                      <div style={CHART.tooltipItemStyle}>
+                        Min–max: {fmtEquity(row.lo)} – {fmtEquity(row.hi)}
+                      </div>
                     </div>
-                    <div style={CHART.tooltipItemStyle}>
-                      Media: {row.mean === null ? "0" : fmtEquity(row.mean)}{" "}
-                      {currency}
-                    </div>
-                    <div style={CHART.tooltipItemStyle}>
-                      Range: {fmtEquity(row.lo)} – {fmtEquity(row.hi)} {currency}
-                    </div>
-                  </div>
-                );
-              }}
-              cursor={CHART.cursor}
-            />
-            {result.paths.map((_, i) => (
+                  );
+                }}
+                cursor={CHART.cursor}
+              />
+              {/* Bande σ DIETRO a tutto: famiglia neutra (accento blu del
+                  progetto), esterna più tenue dell'interna. */}
+              <Area
+                dataKey="outer"
+                stroke="none"
+                fill="var(--chart-1)"
+                fillOpacity={0.1}
+                connectNulls={false}
+                isAnimationActive={animate}
+              />
+              <Area
+                dataKey="inner"
+                stroke="none"
+                fill="var(--chart-1)"
+                fillOpacity={0.22}
+                connectNulls={false}
+                isAnimationActive={animate}
+              />
+              {/* I percorsi: texture di sfondo, sopra le bande, sotto la media. */}
+              {result.paths.map((_, i) => (
+                <Line
+                  key={i}
+                  dataKey={`l${i}`}
+                  stroke={lineColor(i)}
+                  strokeWidth={1}
+                  strokeOpacity={0.2}
+                  dot={false}
+                  connectNulls={false}
+                  isAnimationActive={animate}
+                />
+              ))}
+              {/* La media, sopra tutte: foreground pieno, leggibile nei due temi. */}
               <Line
-                key={i}
-                dataKey={`l${i}`}
-                stroke={lineColor(i)}
-                strokeWidth={1}
-                strokeOpacity={0.55}
+                dataKey="mean"
+                stroke="var(--foreground)"
+                strokeWidth={3}
+                strokeOpacity={1}
                 dot={false}
                 connectNulls={false}
                 isAnimationActive={animate}
               />
-            ))}
-            {/* La media, sopra tutte: "nera" = foreground, leggibile nei due temi. */}
-            <Line
-              dataKey="mean"
-              stroke="var(--foreground)"
-              strokeWidth={3}
-              dot={false}
-              connectNulls={false}
-              isAnimationActive={animate}
-            />
-          </LineChart>
-        </ResponsiveContainer>
+            </ComposedChart>
+          </ResponsiveContainer>
+
+          {/* Legenda: le serie sono troppe per quella automatica di Recharts. */}
+          <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-muted-foreground">
+            <span className="inline-flex items-center gap-1.5">
+              <span
+                aria-hidden
+                className="inline-block h-0.5 w-5 rounded"
+                style={{ background: "var(--foreground)" }}
+              />
+              Media
+            </span>
+            <span className="inline-flex items-center gap-1.5">
+              <span
+                aria-hidden
+                className="inline-block h-3 w-5 rounded-sm"
+                style={{ background: "var(--chart-1)", opacity: 0.35 }}
+              />
+              ±1σ (~68%)
+            </span>
+            <span className="inline-flex items-center gap-1.5">
+              <span
+                aria-hidden
+                className="inline-block h-3 w-5 rounded-sm"
+                style={{ background: "var(--chart-1)", opacity: 0.16 }}
+              />
+              ±2σ (~95%)
+            </span>
+            <span className="inline-flex items-center gap-1.5">
+              <span
+                aria-hidden
+                className="inline-block h-0.5 w-5 rounded"
+                style={{ background: lineColor(0), opacity: 0.45 }}
+              />
+              Percorsi simulati ({result.paths.length})
+            </span>
+          </div>
+
+          {stats !== null ? <SimulatorStats stats={stats} currency={currency} /> : null}
+        </>
       )}
+    </div>
+  );
+}
+
+/** Riquadro compatto valore+contesto, come le StatBox della pagina. */
+function MiniStat({
+  label,
+  value,
+  sub,
+  tone,
+}: {
+  label: string;
+  value: string;
+  sub?: string;
+  tone?: "profit" | "loss";
+}) {
+  return (
+    <div className="rounded-lg border p-3">
+      <div className="stat-label">{label}</div>
+      <div
+        className={cn(
+          "stat-value mt-1",
+          tone === "profit" && "text-profit",
+          tone === "loss" && "text-loss",
+        )}
+      >
+        {value}
+      </div>
+      {sub ? <div className="stat-sub mt-0.5">{sub}</div> : null}
+    </div>
+  );
+}
+
+/**
+ * Fase 34b — la tabella di statistiche del vecchio Monte Carlo, reintegrata.
+ * Tutto derivato dagli STESSI percorsi del grafico: con 20 linee i percentili
+ * estremi sono grezzi, e la didascalia lo dice invece di nasconderlo.
+ */
+function SimulatorStats({
+  stats,
+  currency,
+}: {
+  stats: EquitySimulatorStats;
+  currency: string;
+}) {
+  const scenarios = [
+    ["Peggiore (5%)", "p05"],
+    ["Sfavorevole (25%)", "p25"],
+    ["Mediano", "p50"],
+    ["Favorevole (75%)", "p75"],
+    ["Migliore (95%)", "p95"],
+  ] as const;
+
+  return (
+    <div className="flex flex-col gap-4">
+      <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+        <MiniStat
+          label="P(in profitto)"
+          value={formatPercent(stats.probProfit.toFixed(4))}
+          tone={stats.probProfit >= 0.5 ? "profit" : "loss"}
+        />
+        <MiniStat
+          label="Ritorno mediano"
+          value={formatPercent(stats.finalReturn.p50.toFixed(4))}
+          tone={stats.finalReturn.p50 >= 0 ? "profit" : "loss"}
+        />
+        <MiniStat
+          label="Max drawdown mediano"
+          value={formatPercent(stats.maxDrawdown.p50.toFixed(4))}
+          sub={`95° percentile ${formatPercent(stats.maxDrawdown.p95.toFixed(4))}`}
+        />
+        <MiniStat
+          label="Risk of ruin"
+          value={formatPercentSmall(stats.riskOfRuin.toFixed(4))}
+          sub={`soglia: perdita del ${formatPercent(String(RUIN_THRESHOLD), 0)}`}
+          tone={stats.riskOfRuin > 0.05 ? "loss" : undefined}
+        />
+      </div>
+
+      <div className="overflow-x-auto">
+        <table className="w-full text-sm">
+          <thead>
+            <tr className="border-b text-left text-xs text-muted-foreground">
+              <th className="py-2 pr-3 font-medium">Scenario</th>
+              <th className="py-2 pr-3 text-right font-medium">Equity finale</th>
+              <th className="py-2 pr-3 text-right font-medium">Ritorno</th>
+              <th className="py-2 text-right font-medium">Max drawdown</th>
+            </tr>
+          </thead>
+          <tbody>
+            {scenarios.map(([label, key]) => (
+              <tr key={key} className="border-b last:border-0">
+                <td className="py-2 pr-3">{label}</td>
+                <td className="py-2 pr-3 text-right tabular-nums">
+                  {formatMoney(stats.finalEquity[key].toFixed(2), currency)}
+                </td>
+                <td
+                  className={cn(
+                    "py-2 pr-3 text-right font-medium tabular-nums",
+                    pnlColorClass(stats.finalReturn[key].toFixed(4)),
+                  )}
+                >
+                  {formatPercent(stats.finalReturn[key].toFixed(4))}
+                </td>
+                <td className="py-2 text-right tabular-nums text-loss">
+                  {/* Il drawdown peggiore sta nello scenario peggiore: la
+                      colonna si legge specchiata rispetto all'equity. */}
+                  {formatPercent(
+                    stats.maxDrawdown[
+                      key === "p05"
+                        ? "p95"
+                        : key === "p25"
+                          ? "p75"
+                          : key === "p75"
+                            ? "p25"
+                            : key === "p95"
+                              ? "p05"
+                              : "p50"
+                    ].toFixed(4),
+                  )}
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+      <p className="text-xs text-muted-foreground">
+        Statistiche calcolate sulle {stats.lines} linee del grafico (nessuna
+        simulazione separata): con poche linee i percentili estremi sono
+        indicativi — alza «Number of lines» per stime più stabili.
+      </p>
     </div>
   );
 }
