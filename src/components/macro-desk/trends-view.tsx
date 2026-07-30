@@ -144,8 +144,9 @@ const CYCLE_COLOR: Record<CycleLabel, string> = {
 
 /**
  * Riga compatta del layer calcolato (FASE 29): trend, variazioni di
- * periodo, percentile storico (con l'anno di partenza dichiarato — varia
- * per serie) e posizione nel ciclo. Chip mono coerenti con la card.
+ * periodo e posizione nel ciclo. Il chip del percentile storico è stato
+ * rimosso ovunque nella FASE 32 (il calcolo resta nel modulo metriche).
+ * Chip mono coerenti con la card.
  */
 function MetricsRow({
   metrics,
@@ -188,16 +189,6 @@ function MetricsRow({
               )}${change.pct ? "%" : " pt"}`}
         </MonoChip>
       ))}
-
-      {metrics.percentile !== null && metrics.historyStartYear !== null ? (
-        <span
-          title={`Percentile calcolato sulla storia disponibile della serie dal ${metrics.historyStartYear}`}
-        >
-          <MonoChip>
-            {metrics.percentile}° pct dal {metrics.historyStartYear}
-          </MonoChip>
-        </span>
-      ) : null}
 
       {!hideCycle && metrics.cycle !== null ? (
         <MonoChip color={CYCLE_COLOR[metrics.cycle]}>

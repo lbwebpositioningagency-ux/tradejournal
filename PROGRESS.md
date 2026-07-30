@@ -754,6 +754,13 @@ Riga di pillole cliccabili tra le tessere (Fase 30) e la barra dei tab: una per 
 
 **Verificato:** typecheck ✅ · lint ✅ · **870/870 test** ✅ (5 nuovi su `prevailingLabel`: maggioranza, null che non votano, pareggio anche 2-2-1, lista vuota/tutti null, voto singolo).
 
+## ✅ FASE 32 «Rimozione del chip percentile da Trends» (30/07/2026)
+Il chip «N° pct dal YYYY» della Fase 29 non viene più reso da NESSUNA parte della pagina Trends: né nelle 6 tessere del quadro sintetico né nelle card di dettaglio delle 10 sezioni. Rimosso direttamente da `MetricsRow` (il componente condiviso), non con un flag per-istanza come `hideCycle`: qui non serviva un'eccezione selettiva, va via sempre.
+
+**Scelta sul modulo:** il calcolo (`percentileAllHistory`, campi `percentile`/`historyStartYear` in `SeriesMetrics`) RESTA in `macro-trends-metrics.ts` coi suoi test — toglierlo del tutto avrebbe toccato modulo, tipi, orchestratore e test per risparmiare due numeri a serie nel payload; non ne vale la pena e resta disponibile per usi futuri. Non confondere col chip `pct 1A/3A/5A` delle serie di volatilità nell'header delle card (pre-Fase 29, campo `percentiles`): quello è un'altra cosa e resta.
+
+**Verificato:** typecheck ✅ · lint ✅ · suite completa ✅ (solo rimozione di rendering, nessun test da cambiare).
+
 ### ▶ Prossimi passi
 
 **Il piano premium è completo** (§1 Monte Carlo, §2 rolling metrics, §3 metriche pro).
