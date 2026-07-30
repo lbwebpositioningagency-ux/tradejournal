@@ -1,26 +1,29 @@
 import { describe, expect, it } from "vitest";
 import {
   fillSessionSeries,
+  SESSION_TIMEZONE,
   SESSION_WINDOWS,
   SESSIONS,
 } from "./sessions";
 
 describe("sessioni di mercato", () => {
-  it("F7: finestre nel fuso dell'exchange, in ordine di priorità NY → Londra → Asia", () => {
-    expect(SESSION_WINDOWS.map((w) => w.session)).toEqual([
-      "NEWYORK",
-      "LONDON",
-      "ASIA",
+  it("Fase 35: fasce contigue in ora italiana — Asia 00-08, Londra 08-14, NY 14-22, OFF 22-24", () => {
+    expect(SESSION_WINDOWS).toEqual([
+      { session: "ASIA", startMin: 0, endMin: 480 },
+      { session: "LONDON", startMin: 480, endMin: 840 },
+      { session: "NEWYORK", startMin: 840, endMin: 1320 },
     ]);
-    for (const window of SESSION_WINDOWS) {
-      expect(window.startMin).toBeGreaterThanOrEqual(0);
-      expect(window.endMin).toBeGreaterThan(window.startMin);
-      expect(window.endMin).toBeLessThanOrEqual(24 * 60);
-      // Fuso IANA reale: Intl deve accettarlo (protegge da refusi).
-      expect(() =>
-        new Intl.DateTimeFormat("en-US", { timeZone: window.timezone }),
-      ).not.toThrow();
+    // Partizione: ogni fascia inizia dove finisce la precedente, e il
+    // residuo 22:00-24:00 è la categoria OFF (mai accorpata alle tre).
+    for (let i = 1; i < SESSION_WINDOWS.length; i++) {
+      expect(SESSION_WINDOWS[i].startMin).toBe(SESSION_WINDOWS[i - 1].endMin);
     }
+    expect(SESSION_WINDOWS.at(-1)!.endMin).toBeLessThan(24 * 60);
+    // Fuso IANA reale (mai offset fisso): Intl deve accettarlo.
+    expect(SESSION_TIMEZONE).toBe("Europe/Rome");
+    expect(() =>
+      new Intl.DateTimeFormat("en-US", { timeZone: SESSION_TIMEZONE }),
+    ).not.toThrow();
     expect(SESSIONS).toEqual(["ASIA", "LONDON", "NEWYORK", "OFF"]);
   });
 

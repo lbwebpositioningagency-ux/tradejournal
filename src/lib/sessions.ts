@@ -1,38 +1,42 @@
 /**
- * Sessioni di mercato: classificazione sull'ora di APERTURA del trade nel
- * FUSO DELL'EXCHANGE (F7) — non più fasce UTC fisse: con l'ora legale i
- * confini UTC scivolano e i trade finivano nella sessione sbagliata per
- * metà anno (il seed classificava "Asia" aperture delle 09:00 di Roma).
+ * Sessioni di mercato: classificazione sull'ora di APERTURA del trade in
+ * ORA ITALIANA (Fase 35, ridefinisce la F7). Non più i fusi dei singoli
+ * exchange con finestre sovrapposte e priorità: il trader ragiona sul
+ * proprio orologio, e le fasce sono una PARTIZIONE contigua della giornata
+ * italiana — ogni minuto appartiene a esattamente una sessione, nessuna
+ * regola di precedenza da spiegare.
  *
- * Definizione (ora LOCALE dell'exchange, [inizio, fine), DST gestita dal
- * doppio AT TIME ZONE in SQL):
- * - NEWYORK  09:30–16:00  America/New_York  (cash session)
- * - LONDON   08:00–16:30  Europe/London
- * - ASIA     09:00–15:00  Asia/Tokyo
- * - OFF      tutto il resto
+ * Definizione (ora di Europe/Rome, [inizio, fine)):
+ * - ASIA     00:00–08:00  (Tokyo)
+ * - LONDON   08:00–14:00  (Europa)
+ * - NEWYORK  14:00–22:00  (America)
+ * - OFF      22:00–24:00  (fuori sessione — categoria a sé)
  *
- * Le finestre si SOVRAPPONGONO (Londra pomeriggio = mattina NY): la
- * partizione è per priorità New York → Londra → Asia, cioè l'overlap va
- * alla sessione a maggior volume. È una scelta di attribuzione dichiarata,
- * non un doppio conteggio.
+ * L'ora legale è gestita dal fuso IANA col doppio AT TIME ZONE in SQL
+ * (timestamp naive UTC → Europe/Rome), MAI da un offset fisso: tra CET e
+ * CEST i confini in UTC scivolano di un'ora e la classificazione resta
+ * corretta in entrambe le stagioni.
  */
 
 export const SESSIONS = ["ASIA", "LONDON", "NEWYORK", "OFF"] as const;
 export type SessionKey = (typeof SESSIONS)[number];
 
+/** Fuso unico della classificazione: l'orologio del trader, non gli exchange. */
+export const SESSION_TIMEZONE = "Europe/Rome";
+
 /**
- * Finestre in minuti LOCALI dell'exchange ([inizio, fine)), nell'ordine di
- * priorità di attribuzione. Unica fonte di verità per la query SQL.
+ * Fasce in minuti dell'ora italiana ([inizio, fine)), contigue e senza
+ * sovrapposizioni; OFF è il residuo 22:00–24:00. Unica fonte di verità per
+ * la query SQL.
  */
 export const SESSION_WINDOWS: {
   session: Exclude<SessionKey, "OFF">;
-  timezone: string;
   startMin: number;
   endMin: number;
 }[] = [
-  { session: "NEWYORK", timezone: "America/New_York", startMin: 9 * 60 + 30, endMin: 16 * 60 },
-  { session: "LONDON", timezone: "Europe/London", startMin: 8 * 60, endMin: 16 * 60 + 30 },
-  { session: "ASIA", timezone: "Asia/Tokyo", startMin: 9 * 60, endMin: 15 * 60 },
+  { session: "ASIA", startMin: 0, endMin: 8 * 60 },
+  { session: "LONDON", startMin: 8 * 60, endMin: 14 * 60 },
+  { session: "NEWYORK", startMin: 14 * 60, endMin: 22 * 60 },
 ];
 
 export const SESSION_LABELS: Record<SessionKey, string> = {
@@ -90,7 +94,7 @@ export function fillSessionSeries(rows: SessionRow[]): SessionPoint[] {
 export const sessionsInfo = {
   label: "Performance per sessione",
   description:
-    "Trade, win rate, R medio e profitto per sessione di mercato, classificati sull'ora di APERTURA nel fuso dell'exchange (ora legale inclusa). Gli overlap vanno alla sessione a maggior volume: New York prima di Londra, Londra prima di Tokyo.",
+    "Trade, win rate, R medio e profitto per sessione di mercato, classificati sull'ora di APERTURA in ora italiana (Europe/Rome, ora legale gestita automaticamente). Le fasce sono contigue: ogni trade appartiene a una sessione sola, e le 22–24 sono una categoria a sé.",
   formula:
-    "New York 09:30–16:00 (America/New_York) · Londra 08:00–16:30 (Europe/London) · Asia 09:00–15:00 (Asia/Tokyo) · priorità NY → Londra → Asia · resto: fuori sessione",
+    "Ora italiana: Asia (Tokyo) 00–08 · Europa (Londra) 08–14 · America (New York) 14–22 · Fuori sessione 22–24",
 };

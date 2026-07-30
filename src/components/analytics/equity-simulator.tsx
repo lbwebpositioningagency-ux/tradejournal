@@ -18,12 +18,18 @@ import {
   SIM_MAX_TRADES,
   equityBandsFromPaths,
   equityStatsFromPaths,
+  medianMaxDrawdownInfo,
+  medianReturnInfo,
+  percentileTableInfo,
+  probProfitInfo,
   RUIN_THRESHOLD,
   simulateEquityCurves,
+  simulatorRuinInfo,
   type EquityRiskMode,
   type EquitySimulatorResult,
   type EquitySimulatorStats,
 } from "@/lib/metrics/equity-simulator";
+import { MetricInfo } from "@/components/metric-info";
 import {
   formatMoney,
   formatPercent,
@@ -461,15 +467,20 @@ function MiniStat({
   value,
   sub,
   tone,
+  info,
 }: {
   label: string;
   value: string;
   sub?: string;
   tone?: "profit" | "loss";
+  info?: React.ComponentProps<typeof MetricInfo>["info"];
 }) {
   return (
     <div className="rounded-lg border p-3">
-      <div className="stat-label">{label}</div>
+      <div className="stat-label flex items-center gap-1">
+        {label}
+        {info ? <MetricInfo info={info} /> : null}
+      </div>
       <div
         className={cn(
           "stat-value mt-1",
@@ -499,7 +510,7 @@ function SimulatorStats({
   const scenarios = [
     ["Peggiore (5%)", "p05"],
     ["Sfavorevole (25%)", "p25"],
-    ["Mediano", "p50"],
+    ["Median", "p50"],
     ["Favorevole (75%)", "p75"],
     ["Migliore (95%)", "p95"],
   ] as const;
@@ -511,26 +522,35 @@ function SimulatorStats({
           label="P(in profitto)"
           value={formatPercent(stats.probProfit.toFixed(4))}
           tone={stats.probProfit >= 0.5 ? "profit" : "loss"}
+          info={probProfitInfo}
         />
         <MiniStat
-          label="Ritorno mediano"
+          label="Median return"
           value={formatPercent(stats.finalReturn.p50.toFixed(4))}
           tone={stats.finalReturn.p50 >= 0 ? "profit" : "loss"}
+          info={medianReturnInfo}
         />
         <MiniStat
-          label="Max drawdown mediano"
+          label="Median max drawdown"
           value={formatPercent(stats.maxDrawdown.p50.toFixed(4))}
           sub={`95° percentile ${formatPercent(stats.maxDrawdown.p95.toFixed(4))}`}
+          info={medianMaxDrawdownInfo}
         />
         <MiniStat
           label="Risk of ruin"
           value={formatPercentSmall(stats.riskOfRuin.toFixed(4))}
           sub={`soglia: perdita del ${formatPercent(String(RUIN_THRESHOLD), 0)}`}
           tone={stats.riskOfRuin > 0.05 ? "loss" : undefined}
+          info={simulatorRuinInfo}
         />
       </div>
 
-      <div className="overflow-x-auto">
+      <div className="flex flex-col gap-2">
+        <div className="stat-label flex items-center gap-1">
+          Scenari per percentile
+          <MetricInfo info={percentileTableInfo} />
+        </div>
+        <div className="overflow-x-auto">
         <table className="w-full text-sm">
           <thead>
             <tr className="border-b text-left text-xs text-muted-foreground">
@@ -576,6 +596,7 @@ function SimulatorStats({
             ))}
           </tbody>
         </table>
+        </div>
       </div>
       <p className="text-xs text-muted-foreground">
         Statistiche calcolate sulle {stats.lines} linee del grafico (nessuna

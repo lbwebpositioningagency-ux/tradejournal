@@ -208,9 +208,10 @@ function regimeFor(day: Date): (typeof REGIMES)[number] {
 }
 
 /**
- * Minuto di apertura (UTC) per sessione: le finestre sono quelle riconosciute
- * dall'app (fuso dell'exchange, F7). Distribuzione voluta: Londra e New York
- * dominanti, una quota reale su Asia, qualche trade fuori sessione.
+ * Minuto di apertura (UTC): distribuzione voluta con mattina/pomeriggio
+ * europei dominanti, una quota notturna e qualche apertura tarda. (Le
+ * etichette nei commenti sono descrittive: la classificazione REALE in
+ * sessioni la fa l'app, in ora italiana — Fase 35.)
  */
 function openingMinuteUtc(r: number, rand: () => number): number {
   if (r < 0.18) return 1 * 60 + Math.floor(rand() * 240); // Asia (01:00-05:00Z)

@@ -232,6 +232,44 @@ export function equityBandsFromPaths(paths: number[][]): EquityBandPoint[] {
   return bands;
 }
 
+// Fase 35 — spiegazioni dei quattro riquadri e della tabella percentili.
+// Etichette con "Median" (inglese), testi in italiano come il resto dell'app.
+
+export const probProfitInfo: MetricInfoData = {
+  label: "P(in profitto)",
+  description:
+    "La probabilità che il percorso finisca con un'equity superiore a quella di partenza, calcolata sulla quota di linee simulate che chiudono in guadagno.",
+  formula: "linee con equity finale > equity iniziale / linee totali",
+};
+
+export const medianReturnInfo: MetricInfoData = {
+  label: "Median return",
+  description:
+    "Il ritorno del percorso «di mezzo» tra tutti quelli simulati: metà delle simulazioni fa meglio, metà fa peggio.",
+  formula: "mediana dei ritorni finali · ritorno = (equity finale − iniziale) / iniziale",
+};
+
+export const medianMaxDrawdownInfo: MetricInfoData = {
+  label: "Median max drawdown",
+  description:
+    "Il calo massimo dal picco che il percorso «di mezzo» ha sperimentato. Accanto c'è il 95° percentile: il drawdown che solo il 5% dei percorsi supera, cioè lo scenario quasi peggiore.",
+  formula: "mediana dei max drawdown per percorso · DD = (picco − equity) / picco",
+};
+
+export const simulatorRuinInfo: MetricInfoData = {
+  label: "Risk of ruin",
+  description:
+    "La probabilità che, in almeno un punto del percorso, l'equity scenda al 50% del capitale iniziale. Anche se poi risale, quel percorso conta comunque come «rovinato»: la soglia si tocca una volta sola.",
+  formula: "percorsi che toccano il 50% dell'equity iniziale / percorsi totali",
+};
+
+export const percentileTableInfo: MetricInfoData = {
+  label: "Scenari per percentile",
+  description:
+    "Come leggere le fasce: «Peggiore (5%)» = solo il 5% dei percorsi simulati va peggio di questo scenario. «Sfavorevole (25%)» = il 25% fa peggio, il 75% fa meglio. «Favorevole (75%)» e «Migliore (95%)» sono la lettura speculare, dal lato dei risultati migliori. «Median» è il percorso di mezzo.",
+  formula: "percentili 5/25/50/75/95 su equity finale, ritorno e max drawdown delle linee simulate",
+};
+
 export const equitySimulatorInfo: MetricInfoData = {
   label: "Equity curve simulator",
   description:
