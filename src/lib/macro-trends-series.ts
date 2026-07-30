@@ -84,13 +84,6 @@ export const TRENDS_SECTIONS = [
     reading:
       "Vol nei percentili bassi con eventi binari in agenda = rischio sottoprezzato (fragilità); percentili alti = hedge cari e posizionamento affollato. Sono gli stessi indici (VIX/GVZ/OVX) citati nei pilastri del report giornaliero.",
   },
-  {
-    id: "cross",
-    label: "Cross-asset",
-    feeds: "Contesto, non decisione",
-    reading:
-      "I prezzi degli asset seguiti dal desk, con il grafico firma: reali 10Y INVERTITI sovrapposti all'oro — la relazione inversa che governa il metallo, visibile a occhio.",
-  },
 ] as const;
 
 export type TrendsSectionId = (typeof TRENDS_SECTIONS)[number]["id"];
@@ -479,7 +472,7 @@ export const TRENDS_SERIES: TrendsSeriesDef[] = [
     refLine: 0,
     highlight: true,
     reading:
-      "IL driver numero uno dell'oro: reali su = oro giù, e viceversa. Il grafico firma nella sezione Cross-asset li mostra invertiti sopra il metallo.",
+      "IL driver numero uno dell'oro: reali su = oro giù, e viceversa — la relazione inversa che governa il metallo.",
   },
 
   /* ── 5 · Liquidità & credito ─────────────────────────────────────── */
@@ -631,47 +624,6 @@ export const TRENDS_SERIES: TrendsSeriesDef[] = [
       "La vol del greggio esplode sugli shock d'offerta: percentile alto = premio geopolitico già pagato.",
   },
 
-  /* ── 7 · Cross-asset ─────────────────────────────────────────────── */
-  {
-    key: "wti",
-    fredIds: ["DCOILWTICO"],
-    section: "cross",
-    label: "WTI spot",
-    unit: "$",
-    transform: "level",
-    decimals: 2,
-    cadence: "daily",
-    goodDirection: "neutral",
-    deltaMode: "pct",
-    reading: "Il livello che il desk commenta ogni giorno, qui con decenni di contesto.",
-  },
-  {
-    key: "gold",
-    fredIds: ["GOLDPMGBD228NLBM", "GOLDAMGBD228NLBM"],
-    section: "cross",
-    label: "Oro (fixing Londra)",
-    unit: "$",
-    transform: "level",
-    decimals: 0,
-    cadence: "daily",
-    goodDirection: "neutral",
-    deltaMode: "pct",
-    reading:
-      "Il fixing PM di Londra: la serie storica lunga del metallo (se non risolve, si prova il fixing AM).",
-  },
-  {
-    key: "sp500",
-    fredIds: ["SP500"],
-    section: "cross",
-    label: "S&P 500",
-    unit: "",
-    transform: "level",
-    decimals: 0,
-    cadence: "daily",
-    goodDirection: "up",
-    deltaMode: "pct",
-    reading: "FRED ne tiene ~10 anni: bastano per il contesto di ciclo.",
-  },
 ];
 
 /** Le 6 tessere del quadro sintetico in cima alla pagina, in ordine. */

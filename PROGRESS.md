@@ -685,6 +685,17 @@ Ogni fase del journal (Premarket / In-Market / Post-Market) ha ora i PROPRI alle
 
 **Verificato:** lint ✅ · typecheck ✅ · **823/823 test** ✅ (8 nuovi: 4 unitari sul raggruppamento — isolamento per fase, day-level mai riassegnato, fase sconosciuta → giornata; 4 di integrazione su Postgres — query della Day View con isolamento fra sezioni, esclusione degli altri giorni, cascade della nota, nota vuota con allegati leggibile) · build di produzione ✅ · **E2E via CDP sulla build di produzione**: upload REALE attraverso la UI (`DOM.setFileInputFiles` → server action) in Premarket e Post-market, poi lettura del DOM: sezioni a 1/0/1 allegati e card giornata a 0; quindi scrivi→salva→svuota→salva sul Premarket e **l'allegato è sopravvissuto** · screenshot in `docs/premium-20260730/fase24/` (1280 e 390, entrambe le sezioni popolate) · dati di prova rimossi.
 
+## ✅ FASE 25 «Rimozione Cross Asset da Macro Desk Trends» (30/07/2026)
+Sezione eliminata, non nascosta — stesso approccio della rimozione Prop Firm Rules (Fase 17).
+
+**Inventario:** la sezione viveva in tre punti — la voce `cross` in `TRENDS_SECTIONS` con le sue tre serie FRED dedicate (WTI spot `DCOILWTICO`, oro fixing Londra `GOLDPMGBD228NLBM`/`AM`, S&P 500 `SP500`), il blocco del «grafico firma» (oro vs reali 10Y invertiti) con la voce colore in `trends-view.tsx`, e il componente `TrendsSignatureChart` in `trends-chart.tsx` (~140 righe, usato solo lì). Più un testo della serie `real-10y` che rimandava alla sezione: riscritto senza il rimando.
+
+**Database: nessun checkpoint necessario.** La cache dei Trends è la Next data cache (revalidate 24h), non una tabella: le tre serie rimosse non hanno righe da nessuna parte, semplicemente non verranno più scaricate. Niente colonne orfane, niente migrazione da proporre.
+
+**Non toccato:** le altre sei sezioni (Inflazione, Lavoro, Crescita, Tassi & Curva, Liquidità & Credito, Volatilità), le sei tessere del quadro sintetico, le bande NBER. Il token `--md-gold` resta: è l'accento dell'asset oro in tutto il Macro Desk, non un colore della sezione rimossa. `--md-cross` idem (lo usa Liquidità).
+
+**Verificato:** typecheck ✅ · lint ✅ · 832/832 test ✅ · build di produzione ✅ · `grep` su tutto `src/` senza residui (esclusi i falsi positivi `crosshair` e `--md-cross`) · tab bar verificata su build di produzione via CDP: da 7 a 6 sezioni, prima e dopo in `docs/premium-20260730/fase25/` (1280 e 390; i «n/d» nelle card dipendono dall'assenza di `FRED_API_KEY` in locale, presenti identici nel before).
+
 ### ▶ Prossimi passi
 
 **Il piano premium è completo** (§1 Monte Carlo, §2 rolling metrics, §3 metriche pro).

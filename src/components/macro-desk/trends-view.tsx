@@ -16,7 +16,7 @@ import {
 import { HORIZONS, type Horizon } from "@/lib/macro-trends-transforms";
 import type { ComparisonPoint } from "@/lib/macro-trends-transforms";
 import { Callout, MonoChip, PanelLabel } from "./primitives";
-import { TrendsLineChart, TrendsSignatureChart } from "./trends-chart";
+import { TrendsLineChart } from "./trends-chart";
 
 /**
  * Vista Trends: sub-navigazione a sezioni, orizzonte condiviso (client-side
@@ -32,7 +32,6 @@ const SECTION_COLOR: Record<TrendsSectionId, string> = {
   tassi: "var(--md-idx)",
   liquidita: "var(--md-cross)",
   volatilita: "var(--md-down)",
-  cross: "var(--md-gold)",
 };
 
 function fmtValue(value: number, decimals: number): string {
@@ -341,8 +340,6 @@ export function TrendsView({ data }: { data: TrendsData }) {
   );
   const sectionMeta = TRENDS_SECTIONS.find((s) => s.id === section)!;
   const sectionSeries = data.series.filter((s) => s.def.section === section);
-  const gold = byKey.get("gold");
-  const real = byKey.get("real-10y");
 
   return (
     <div className="flex flex-col gap-4 p-4 sm:p-6">
@@ -435,32 +432,6 @@ export function TrendsView({ data }: { data: TrendsData }) {
         <Callout label={sectionMeta.feeds} color={SECTION_COLOR[section]}>
           {sectionMeta.reading}
         </Callout>
-
-        {section === "cross" && gold?.status === "ok" && real?.status === "ok" ? (
-          <div className="md-card flex flex-col gap-3 p-4">
-            <div className="flex flex-wrap items-center justify-between gap-2">
-              <PanelLabel>
-                <span style={{ color: "var(--md-gold)" }}>Oro</span>
-                {" vs "}
-                <span style={{ color: "var(--md-info)" }}>
-                  reali 10Y (invertiti)
-                </span>
-              </PanelLabel>
-              <MonoChip>il grafico firma</MonoChip>
-            </div>
-            <TrendsSignatureChart
-              gold={gold.points}
-              real={real.points}
-              horizon={horizon}
-              recessions={data.recessions}
-            />
-            <p className="text-2xs leading-relaxed" style={{ color: "var(--md-muted)" }}>
-              Reali in salita = linea blu che scende = pressione sull&apos;oro:
-              quando le due linee divergono a lungo, uno dei due mercati sta
-              sbagliando (di solito non sono i TIPS).
-            </p>
-          </div>
-        ) : null}
 
         <div className="grid gap-3 xl:grid-cols-2">
           {sectionSeries.map((view) => (
