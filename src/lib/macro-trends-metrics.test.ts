@@ -7,6 +7,7 @@ import {
   MIN_HISTORY_SAMPLES,
   percentileAllHistory,
   periodChanges,
+  prevailingLabel,
   stdDev,
   trendMetric,
 } from "@/lib/macro-trends-metrics";
@@ -194,6 +195,72 @@ describe("cycleMetric", () => {
   it("serie costante (sd = 0) o corta → null", () => {
     expect(cycleMetric(monthly(Array(30).fill(4)), 1)).toBeNull();
     expect(cycleMetric(monthly([1, 2, 3]), 1)).toBeNull();
+  });
+});
+
+describe("prevailingLabel", () => {
+  it("maggioranza netta → winner con conteggi giusti", () => {
+    const res = prevailingLabel([
+      "espansione",
+      "espansione",
+      "ripresa",
+      "espansione",
+      "contrazione",
+    ]);
+    expect(res).toEqual({
+      winner: "espansione",
+      tie: false,
+      count: 3,
+      total: 5,
+    });
+  });
+
+  it("i null (indicatori sotto soglia) non votano", () => {
+    const res = prevailingLabel(["ripresa", null, "ripresa", null]);
+    expect(res).toEqual({ winner: "ripresa", tie: false, count: 2, total: 2 });
+  });
+
+  it("pareggio in testa → winner null e tie=true, mai scelta arbitraria", () => {
+    const res = prevailingLabel(["espansione", "contrazione"]);
+    expect(res.winner).toBeNull();
+    expect(res.tie).toBe(true);
+    expect(res.count).toBe(1);
+    expect(res.total).toBe(2);
+    // Il pareggio 2-2 con un terzo sotto non è "vinto" dal terzo.
+    const res2 = prevailingLabel([
+      "espansione",
+      "espansione",
+      "ripresa",
+      "ripresa",
+      "contrazione",
+    ]);
+    expect(res2.winner).toBeNull();
+    expect(res2.tie).toBe(true);
+    expect(res2.count).toBe(2);
+  });
+
+  it("tutti null o lista vuota → total 0 (pillola N/D)", () => {
+    expect(prevailingLabel([null, null])).toEqual({
+      winner: null,
+      tie: false,
+      count: 0,
+      total: 0,
+    });
+    expect(prevailingLabel([])).toEqual({
+      winner: null,
+      tie: false,
+      count: 0,
+      total: 0,
+    });
+  });
+
+  it("voto singolo → winner con 1 di 1", () => {
+    expect(prevailingLabel(["laterale"])).toEqual({
+      winner: "laterale",
+      tie: false,
+      count: 1,
+      total: 1,
+    });
   });
 });
 

@@ -15,10 +15,11 @@ import {
 } from "@/lib/macro-trends-series";
 import { HORIZONS, type Horizon } from "@/lib/macro-trends-transforms";
 import type { ComparisonPoint } from "@/lib/macro-trends-transforms";
-import type {
-  CycleLabel,
-  SeriesMetrics,
-  TrendLabel,
+import {
+  prevailingLabel,
+  type CycleLabel,
+  type SeriesMetrics,
+  type TrendLabel,
 } from "@/lib/macro-trends-metrics";
 import { Callout, MonoChip, PanelLabel } from "./primitives";
 import { TrendsLineChart } from "./trends-chart";
@@ -205,6 +206,85 @@ function MetricsRow({
       ) : null}
     </div>
   );
+}
+
+/** Nome breve delle sezioni per le pillole di riepilogo (FASE 31). */
+const SECTION_SHORT: Record<TrendsSectionId, string> = {
+  inflazione: "Inflazione",
+  lavoro: "Lavoro",
+  crescita: "Crescita",
+  consumi: "Consumi",
+  produzione: "Produzione",
+  housing: "Housing",
+  tassi: "Tassi",
+  liquidita: "Liquidità",
+  money: "Money",
+  volatilita: "Vol",
+};
+
+function capitalize(text: string): string {
+  return text.charAt(0).toUpperCase() + text.slice(1);
+}
+
+interface SectionPill {
+  id: TrendsSectionId;
+  short: string;
+  /** Etichetta aggregata: ciclo prevalente, «Misto» o «N/D». */
+  text: string;
+  color: string;
+  /** Dettaglio numerico del conteggio, on-hover. */
+  title: string;
+}
+
+/**
+ * Pillola aggregata per sezione: l'etichetta di CICLO più frequente tra
+ * gli indicatori con valore calcolato (i null sotto soglia non votano).
+ * Pareggio = «Misto» neutro, mai una scelta arbitraria. La Volatilità non
+ * ha ciclo (Fase 29): la sua pillola usa il TREND prevalente — lì un trend
+ * rialzista della vol è stress, quindi il colore segue quella semantica.
+ */
+function buildSectionPill(
+  id: TrendsSectionId,
+  series: TrendsSeriesView[],
+): SectionPill {
+  const short = SECTION_SHORT[id];
+  const isVol = id === "volatilita";
+  const result = isVol
+    ? prevailingLabel(series.map((v) => v.metrics?.trend ?? null))
+    : prevailingLabel(series.map((v) => v.metrics?.cycle ?? null));
+
+  if (result.total === 0) {
+    return {
+      id,
+      short,
+      text: "N/D",
+      color: "var(--md-muted)",
+      title: "Nessun indicatore della sezione ha un'etichetta calcolabile",
+    };
+  }
+  if (result.tie || result.winner === null) {
+    return {
+      id,
+      short,
+      text: "Misto",
+      color: "var(--md-text-2)",
+      title: `Pareggio tra le etichette più frequenti (${result.count} voti a testa su ${result.total} indicatori)`,
+    };
+  }
+  const color = isVol
+    ? result.winner === "rialzista"
+      ? "var(--md-down)"
+      : result.winner === "ribassista"
+        ? "var(--md-up)"
+        : "var(--md-text-2)" // trend laterale della vol: neutro
+    : CYCLE_COLOR[result.winner as CycleLabel];
+  return {
+    id,
+    short,
+    text: capitalize(result.winner),
+    color,
+    title: `${result.count} di ${result.total} indicatori: ${capitalize(result.winner)}`,
+  };
 }
 
 function ComparisonTable({ view }: { view: TrendsSeriesView }) {
@@ -452,6 +532,19 @@ export function TrendsView({ data }: { data: TrendsData }) {
     subSections.set(view.def.subSection, group);
   }
 
+  // Pillole di riepilogo per sezione (FASE 31): il polso di tutte le
+  // sezioni in una riga, dai valori già calcolati — zero calcoli nuovi.
+  const pills = useMemo(
+    () =>
+      TRENDS_SECTIONS.map((s) =>
+        buildSectionPill(
+          s.id,
+          data.series.filter((v) => v.def.section === s.id),
+        ),
+      ),
+    [data.series],
+  );
+
   return (
     <div className="flex flex-col gap-4 p-4 sm:p-6">
       {data.keyless ? (
@@ -473,6 +566,30 @@ export function TrendsView({ data }: { data: TrendsData }) {
           const view = byKey.get(key);
           return view ? <Tile key={key} view={view} /> : null;
         })}
+      </div>
+
+      {/* Pillole per sezione: etichetta aggregata prevalente, click = jump al tab */}
+      <div
+        role="group"
+        aria-label="Riepilogo sezioni"
+        className="flex flex-wrap gap-1.5"
+      >
+        {pills.map((pill) => (
+          <button
+            key={pill.id}
+            type="button"
+            onClick={() => setSection(pill.id)}
+            title={pill.title}
+            className="md-mono flex items-center gap-1.5 rounded-[var(--md-r-sm)] border px-2 py-1 text-2xs font-semibold transition-colors hover:brightness-110"
+            style={{
+              borderColor: "var(--md-border)",
+              backgroundColor: "var(--md-surface-2)",
+            }}
+          >
+            <span style={{ color: "var(--md-muted)" }}>{pill.short}</span>
+            <span style={{ color: pill.color }}>{pill.text}</span>
+          </button>
+        ))}
       </div>
 
       {/* Sub-nav sezioni + orizzonte condiviso */}

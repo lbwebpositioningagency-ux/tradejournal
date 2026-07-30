@@ -260,6 +260,49 @@ export function cycleMetric(
   return { label, levelZ };
 }
 
+export interface PrevailingResult<T extends string> {
+  /** Etichetta più frequente; null se nessun voto o pareggio. */
+  winner: T | null;
+  /** true = pareggio tra 2+ etichette in testa (mai scelta arbitraria). */
+  tie: boolean;
+  /** Voti dell'etichetta (o delle etichette) in testa. */
+  count: number;
+  /** Voti totali non-null (gli indicatori sotto soglia non votano). */
+  total: number;
+}
+
+/**
+ * Etichetta prevalente per le pillole di sezione (FASE 31): conta le
+ * etichette non-null e restituisce la più frequente. Pareggio in testa =
+ * winner null con tie=true («Misto» in UI); nessun voto = winner null e
+ * total 0 («N/D»). Pura: la UI decide solo colori e testi.
+ */
+export function prevailingLabel<T extends string>(
+  labels: (T | null)[],
+): PrevailingResult<T> {
+  const counts = new Map<T, number>();
+  let total = 0;
+  for (const label of labels) {
+    if (label === null) continue;
+    total += 1;
+    counts.set(label, (counts.get(label) ?? 0) + 1);
+  }
+  if (total === 0) return { winner: null, tie: false, count: 0, total: 0 };
+  let winner: T | null = null;
+  let best = 0;
+  let tie = false;
+  for (const [label, count] of counts) {
+    if (count > best) {
+      best = count;
+      winner = label;
+      tie = false;
+    } else if (count === best) {
+      tie = true;
+    }
+  }
+  return { winner: tie ? null : winner, tie, count: best, total };
+}
+
 export interface MetricsOptions {
   cadence: SeriesCadence;
   deltaMode: DeltaMode;

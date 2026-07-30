@@ -745,6 +745,15 @@ Le 6 tessere in cima a Trends (PCE Core, Disoccupazione, Curva 2s10s, Reali 10Y,
 
 **Verificato:** typecheck ✅ · lint ✅ · suite completa ✅ (nessun test nuovo: solo composizione di componenti già testati su dati già calcolati).
 
+## ✅ FASE 31 «Pillole di riepilogo per sezione» (30/07/2026)
+Riga di pillole cliccabili tra le tessere (Fase 30) e la barra dei tab: una per sezione, nome breve + etichetta aggregata, click = jump al tab. Concettualmente separate dalle tessere e coesistenti: le tessere sono «i pochi indicatori che guardo per primi», le pillole «il polso di tutte le sezioni».
+
+**Logica (pura, in `prevailingLabel` dentro `macro-trends-metrics.ts` — zero calcoli statistici nuovi):** per le 9 sezioni economiche si conta l'etichetta di CICLO più frequente tra gli indicatori con valore non-null; gli indicatori sotto soglia (ciclo null) NON votano. Tutti null → «N/D» grigia. Pareggio in testa → «Misto» neutra, mai una scelta arbitraria. Tooltip col dettaglio: «3 di 5 indicatori: Espansione» (o il conteggio del pareggio). Colori = palette semantica Fase 29.
+
+**Volatilità inclusa come decima pillola**, col TREND prevalente al posto del ciclo (che per VIX/GVZ/OVX non esiste, Fase 29): stessa logica di null/pareggio, ma semantica colore invertita — trend rialzista della vol = stress = rosso, ribassista = verde, laterale = neutro. Così la riga copre tutte le 10 sezioni con un solo colpo d'occhio.
+
+**Verificato:** typecheck ✅ · lint ✅ · **870/870 test** ✅ (5 nuovi su `prevailingLabel`: maggioranza, null che non votano, pareggio anche 2-2-1, lista vuota/tutti null, voto singolo).
+
 ### ▶ Prossimi passi
 
 **Il piano premium è completo** (§1 Monte Carlo, §2 rolling metrics, §3 metriche pro).
