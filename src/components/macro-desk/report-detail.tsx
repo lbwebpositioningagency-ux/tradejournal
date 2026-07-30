@@ -30,7 +30,14 @@ const TABS = [
 
 type TabId = (typeof TABS)[number]["id"];
 
-export function MacroReportDetail({ payload }: { payload: MacroPayload }) {
+export function MacroReportDetail({
+  payload,
+  biasRecord,
+}: {
+  payload: MacroPayload;
+  /** Weekly Bias Record grezzo: unica fonte numerica di prezzo per il termometro. */
+  biasRecord?: unknown;
+}) {
   const [active, setActive] = useState<TabId>("overview");
 
   return (
@@ -77,7 +84,7 @@ export function MacroReportDetail({ payload }: { payload: MacroPayload }) {
       <div role="tabpanel" key={active}>
         {active === "overview" ? <OverviewTab payload={payload} /> : null}
         {active === "assets" ? <AssetsTab payload={payload} /> : null}
-        {active === "vol" ? <VolatilityTab payload={payload} /> : null}
+        {active === "vol" ? <VolatilityTab payload={payload} biasRecord={biasRecord} /> : null}
         {active === "events" ? <EventsTab payload={payload} /> : null}
         {active === "macro" ? <MacroTab payload={payload} /> : null}
         {active === "news" ? <NewsTab payload={payload} /> : null}

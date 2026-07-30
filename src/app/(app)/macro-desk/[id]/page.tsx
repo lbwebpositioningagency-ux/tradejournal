@@ -87,7 +87,7 @@ export default async function MacroReportPage({
         )}
         style={{ borderColor: "#20293c" }}
       >
-        <MacroReportDetail payload={payload} />
+        <MacroReportDetail payload={payload} biasRecord={report.biasRecord} />
       </div>
     </div>
   );

@@ -14,8 +14,11 @@ import {
   type MacroPayload,
   type MacroTone,
 } from "@/lib/macro-desk-payload";
+import { parseWeeklyBiasRecord } from "@/lib/macro-desk-bias-record";
+import { componiIngressi } from "@/lib/termometro-volatilita";
 import { cn } from "@/lib/utils";
 import { BiasGauge } from "./bias-gauge";
+import { TermometroVolatilita } from "./termometro-volatilita";
 import {
   Callout,
   MonoChip,
@@ -392,13 +395,30 @@ export function AssetsTab({ payload }: { payload: MacroPayload }) {
 
 /* ═══════════════ 3 · VOLATILITÀ ═══════════════ */
 
-export function VolatilityTab({ payload }: { payload: MacroPayload }) {
+export function VolatilityTab({
+  payload,
+  biasRecord,
+}: {
+  payload: MacroPayload;
+  /** Weekly Bias Record grezzo: da qui il termometro prende la chiusura di ieri. */
+  biasRecord?: unknown;
+}) {
   const vol = payload.volPanel;
   if (!vol || (vol.items.length === 0 && !vol.reading)) {
     return <SectionEmpty what="Pannello volatilità" />;
   }
   return (
     <div className="flex flex-col gap-4">
+      <TermometroVolatilita
+        ingressi={componiIngressi({
+          volItems: vol.items,
+          biasRecord: parseWeeklyBiasRecord(biasRecord),
+        })}
+        motiviAssenza={{
+          GER40:
+            "l'indice DV1X non è tra quelli raccolti dal report giornaliero: il termometro del DAX resta spento finché non verrà aggiunto",
+        }}
+      />
       {vol.asOf ? (
         <p className="md-mono md-fade text-xs leading-relaxed text-[var(--md-muted)]" style={fade(0)}>
           {vol.asOf}
