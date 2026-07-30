@@ -13,6 +13,10 @@ import {
   thinObservations,
   type ComparisonRow,
 } from "@/lib/macro-trends-transforms";
+import {
+  computeSeriesMetrics,
+  type SeriesMetrics,
+} from "@/lib/macro-trends-metrics";
 
 /**
  * Orchestratore server della pagina Trends: scarica TUTTE le serie in
@@ -51,6 +55,8 @@ export interface TrendsSeriesView {
   stale?: boolean;
   comparison?: ComparisonRow;
   percentiles?: SeriesPercentiles;
+  /** Layer calcolato FASE 29 (trend, variazioni, percentile, ciclo). */
+  metrics?: SeriesMetrics;
 }
 
 export interface TrendsData {
@@ -102,6 +108,23 @@ async function buildSeriesView(def: TrendsSeriesDef): Promise<TrendsSeriesView> 
     transformed.length > 1 ? transformed[transformed.length - 2] : null;
   const nowDays = dateKeyToDays(new Date().toISOString().slice(0, 10));
 
+  // Layer calcolato sulla serie trasformata COMPLETA (orizzonte Max, già
+  // scaricata): niente ciclo per la Volatilità, dove l'etichetta non ha senso.
+  const rawMetrics = computeSeriesMetrics(transformed, {
+    cadence: def.cadence,
+    deltaMode: def.deltaMode,
+    includeCycle: def.section !== "volatilita",
+  });
+  const metrics: SeriesMetrics = {
+    ...rawMetrics,
+    trendZ: rawMetrics.trendZ === null ? null : round4(rawMetrics.trendZ),
+    levelZ: rawMetrics.levelZ === null ? null : round4(rawMetrics.levelZ),
+    changes: rawMetrics.changes.map((c) => ({
+      ...c,
+      value: c.value === null ? null : round4(c.value),
+    })),
+  };
+
   return {
     def,
     status: "ok",
@@ -121,6 +144,7 @@ async function buildSeriesView(def: TrendsSeriesDef): Promise<TrendsSeriesView> 
           y5: percentileRank(transformed, 5),
         }
       : undefined,
+    metrics,
   };
 }
 

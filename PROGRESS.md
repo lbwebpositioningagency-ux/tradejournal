@@ -725,6 +725,19 @@ Nuovo widget in fondo alla Dashboard: 12 caselle, una per mese, col ritorno perc
 
 **Verificato:** typecheck ✅ · lint ✅ · **841/841 test** ✅ (11 nuovi: equity che scorre, mese vuoto ≠ pareggio, equity non positiva, ordinamento anni, soglie di intensità, golden SIM1) · build di produzione ✅ · misura nel DOM su build di produzione (celle 2026: Gen 10,7% … Lug 3,4%, ago-dic «—») · screenshot in `docs/premium-20260730/fase27/` (SIM1 2025 a 1280 con la gradazione completa, SIM1 2026 a 390, conto reale a 1280).
 
+## ✅ FASE 29 «Layer calcolato del Macro Desk Trends» (30/07/2026)
+Quattro metriche calcolate per OGNI indicatore della pagina Trends (tutte le 10 sezioni), rese come riga di chip mono sotto il grafico di ogni card — layout esistente intatto. Modulo puro `src/lib/macro-trends-metrics.ts` calcolato server-side in `macro-trends.ts` sulla serie trasformata completa già scaricata (orizzonte Max): **zero chiamate FRED aggiuntive**.
+
+**Le metriche:**
+- **Trend** (rialzista/ribassista/laterale): pendenza OLS sulle ultime 6 osservazioni normalizzata sulla dev. std. storica delle variazioni periodo-su-periodo; soglia |z| 0,5. Caso limite sd=0 gestito (serie ferma = laterale, variazioni costanti non nulle = trend netto con z convenzionale ±99, mai Infinity nel payload RSC).
+- **Variazione periodo** per cadenza: mensili MoM+YoY, trimestrali QoQ+YoY, daily/weekly 1S+1M — sempre entrambe, aggancio all'osservazione reale più vicina entro tolleranza (mai interpolare), pct/abs secondo il `deltaMode` della serie, base 0 → «—» mai infinito.
+- **Percentile storico** sull'intera storia disponibile della serie, con l'anno di partenza dichiarato nel chip e nel tooltip («percentile calcolato sulla storia disponibile della serie dal …») — la storia varia da indicatore a indicatore e va detto, altrimenti il numero è fuorviante.
+- **Posizione nel ciclo** a quadranti (espansione/rallentamento/contrazione/ripresa): X = z-score del livello sulla storia intera, Y = segno della pendenza del trend. **Esclusa dalla sezione Volatilità** (per VIX/GVZ/OVX l'etichetta non ha senso; le altre 3 metriche sì).
+
+**Onestà statistica:** sotto 20 campioni ogni metrica degrada a null (chip assente), mai un numero su un pugno di punti; valori = ultimi rivisti FRED (default API, niente vintage ALFRED — fuori scope). Colori: trend e variazioni seguono il `goodDirection` della serie (mai colori meccanici), ciclo con palette semantica fissa (espansione verde, rallentamento ambra, contrazione rossa, ripresa blu).
+
+**Verificato:** typecheck ✅ · lint ✅ · **865/865 test** ✅ (24 nuovi su `macro-trends-metrics`: pendenza, sd, soglie di trend, sd=0, variazioni per le 4 cadenze, base zero, percentile, quadranti del ciclo, esclusione Volatilità, serie vuota).
+
 ### ▶ Prossimi passi
 
 **Il piano premium è completo** (§1 Monte Carlo, §2 rolling metrics, §3 metriche pro).

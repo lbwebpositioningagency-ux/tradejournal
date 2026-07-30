@@ -15,6 +15,11 @@ import {
 } from "@/lib/macro-trends-series";
 import { HORIZONS, type Horizon } from "@/lib/macro-trends-transforms";
 import type { ComparisonPoint } from "@/lib/macro-trends-transforms";
+import type {
+  CycleLabel,
+  SeriesMetrics,
+  TrendLabel,
+} from "@/lib/macro-trends-metrics";
 import { Callout, MonoChip, PanelLabel } from "./primitives";
 import { TrendsLineChart } from "./trends-chart";
 
@@ -120,6 +125,82 @@ function StaleChip() {
     >
       in ritardo di pubblicazione
     </span>
+  );
+}
+
+const TREND_ARROW: Record<TrendLabel, string> = {
+  rialzista: "↑",
+  ribassista: "↓",
+  laterale: "→",
+};
+
+const CYCLE_COLOR: Record<CycleLabel, string> = {
+  espansione: "var(--md-up)",
+  rallentamento: "var(--md-warn)",
+  contrazione: "var(--md-down)",
+  ripresa: "var(--md-info)",
+};
+
+/**
+ * Riga compatta del layer calcolato (FASE 29): trend, variazioni di
+ * periodo, percentile storico (con l'anno di partenza dichiarato — varia
+ * per serie) e posizione nel ciclo. Chip mono coerenti con la card.
+ */
+function MetricsRow({
+  metrics,
+  def,
+}: {
+  metrics: SeriesMetrics;
+  def: TrendsSeriesDef;
+}) {
+  const trendColor =
+    metrics.trend === null || metrics.trend === "laterale"
+      ? "var(--md-muted)"
+      : deltaColor(metrics.trend === "rialzista" ? 1 : -1, def);
+
+  return (
+    <div className="flex flex-wrap items-center gap-1.5">
+      {metrics.trend !== null ? (
+        <MonoChip color={trendColor}>
+          {TREND_ARROW[metrics.trend]} {metrics.trend}
+        </MonoChip>
+      ) : null}
+
+      {metrics.changes.map((change) => (
+        <MonoChip
+          key={change.label}
+          color={
+            change.value === null || change.value === 0
+              ? "var(--md-muted)"
+              : deltaColor(change.value, def)
+          }
+        >
+          {change.label}{" "}
+          {change.value === null
+            ? "—"
+            : `${change.value > 0 ? "+" : ""}${fmtDelta(
+                change.value,
+                change.pct ? 1 : def.decimals,
+              )}${change.pct ? "%" : " pt"}`}
+        </MonoChip>
+      ))}
+
+      {metrics.percentile !== null && metrics.historyStartYear !== null ? (
+        <span
+          title={`Percentile calcolato sulla storia disponibile della serie dal ${metrics.historyStartYear}`}
+        >
+          <MonoChip>
+            {metrics.percentile}° pct dal {metrics.historyStartYear}
+          </MonoChip>
+        </span>
+      ) : null}
+
+      {metrics.cycle !== null ? (
+        <MonoChip color={CYCLE_COLOR[metrics.cycle]}>
+          ciclo: {metrics.cycle}
+        </MonoChip>
+      ) : null}
+    </div>
   );
 }
 
@@ -294,6 +375,8 @@ function SeriesCard({
         color={color}
         label={def.label}
       />
+
+      {view.metrics ? <MetricsRow metrics={view.metrics} def={def} /> : null}
 
       <ComparisonTable view={view} />
 
