@@ -707,6 +707,24 @@ Il widget «Proiezione Monte Carlo» è stato rimosso dalla Dashboard; il labora
 
 **Verificato:** typecheck ✅ · lint ✅ · **830/830 test** ✅ (−5 del modulo rimosso, +3 sul parse del layout) · build di produzione ✅ · misura nel DOM su build di produzione: «Monte Carlo» assente dalla Dashboard, underwater presente; card «Simulazione Monte Carlo» presente in Analytics coi suoi controlli · screenshot before/after in `docs/premium-20260730/fase26/` (dashboard 1280+390, analytics 1280).
 
+## ✅ FASE 27 «Calendario mensile delle performance» (30/07/2026)
+Nuovo widget in fondo alla Dashboard: 12 caselle, una per mese, col ritorno percentuale del mese e navigazione fra gli anni.
+
+**La definizione non è nuova, ed è il punto.** Ritorno del mese = P&L del mese ÷ **equity a inizio mese** (saldo iniziale + P&L chiuso precedente): la stessa convenzione del rolling della Fase 21, applicata alla granularità mensile — un +5.000 sul conto raddoppiato non è il ritorno di un +5.000 sul conto di partenza. Modulo puro `metrics/monthly-returns.ts`: riceve i P&L mensili già bucketizzati in SQL nel fuso utente (`getPeriodPnl(..., "month")`, query esistente, ora chiamata senza filtro periodo) e cammina l'equity mese per mese.
+
+**Distinzioni che la UI rispetta:**
+- mese SENZA trade → cella neutra col trattino, MAI «0%» (assenza ≠ pareggio); un mese operativo a P&L zero esatto mostra invece 0,0%;
+- equity a inizio mese non positiva → «n/d», non un numero;
+- il widget **non segue il filtro periodo** della dashboard (come saldo e mini-calendario): ha la sua navigazione per anno, default sull'anno più recente con dati.
+
+**Colore:** gradazione su tre intensità (soglie 1% e 4%) coi token `bg-profit`/`bg-loss` a opacità crescente — le stesse combinazioni del calendario di Day View, col testo sui token `text-profit`/`text-loss` già validati AA dal test `theme-contrast`. Nessun colore nuovo. Griglia 6×2 su desktop, 4×3 su tablet, 3×4 su mobile (le celle sono compatte: non serve collassare).
+
+**Sistema widget:** id `monthly-calendar` in `WIDGET_IDS` — entra da solo nel menu di attivazione/disattivazione e nella persistenza di `User.dashboardLayout` (che dalla Fase 26 tollera gli id sconosciuti, quindi anche il percorso inverso è già coperto).
+
+**Golden su SIM1, verificati a mano:** gen 2025 = 8.374,20/50.000 = **16,75%** · feb 2025 = −1.225,70/58.374,20 = **−2,10%** (l'equity del denominatore è già cresciuta) · mag 2025 = 12.204,30/57.798,50 = **21,12%**. Il 2025 è pieno (12 mesi operativi, entrambi i segni, tre intensità presenti), il 2026 parziale (7 mesi, ago-dic a trattino); la somma dei mesi ricompone il netto complessivo 71.718,90.
+
+**Verificato:** typecheck ✅ · lint ✅ · **841/841 test** ✅ (11 nuovi: equity che scorre, mese vuoto ≠ pareggio, equity non positiva, ordinamento anni, soglie di intensità, golden SIM1) · build di produzione ✅ · misura nel DOM su build di produzione (celle 2026: Gen 10,7% … Lug 3,4%, ago-dic «—») · screenshot in `docs/premium-20260730/fase27/` (SIM1 2025 a 1280 con la gradazione completa, SIM1 2026 a 390, conto reale a 1280).
+
 ### ▶ Prossimi passi
 
 **Il piano premium è completo** (§1 Monte Carlo, §2 rolling metrics, §3 metriche pro).

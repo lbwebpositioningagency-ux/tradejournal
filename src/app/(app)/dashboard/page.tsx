@@ -36,6 +36,7 @@ import {
   streakSummary,
   ulcerIndex,
   winRate,
+  monthlyReturnGrids,
 } from "@/lib/metrics";
 import {
   BE_BIN,
@@ -43,6 +44,7 @@ import {
   getDailyPnl,
   getLifetimeNetPnl,
   getRDistribution,
+  getPeriodPnl,
   getRecentTradeOutcomes,
   getStartingBalance,
   getTradeAggregates,
@@ -162,6 +164,7 @@ export default async function DashboardPage({
     openTradeRows,
     recentTrades,
     lifetimeTradeCount,
+    monthlyRows,
   ] = await Promise.all([
       getTradeAggregates(filter),
       getDailyPnl(filter, user.timezone),
@@ -206,6 +209,14 @@ export default async function DashboardPage({
       }),
       // F15 — onboarding: l'utente ha mai inserito un trade (qualsiasi conto/stato)?
       prisma.trade.count({ where: { account: { userId } } }),
+      // Fase 27 — P&L per mese di TUTTO lo storico (fuso utente): il
+      // calendario mensile ha la sua navigazione per anno e, come saldo e
+      // mini-calendario, non segue il filtro periodo della dashboard.
+      getPeriodPnl(
+        { userId, accountId: activeAccountId, currency: scope.active },
+        user.timezone,
+        "month",
+      ),
     ]);
 
   // Metriche (tutte Decimal-safe, sul server; il client formatta soltanto)
@@ -363,6 +374,9 @@ export default async function DashboardPage({
         trades: d.trades,
       })),
     },
+    // Fase 27 — griglie annuali del calendario mensile (convenzione del
+    // rolling: ritorno = P&L del mese / equity a inizio mese).
+    monthlyGrids: monthlyReturnGrids(monthlyRows, baseBalance),
   };
 
   return <DashboardView data={data} />;

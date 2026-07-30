@@ -61,9 +61,11 @@ import {
   type DayStats,
   type DrawdownResult,
   type MetricInfoData,
+  monthlyCalendarInfo,
   type StreakResult,
   type StreakSummary,
   type UnderwaterPoint,
+  type YearGrid,
 } from "@/lib/metrics";
 import { formatDayKey, formatDurationSec } from "@/lib/dates";
 import { sessionsInfo, type SessionPoint } from "@/lib/sessions";
@@ -104,6 +106,7 @@ import {
 import { ScoreGauge } from "./score-gauge";
 import { OnboardingHero } from "./onboarding-hero";
 import { MiniCalendar, type MiniCalendarDay } from "./mini-calendar";
+import { MonthlyCalendar } from "./monthly-calendar";
 
 export interface DashboardData {
   currency: string;
@@ -216,6 +219,8 @@ export interface DashboardData {
     todayKey: string;
     days: MiniCalendarDay[];
   };
+  /** Fase 27 — griglie annuali del calendario mensile (tutto lo storico). */
+  monthlyGrids: YearGrid[];
 }
 
 const MASK = "•••";
@@ -1368,6 +1373,23 @@ export function DashboardView({ data }: { data: DashboardData }) {
           ) : null}
         </div>
       </div>
+
+      {/* Fase 27 — calendario mensile delle performance, in fondo: la
+          panoramica per anno chiude la pagina. `order-last` su mobile,
+          dove i fratelli usano order espliciti. */}
+      {show("monthly-calendar") ? (
+        <Card className="max-lg:order-last">
+          <CardHeader>
+            <CardTitle className="stat-label flex items-center gap-1">
+              Calendario mensile
+              <MetricInfo info={monthlyCalendarInfo} />
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <MonthlyCalendar grids={data.monthlyGrids} currency={data.currency} />
+          </CardContent>
+        </Card>
+      ) : null}
     </div>
   );
 }

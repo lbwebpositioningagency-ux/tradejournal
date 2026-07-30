@@ -48,6 +48,14 @@ export {
 } from "./underwater";
 export { MONTE_CARLO_MIN_TRADES, mulberry32 } from "./monte-carlo";
 export {
+  monthlyReturnGrids,
+  returnIntensity,
+  monthlyCalendarInfo,
+  type MonthCell,
+  type MonthlyReturn,
+  type YearGrid,
+} from "./monthly-returns";
+export {
   breakEvenWinRate,
   winRateMargin,
   breakEvenWinRateInfo,

@@ -38,6 +38,7 @@ export const WIDGET_IDS = [
   "daily-pnl",
   "balance",
   "recent-trades",
+  "monthly-calendar",
 ] as const;
 export type WidgetId = (typeof WIDGET_IDS)[number];
 
@@ -67,6 +68,7 @@ export const WIDGET_LABELS: Record<WidgetId, string> = {
   "daily-pnl": "P&L giornaliero",
   balance: "Saldo conto",
   "recent-trades": "Ultimi trade",
+  "monthly-calendar": "Calendario mensile",
 };
 
 /**
