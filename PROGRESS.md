@@ -738,6 +738,13 @@ Quattro metriche calcolate per OGNI indicatore della pagina Trends (tutte le 10 
 
 **Verificato:** typecheck ✅ · lint ✅ · **865/865 test** ✅ (24 nuovi su `macro-trends-metrics`: pendenza, sd, soglie di trend, sd=0, variazioni per le 4 cadenze, base zero, percentile, quadranti del ciclo, esclusione Volatilità, serie vuota).
 
+## ✅ FASE 30 «Tessere del quadro sintetico arricchite» (30/07/2026)
+Le 6 tessere in cima a Trends (PCE Core, Disoccupazione, Curva 2s10s, Reali 10Y, Spread HY, Dollaro broad) ora mostrano la stessa riga di chip della Fase 29 sotto valore e variazione: trend, variazioni di periodo, percentile storico con anno dichiarato, ciclo. **Zero calcoli nuovi**: le tessere leggono le stesse `TrendsSeriesView` delle sezioni via `TRENDS_TILE_KEYS` (verificato: anche il Dollaro broad è la serie `dollar`/DTWEXBGS DENTRO Liquidità & Credito, non una pipeline a parte), quindi le metriche erano già nel payload — la modifica è solo rendering (`MetricsRow` riusato in `Tile`).
+
+**Eccezione dollaro:** niente chip di ciclo nella tessera (indice FX/di mercato, non variabile di ciclo economico — stessa ratio dell'esclusione Volatilità in Fase 29): `MetricsRow` ha ora una prop `hideCycle` e la tessera la usa per la key `dollar`. Nella card di dettaglio dentro il tab Liquidità il ciclo del dollaro resta com'era (la fase tocca solo le tessere).
+
+**Verificato:** typecheck ✅ · lint ✅ · suite completa ✅ (nessun test nuovo: solo composizione di componenti già testati su dati già calcolati).
+
 ### ▶ Prossimi passi
 
 **Il piano premium è completo** (§1 Monte Carlo, §2 rolling metrics, §3 metriche pro).

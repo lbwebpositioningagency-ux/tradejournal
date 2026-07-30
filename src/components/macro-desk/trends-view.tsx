@@ -149,9 +149,12 @@ const CYCLE_COLOR: Record<CycleLabel, string> = {
 function MetricsRow({
   metrics,
   def,
+  hideCycle,
 }: {
   metrics: SeriesMetrics;
   def: TrendsSeriesDef;
+  /** Sopprime il chip del ciclo dove l'etichetta non ha senso (es. FX). */
+  hideCycle?: boolean;
 }) {
   const trendColor =
     metrics.trend === null || metrics.trend === "laterale"
@@ -195,7 +198,7 @@ function MetricsRow({
         </span>
       ) : null}
 
-      {metrics.cycle !== null ? (
+      {!hideCycle && metrics.cycle !== null ? (
         <MonoChip color={CYCLE_COLOR[metrics.cycle]}>
           ciclo: {metrics.cycle}
         </MonoChip>
@@ -407,6 +410,17 @@ function Tile({ view }: { view: TrendsSeriesView }) {
               </span>
             ) : null}
           </p>
+          {view.metrics ? (
+            <div className="mt-1">
+              <MetricsRow
+                metrics={view.metrics}
+                def={def}
+                /* Il dollaro è un indice FX/di mercato, non una variabile di
+                   ciclo economico: niente etichetta di ciclo in tessera. */
+                hideCycle={def.key === "dollar"}
+              />
+            </div>
+          ) : null}
         </>
       ) : (
         <p className="md-mono text-sm" style={{ color: "var(--md-muted)" }}>
