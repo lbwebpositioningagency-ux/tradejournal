@@ -40,8 +40,14 @@ export const attachmentFileSchema = z.object({
 });
 
 /**
- * Destinazione dell'allegato: un trade (per id) OPPURE una giornata
- * (chiave "YYYY-MM-DD" nel fuso utente), mai entrambi.
+ * Destinazione dell'allegato: un trade (per id), una giornata intera
+ * (chiave "YYYY-MM-DD" nel fuso utente) oppure UNA FASE del journal di
+ * quella giornata (Fase 24) — mai più d'una.
+ *
+ * La fase non è un campo dell'allegato: è la Note DAILY di giorno+fase a
+ * cui l'allegato si aggancia via `noteId`. Il target "day" resta per gli
+ * allegati generici di giornata (e per quelli storici, che non vengono
+ * riassegnati a una fase: un contesto non registrato non si inventa).
  */
 export const attachmentTargetSchema = z.union([
   z.object({ kind: z.literal("trade"), tradeId: z.string().min(1) }),
@@ -50,6 +56,13 @@ export const attachmentTargetSchema = z.union([
     date: z.string().refine(isValidDateKey, {
       message: "Data non valida",
     }),
+  }),
+  z.object({
+    kind: z.literal("phase"),
+    date: z.string().refine(isValidDateKey, {
+      message: "Data non valida",
+    }),
+    phase: z.enum(["PREMARKET", "INMARKET", "POSTMARKET"]),
   }),
 ]);
 

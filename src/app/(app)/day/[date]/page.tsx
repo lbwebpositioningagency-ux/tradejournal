@@ -15,7 +15,7 @@ import { tradeAccountWhere } from "@/lib/active-account";
 import { resolveTradeScope } from "@/lib/demo-account";
 import { ALL_ACCOUNTS } from "@/lib/constants";
 import { addDays, isValidDateKey } from "@/lib/calendar";
-import { dayNotesByPhase } from "@/lib/day-journal";
+import { dayAttachmentsByPhase, dayNotesByPhase } from "@/lib/day-journal";
 import { BIAS_SHORT_LABELS, biasColorClass } from "@/lib/macro-desk";
 import { formatDateTime, todayKeyInZone, zonedInputToUtc } from "@/lib/dates";
 import {
@@ -162,11 +162,30 @@ export default async function DayViewPage({
           where: { id: activeAccountId, userId },
           select: { currency: true },
         }),
-    // Allegati di giornata (F16b): mai selezionare `data` nei listing.
+    // Allegati del giorno (F16b + Fase 24): quelli di GIORNATA (dayDate
+    // diretto, anche storici) e quelli di FASE (via Note DAILY del giorno),
+    // in una query sola. Mai selezionare `data` nei listing.
     prisma.attachment.findMany({
-      where: { userId: sessionUserId, dayDate: new Date(`${date}T00:00:00.000Z`) },
+      where: {
+        userId: sessionUserId,
+        OR: [
+          { dayDate: new Date(`${date}T00:00:00.000Z`) },
+          {
+            note: {
+              type: "DAILY",
+              dayDate: new Date(`${date}T00:00:00.000Z`),
+            },
+          },
+        ],
+      },
       orderBy: { createdAt: "asc" },
-      select: { id: true, fileName: true, mimeType: true, size: true },
+      select: {
+        id: true,
+        fileName: true,
+        mimeType: true,
+        size: true,
+        note: { select: { dayPhase: true } },
+      },
     }),
     // F40 — il bias macro del giorno sopra il Premarket (dato di istanza,
     // stesso convenzionale @db.Date del journal). Nessun report = niente riga.
@@ -190,6 +209,15 @@ export default async function DayViewPage({
   ]);
 
   const currency = scopeCurrency ?? activeAccount?.currency ?? user.baseCurrency;
+
+  // Fase 24: ogni fase del journal mostra SOLO i propri allegati; quelli di
+  // giornata (inclusi gli storici senza fase) vanno nel gruppo "day".
+  const groupedAttachments = dayAttachmentsByPhase(
+    attachments.map(({ note, ...item }) => ({
+      ...item,
+      notePhase: note?.dayPhase ?? null,
+    })),
+  );
 
   // Poche righe, già caricate per la tabella: le somme restano Decimal.
   // Il cumulato per il grafico intraday è solo presentazione, costruito
@@ -542,11 +570,23 @@ export default async function DayViewPage({
           ) : null}
         </CardHeader>
         <CardContent>
-          <DayNoteEditor date={date} initialByPhase={dayNotesByPhase(dayNotes)} />
+          <DayNoteEditor
+            date={date}
+            initialByPhase={dayNotesByPhase(dayNotes)}
+            attachmentsByPhase={groupedAttachments}
+          />
         </CardContent>
       </Card>
 
-      <AttachmentsCard target={{ kind: "day", date }} attachments={attachments} />
+      {/* Allegati di GIORNATA: i generici e gli storici pre-Fase 24, che non
+          vengono riassegnati a una fase (un contesto non registrato non si
+          inventa). La card resta anche il posto per ciò che non appartiene a
+          una fase precisa. */}
+      <AttachmentsCard
+        target={{ kind: "day", date }}
+        title="Allegati della giornata"
+        attachments={groupedAttachments.day}
+      />
     </div>
   );
 }

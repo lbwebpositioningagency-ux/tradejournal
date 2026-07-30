@@ -670,6 +670,21 @@ I preset della finestra rolling a numero-trade passano da 30/50/100 a **50/100/2
 
 **Verificato:** lint ✅ · typecheck ✅ · **804/804 test** ✅ (il totale include i test della sessione parallela sul Macro Desk) · build di produzione ✅ · seed locale rilanciato (415 → 838 trade totali nel DB) · screenshot in `docs/premium-20260730/fase23/` (SIM1 1280+390, conto reale 1280; i "before" sono gli screenshot della Fase 21 con i preset 30/50/100) · **seed di produzione da rilanciare dopo il deploy** (`DATABASE_URL=<neon> npm run db:seed:sim1`, script scoped al solo SIM1).
 
+## ✅ FASE 24 «Allegati per sezione nel journal di Day View» (30/07/2026)
+Ogni fase del journal (Premarket / In-Market / Post-Market) ha ora i PROPRI allegati: lo screenshot del premarket sta col piano, quello del post-market col bilancio — non più in un mucchio unico di giornata.
+
+**Inventario prima di costruire (come chiesto dal brief).** Gli allegati esistevano già (F16b, byte in Postgres) agganciati a un trade (`tradeId`) o all'INTERA giornata (`dayDate`); `noteId` esisteva nello schema ma nessun flusso lo usava. E il journal era già a sezioni: ogni fase è una riga `Note` con `dayPhase` e vincolo unico per giorno+fase. Quindi **il campo-classificatore ipotizzato dal brief non serve, e non c'è nessuna migrazione**: la sezione È la nota, l'allegato di fase si aggancia alla Note di giorno+fase via `noteId`. Se si allega prima di scrivere, la nota nasce vuota: è il contenitore della fase, non un testo fantasma.
+
+**Retrocompatibilità — checkpoint posto e decisione dell'utente:** gli allegati day-level esistenti NON vengono riassegnati a una fase (un contesto non registrato non si inventa). Restano nel gruppo **«Allegati della giornata»**, che rimane anche il posto per i generici futuri: il vecchio flusso non sparisce. (In produzione non ho potuto contarli: le credenziali del DB sono Sensitive e non leggibili da questa sessione; la decisione «nessuna riassegnazione» è sicura per qualunque conteggio.)
+
+**Il rischio vero trovato e chiuso: la cascade.** Svuotare il testo di una fase cancellava la Note; con gli allegati agganciati alla nota, la cascade li avrebbe **eliminati in silenzio**. Ora `saveDayNoteAction` con contenuto vuoto controlla gli allegati: se ci sono, la riga resta con testo vuoto (e la UI lo dice: «gli allegati restano finché non li elimini»); se non ce ne sono, si cancella come prima. Il test di integrazione documenta proprio la cascade come motivazione.
+
+**UI: riuso, non reinvenzione.** Il cuore della card allegati (upload, griglia, lightbox, conferma eliminazione) è stato estratto in `AttachmentsPanel` senza cornice: le fasi lo montano `compact` sotto la textarea, la card storica di trade e giornata lo avvolge come prima. Ogni sezione mostra SOLO i propri allegati. Su mobile le tre sezioni si impilano (il grid `lg:grid-cols-3` esistente), verificato a 390px.
+
+**Sicurezza invariata:** la route di download filtra sempre per `userId` qualunque sia l'aggancio; l'upload di fase passa dallo stesso limite per destinazione (12) e dalla stessa validazione MIME/dimensione.
+
+**Verificato:** lint ✅ · typecheck ✅ · **823/823 test** ✅ (8 nuovi: 4 unitari sul raggruppamento — isolamento per fase, day-level mai riassegnato, fase sconosciuta → giornata; 4 di integrazione su Postgres — query della Day View con isolamento fra sezioni, esclusione degli altri giorni, cascade della nota, nota vuota con allegati leggibile) · build di produzione ✅ · **E2E via CDP sulla build di produzione**: upload REALE attraverso la UI (`DOM.setFileInputFiles` → server action) in Premarket e Post-market, poi lettura del DOM: sezioni a 1/0/1 allegati e card giornata a 0; quindi scrivi→salva→svuota→salva sul Premarket e **l'allegato è sopravvissuto** · screenshot in `docs/premium-20260730/fase24/` (1280 e 390, entrambe le sezioni popolate) · dati di prova rimossi.
+
 ### ▶ Prossimi passi
 
 **Il piano premium è completo** (§1 Monte Carlo, §2 rolling metrics, §3 metriche pro).

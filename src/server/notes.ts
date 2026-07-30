@@ -38,22 +38,38 @@ export async function saveDayNoteAction(
   const dayDate = new Date(`${date}T00:00:00.000Z`);
 
   if (content === "") {
+    // In-Market copre anche eventuali note legacy senza fase
+    // (pre-migrazione), coerente col fallback di lettura.
+    const phaseWhere = {
+      userId,
+      type: "DAILY" as const,
+      dayDate,
+      OR: [
+        { dayPhase: phase },
+        ...(phase === "INMARKET" ? [{ dayPhase: null as null }] : []),
+      ],
+    };
+    // Fase 24: la nota di fase è anche il contenitore degli ALLEGATI della
+    // fase (Attachment.noteId, cascade). Svuotare il testo non deve
+    // eliminarli in silenzio: se ci sono allegati la riga resta, vuota.
+    const withAttachments = await prisma.note.findFirst({
+      where: { ...phaseWhere, attachments: { some: {} } },
+      select: { id: true },
+    });
+    if (withAttachments) {
+      await prisma.note.update({
+        where: { id: withAttachments.id },
+        data: { content: "" },
+      });
+    }
     await prisma.note.deleteMany({
-      where: {
-        userId,
-        type: "DAILY",
-        dayDate,
-        // In-Market copre anche eventuali note legacy senza fase
-        // (pre-migrazione), coerente col fallback di lettura.
-        OR: [
-          { dayPhase: phase },
-          ...(phase === "INMARKET" ? [{ dayPhase: null }] : []),
-        ],
-      },
+      where: withAttachments
+        ? { ...phaseWhere, id: { not: withAttachments.id } }
+        : phaseWhere,
     });
     revalidatePath(`/day/${date}`);
     revalidatePath("/day");
-    return { success: true, deleted: true };
+    return { success: true, deleted: !withAttachments };
   }
 
   await prisma.note.upsert({

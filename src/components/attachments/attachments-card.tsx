@@ -37,7 +37,12 @@ export interface AttachmentItem {
 
 export type AttachmentTargetProps =
   | { kind: "trade"; tradeId: string }
-  | { kind: "day"; date: string };
+  | { kind: "day"; date: string }
+  | {
+      kind: "phase";
+      date: string;
+      phase: "PREMARKET" | "INMARKET" | "POSTMARKET";
+    };
 
 /** Byte → etichetta leggibile (solo display). */
 function formatBytes(size: number): string {
@@ -47,16 +52,23 @@ function formatBytes(size: number): string {
 }
 
 /**
- * Card "Allegati" (F16b): screenshot e documenti collegati a un trade o a una
- * giornata. Upload via server action (byte in Postgres), anteprima immagini
- * con lightbox, eliminazione con conferma.
+ * Pannello "Allegati" SENZA cornice (Fase 24): upload, griglia, lightbox e
+ * conferma di eliminazione. È il cuore riusato ovunque — la card storica di
+ * trade e giornata lo avvolge in una <Card>, le fasi del journal lo montano
+ * inline sotto la textarea. `compact` riduce upload e griglia alla scala di
+ * una sezione.
  */
-export function AttachmentsCard({
+export function AttachmentsPanel({
   target,
   attachments,
+  compact = false,
+  emptyHint,
 }: {
   target: AttachmentTargetProps;
   attachments: AttachmentItem[];
+  compact?: boolean;
+  /** Testo mostrato senza allegati; assente = nessun testo (solo bottone). */
+  emptyHint?: string;
 }) {
   const router = useRouter();
   const inputRef = useRef<HTMLInputElement>(null);
@@ -88,6 +100,7 @@ export function AttachmentsCard({
         formData.set("kind", target.kind);
         if (target.kind === "trade") formData.set("tradeId", target.tradeId);
         else formData.set("date", target.date);
+        if (target.kind === "phase") formData.set("phase", target.phase);
         const result = await uploadAttachmentAction(formData);
         if (result.error) {
           toast.error(`"${file.name}": ${result.error}`);
@@ -113,13 +126,17 @@ export function AttachmentsCard({
   }
 
   return (
-    <Card>
-      <CardHeader className="flex flex-row flex-wrap items-center justify-between gap-2">
-        <CardTitle className="text-base">
-          Allegati{attachments.length > 0 ? ` (${attachments.length})` : ""}
-        </CardTitle>
+    <div className={compact ? "flex flex-col gap-2" : "flex flex-col gap-3"}>
+      <div className="flex items-center justify-between gap-2">
+        {compact ? (
+          <span className="text-xs text-muted-foreground">
+            Allegati{attachments.length > 0 ? ` (${attachments.length})` : ""}
+          </span>
+        ) : (
+          <span />
+        )}
         <Button
-          variant="outline"
+          variant={compact ? "ghost" : "outline"}
           size="sm"
           onClick={() => inputRef.current?.click()}
           disabled={uploading}
@@ -138,15 +155,20 @@ export function AttachmentsCard({
             e.target.value = "";
           }}
         />
-      </CardHeader>
-      <CardContent>
-        {attachments.length === 0 ? (
-          <p className="text-sm text-muted-foreground">
-            Nessun allegato. Carica gli screenshot del grafico o i documenti di
-            analisi (PNG, JPG, WEBP, GIF o PDF, max 4 MB).
-          </p>
-        ) : (
-          <ul className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
+      </div>
+
+      {attachments.length === 0 ? (
+        emptyHint ? (
+          <p className="text-sm text-muted-foreground">{emptyHint}</p>
+        ) : null
+      ) : (
+          <ul
+            className={
+              compact
+                ? "grid grid-cols-2 gap-2 sm:grid-cols-3"
+                : "grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4"
+            }
+          >
             {attachments.map((item) => {
               const isImage = item.mimeType.startsWith("image/");
               return (
@@ -200,7 +222,6 @@ export function AttachmentsCard({
             })}
           </ul>
         )}
-      </CardContent>
 
       {/* Lightbox immagine */}
       <Dialog open={preview !== null} onOpenChange={(open) => !open && setPreview(null)}>
@@ -244,6 +265,39 @@ export function AttachmentsCard({
           </DialogFooter>
         </DialogContent>
       </Dialog>
+    </div>
+  );
+}
+
+/**
+ * Card "Allegati" (F16b): il pannello dentro una <Card>, per trade e
+ * giornata. `title` permette alla Day View di chiamarla "Allegati della
+ * giornata" ora che le fasi del journal hanno i propri (Fase 24).
+ */
+export function AttachmentsCard({
+  target,
+  attachments,
+  title = "Allegati",
+}: {
+  target: AttachmentTargetProps;
+  attachments: AttachmentItem[];
+  title?: string;
+}) {
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle className="text-base">
+          {title}
+          {attachments.length > 0 ? ` (${attachments.length})` : ""}
+        </CardTitle>
+      </CardHeader>
+      <CardContent>
+        <AttachmentsPanel
+          target={target}
+          attachments={attachments}
+          emptyHint="Nessun allegato. Carica gli screenshot del grafico o i documenti di analisi (PNG, JPG, WEBP, GIF o PDF, max 4 MB)."
+        />
+      </CardContent>
     </Card>
   );
 }

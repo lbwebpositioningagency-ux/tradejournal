@@ -10,19 +10,28 @@ import {
 } from "@/lib/day-journal";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
+import {
+  AttachmentsPanel,
+  type AttachmentItem,
+} from "@/components/attachments/attachments-card";
 
 /**
  * Editor di UNA fase del journal (Premarket / In-Market / Post-Market):
- * stato dirty e salvataggio indipendenti per fase.
+ * stato dirty e salvataggio indipendenti per fase. Dalla Fase 24 ogni fase
+ * ha anche i PROPRI allegati (agganciati alla Note della fase): lo
+ * screenshot del premarket sta col piano, quello del post-market col
+ * bilancio — non in un mucchio unico di giornata.
  */
 function PhaseEditor({
   date,
   phase,
   initialContent,
+  attachments,
 }: {
   date: string;
   phase: DayPhaseKey;
   initialContent: string;
+  attachments: AttachmentItem[];
 }) {
   const [content, setContent] = useState(initialContent);
   const [savedContent, setSavedContent] = useState(initialContent);
@@ -71,6 +80,11 @@ function PhaseEditor({
           {pending ? "Salvataggio…" : "Salva"}
         </Button>
       </div>
+      <AttachmentsPanel
+        compact
+        target={{ kind: "phase", date, phase }}
+        attachments={attachments}
+      />
     </div>
   );
 }
@@ -79,9 +93,11 @@ function PhaseEditor({
 export function DayNoteEditor({
   date,
   initialByPhase,
+  attachmentsByPhase,
 }: {
   date: string;
   initialByPhase: Record<DayPhaseKey, string>;
+  attachmentsByPhase: Record<DayPhaseKey, AttachmentItem[]>;
 }) {
   return (
     <div className="flex flex-col gap-4">
@@ -92,11 +108,13 @@ export function DayNoteEditor({
             date={date}
             phase={phase}
             initialContent={initialByPhase[phase]}
+            attachments={attachmentsByPhase[phase]}
           />
         ))}
       </div>
       <p className="text-xs text-muted-foreground">
-        Una nota per fase. Svuota il testo e salva per eliminare quella fase.
+        Una nota per fase, con i suoi allegati. Svuota il testo e salva per
+        eliminare la fase (gli allegati restano finché non li elimini).
       </p>
     </div>
   );
