@@ -761,6 +761,13 @@ Il chip «N° pct dal YYYY» della Fase 29 non viene più reso da NESSUNA parte 
 
 **Verificato:** typecheck ✅ · lint ✅ · suite completa ✅ (solo rimozione di rendering, nessun test da cambiare).
 
+## ✅ FASE 33 «Badge Ciclo generale» (30/07/2026)
+Un singolo indicatore aggregato per l'intera pagina Trends, tra il paragrafo introduttivo e le 6 tessere: card con bordo accento a sinistra del colore dell'etichetta, «CICLO GENERALE» + etichetta grande — visivamente più prominente delle pillole di sezione (Fase 31), perché è il vertice della gerarchia informativa.
+
+**Logica: zero funzioni nuove.** Stessa `prevailingLabel` della Fase 31, applicata all'elenco FLAT di tutti gli indicatori delle 9 sezioni economiche invece che sezione per sezione. Non votano: la Volatilità (niente ciclo, Fase 29) e il Dollaro broad (indice FX, stessa esclusione della tessera in Fase 30 — nota: nella pillola di Liquidità della Fase 31 il dollaro invece vota, quella è un'aggregazione di sezione e resta com'era). Gestione già testata: null sotto soglia esclusi dal conteggio, tutti null → «N/D», pareggio → «Misto» neutro. Conteggio reale (es. «31 di 47 indicatori: Espansione») sia nel tooltip sia in chiaro accanto all'etichetta — a questo livello di sintesi il numero va visto, non solo scoperto in hover.
+
+**Verificato:** typecheck ✅ · lint ✅ · **870/870 test** ✅ (nessun test nuovo: composizione di `prevailingLabel` già coperta, il filtro è dichiarativo).
+
 ### ▶ Prossimi passi
 
 **Il piano premium è completo** (§1 Monte Carlo, §2 rolling metrics, §3 metriche pro).

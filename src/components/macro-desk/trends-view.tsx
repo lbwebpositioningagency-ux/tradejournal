@@ -278,6 +278,59 @@ function buildSectionPill(
   };
 }
 
+/**
+ * Badge «Ciclo generale» (FASE 33): il vertice della gerarchia informativa
+ * della pagina — l'etichetta di ciclo prevalente su TUTTI gli indicatori
+ * delle 9 sezioni economiche, in un colpo solo. Stessa `prevailingLabel`
+ * delle pillole di sezione, su elenco flat; non votano la Volatilità
+ * (niente ciclo, Fase 29) e il Dollaro (indice FX, Fase 30). Stesse
+ * regole già testate: null sotto soglia fuori, pareggio = «Misto»,
+ * nessun voto = «N/D».
+ */
+function GeneralCycleBadge({ series }: { series: TrendsSeriesView[] }) {
+  const result = prevailingLabel(
+    series
+      .filter(
+        (v) => v.def.section !== "volatilita" && v.def.key !== "dollar",
+      )
+      .map((v) => v.metrics?.cycle ?? null),
+  );
+
+  let text = "N/D";
+  let color = "var(--md-muted)";
+  let detail = "Nessun indicatore con etichetta di ciclo calcolabile";
+  if (result.total > 0) {
+    if (result.tie || result.winner === null) {
+      text = "Misto";
+      color = "var(--md-text-2)";
+      detail = `Pareggio tra le etichette più frequenti (${result.count} voti a testa su ${result.total} indicatori)`;
+    } else {
+      text = capitalize(result.winner);
+      color = CYCLE_COLOR[result.winner as CycleLabel];
+      detail = `${result.count} di ${result.total} indicatori: ${text}`;
+    }
+  }
+
+  return (
+    <div
+      className="md-card flex flex-wrap items-center gap-x-4 gap-y-1 p-4"
+      style={{ borderLeft: `3px solid ${color}` }}
+      title={detail}
+    >
+      <PanelLabel>Ciclo generale</PanelLabel>
+      <span
+        className="md-mono text-xl font-bold leading-none"
+        style={{ color }}
+      >
+        {text}
+      </span>
+      <span className="text-2xs" style={{ color: "var(--md-muted)" }}>
+        {detail}
+      </span>
+    </div>
+  );
+}
+
 function ComparisonTable({ view }: { view: TrendsSeriesView }) {
   const { comparison } = view;
   if (!comparison || !comparison.now) return null;
@@ -550,6 +603,9 @@ export function TrendsView({ data }: { data: TrendsData }) {
           serie mostra la data della SUA ultima osservazione.
         </p>
       )}
+
+      {/* Ciclo generale: il livello più alto della gerarchia, prima di tutto */}
+      <GeneralCycleBadge series={data.series} />
 
       {/* Quadro sintetico: i numeri chiave prima del dettaglio */}
       <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 xl:grid-cols-6">
