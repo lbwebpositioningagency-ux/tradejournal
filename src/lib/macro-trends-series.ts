@@ -34,6 +34,12 @@ export interface TrendsSeriesDef {
   percentiles?: boolean;
   /** Serie da mettere in evidenza (driver primario). */
   highlight?: boolean;
+  /**
+   * Raggruppamento opzionale DENTRO la sezione (es. "Bilancio FED" in
+   * Liquidità): le serie con la stessa etichetta vengono rese sotto un
+   * titoletto dedicato, dopo quelle senza sotto-sezione.
+   */
+  subSection?: string;
   /** Nota di lettura da desk, specifica della serie. */
   reading: string;
 }
@@ -62,6 +68,27 @@ export const TRENDS_SECTIONS = [
       "Ciclo in decelerazione con inflazione ancora alta = stagflazione: il regime peggiore per gli indici, ambiguo per l'oro. Le bande grigie sotto i grafici sono le recessioni NBER.",
   },
   {
+    id: "consumi",
+    label: "Consumi",
+    feeds: "Alimenta: indici (domanda finale) · pilastro Regime",
+    reading:
+      "Il consumatore è il 70% del PIL: reddito reale in crescita + saving rate stabile = spesa sostenibile. Se la spesa corre più del reddito e il credito al consumo accelera, il consumatore sta tirando di leva: gamba fragile del ciclo.",
+  },
+  {
+    id: "produzione",
+    label: "Produzione",
+    feeds: "Alimenta: indici e petrolio (ciclo industriale) · pilastro Regime",
+    reading:
+      "Il lato manifatturiero gira PRIMA del resto: i survey regionali (Philly, Empire) anticipano gli hard data, gli ordini anticipano la produzione, la capacity utilization dice quanta corda resta. Sotto zero sui survey per più mesi = recessione industriale in corso.",
+  },
+  {
+    id: "housing",
+    label: "Housing",
+    feeds: "Alimenta: indici (settore rate-sensitive) · pilastro Regime",
+    reading:
+      "L'immobiliare è IL canale di trasmissione dei tassi: permessi e cantieri girano per primi quando i mutui mordono (o mollano). Housing che si sblocca = tagli che arrivano all'economia reale; prezzi su con volumi fermi = mercato ingessato, non forte.",
+  },
+  {
     id: "tassi",
     label: "Tassi & Curva",
     feeds:
@@ -76,6 +103,13 @@ export const TRENDS_SECTIONS = [
       "Alimenta: indici (condizioni finanziarie) e risk appetite · pilastri Regime + Tattico",
     reading:
       "HY OAS in allargamento + NFCI in salita + dollaro forte = tripletta risk-off: il contesto in cui gli indici soffrono e l'oro può fare da rifugio SE i reali non salgono troppo.",
+  },
+  {
+    id: "money",
+    label: "Money Supply",
+    feeds: "Alimenta: oro (svalutazione) e indici (liquidità) · pilastro Regime",
+    reading:
+      "La massa monetaria è la marea di lungo periodo: M2 in riaccelerazione = più carburante per gli asset e argomento pro-oro (debasement); M2 in contrazione — raro, visto nel 2022-23 — = vento contrario deflattivo. Conta la variazione, non il livello.",
   },
   {
     id: "volatilita",
@@ -359,6 +393,249 @@ export const TRENDS_SERIES: TrendsSeriesDef[] = [
     reading: "Il capex delle imprese: la fiducia di chi investe, non di chi risponde ai sondaggi.",
   },
 
+  /* ── Consumi ─────────────────────────────────────────────────────── */
+  {
+    key: "pce-nominal",
+    fredIds: ["PCE"],
+    section: "consumi",
+    label: "Spesa personale (PCE)",
+    unit: "%",
+    transform: "yoy",
+    decimals: 1,
+    cadence: "monthly",
+    goodDirection: "up",
+    deltaMode: "abs",
+    refLine: 0,
+    highlight: true,
+    reading:
+      "La spesa nominale delle famiglie (il livello, non l'indice prezzi che sta in Inflazione): finché cresce sopra l'inflazione, il consumatore regge il ciclo.",
+  },
+  {
+    key: "personal-income",
+    fredIds: ["PI"],
+    section: "consumi",
+    label: "Reddito personale",
+    unit: "%",
+    transform: "yoy",
+    decimals: 1,
+    cadence: "monthly",
+    goodDirection: "up",
+    deltaMode: "abs",
+    refLine: 0,
+    reading:
+      "Il carburante della spesa: se il reddito rallenta e la spesa no, la differenza esce da risparmi e credito — non dura.",
+  },
+  {
+    key: "dspi",
+    fredIds: ["DSPI"],
+    section: "consumi",
+    label: "Reddito disponibile",
+    unit: "%",
+    transform: "yoy",
+    decimals: 1,
+    cadence: "monthly",
+    goodDirection: "up",
+    deltaMode: "abs",
+    refLine: 0,
+    reading:
+      "Quello che resta dopo le tasse: la misura più vicina al potere d'acquisto effettivo delle famiglie.",
+  },
+  {
+    key: "psavert",
+    fredIds: ["PSAVERT"],
+    section: "consumi",
+    label: "Tasso di risparmio",
+    unit: "%",
+    transform: "level",
+    decimals: 1,
+    cadence: "monthly",
+    goodDirection: "neutral",
+    deltaMode: "abs",
+    reading:
+      "Il cuscinetto delle famiglie: sotto il ~4% il consumatore spende senza rete — ogni shock sul reddito va dritto sulla spesa.",
+  },
+  {
+    key: "consumer-credit",
+    fredIds: ["TOTALSL"],
+    section: "consumi",
+    label: "Credito al consumo",
+    unit: "%",
+    transform: "yoy",
+    decimals: 1,
+    cadence: "monthly",
+    goodDirection: "neutral",
+    deltaMode: "abs",
+    refLine: 0,
+    reading:
+      "Carte e prestiti: accelera quando il reddito non basta più. Crescita alta a fine ciclo = consumatore a leva, non consumatore forte.",
+  },
+
+  /* ── Produzione ──────────────────────────────────────────────────── */
+  {
+    key: "tcu",
+    fredIds: ["TCU"],
+    section: "produzione",
+    label: "Capacity utilization",
+    unit: "%",
+    transform: "level",
+    decimals: 1,
+    cadence: "monthly",
+    goodDirection: "up",
+    deltaMode: "abs",
+    reading:
+      "Quanto della capacità produttiva è in uso: sopra ~80% l'industria scalda (pressione sui prezzi), in caduta = domanda che manca.",
+  },
+  {
+    key: "ipman",
+    fredIds: ["IPMAN"],
+    section: "produzione",
+    label: "Output manifatturiero",
+    unit: "%",
+    transform: "yoy",
+    decimals: 1,
+    cadence: "monthly",
+    goodDirection: "up",
+    deltaMode: "abs",
+    refLine: 0,
+    reading:
+      "Il cuore ciclico della produzione industriale, senza utilities e miniere: la componente che risponde a tassi e domanda globale.",
+  },
+  {
+    key: "factory-orders",
+    fredIds: ["AMTMNO"],
+    section: "produzione",
+    label: "Ordini alle fabbriche",
+    unit: "%",
+    transform: "yoy",
+    decimals: 1,
+    cadence: "monthly",
+    goodDirection: "up",
+    deltaMode: "abs",
+    refLine: 0,
+    reading:
+      "I nuovi ordini totali del manifatturiero: gli ordini di oggi sono la produzione di domani — anticipano l'output di qualche mese.",
+  },
+  {
+    key: "philly-fed",
+    fredIds: ["GACDFSA066MSFRBPHI"],
+    section: "produzione",
+    label: "Philly FED (attività)",
+    unit: "",
+    transform: "level",
+    decimals: 1,
+    cadence: "monthly",
+    goodDirection: "up",
+    deltaMode: "abs",
+    refLine: 0,
+    highlight: true,
+    reading:
+      "Il survey manifatturiero più seguito dopo la morte dell'ISM su FRED (rimosso nel 2016 su richiesta della stessa ISM): sotto zero per più mesi = contrazione industriale. Esce in anticipo su tutti gli hard data.",
+  },
+  {
+    key: "empire-state",
+    fredIds: ["GACDISA066MSFRBNY"],
+    section: "produzione",
+    label: "Empire State (condizioni)",
+    unit: "",
+    transform: "level",
+    decimals: 1,
+    cadence: "monthly",
+    goodDirection: "up",
+    deltaMode: "abs",
+    refLine: 0,
+    reading:
+      "Il gemello di New York del Philly FED, pubblicato ancora prima: rumoroso mese su mese, ma Philly + Empire concordi = segnale vero sul manifatturiero.",
+  },
+
+  /* ── Housing ─────────────────────────────────────────────────────── */
+  {
+    key: "permit",
+    fredIds: ["PERMIT"],
+    section: "housing",
+    label: "Permessi edilizi",
+    unit: "mgl",
+    transform: "level",
+    decimals: 0,
+    cadence: "monthly",
+    goodDirection: "up",
+    deltaMode: "pct",
+    highlight: true,
+    reading:
+      "Il più anticipatore del settore: il permesso precede il cantiere, il cantiere precede tutto il resto. Gli avvii di cantieri (HOUST) stanno nella scheda Crescita.",
+  },
+  {
+    key: "new-home-sales",
+    fredIds: ["HSN1F"],
+    section: "housing",
+    label: "Vendite case nuove",
+    unit: "mgl",
+    transform: "level",
+    decimals: 0,
+    cadence: "monthly",
+    goodDirection: "up",
+    deltaMode: "pct",
+    reading:
+      "Il segmento dove i costruttori possono comprare giù il mutuo: regge meglio dell'usato quando i tassi mordono — il confronto tra i due dice quanto pesa il lock-in.",
+  },
+  {
+    key: "existing-home-sales",
+    fredIds: ["EXHOSLUSM495S"],
+    section: "housing",
+    label: "Vendite case esistenti",
+    unit: "",
+    transform: "level",
+    decimals: 0,
+    cadence: "monthly",
+    goodDirection: "up",
+    deltaMode: "pct",
+    reading:
+      "Il grosso del mercato (ritmo annualizzato): congelato dal lock-in dei mutui — chi ha il 3% non vende per ricomprare al 7%. Si sblocca solo coi tagli.",
+  },
+  {
+    key: "case-shiller",
+    fredIds: ["CSUSHPISA"],
+    section: "housing",
+    label: "Prezzi case (Case-Shiller)",
+    unit: "%",
+    transform: "yoy",
+    decimals: 1,
+    cadence: "monthly",
+    goodDirection: "neutral",
+    deltaMode: "abs",
+    refLine: 0,
+    reading:
+      "L'indice nazionale dei prezzi: prezzi su con volumi fermi = scarsità d'offerta, non domanda forte. Esce con ~2 mesi di ritardo.",
+  },
+  {
+    key: "mortgage-30y",
+    fredIds: ["MORTGAGE30US"],
+    section: "housing",
+    label: "Mutuo 30 anni",
+    unit: "%",
+    transform: "level",
+    decimals: 2,
+    cadence: "weekly",
+    goodDirection: "down",
+    deltaMode: "abs",
+    reading:
+      "Il tasso che decide tutto il settore: segue il Treasury 10Y più lo spread. Sotto il ~6% storicamente il mercato ricomincia a girare.",
+  },
+  {
+    key: "months-supply",
+    fredIds: ["HOSSUPUSM673N"],
+    section: "housing",
+    label: "Mesi di offerta (usato)",
+    unit: "mesi",
+    transform: "level",
+    decimals: 1,
+    cadence: "monthly",
+    goodDirection: "neutral",
+    deltaMode: "abs",
+    refLine: 6,
+    reading:
+      "Quanti mesi servirebbero a esaurire l'invenduto al ritmo attuale: ~6 = mercato bilanciato (linea), sotto = venditori in controllo, sopra = pressione sui prezzi in arrivo.",
+  },
+
   /* ── 4 · Tassi & curva ───────────────────────────────────────────── */
   {
     key: "fedfunds",
@@ -575,6 +852,103 @@ export const TRENDS_SERIES: TrendsSeriesDef[] = [
     deltaMode: "pct",
     reading:
       "Driver diretto di oro e petrolio (quotati in dollari): dollaro forte = vento contrario per entrambi.",
+  },
+
+  /* ── Liquidità · sotto-sezione Bilancio FED ──────────────────────────
+     Total Assets (WALCL) e Reverse repo (RRPONTSYD) stanno già sopra
+     come serie storiche della sezione: qui il resto del bilancio. */
+  {
+    key: "reserves",
+    fredIds: ["WRESBAL"],
+    section: "liquidita",
+    subSection: "Bilancio FED",
+    label: "Riserve bancarie",
+    unit: "mln $",
+    transform: "level",
+    decimals: 0,
+    cadence: "weekly",
+    goodDirection: "up",
+    deltaMode: "pct",
+    reading:
+      "La liquidità VERA del sistema bancario: il QT può proseguire finché le riserve restano “abbondanti” — quando scarseggiano (settembre 2019) i tassi repo esplodono e la FED si ferma.",
+  },
+  {
+    key: "fed-treasuries",
+    fredIds: ["WSHOTSL"],
+    section: "liquidita",
+    subSection: "Bilancio FED",
+    label: "Treasury in bilancio",
+    unit: "mln $",
+    transform: "level",
+    decimals: 0,
+    cadence: "weekly",
+    goodDirection: "up",
+    deltaMode: "pct",
+    reading:
+      "La gamba principale del QT: il ritmo di runoff dei Treasury è LA leva dichiarata della politica di bilancio — i rallentamenti del deflusso arrivano prima qui.",
+  },
+  {
+    key: "fed-mbs",
+    fredIds: ["WSHOMCB"],
+    section: "liquidita",
+    subSection: "Bilancio FED",
+    label: "MBS in bilancio",
+    unit: "mln $",
+    transform: "level",
+    decimals: 0,
+    cadence: "weekly",
+    goodDirection: "up",
+    deltaMode: "pct",
+    reading:
+      "L'eredità del QE immobiliare: deflusso lento (poca gente rifinanzia coi tassi alti), ma la FED ha detto di volerli fuori dal bilancio nel lungo periodo.",
+  },
+
+  /* ── Money Supply ────────────────────────────────────────────────── */
+  {
+    key: "m2",
+    fredIds: ["M2SL"],
+    section: "money",
+    label: "M2",
+    unit: "%",
+    transform: "yoy",
+    decimals: 1,
+    cadence: "monthly",
+    goodDirection: "neutral",
+    deltaMode: "abs",
+    refLine: 0,
+    highlight: true,
+    reading:
+      "LA misura della marea monetaria: la contrazione 2022-23 è stata la prima dal dopoguerra. Riaccelerazione sopra il ~5% = argomento classico pro-oro e pro-asset.",
+  },
+  {
+    key: "m1",
+    fredIds: ["M1SL"],
+    section: "money",
+    label: "M1",
+    unit: "%",
+    transform: "yoy",
+    decimals: 1,
+    cadence: "monthly",
+    goodDirection: "neutral",
+    deltaMode: "abs",
+    refLine: 0,
+    reading:
+      "La moneta immediatamente spendibile. Attenzione al gradino di maggio 2020: ridefinizione contabile (dentro i savings deposits), non stampa di moneta.",
+  },
+  {
+    key: "mbase",
+    fredIds: ["BOGMBASE"],
+    section: "money",
+    label: "Base monetaria",
+    unit: "%",
+    transform: "yoy",
+    decimals: 1,
+    cadence: "monthly",
+    goodDirection: "neutral",
+    deltaMode: "abs",
+    refLine: 0,
+    reading:
+      "Circolante + riserve: la moneta creata direttamente dalla FED. Si muove col bilancio (QE/QT), non con il credito bancario — il ponte tra Liquidità e M2.",
   },
 
   /* ── 6 · Volatilità & rischio ────────────────────────────────────── */

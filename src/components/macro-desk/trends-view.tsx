@@ -29,8 +29,12 @@ const SECTION_COLOR: Record<TrendsSectionId, string> = {
   inflazione: "var(--md-warn)",
   lavoro: "var(--md-info)",
   crescita: "var(--md-up)",
+  consumi: "var(--md-gold)",
+  produzione: "var(--md-oil)",
+  housing: "var(--md-idx)",
   tassi: "var(--md-idx)",
   liquidita: "var(--md-cross)",
+  money: "var(--md-info)",
   volatilita: "var(--md-down)",
 };
 
@@ -340,6 +344,16 @@ export function TrendsView({ data }: { data: TrendsData }) {
   );
   const sectionMeta = TRENDS_SECTIONS.find((s) => s.id === section)!;
   const sectionSeries = data.series.filter((s) => s.def.section === section);
+  // Le serie senza sotto-sezione prima; poi un gruppo titolato per ciascuna
+  // sotto-sezione, nell'ordine di prima apparizione nel registry.
+  const mainSeries = sectionSeries.filter((s) => !s.def.subSection);
+  const subSections = new Map<string, TrendsSeriesView[]>();
+  for (const view of sectionSeries) {
+    if (!view.def.subSection) continue;
+    const group = subSections.get(view.def.subSection) ?? [];
+    group.push(view);
+    subSections.set(view.def.subSection, group);
+  }
 
   return (
     <div className="flex flex-col gap-4 p-4 sm:p-6">
@@ -434,7 +448,7 @@ export function TrendsView({ data }: { data: TrendsData }) {
         </Callout>
 
         <div className="grid gap-3 xl:grid-cols-2">
-          {sectionSeries.map((view) => (
+          {mainSeries.map((view) => (
             <SeriesCard
               key={view.def.key}
               view={view}
@@ -444,6 +458,28 @@ export function TrendsView({ data }: { data: TrendsData }) {
             />
           ))}
         </div>
+
+        {[...subSections.entries()].map(([name, views]) => (
+          <div key={name} className="flex flex-col gap-3">
+            <h3
+              className="text-2xs font-semibold uppercase tracking-[0.14em]"
+              style={{ color: "var(--md-muted)" }}
+            >
+              {name}
+            </h3>
+            <div className="grid gap-3 xl:grid-cols-2">
+              {views.map((view) => (
+                <SeriesCard
+                  key={view.def.key}
+                  view={view}
+                  horizon={horizon}
+                  recessions={data.recessions}
+                  generatedAt={data.generatedAt}
+                />
+              ))}
+            </div>
+          </div>
+        ))}
       </div>
 
       <p className="text-2xs" style={{ color: "var(--md-muted)" }}>
