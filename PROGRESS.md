@@ -768,9 +768,24 @@ Un singolo indicatore aggregato per l'intera pagina Trends, tra il paragrafo int
 
 **Verificato:** typecheck ✅ · lint ✅ · **870/870 test** ✅ (nessun test nuovo: composizione di `prevailingLabel` già coperta, il filtro è dichiarativo).
 
+## ✅ FASE 34 «Equity Curve Simulator + fix unità Avg Win/Loss» (30/07/2026)
+Il Monte Carlo a bande percentili di `/analytics` è stato **sostituito integralmente** (non affiancato) da un equity curve simulator interattivo in stile classico: form di input + grafico "spaghetti" a linee multiple. Eliminati `monte-carlo-lab.ts` (+ test), `monte-carlo-fan.tsx`, `monte-carlo-controls.tsx`; di `monte-carlo.ts` sopravvive solo `mulberry32` (l'RNG condiviso — `MONTE_CARLO_MIN_TRADES` era rimasto orfano ed è stato rimosso).
+
+**Form** (`equity-simulator.tsx`, client component — a differenza del vecchio MC nei searchParams: la simulazione è locale e parte SOLO col pulsante «Start simulation», niente autosubmit): Start Equity (default = equity attuale del conto), Win Probability % (default = win rate reale), Win/Loss Relation X:1 (default = payoff ratio reale, STESSA fonte del widget Avg Win/Loss), Number of trades (100), Number of lines (20), Risk per trade con dropdown % equity / importo in valuta (default 1%), Scale Normal/Logarithmic (scala dell'asse Y). Ogni click rigenera con seed nuovo; digitare nel form non tocca il grafico finché non si preme il pulsante. Parse tollerante alla virgola decimale.
+
+**Motore** (`equity-simulator.ts`, puro e deterministico a seed fissato): per ogni trade u~U(0,1); u < p → +ratio R, altrimenti −1 R; il rischio % si applica all'**equity corrente** (compounding), l'importo fisso no; rovina assorbente a zero. Limiti difensivi 1000 trade × 100 linee. Float dichiarato (visualizzazione, non contabilità), come il modulo che sostituisce. Nessun ricampionamento dello storico — e la differenza è dichiarata nella sezione «Come funziona» in pagina.
+
+**Grafico**: una linea colorata per percorso (tinte ad angolo aureo), media in grassetto color foreground («nera», leggibile nei due temi), tooltip con trade/media/range, ReferenceLine tratteggiata sull'equity di partenza, asse Y lineare o log secondo il form (in log un'equity a zero interrompe la linea invece di mentire).
+
+**Conseguenze della rimozione**: la StatBox «Risk of ruin (analitico)» in Metriche pro ha perso il confronto col RoR Monte Carlo (sub statica) e il paragrafo «due misure di rovina» è diventato una nota sulle ipotesi della sola formula chiusa; aggiornate le descrizioni in `risk-of-ruin.ts`.
+
+**Fix unità Avg Win/Loss (dashboard)**: il valore del widget era «2,47×» ma è un rapporto tra grandezze in valuta espresso in R della perdita media → ora «2,47R» (`formatRMultiple` al posto di `ratio()+"×"`). Audit completo: era l'UNICA occorrenza col suffisso sbagliato; il Profit Factor e gli altri rapporti adimensionali (Sharpe, Calmar, SQN via `ratio()`) restano senza suffisso, e i chip percentile 1A/3A/5A delle card di volatilità (Fase 32) non sono stati toccati.
+
+**Verificato:** typecheck ✅ · lint ✅ · **859/859 test** ✅ (9 nuovi su `equity-simulator`: determinismo del seed, compounding % su equity corrente vs iniziale, importo fisso con rovina assorbente, media, input non simulabili → null, clamp dei limiti) · build ✅ · screenshot su build di produzione con SIM1 (`scripts/shot.mjs` + probe CDP): default reali 121.719 USD / 49,3% / 1,58:1, 21 curve (20+media), «Start simulation» rigenera, scala log renderizzata.
+
 ### ▶ Prossimi passi
 
-**Il piano premium è completo** (§1 Monte Carlo, §2 rolling metrics, §3 metriche pro).
+**Il piano premium è completo** (§1 equity simulator — ex Monte Carlo, §2 rolling metrics, §3 metriche pro).
 - **MAE/MFE: rinviata** finché il dato non esiste nel modello. Servirebbe: colonne su `Trade`, campi di import CSV/MT5, e un modo di popolarle per lo storico — non va implementata a metà.
 - **Giorno della settimana:** resta in Reports, con il rimando da Analytics. Non duplicare.
 

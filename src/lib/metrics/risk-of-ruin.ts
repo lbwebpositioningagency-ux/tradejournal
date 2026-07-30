@@ -4,11 +4,10 @@ import type { MetricInfoData } from "./types";
 /**
  * §3 — RISK OF RUIN ANALITICO, in formula chiusa.
  *
- * COMPLEMENTARE, non alternativo, al risk of ruin empirico del Monte Carlo
- * (§1): quello ricampiona i tuoi R e conta quante simulazioni finiscono
- * sotto soglia, questo risponde con una formula sotto ipotesi esplicite. Se
- * i due numeri divergono molto, la ragione è quasi sempre nelle ipotesi —
- * ed è un'informazione, non un errore.
+ * Risponde con una formula, sotto ipotesi esplicite, alla domanda "quante
+ * probabilità ho di azzerare il conto continuando a operare così" — senza
+ * simulare nulla. (Fino alla Fase 34 conviveva col risk of ruin empirico
+ * del Monte Carlo di /analytics, poi sostituito dall'equity simulator.)
  *
  * MODELLO: rischio FISSO per trade. Prendendo come unità la perdita media,
  * ogni trade vale +b (payoff) con probabilità p e −1 con probabilità q; il
@@ -82,7 +81,7 @@ export function riskOfRuinAnalytic(input: RiskOfRuinInput): string | null {
 export const riskOfRuinAnalyticInfo: MetricInfoData = {
   label: "Risk of ruin (analitico)",
   description:
-    "La probabilità di azzerare il conto continuando a operare così per sempre, calcolata in formula invece che per simulazione. Assume rischio fisso per trade, trade indipendenti e distribuzione stabile: è il complemento del risk of ruin del Monte Carlo, non un suo sostituto. Senza vantaggio statistico vale 1, ed è la risposta corretta.",
+    "La probabilità di azzerare il conto continuando a operare così per sempre, calcolata in formula invece che per simulazione. Assume rischio fisso per trade, trade indipendenti e distribuzione stabile. Senza vantaggio statistico vale 1, ed è la risposta corretta.",
   formula:
     "RoR ≈ e^(−θ·U), con p·e^(−θ·b) + q·e^θ = 1 · U = equity / perdita media · b = payoff",
 };

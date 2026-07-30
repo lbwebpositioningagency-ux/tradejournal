@@ -1,17 +1,12 @@
 /**
- * Primitive condivise del Monte Carlo: RNG deterministico e soglia minima
- * di campione.
+ * RNG deterministico condiviso dalle simulazioni.
  *
- * STORIA (Fase 26): qui viveva `monteCarloR`, la proiezione W4 del widget
- * di dashboard — fascia sintetica dei prossimi 100 trade in R cumulati. Il
- * widget è stato rimosso: la dashboard mostra cosa è successo, non
- * proiezioni ipotetiche, e la versione completa e configurabile vive in
- * `/analytics` (`monte-carlo-lab.ts`, che di questo modulo riusa RNG e
- * soglia — è il motivo per cui il file resta).
+ * STORIA: qui viveva `monteCarloR` (widget W4 di dashboard, rimosso in Fase
+ * 26); il Monte Carlo a bande percentili di /analytics (`monte-carlo-lab.ts`)
+ * è stato a sua volta sostituito in Fase 34 dall'equity curve simulator
+ * (`equity-simulator.ts`), che di questo modulo riusa l'RNG — è il motivo
+ * per cui il file resta.
  */
-
-/** Minimo di R storici per una proiezione onesta (stessa soglia dell'SQN). */
-export const MONTE_CARLO_MIN_TRADES = 30;
 
 /** RNG deterministico (mulberry32), lo stesso schema del seed del progetto. */
 export function mulberry32(seed: number): () => number {

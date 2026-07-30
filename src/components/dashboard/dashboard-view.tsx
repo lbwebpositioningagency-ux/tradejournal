@@ -644,7 +644,7 @@ export function DashboardView({ data }: { data: DashboardData }) {
             className={cn("max-lg:order-6", extraMetricCls)}
             label="Avg Win / Loss"
             info={avgWinLossInfo}
-            value={data.payoff !== null ? `${ratio(data.payoff)}×` : "—"}
+            value={data.payoff !== null ? formatRMultiple(data.payoff) : "—"}
             sub={
               <>
                 <span className={masked ? undefined : "text-profit"}>

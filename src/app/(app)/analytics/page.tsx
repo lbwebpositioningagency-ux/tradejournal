@@ -65,15 +65,7 @@ import {
   seriesRange,
   type SeriesRange,
 } from "@/lib/metrics";
-import {
-  DEFAULT_SIMS,
-  HORIZON_PRESETS,
-  horizonFromMonths,
-  monteCarloLab,
-  monteCarloLabInfo,
-  riskOfRuinInfo,
-  tradesPerDay,
-} from "@/lib/metrics/monte-carlo-lab";
+import { equitySimulatorInfo } from "@/lib/metrics/equity-simulator";
 import {
   getRMultiples,
   getDailyPnl,
@@ -81,7 +73,7 @@ import {
   getLifetimeNetPnl,
   getNetPnlBefore,
 } from "@/lib/queries/stats";
-import { MonteCarloControls } from "@/components/analytics/monte-carlo-controls";
+import { EquitySimulator } from "@/components/analytics/equity-simulator";
 import {
   RollingRatioChart,
   RollingTradeChart,
@@ -91,10 +83,6 @@ import {
   MetricRangeStrip,
   type MetricRangeRow,
 } from "@/components/analytics/metric-range-strip";
-import {
-  MonteCarloFan,
-  MonteCarloHistogram,
-} from "@/components/analytics/monte-carlo-fan";
 import { SegmentPerformanceChart } from "@/components/analytics/segment-performance-chart";
 import { SegmentTable } from "@/components/analytics/segment-table";
 import {
@@ -110,7 +98,6 @@ import {
   formatPercent,
   formatPercentSmall,
   formatRMultiple,
-  pnlColorClass,
 } from "@/lib/money";
 import { cn } from "@/lib/utils";
 import { MetricInfo } from "@/components/metric-info";
@@ -300,10 +287,9 @@ export default async function AnalyticsPage({
       getDurationPerformance(filter, DURATION_BUCKETS),
     ]);
 
-  // §1 — Monte Carlo: gli R storici dello scope sono l'urna del bootstrap, il
-  // saldo reale è il punto di partenza dell'equity simulata. La serie
-  // giornaliera serve solo a stimare la frequenza di trade (orizzonte
-  // temporale), non entra nella simulazione.
+  // §1 — Equity curve simulator (Fase 34): il saldo reale del conto è il
+  // default di Start Equity. Gli R storici servono all'optimal f (§3), la
+  // serie giornaliera alle metriche rolling (§2): le query restano condivise.
   const [mcR, mcDaily, mcStartBalance, mcLifetime] = await Promise.all([
     getRMultiples(filter),
     getDailyPnl(filter, user.timezone),
@@ -311,51 +297,6 @@ export default async function AnalyticsPage({
     getLifetimeNetPnl(filter),
   ]);
   const startingEquity = new Decimal(mcStartBalance).plus(mcLifetime).toFixed(2);
-
-  const perDay =
-    mcDaily.length >= 2
-      ? tradesPerDay(
-          mcDaily.reduce((a, d) => a + d.trades, 0),
-          Math.max(
-            1,
-            Math.round(
-              (new Date(mcDaily.at(-1)!.day).getTime() -
-                new Date(mcDaily[0].day).getTime()) /
-                86_400_000,
-            ) + 1,
-          ),
-        )
-      : null;
-
-  const mcMonths = typeof params.mcM === "string" ? Number(params.mcM) : null;
-  const horizonFromParam =
-    typeof params.mcH === "string" ? Number(params.mcH) : null;
-  const mcHorizon =
-    (mcMonths ? horizonFromMonths(mcMonths, perDay) : null) ??
-    (horizonFromParam && HORIZON_PRESETS.includes(horizonFromParam as 100)
-      ? horizonFromParam
-      : 250);
-  const mcRiskMode =
-    params.mcMode === "fixed-amount" ? "fixed-amount" : "fixed-fractional";
-  const mcRiskPct = typeof params.mcRisk === "string" ? params.mcRisk : "0.01";
-  const mcMethod = params.mcMet === "parametric" ? "parametric" : "bootstrap";
-  // Rischio di default in importo fisso: il rischio medio storico dell'utente.
-  const mcRisk =
-    mcRiskMode === "fixed-fractional"
-      ? mcRiskPct
-      : new Decimal(startingEquity).times("0.01").toFixed(2);
-
-  const simulation =
-    Number(startingEquity) > 0
-      ? monteCarloLab(mcR, {
-          horizon: mcHorizon,
-          sims: DEFAULT_SIMS,
-          startingEquity,
-          riskPerTrade: mcRisk,
-          riskMode: mcRiskMode,
-          method: mcMethod,
-        })
-      : null;
 
   const buckets = targetRBucketStats(bucketRows);
   const totals = targetRTotals(buckets);
@@ -612,159 +553,54 @@ export default async function AnalyticsPage({
             </CardContent>
           </Card>
 
-          {/* §1 — simulazione Monte Carlo. */}
+          {/* §1 — equity curve simulator (Fase 34, sostituisce il Monte
+              Carlo a bande percentili). */}
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center gap-2 text-base">
-                Simulazione Monte Carlo
-                <MetricInfo info={monteCarloLabInfo} />
+                Equity curve simulator
+                <MetricInfo info={equitySimulatorInfo} />
               </CardTitle>
               <CardDescription>
-                {simulation
-                  ? `${simulation.sims.toLocaleString("it-IT")} scenari da ${simulation.horizon} trade, ricampionando i tuoi ${simulation.sampleSize} R storici.`
-                  : "Servono almeno 30 trade con rischio definito per una proiezione onesta."}
-                {mcMonths && perDay && simulation
-                  ? ` Orizzonte temporale convertito in ${simulation.horizon} trade con la tua frequenza storica (${perDay.toFixed(2).replace(".", ",")} trade al giorno): assume che tu continui a operare con lo stesso ritmo.`
-                  : ""}
+                Ogni linea colorata è un percorso possibile con i parametri del
+                form; la linea in grassetto è la media. I campi partono dalle
+                statistiche reali del conto nel periodo, ma sono tuoi: cambiali
+                per vedere come si muove il ventaglio.
               </CardDescription>
             </CardHeader>
             <CardContent className="flex flex-col gap-4">
-              <Suspense fallback={<div className="h-20" />}>
-                <MonteCarloControls
-                  horizon={mcHorizon}
-                  riskPct={mcRiskPct}
-                  riskMode={mcRiskMode}
-                  method={mcMethod}
-                  monthsAvailable={perDay !== null}
-                />
-              </Suspense>
+              <EquitySimulator
+                defaultStartEquity={
+                  new Decimal(startingEquity).gt(0)
+                    ? new Decimal(startingEquity).toFixed(0)
+                    : "10000"
+                }
+                defaultWinProbability={
+                  proWinRate !== null
+                    ? new Decimal(proWinRate).times(100).toFixed(1)
+                    : "50"
+                }
+                defaultWinLossRatio={
+                  proPayoff !== null
+                    ? new Decimal(proPayoff).toFixed(2)
+                    : "1.5"
+                }
+                currency={currency}
+              />
 
-              {simulation ? (
-                <>
-                  <MonteCarloFan
-                    fan={simulation.fan}
-                    startingEquity={Number(startingEquity)}
-                    currency={currency}
-                  />
-
-                  <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-                    <StatBox
-                      label="P(in profitto)"
-                      value={formatPercent(simulation.probProfit.toFixed(4))}
-                      tone={simulation.probProfit >= 0.5 ? "profit" : "loss"}
-                    />
-                    <StatBox
-                      label="Max drawdown mediano"
-                      value={formatPercent(simulation.maxDrawdown.median.toFixed(4))}
-                      sub={`95° percentile ${formatPercent(simulation.maxDrawdown.p95.toFixed(4))}`}
-                    />
-                    <StatBox
-                      label="Risk of ruin"
-                      value={formatPercentSmall(simulation.riskOfRuin.toFixed(4))}
-                      sub="soglia: perdita del 50%"
-                      tone={simulation.riskOfRuin > 0.05 ? "loss" : undefined}
-                      info={riskOfRuinInfo}
-                    />
-                    <StatBox
-                      label="Ritorno mediano"
-                      value={formatPercent(simulation.finalReturn.p50.toFixed(4))}
-                      tone={simulation.finalReturn.p50 >= 0 ? "profit" : "loss"}
-                    />
-                  </div>
-
-                  <div className="grid gap-4 lg:grid-cols-2">
-                    <div>
-                      <h3 className="stat-label mb-2">Equity finale</h3>
-                      <MonteCarloHistogram
-                        bars={simulation.histogram}
-                        currency={currency}
-                      />
-                    </div>
-                    <div>
-                      <h3 className="stat-label mb-2">Percentili</h3>
-                      <div className="overflow-x-auto">
-                        <table className="w-full text-sm">
-                          <thead>
-                            <tr className="border-b text-left text-xs text-muted-foreground">
-                              <th className="py-2 pr-3 font-medium">Scenario</th>
-                              <th className="py-2 pr-3 text-right font-medium">
-                                Equity finale
-                              </th>
-                              <th className="py-2 text-right font-medium">Ritorno</th>
-                            </tr>
-                          </thead>
-                          <tbody>
-                            {(
-                              [
-                                ["Peggiore (5%)", "p05"],
-                                ["Sfavorevole (25%)", "p25"],
-                                ["Mediano", "p50"],
-                                ["Favorevole (75%)", "p75"],
-                                ["Migliore (95%)", "p95"],
-                              ] as const
-                            ).map(([label, key]) => (
-                              <tr key={key} className="border-b last:border-0">
-                                <td className="py-2 pr-3">{label}</td>
-                                <td className="py-2 pr-3 text-right tabular-nums">
-                                  {formatMoney(
-                                    simulation.finalEquity[key].toFixed(2),
-                                    currency,
-                                  )}
-                                </td>
-                                <td
-                                  className={cn(
-                                    "py-2 text-right font-medium tabular-nums",
-                                    pnlColorClass(
-                                      simulation.finalReturn[key].toFixed(4),
-                                    ),
-                                  )}
-                                >
-                                  {formatPercent(
-                                    simulation.finalReturn[key].toFixed(4),
-                                  )}
-                                </td>
-                              </tr>
-                            ))}
-                          </tbody>
-                        </table>
-                      </div>
-                      <p className="mt-3 text-xs text-muted-foreground">
-                        Probabilità di superare un drawdown:{" "}
-                        {simulation.probDrawdownOver
-                          .map(
-                            (d) =>
-                              `${formatPercent(String(d.threshold))} → ${formatPercent(d.probability.toFixed(4))}`,
-                          )
-                          .join(" · ")}
-                      </p>
-                    </div>
-                  </div>
-
-                  {/* Caveat obbligatorio, in pagina e non nascosto in un tooltip. */}
-                  <p className="rounded-md border border-dashed p-3 text-xs text-muted-foreground">
-                    <strong className="text-foreground">
-                      Questa non è una previsione.
-                    </strong>{" "}
-                    La simulazione assume trade indipendenti e una distribuzione
-                    dei risultati stabile nel tempo: la realtà raggruppa le
-                    perdite, cambia regime, e cambia anche il tuo comportamento
-                    dopo un drawdown. Serve a farsi un&apos;idea della{" "}
-                    <em>variabilità</em> — quanto può andare male una serie
-                    normale — non del risultato che otterrai. Non è un consiglio
-                    finanziario.
-                    {simulation.method === "parametric"
-                      ? " Il metodo parametrico usa solo win rate e R medio: perde code e asimmetria della tua distribuzione reale, ed è qui soltanto come confronto."
-                      : ""}
-                  </p>
-                </>
-              ) : (
-                <EmptyState
-                  compact
-                  icon={BarChart3}
-                  title="Storico troppo corto per simulare"
-                  description="Servono almeno 30 trade chiusi con rischio definito: sotto quella soglia la proiezione direbbe più del dato che la sostiene."
-                />
-              )}
+              {/* Explanation: metodologia dichiarata, in pagina. */}
+              <p className="rounded-md border border-dashed p-3 text-xs text-muted-foreground">
+                <strong className="text-foreground">Come funziona.</strong>{" "}
+                Per ogni trade simulato si estrae un numero casuale: se cade
+                sotto la win probability il trade vale +ratio R, altrimenti
+                −1 R, e l&apos;equity si aggiorna rischiando la quota indicata
+                dell&apos;equity corrente (compounding) o l&apos;importo fisso
+                scelto. Nessun dato storico viene ricampionato: contano solo i
+                tre parametri del form. Serve a vedere la <em>variabilità</em>{" "}
+                di un edge — quanto possono divergere futuri con le stesse
+                statistiche — non a prevedere il tuo risultato. Non è un
+                consiglio finanziario.
+              </p>
             </CardContent>
           </Card>
 
@@ -938,11 +774,7 @@ export default async function AnalyticsPage({
                 <StatBox
                   label="Risk of ruin (analitico)"
                   value={formatPercentSmall(ruinAnalytic)}
-                  sub={
-                    simulation
-                      ? `Monte Carlo (perdita del 50%): ${formatPercentSmall(simulation.riskOfRuin.toFixed(4))}`
-                      : "formula chiusa, azzeramento del conto"
-                  }
+                  sub="formula chiusa, azzeramento del conto"
                   tone={
                     ruinAnalytic !== null &&
                     new Decimal(ruinAnalytic).gt("0.05")
@@ -953,19 +785,16 @@ export default async function AnalyticsPage({
                 />
               </div>
 
-              {/* Le due misure di rovina non sono confrontabili alla lettera:
-                  vanno lette per quello che ciascuna assume. */}
+              {/* Ipotesi della formula dichiarate accanto al numero. */}
               <p className="rounded-md border border-dashed p-3 text-xs text-muted-foreground">
                 <strong className="text-foreground">
-                  Le due misure di rovina rispondono a domande diverse.
+                  Il risk of ruin analitico va letto con le sue ipotesi.
                 </strong>{" "}
-                Quella analitica assume rischio fisso per trade e orizzonte
-                infinito, e misura l&apos;azzeramento del conto; quella del
-                Monte Carlo ricampiona i tuoi R su un orizzonte finito e usa
-                come soglia la perdita del 50%. Se divergono, la differenza
-                sta nelle ipotesi — ed è un&apos;informazione. Kelly e optimal
-                f non sono size consigliate: sono il limite oltre il quale
-                nessuna teoria ti dà ragione.
+                Assume rischio fisso per trade, trade indipendenti e orizzonte
+                infinito, e misura l&apos;azzeramento del conto: è un limite
+                teorico, non una probabilità osservata. Kelly e optimal f non
+                sono size consigliate: sono il limite oltre il quale nessuna
+                teoria ti dà ragione.
               </p>
 
               <p className="text-xs text-muted-foreground">

@@ -46,7 +46,16 @@ export {
   underwaterInfo,
   type UnderwaterPoint,
 } from "./underwater";
-export { MONTE_CARLO_MIN_TRADES, mulberry32 } from "./monte-carlo";
+export { mulberry32 } from "./monte-carlo";
+export {
+  simulateEquityCurves,
+  equitySimulatorInfo,
+  SIM_MAX_LINES,
+  SIM_MAX_TRADES,
+  type EquityRiskMode,
+  type EquitySimulatorInput,
+  type EquitySimulatorResult,
+} from "./equity-simulator";
 export {
   monthlyReturnGrids,
   returnIntensity,
