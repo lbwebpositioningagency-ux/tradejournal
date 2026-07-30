@@ -783,6 +783,13 @@ Il Monte Carlo a bande percentili di `/analytics` è stato **sostituito integral
 
 **Verificato:** typecheck ✅ · lint ✅ · **859/859 test** ✅ (9 nuovi su `equity-simulator`: determinismo del seed, compounding % su equity corrente vs iniziale, importo fisso con rovina assorbente, media, input non simulabili → null, clamp dei limiti) · build ✅ · screenshot su build di produzione con SIM1 (`scripts/shot.mjs` + probe CDP): default reali 121.719 USD / 49,3% / 1,58:1, 21 curve (20+media), «Start simulation» rigenera, scala log renderizzata.
 
+## 🚀 DEPLOY Fasi 32+33+34 in produzione (30/07/2026)
+**Live su Vercel.** Fase 32 `4b91730` e Fase 33 `395eefa` risultavano GIÀ su origin/main (pushate in precedenza, deploy Ready da ~1h); questa sessione ha pushato la Fase 34 `2243848`. Deploy automatico `tradejournal-2qismsiqh…` → **● Ready (production)** via `vercel inspect --wait`; il log di build conferma `Cloning … (Branch: main, Commit: 2243848)`. Alias di produzione: `tradejournal-red-zeta.vercel.app`. **Nessuna migrazione DB** nelle tre fasi (zero modifiche sotto `prisma/`).
+
+**Verifica congiunta su HEAD prima del push:** 859/859 test ✅ · typecheck ✅ · lint ✅ (le tre fasi non erano mai state testate come blocco unico).
+
+**Verifica post-deploy:** il login demo sul sito live NON è possibile by design (`demo@tradejournal.local` esiste solo nel seed locale; in produzione c'è solo l'utente di sistema `sim1@demo.tradejournal.local` con `passwordHash: null` — il tentativo restituisce correttamente `CredentialsSignin`). La verifica visiva è stata quindi fatta sulla **build di produzione locale dello stesso commit** con SIM1: dashboard Avg Win/Loss «1,58R» (niente più «×») ✅ · Trends con badge «CICLO GENERALE» sopra le 6 tessere e nessun chip percentile ✅ · Analytics con l'equity curve simulator al posto del Monte Carlo, precompilato coi dati SIM1 (121.719 USD / 49,3% / 1,58:1) ✅. Il controllo a schermo sul dominio live va fatto dall'utente col proprio account.
+
 ### ▶ Prossimi passi
 
 **Il piano premium è completo** (§1 equity simulator — ex Monte Carlo, §2 rolling metrics, §3 metriche pro).
