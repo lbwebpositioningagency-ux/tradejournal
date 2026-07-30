@@ -696,6 +696,17 @@ Sezione eliminata, non nascosta — stesso approccio della rimozione Prop Firm R
 
 **Verificato:** typecheck ✅ · lint ✅ · 832/832 test ✅ · build di produzione ✅ · `grep` su tutto `src/` senza residui (esclusi i falsi positivi `crosshair` e `--md-cross`) · tab bar verificata su build di produzione via CDP: da 7 a 6 sezioni, prima e dopo in `docs/premium-20260730/fase25/` (1280 e 390; i «n/d» nelle card dipendono dall'assenza di `FRED_API_KEY` in locale, presenti identici nel before).
 
+## ✅ FASE 26 «Monte Carlo solo in Analytics» (30/07/2026)
+Il widget «Proiezione Monte Carlo» è stato rimosso dalla Dashboard; il laboratorio completo di `/analytics` resta identico.
+
+**Checkpoint del brief (moduli diversi): condizione vera, causa già nota.** Il widget usava `monteCarloR` (fascia sintetica dei prossimi 100 trade in R, `monte-carlo.ts`), il lab usa `monteCarloLab` — ed è la stratificazione DELIBERATA della Fase 20, documentata nel codice: «ESTENDE il widget della dashboard, non lo sostituisce», riusandone RNG e soglia. Nessun mistero da chiarire prima di rimuovere.
+
+**Rimosso:** la card dalla vista (l'underwater, che le stava accanto, resta da solo a tutta larghezza) · l'id `monte-carlo` da `WIDGET_IDS` e le etichette · `monteCarloR`, i suoi tipi, `monteCarloInfo` e il componente `MonteCarloChart` (usati solo dal widget) · la query `getRMultiples` dalla pagina Dashboard (serviva solo a quello; in Analytics resta) · i 5 test del modulo rimosso. `monte-carlo.ts` NON sparisce: restano `mulberry32` e `MONTE_CARLO_MIN_TRADES`, che il lab importa — il file ora dichiara nella testata perché esiste ancora.
+
+**La migrazione del layout salvato, senza migrazione.** `dashboardLayoutSchema` validava `hidden` con un enum stretto: un utente che aveva nascosto il Monte Carlo avrebbe avuto un documento invalido dopo la rimozione, e il fallback del parse gli avrebbe azzerato TUTTE le preferenze (desktop e mobile insieme). Il parse ora accetta stringhe e FILTRA gli id sconosciuti: l'id orfano sparisce in silenzio, il resto sopravvive. Vale anche per le prossime rimozioni. Test dedicato (`dashboard.test.ts`).
+
+**Verificato:** typecheck ✅ · lint ✅ · **830/830 test** ✅ (−5 del modulo rimosso, +3 sul parse del layout) · build di produzione ✅ · misura nel DOM su build di produzione: «Monte Carlo» assente dalla Dashboard, underwater presente; card «Simulazione Monte Carlo» presente in Analytics coi suoi controlli · screenshot before/after in `docs/premium-20260730/fase26/` (dashboard 1280+390, analytics 1280).
+
 ### ▶ Prossimi passi
 
 **Il piano premium è completo** (§1 Monte Carlo, §2 rolling metrics, §3 metriche pro).

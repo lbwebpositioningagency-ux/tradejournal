@@ -46,13 +46,7 @@ export {
   underwaterInfo,
   type UnderwaterPoint,
 } from "./underwater";
-export {
-  monteCarloR,
-  monteCarloInfo,
-  MONTE_CARLO_MIN_TRADES,
-  type MonteCarloResult,
-  type MonteCarloStep,
-} from "./monte-carlo";
+export { MONTE_CARLO_MIN_TRADES, mulberry32 } from "./monte-carlo";
 export {
   breakEvenWinRate,
   winRateMargin,

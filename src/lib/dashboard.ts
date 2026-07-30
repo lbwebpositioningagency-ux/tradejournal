@@ -35,7 +35,6 @@ export const WIDGET_IDS = [
   "score",
   "cumulative",
   "underwater",
-  "monte-carlo",
   "daily-pnl",
   "balance",
   "recent-trades",
@@ -65,7 +64,6 @@ export const WIDGET_LABELS: Record<WidgetId, string> = {
   score: "Score",
   cumulative: "P&L cumulativo",
   underwater: "Underwater plot",
-  "monte-carlo": "Proiezione Monte Carlo",
   "daily-pnl": "P&L giornaliero",
   balance: "Saldo conto",
   "recent-trades": "Ultimi trade",
@@ -86,9 +84,25 @@ const MOBILE_DEFAULTS: MobileLayout = {
   showAnalytics: false,
 };
 
-/** Contenuto di `User.dashboardLayout` (Json). */
+/**
+ * Contenuto di `User.dashboardLayout` (Json).
+ *
+ * `hidden` accetta stringhe qualsiasi e FILTRA le sconosciute invece di
+ * rifiutare il documento (Fase 26): quando un widget viene rimosso dal
+ * codice (Monte Carlo → solo Analytics), i layout salvati che lo
+ * nascondevano devono restare validi — con l'enum stretto il parse intero
+ * falliva e l'utente perdeva TUTTE le sue preferenze, non solo quella
+ * ormai irrilevante.
+ */
 export const dashboardLayoutSchema = z.object({
-  hidden: z.array(z.enum(WIDGET_IDS)).default([]),
+  hidden: z
+    .array(z.string())
+    .default([])
+    .transform((ids) =>
+      ids.filter((id): id is WidgetId =>
+        (WIDGET_IDS as readonly string[]).includes(id),
+      ),
+    ),
   mobile: mobileLayoutSchema.default(MOBILE_DEFAULTS),
 });
 export type DashboardLayout = z.infer<typeof dashboardLayoutSchema>;

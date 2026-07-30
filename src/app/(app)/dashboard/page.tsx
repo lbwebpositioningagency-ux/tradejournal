@@ -21,7 +21,6 @@ import {
   coveredDays,
   classifyOutcome,
   compositeScoreParts,
-  monteCarloR,
   underwaterSeries,
   currentDayStreak,
   currentStreak,
@@ -44,7 +43,6 @@ import {
   getDailyPnl,
   getLifetimeNetPnl,
   getRDistribution,
-  getRMultiples,
   getRecentTradeOutcomes,
   getStartingBalance,
   getTradeAggregates,
@@ -155,7 +153,6 @@ export default async function DashboardPage({
     agg,
     daily,
     monthDaily,
-    rMultiples,
     outcomes,
     baseBalance,
     lifetimeNetPnl,
@@ -169,8 +166,6 @@ export default async function DashboardPage({
       getTradeAggregates(filter),
       getDailyPnl(filter, user.timezone),
       getDailyPnl(monthFilter, user.timezone),
-      // W4 — R storici dello scope per il bootstrap Monte Carlo.
-      getRMultiples(filter),
       getRecentTradeOutcomes(filter),
       getStartingBalance(filter),
       getLifetimeNetPnl(filter),
@@ -342,10 +337,8 @@ export default async function DashboardPage({
       : null,
     // F32 — istogramma R (bin 0,5R + colonna BE) da aggregato SQL completo.
     rDistribution: fillRDistribution(rDistributionRows, BE_BIN),
-    // W4 — underwater sulla stessa serie del cumulativo; Monte Carlo sui
-    // TUOI R storici (null sotto la soglia: gate onesto).
+    // W4 — underwater sulla stessa serie del cumulativo.
     underwater: underwaterSeries(daily, baseBalance),
-    monteCarlo: monteCarloR(rMultiples),
     daily: daily.map((d) => ({ day: d.day, netPnl: d.netPnl, rSum: d.rSum })),
     recent: recentTrades.map((t) => ({
       id: t.id,

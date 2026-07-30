@@ -57,13 +57,10 @@ import {
   tradeCountInfo,
   ulcerInfo,
   winRateInfo,
-  monteCarloInfo,
-  MONTE_CARLO_MIN_TRADES,
   underwaterInfo,
   type DayStats,
   type DrawdownResult,
   type MetricInfoData,
-  type MonteCarloResult,
   type StreakResult,
   type StreakSummary,
   type UnderwaterPoint,
@@ -78,7 +75,6 @@ import {
 } from "@/components/charts/trade-sequence-chart";
 import { RDistributionChart } from "@/components/charts/r-distribution-chart";
 import { UnderwaterChart } from "@/components/charts/underwater-chart";
-import { MonteCarloChart } from "@/components/charts/monte-carlo-chart";
 import type { RDistPoint } from "@/lib/reports";
 import { SessionTable } from "./session-table";
 import { cn, pluralize } from "@/lib/utils";
@@ -186,8 +182,6 @@ export interface DashboardData {
   rDistribution: RDistPoint[];
   /** W4 — drawdown % dal picco, stessa serie del cumulativo. */
   underwater: UnderwaterPoint[];
-  /** W4 — proiezione bootstrap sugli R storici (null sotto la soglia). */
-  monteCarlo: MonteCarloResult | null;
   /** F33 — posizioni aperte del conto attivo (mai filtrate dal periodo). */
   openPositions: {
     id: string;
@@ -1253,71 +1247,31 @@ export function DashboardView({ data }: { data: DashboardData }) {
         ) : null}
       </div>
 
-      {/* W4 — underwater + Monte Carlo: statistica seria presentata semplice */}
-      {show("underwater") || show("monte-carlo") ? (
-        <div
-          className={cn(
-            "grid gap-4 max-lg:order-12",
-            show("underwater") && show("monte-carlo")
-              ? "xl:grid-cols-2"
-              : undefined,
-            analyticsCls,
-          )}
-        >
-          {show("underwater") ? (
-            <Card>
-              <CardHeader>
-                <CardTitle className="stat-label flex items-center gap-1">
-                  Underwater plot
-                  <MetricInfo info={underwaterInfo} />
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                {data.underwater.length > 1 ? (
-                  <UnderwaterChart points={data.underwater} />
-                ) : (
-                  <EmptyState
-                    compact
-                    icon={LineChartIcon}
-                    title="Nessun trade chiuso nel periodo"
-                    description="L'underwater plot si popola con la serie giornaliera."
-                  />
-                )}
-              </CardContent>
-            </Card>
-          ) : null}
-          {show("monte-carlo") ? (
-            <Card>
-              <CardHeader>
-                <CardTitle className="stat-label flex items-center gap-1">
-                  Proiezione Monte Carlo (prossimi 100 trade)
-                  <MetricInfo info={monteCarloInfo} />
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                {data.monteCarlo ? (
-                  <>
-                    <MonteCarloChart steps={data.monteCarlo.steps} />
-                    <p className="stat-sub mt-1">
-                      Mediana {formatRMultiple(data.monteCarlo.medianFinalR)} ·
-                      P(chiudere in negativo){" "}
-                      {formatPercent(data.monteCarlo.probNegative, 0)} · DD
-                      mediano {formatRMultiple(data.monteCarlo.medianMaxDrawdownR)}{" "}
-                      · bootstrap su {data.monteCarlo.sampleSize} R storici,
-                      {" "}{data.monteCarlo.sims} scenari (seed fisso)
-                    </p>
-                  </>
-                ) : (
-                  <EmptyState
-                    compact
-                    icon={LineChartIcon}
-                    title={`Dati insufficienti (${data.rCount}/${MONTE_CARLO_MIN_TRADES} trade con rischio)`}
-                    description="La proiezione ricampiona i tuoi R-multiple: servono più trade con rischio definito."
-                  />
-                )}
-              </CardContent>
-            </Card>
-          ) : null}
+      {/* W4 — underwater: statistica seria presentata semplice. Il Monte
+          Carlo vive SOLO in Analytics (Fase 26): la dashboard mostra cosa è
+          successo, non proiezioni ipotetiche configurabili. */}
+      {show("underwater") ? (
+        <div className={cn("grid gap-4 max-lg:order-12", analyticsCls)}>
+          <Card>
+            <CardHeader>
+              <CardTitle className="stat-label flex items-center gap-1">
+                Underwater plot
+                <MetricInfo info={underwaterInfo} />
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              {data.underwater.length > 1 ? (
+                <UnderwaterChart points={data.underwater} />
+              ) : (
+                <EmptyState
+                  compact
+                  icon={LineChartIcon}
+                  title="Nessun trade chiuso nel periodo"
+                  description="L'underwater plot si popola con la serie giornaliera."
+                />
+              )}
+            </CardContent>
+          </Card>
         </div>
       ) : null}
 
