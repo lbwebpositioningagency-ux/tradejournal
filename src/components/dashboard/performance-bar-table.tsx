@@ -8,7 +8,6 @@ import {
   formatSignedMoney,
   pnlColorClass,
 } from "@/lib/money";
-import type { SessionPoint } from "@/lib/sessions";
 import { cn } from "@/lib/utils";
 import {
   Table,
@@ -19,25 +18,38 @@ import {
   TableRow,
 } from "@/components/ui/table";
 
+/** Riga generica: sessioni (lib/sessions) e giorni (lib/weekdays) combaciano. */
+export interface PerformanceBarRow {
+  label: string;
+  total: number;
+  wins: number;
+  netPnl: string;
+  rSum: string;
+  rCount: number;
+}
+
 /**
- * F22 — performance per sessione come TABELLA compatta con barre
+ * F22 — breakdown di performance come TABELLA compatta con barre
  * orizzontali: al posto dei 4 mini-radar (che con 2 assi strutturalmente
  * vuoti avevano sempre la stessa forma). Più densa, più onesta, meno pixel.
  * I profitti negativi restano negativi: barra rossa verso sinistra del
- * riferimento, mai appiattiti a zero.
+ * riferimento, mai appiattiti a zero. Generalizzata (era SessionTable) per
+ * servire sia le sessioni sia i giorni della settimana con lo stesso stile.
  */
-export function SessionTable({
-  sessions,
+export function PerformanceBarTable({
+  rows,
+  rowHeader,
   currency,
   masked = false,
 }: {
-  sessions: SessionPoint[];
+  rows: PerformanceBarRow[];
+  rowHeader: string;
   currency: string;
   masked?: boolean;
 }) {
-  // Scala delle barre: il massimo |P&L| tra le sessioni con trade.
-  const maxAbs = sessions.reduce((acc, s) => {
-    const abs = new Decimal(s.netPnl).abs();
+  // Scala delle barre: il massimo |P&L| tra le righe con trade.
+  const maxAbs = rows.reduce((acc, r) => {
+    const abs = new Decimal(r.netPnl).abs();
     return abs.gt(acc) ? abs : acc;
   }, new Decimal(0));
 
@@ -46,7 +58,7 @@ export function SessionTable({
       <Table>
         <TableHeader>
           <TableRow>
-            <TableHead>Sessione</TableHead>
+            <TableHead>{rowHeader}</TableHead>
             <TableHead className="text-right">Trade</TableHead>
             <TableHead className="text-right">Win %</TableHead>
             <TableHead className="text-right">R medio</TableHead>
@@ -55,30 +67,30 @@ export function SessionTable({
           </TableRow>
         </TableHeader>
         <TableBody>
-          {sessions.map((session) => {
-            const empty = session.total === 0;
-            const rate = winRate(session.wins, session.total);
+          {rows.map((row) => {
+            const empty = row.total === 0;
+            const rate = winRate(row.wins, row.total);
             const avgR =
-              session.rCount > 0
-                ? new Decimal(session.rSum).div(session.rCount).toFixed(4)
+              row.rCount > 0
+                ? new Decimal(row.rSum).div(row.rCount).toFixed(4)
                 : null;
             const pct = maxAbs.isZero()
               ? 0
-              : new Decimal(session.netPnl)
+              : new Decimal(row.netPnl)
                   .abs()
                   .div(maxAbs)
                   .times(100)
                   .toDecimalPlaces(0)
                   .toNumber();
-            const negative = new Decimal(session.netPnl).lt(0);
+            const negative = new Decimal(row.netPnl).lt(0);
             return (
               <TableRow
-                key={session.session}
+                key={row.label}
                 className={empty ? "text-muted-foreground/60" : undefined}
               >
-                <TableCell className="font-medium">{session.label}</TableCell>
+                <TableCell className="font-medium">{row.label}</TableCell>
                 <TableCell className="text-right tabular-nums">
-                  {empty ? "—" : session.total}
+                  {empty ? "—" : row.total}
                 </TableCell>
                 <TableCell className="text-right tabular-nums">
                   {empty ? "—" : formatPercent(rate, 0)}
@@ -89,14 +101,14 @@ export function SessionTable({
                 <TableCell
                   className={cn(
                     "text-right font-medium tabular-nums",
-                    empty || masked ? undefined : pnlColorClass(session.netPnl),
+                    empty || masked ? undefined : pnlColorClass(row.netPnl),
                   )}
                 >
                   {empty
                     ? "—"
                     : masked
                       ? "•••"
-                      : formatSignedMoney(session.netPnl, currency)}
+                      : formatSignedMoney(row.netPnl, currency)}
                 </TableCell>
                 <TableCell>
                   {!empty ? (

@@ -70,6 +70,7 @@ import {
 } from "@/lib/metrics";
 import { formatDayKey, formatDurationSec } from "@/lib/dates";
 import { sessionsInfo, type SessionPoint } from "@/lib/sessions";
+import { weekdaysInfo, type WeekdayPoint } from "@/lib/weekdays";
 import { MetricInfo } from "@/components/metric-info";
 import { EmptyState } from "@/components/empty-state";
 import type { TradeSequencePointView } from "@/components/charts/trade-sequence-chart";
@@ -117,8 +118,8 @@ import { MiniCalendar, type MiniCalendarDay } from "./mini-calendar";
  * fallback ad altezza equivalente: niente layout shift, mount fuori dal
  * percorso critico.
  */
-const SessionTable = dynamicImport(
-  () => import("./session-table").then((m) => m.SessionTable),
+const PerformanceBarTable = dynamicImport(
+  () => import("./performance-bar-table").then((m) => m.PerformanceBarTable),
   {
     ssr: false,
     loading: () => (
@@ -219,6 +220,7 @@ export interface DashboardData {
   avgWinDurationSec: string | null;
   avgLossDurationSec: string | null;
   sessions: SessionPoint[];
+  weekdays: WeekdayPoint[];
   tradeStreak: StreakResult;
   dayStreak: StreakResult;
   score: number | null;
@@ -1240,8 +1242,9 @@ export function DashboardView({ data }: { data: DashboardData }) {
           </CardHeader>
           <CardContent>
             {data.totalTrades > 0 ? (
-              <SessionTable
-                sessions={data.sessions}
+              <PerformanceBarTable
+                rows={data.sessions}
+                rowHeader="Sessione"
                 currency={data.currency}
                 masked={masked}
               />
@@ -1251,6 +1254,37 @@ export function DashboardView({ data }: { data: DashboardData }) {
                 icon={LineChartIcon}
                 title="Nessun trade chiuso nel periodo"
                 description="La tabella si popola con i trade chiusi per sessione."
+              />
+            )}
+          </CardContent>
+        </Card>
+      ) : null}
+
+      {/* Performance per giorno della settimana: stessa tabella con barre
+          delle sessioni, bucket ISO sul giorno di apertura (fuso utente).
+          Weekend solo se operato (vedi lib/weekdays.ts). */}
+      {show("weekdays") && !hideAnalytics ? (
+        <Card className={cn("max-lg:order-10", analyticsCls)}>
+          <CardHeader>
+            <CardTitle className="stat-label flex items-center gap-1">
+              Performance per giorno della settimana
+              <MetricInfo info={weekdaysInfo} />
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            {data.totalTrades > 0 ? (
+              <PerformanceBarTable
+                rows={data.weekdays}
+                rowHeader="Giorno"
+                currency={data.currency}
+                masked={masked}
+              />
+            ) : (
+              <EmptyState
+                compact
+                icon={LineChartIcon}
+                title="Nessun trade chiuso nel periodo"
+                description="La tabella si popola con i trade chiusi per giorno della settimana."
               />
             )}
           </CardContent>
