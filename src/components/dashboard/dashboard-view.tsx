@@ -560,7 +560,7 @@ export function DashboardView({ data }: { data: DashboardData }) {
         <div>
           <h1 className="page-title">Dashboard</h1>
           <p className="page-subtitle">
-            Benvenuto in L&amp;B TradeJournal
+            Benvenuto in L&amp;B TradingSpace
           </p>
         </div>
         <OnboardingHero

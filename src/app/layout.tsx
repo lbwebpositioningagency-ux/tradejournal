@@ -27,8 +27,8 @@ const geistMono = Geist_Mono({
 
 export const metadata: Metadata = {
   title: {
-    default: "L&B TradeJournal",
-    template: "%s · L&B TradeJournal",
+    default: "L&B TradingSpace",
+    template: "%s · L&B TradingSpace",
   },
   description: "Trading journal e analytics per trader retail",
 };

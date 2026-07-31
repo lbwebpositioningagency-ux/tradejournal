@@ -47,7 +47,7 @@ function Brand() {
         L&amp;B
       </div>
       <span className="font-semibold tracking-tight text-sidebar-foreground">
-        L&amp;B TradeJournal
+        L&amp;B TradingSpace
       </span>
     </div>
   );

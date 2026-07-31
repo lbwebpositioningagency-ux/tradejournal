@@ -21,7 +21,7 @@ export default async function AuthLayout({
           L&amp;B
         </div>
         <span className="text-xl font-semibold tracking-tight">
-          L&amp;B TradeJournal
+          L&amp;B TradingSpace
         </span>
       </div>
       <div className="relative w-full max-w-sm">{children}</div>

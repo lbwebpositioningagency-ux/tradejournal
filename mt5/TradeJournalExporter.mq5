@@ -1,6 +1,6 @@
 //+------------------------------------------------------------------+
 //|                                        TradeJournalExporter.mq5  |
-//|  Esporta ogni posizione CHIUSA in NDJSON per L&B TradeJournal.   |
+//|  Esporta ogni posizione CHIUSA in NDJSON per L&B TradingSpace.   |
 //|                                                                  |
 //|  - Una riga JSON per posizione completamente chiusa (append).    |
 //|  - File in Common\Files\tradejournal\<login>.ndjson: la cartella |
@@ -13,7 +13,7 @@
 //|  - Ri-esportare righe gia' scritte e' innocuo: l'app deduplica   |
 //|    per ticket (posizione) e conto.                               |
 //+------------------------------------------------------------------+
-#property copyright "L&B TradeJournal"
+#property copyright "L&B TradingSpace"
 #property link      ""
 #property version   "1.00"
 #property strict

@@ -194,7 +194,7 @@ export default async function WeeklyReportPage({
           <CardTitle className="flex flex-wrap items-baseline justify-between gap-2 text-base">
             <span>Settimana {weekLabel(monday)}</span>
             <span className="text-xs font-normal text-muted-foreground">
-              L&B TradeJournal
+              L&B TradingSpace
             </span>
           </CardTitle>
         </CardHeader>

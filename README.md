@@ -1,4 +1,6 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# L&B TradingSpace
+
+Trading journal e analytics per trader retail: registro trade, dashboard di metriche, reports, journal di giornata e Macro Desk. Costruito con [Next.js](https://nextjs.org) (App Router), TypeScript, PostgreSQL + Prisma, Tailwind + shadcn/ui.
 
 ## Getting Started
 

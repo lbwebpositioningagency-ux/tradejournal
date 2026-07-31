@@ -1,4 +1,4 @@
-# TradeJournalExporter — sync MT5 → L&B TradeJournal
+# TradeJournalExporter — sync MT5 → L&B TradingSpace
 
 Expert Advisor gratuito che scrive ogni posizione **chiusa** in un file NDJSON
 locale; l'app lo osserva e importa da sola i trade nuovi (mai duplicati:

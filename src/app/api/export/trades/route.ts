@@ -127,7 +127,7 @@ export async function GET(request: NextRequest) {
   return new Response(toCsv(rows), {
     headers: {
       "Content-Type": "text/csv; charset=utf-8",
-      "Content-Disposition": `attachment; filename="tradejournal-export-${today}.csv"`,
+      "Content-Disposition": `attachment; filename="tradingspace-export-${today}.csv"`,
       "Cache-Control": "no-store",
     },
   });
