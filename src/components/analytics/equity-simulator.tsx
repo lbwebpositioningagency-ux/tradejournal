@@ -16,15 +16,26 @@ import { useChartAnimation } from "@/components/charts/use-chart-animation";
 import {
   SIM_MAX_LINES,
   SIM_MAX_TRADES,
+  aggregateStatsInfo,
+  avgMaxDrawdownInfo,
+  avgPerformanceInfo,
+  biggestMaxDrawdownInfo,
+  equityAggregatesFromPaths,
   equityBandsFromPaths,
   equityStatsFromPaths,
+  maxConsecutiveLossesInfo,
+  maxConsecutiveWinsInfo,
+  maxEquityInfo,
+  meanEquityInfo,
   medianMaxDrawdownInfo,
   medianReturnInfo,
   percentileTableInfo,
   probProfitInfo,
+  returnOnMaxDrawdownInfo,
   RUIN_THRESHOLD,
   simulateEquityCurves,
   simulatorRuinInfo,
+  type EquityAggregateStats,
   type EquityRiskMode,
   type EquitySimulatorResult,
   type EquitySimulatorStats,
@@ -194,6 +205,8 @@ export function EquitySimulator({
   const startEquity = parseNum(applied.form.startEquity);
   const stats: EquitySimulatorStats | null =
     result === null ? null : equityStatsFromPaths(result.paths, startEquity);
+  const aggregates: EquityAggregateStats | null =
+    result === null ? null : equityAggregatesFromPaths(result.paths, startEquity);
 
   return (
     <div className="flex flex-col gap-4">
@@ -454,7 +467,14 @@ export function EquitySimulator({
             </span>
           </div>
 
-          {stats !== null ? <SimulatorStats stats={stats} currency={currency} /> : null}
+          {stats !== null ? (
+            <SimulatorStats
+              stats={stats}
+              aggregates={aggregates}
+              startEquity={startEquity}
+              currency={currency}
+            />
+          ) : null}
         </>
       )}
     </div>
@@ -502,9 +522,13 @@ function MiniStat({
  */
 function SimulatorStats({
   stats,
+  aggregates,
+  startEquity,
   currency,
 }: {
   stats: EquitySimulatorStats;
+  aggregates: EquityAggregateStats | null;
+  startEquity: number;
   currency: string;
 }) {
   const scenarios = [
@@ -603,6 +627,159 @@ function SimulatorStats({
         simulazione separata): con poche linee i percentili estremi sono
         indicativi — alza «Number of lines» per stime più stabili.
       </p>
+
+      {aggregates !== null ? (
+        <AggregateStats
+          aggregates={aggregates}
+          startEquity={startEquity}
+          currency={currency}
+        />
+      ) : null}
+    </div>
+  );
+}
+
+/** Percentuali di questa sezione: un decimale, come da specifica Fase 37. */
+const fmtPct1 = (fraction: number) => formatPercent(fraction.toFixed(4), 1);
+
+/** Rapporto adimensionale (Return on max drawdown): due decimali it-IT. */
+const fmtRatio = (value: number) =>
+  value.toLocaleString("it-IT", {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  });
+
+/**
+ * Fase 37 — statistiche AGGREGATE su tutte le linee.
+ *
+ * Lettura diversa dalla tabella percentili qui sopra, non un doppione: là
+ * si guarda il percorso in una certa posizione di classifica, qui tutte le
+ * linee insieme. «Max equity» e la riga «Migliore (95%)» quasi mai
+ * coincidono, ed è giusto così: l'intestazione e il tooltip lo dicono
+ * invece di lasciarlo scoprire come se fosse un errore.
+ */
+function AggregateStats({
+  aggregates: agg,
+  startEquity,
+  currency,
+}: {
+  aggregates: EquityAggregateStats;
+  startEquity: number;
+  currency: string;
+}) {
+  /** Ritorno di un'equity finale rispetto alla partenza, per le sub-righe. */
+  const returnOf = (equity: number) => (equity - startEquity) / startEquity;
+
+  const groups: {
+    title: string;
+    cards: React.ComponentProps<typeof MiniStat>[];
+  }[] = [
+    {
+      title: "Equity",
+      cards: [
+        {
+          label: "Max equity",
+          value: formatMoney(agg.maxEquity.toFixed(2), currency),
+          sub: `${fmtPct1(returnOf(agg.maxEquity))} sulla partenza`,
+          tone: agg.maxEquity >= startEquity ? "profit" : "loss",
+          info: maxEquityInfo,
+        },
+        {
+          label: "Mean equity",
+          value: formatMoney(agg.meanEquity.toFixed(2), currency),
+          sub: `${fmtPct1(returnOf(agg.meanEquity))} sulla partenza`,
+          tone: agg.meanEquity >= startEquity ? "profit" : "loss",
+          info: meanEquityInfo,
+        },
+      ],
+    },
+    {
+      title: "Rischio",
+      cards: [
+        {
+          label: "Average max drawdown",
+          value: fmtPct1(agg.avgMaxDrawdown),
+          tone: "loss",
+          info: avgMaxDrawdownInfo,
+        },
+        {
+          label: "Biggest max drawdown",
+          value: fmtPct1(agg.biggestMaxDrawdown),
+          sub: "worst case fra tutte le linee",
+          tone: "loss",
+          info: biggestMaxDrawdownInfo,
+        },
+        {
+          label: "Return on max drawdown",
+          value:
+            agg.returnOnMaxDrawdown === null
+              ? "—"
+              : fmtRatio(agg.returnOnMaxDrawdown),
+          sub:
+            agg.returnOnMaxDrawdown === null
+              ? "nessun drawdown da rapportare"
+              : "performance media / drawdown medio",
+          tone:
+            agg.returnOnMaxDrawdown === null
+              ? undefined
+              : agg.returnOnMaxDrawdown >= 0
+                ? "profit"
+                : "loss",
+          info: returnOnMaxDrawdownInfo,
+        },
+      ],
+    },
+    {
+      title: "Streak",
+      cards: [
+        {
+          label: "Max consecutive wins",
+          value: String(agg.maxConsecutiveWins),
+          sub: "trade di fila",
+          tone: "profit",
+          info: maxConsecutiveWinsInfo,
+        },
+        {
+          label: "Max consecutive losses",
+          value: String(agg.maxConsecutiveLosses),
+          sub: "trade di fila",
+          tone: "loss",
+          info: maxConsecutiveLossesInfo,
+        },
+      ],
+    },
+    {
+      title: "Performance",
+      cards: [
+        {
+          label: "Average performance",
+          value: fmtPct1(agg.avgPerformance),
+          sub: `media dei ritorni di ${agg.lines} linee`,
+          tone: agg.avgPerformance >= 0 ? "profit" : "loss",
+          info: avgPerformanceInfo,
+        },
+      ],
+    },
+  ];
+
+  return (
+    <div className="flex flex-col gap-2">
+      <div className="stat-label flex items-center gap-1">
+        Statistiche aggregate (tutte le linee)
+        <MetricInfo info={aggregateStatsInfo} />
+      </div>
+      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+        {groups.map((group) => (
+          <div key={group.title} className="flex flex-col gap-2">
+            <div className="text-xs font-medium text-muted-foreground">
+              {group.title}
+            </div>
+            {group.cards.map((card) => (
+              <MiniStat key={card.label} {...card} />
+            ))}
+          </div>
+        ))}
+      </div>
     </div>
   );
 }

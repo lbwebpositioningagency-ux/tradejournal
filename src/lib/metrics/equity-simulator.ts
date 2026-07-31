@@ -196,6 +196,106 @@ export function equityStatsFromPaths(
   };
 }
 
+// ── Fase 37 — statistiche AGGREGATE su tutte le linee ────────────────────
+//
+// Lettura diversa da quella per percentili (Fase 34b), non alternativa:
+// lì si sceglie il percorso che occupa una certa posizione in classifica,
+// qui si riassumono TUTTE le linee insieme. È il motivo per cui Max Equity
+// e la riga «Migliore (95%)» non coincidono quasi mai — e va detto in UI,
+// altrimenti sembra un errore.
+
+export interface PathStreaks {
+  maxWins: number;
+  maxLosses: number;
+}
+
+/**
+ * Streak massime di un percorso, DERIVATE dai passi dell'equity: un passo
+ * in salita è una vincita, uno in discesa una perdita.
+ *
+ * Un passo piatto (delta zero) non è né l'una né l'altra e SPEZZA entrambe
+ * le serie: succede solo dopo la rovina, quando il conto è azzerato e non
+ * opera più — contarlo come perdita gonfierebbe la serie negativa con
+ * trade che non sono mai avvenuti.
+ */
+export function pathStreaks(path: number[]): PathStreaks {
+  let maxWins = 0;
+  let maxLosses = 0;
+  let wins = 0;
+  let losses = 0;
+  for (let t = 1; t < path.length; t++) {
+    const delta = path[t] - path[t - 1];
+    if (delta > 0) {
+      wins += 1;
+      losses = 0;
+      if (wins > maxWins) maxWins = wins;
+    } else if (delta < 0) {
+      losses += 1;
+      wins = 0;
+      if (losses > maxLosses) maxLosses = losses;
+    } else {
+      wins = 0;
+      losses = 0;
+    }
+  }
+  return { maxWins, maxLosses };
+}
+
+export interface EquityAggregateStats {
+  /** Equity finale più alta fra tutte le linee (valuta). */
+  maxEquity: number;
+  /** Media delle equity finali (valuta). */
+  meanEquity: number;
+  /** Media dei max drawdown delle linee (frazione del picco). */
+  avgMaxDrawdown: number;
+  /** Il max drawdown peggiore osservato (frazione del picco). */
+  biggestMaxDrawdown: number;
+  /** Serie di vincite più lunga osservata su una qualunque linea. */
+  maxConsecutiveWins: number;
+  /** Serie di perdite più lunga osservata su una qualunque linea. */
+  maxConsecutiveLosses: number;
+  /** Media dei ritorni finali (frazione dell'equity iniziale). */
+  avgPerformance: number;
+  /**
+   * Average performance / average max drawdown (rapporto tipo Calmar).
+   * null quando il drawdown medio è zero: il rapporto non è definito, e un
+   * numero finto direbbe più del dato.
+   */
+  returnOnMaxDrawdown: number | null;
+  lines: number;
+}
+
+export function equityAggregatesFromPaths(
+  paths: number[][],
+  startEquity: number,
+): EquityAggregateStats | null {
+  if (paths.length === 0 || !Number.isFinite(startEquity) || startEquity <= 0)
+    return null;
+
+  const finals = paths.map((p) => p[p.length - 1]);
+  const drawdowns = paths.map(pathMaxDrawdown);
+  const returns = finals.map((v) => (v - startEquity) / startEquity);
+  const streaks = paths.map(pathStreaks);
+  const mean = (values: number[]) =>
+    values.reduce((a, b) => a + b, 0) / values.length;
+
+  const avgMaxDrawdown = mean(drawdowns);
+  const avgPerformance = mean(returns);
+
+  return {
+    maxEquity: Math.max(...finals),
+    meanEquity: mean(finals),
+    avgMaxDrawdown,
+    biggestMaxDrawdown: Math.max(...drawdowns),
+    maxConsecutiveWins: Math.max(...streaks.map((s) => s.maxWins)),
+    maxConsecutiveLosses: Math.max(...streaks.map((s) => s.maxLosses)),
+    avgPerformance,
+    returnOnMaxDrawdown:
+      avgMaxDrawdown > 0 ? avgPerformance / avgMaxDrawdown : null,
+    lines: paths.length,
+  };
+}
+
 export interface EquityBandPoint {
   mean: number;
   /** Deviazione standard di POPOLAZIONE (÷N) dell'equity al passo. */
@@ -268,6 +368,71 @@ export const percentileTableInfo: MetricInfoData = {
   description:
     "Come leggere le fasce: «Peggiore (5%)» = solo il 5% dei percorsi simulati va peggio di questo scenario, il 95% fa meglio. «Sfavorevole (25%)» = il 25% fa peggio, il 75% fa meglio. «Favorevole (75%)» = il 75% dei percorsi fa peggio di questo scenario, solo il 25% fa meglio. «Migliore (95%)» = il 95% fa peggio, solo il 5% fa meglio. «Median» è il percorso di mezzo (50% peggio, 50% meglio).",
   formula: "percentili 5/25/50/75/95 su equity finale, ritorno e max drawdown delle linee simulate",
+};
+
+// Fase 37 — spiegazioni delle statistiche aggregate.
+
+export const aggregateStatsInfo: MetricInfoData = {
+  label: "Statistiche aggregate",
+  description:
+    "Riassumono TUTTE le linee simulate insieme, mentre la tabella «Scenari per percentile» sceglie il percorso che occupa una certa posizione in classifica. Sono letture diverse dello stesso set di linee, quindi i numeri si somigliano ma rispondono a domande diverse: «Max equity» è il massimo assoluto, «Migliore (95%)» è il percorso oltre il quale sta solo il 5% dei casi. Con poche linee i due possono anche coincidere: non è un errore.",
+  formula: "aggregati su tutte le N linee del grafico (nessuna simulazione separata)",
+};
+
+export const maxEquityInfo: MetricInfoData = {
+  label: "Max equity",
+  description:
+    "L'equity finale più alta raggiunta da una qualunque delle linee simulate: il caso più fortunato osservato in questa simulazione, non un obiettivo.",
+  formula: "max(equity finale) su tutte le linee",
+};
+
+export const meanEquityInfo: MetricInfoData = {
+  label: "Mean equity",
+  description:
+    "La media delle equity finali di tutte le linee. Diversa dalla mediana della tabella percentili: qui i percorsi molto fortunati tirano su la media, là contano solo per la posizione in classifica.",
+  formula: "media(equity finale) su tutte le linee",
+};
+
+export const avgMaxDrawdownInfo: MetricInfoData = {
+  label: "Average max drawdown",
+  description:
+    "La media dei cali massimi dal picco, uno per linea: quanto in genere è profonda la buca peggiore di un percorso con questi parametri.",
+  formula: "media dei max drawdown per linea · DD = (picco − equity) / picco",
+};
+
+export const biggestMaxDrawdownInfo: MetricInfoData = {
+  label: "Biggest max drawdown",
+  description:
+    "Il calo dal picco peggiore osservato su una qualunque linea: il caso più duro comparso in questa simulazione. È la domanda «quanto può andare male» in versione worst case.",
+  formula: "max dei max drawdown per linea",
+};
+
+export const maxConsecutiveWinsInfo: MetricInfoData = {
+  label: "Max consecutive wins",
+  description:
+    "La serie di trade vincenti più lunga comparsa in una qualunque linea. Serve a ricordare che serie lunghe nascono anche dal solo caso, con la stessa win probability.",
+  formula: "max, su tutte le linee, della serie di passi in salita più lunga",
+};
+
+export const maxConsecutiveLossesInfo: MetricInfoData = {
+  label: "Max consecutive losses",
+  description:
+    "La serie di trade perdenti più lunga comparsa in una qualunque linea: il tratto peggiore che dovresti riuscire a reggere senza cambiare piano. I passi dopo l'eventuale azzeramento del conto non contano.",
+  formula: "max, su tutte le linee, della serie di passi in discesa più lunga",
+};
+
+export const avgPerformanceInfo: MetricInfoData = {
+  label: "Average performance",
+  description:
+    "La media dei ritorni finali di tutte le linee, in percentuale dell'equity di partenza.",
+  formula: "media di (equity finale − iniziale) / iniziale",
+};
+
+export const returnOnMaxDrawdownInfo: MetricInfoData = {
+  label: "Return on max drawdown",
+  description:
+    "Quanto rendimento medio produci per ogni punto di drawdown medio: un rapporto tipo Calmar. Sopra 1 il guadagno tipico supera la buca tipica; più è alto, meno sofferenza costa il risultato. Non definito se il drawdown medio è zero.",
+  formula: "average performance / average max drawdown",
 };
 
 export const equitySimulatorInfo: MetricInfoData = {

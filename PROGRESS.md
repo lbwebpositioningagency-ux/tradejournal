@@ -820,6 +820,15 @@ Solo testo, zero calcoli toccati (i percentili erano già corretti: i valori cre
 
 **Verificato:** typecheck ✅ · lint ✅ · **874/874 test** ✅ (nessun test nuovo: è una stringa) · build ✅ · tooltip aperto e letto NEL DOM sulla build di produzione con SIM1 — il testo reso coincide carattere per carattere con quello richiesto.
 
+## ✅ FASE 37 «Statistiche aggregate sull'equity simulator» (31/07/2026)
+Le 8 metriche aggregate chieste in Fase 34b (il cui prompt conteneva un placeholder al posto del testo, quindi non furono mai implementate) ora esistono come sezione NUOVA sotto la tabella percentili: i 4 riquadri e la tabella per scenari restano dov'erano, non sono stati toccati.
+
+**Motore** (`equityAggregatesFromPaths` + `pathStreaks` in `equity-simulator.ts`, puri): sulle STESSE linee del grafico, per ciascuna si derivano equity finale, ritorno, max drawdown e le due streak; poi si aggrega — Max equity (massimo), Mean equity (media), Average/Biggest max drawdown, Max consecutive wins/losses (la serie più lunga su una linea qualunque), Average performance, Return on max drawdown (= average performance / average max drawdown, tipo Calmar, **null** se il DD medio è zero invece di un numero finto). Le streak sono derivate dai PASSI dell'equity: salita = vincita, discesa = perdita, e un passo piatto — che capita solo dopo la rovina, a conto azzerato — spezza entrambe le serie invece di gonfiare quella negativa con trade mai avvenuti.
+
+**UI**: intestazione «Statistiche aggregate (tutte le linee)» con MetricInfo che spiega perché è una lettura DIVERSA dalla tabella percentili (Max equity = massimo assoluto · «Migliore (95%)» = il percorso oltre cui sta il 5% dei casi — e con poche linee i due possono coincidere: dichiarato, così non sembra un bug). Quattro gruppi in colonna (Equity · Rischio · Streak · Performance), card nello stesso stile dei riquadri esistenti con icona info ciascuna, colore semantico (verde equity/performance/wins, rosso drawdown/losses), percentuali a un decimale e valuta con virgola come nel resto dell'app. Ricalcolo a ogni «Start simulation», dallo stesso array di linee.
+
+**Verificato:** typecheck ✅ · lint ✅ · **884/884 test** ✅ (10 nuovi: streak da salite/discese, passi piatti post-rovina che non contano, percorso senza passi; aggregati su 3 linee scelte a mano — max 150, media 310/3, DD medio 0,5/3, peggiore 0,3, streak 2/3, performance 0,1/3, rapporto 0,2 esatto — più DD medio zero → null, performance negativa → rapporto negativo, input degeneri, coerenza coi percentili sugli stessi path) · build ✅ · valori letti nel DOM sulla build di produzione con SIM1 e verificati fra loro (Average performance 29,5% = Mean equity sulla partenza · Return on max DD 3,81 ≈ 29,5/7,7 · Biggest 12,2% ≥ Average 7,7%).
+
 ### ▶ Prossimi passi
 
 **Il piano premium è completo** (§1 equity simulator — ex Monte Carlo, §2 rolling metrics, §3 metriche pro).
