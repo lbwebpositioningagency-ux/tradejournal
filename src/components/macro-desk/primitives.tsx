@@ -96,6 +96,71 @@ export function Callout({
   );
 }
 
+/**
+ * BARRA DI POSIZIONAMENTO nel range storico: traccia orizzontale (il range,
+ * 0-100) con un indicatore alla posizione corrente. È un indicatore di
+ * POSIZIONE, non una quantità: per questo un punto su una scala e non un
+ * riempimento come le barre di confidenza (bias-gauge, report-tabs), che
+ * invece misurano un "quanto".
+ *
+ * Primitiva condivisa: la usano il pannello COT (posizione nel range dal
+ * 2017, con le tacche ai confini delle bande) e le righe percentile della
+ * pagina Trends. Token del desk, nessuna palette nuova: traccia
+ * `--md-surface-3` — lo stesso fondo delle altre barre del desk — e
+ * indicatore nel colore semantico che il chiamante ha già scelto.
+ *
+ * NIENTE `flex-1` sulla traccia: in un contenitore `flex-col` (il caso del
+ * pannello COT) `flex: 1 1 0%` azzera la flex-basis sull'asse principale —
+ * cioè l'ALTEZZA — e l'altezza dichiarata viene ignorata: la traccia
+ * spariva e restava il solo puntino sospeso. La larghezza piena si ottiene
+ * con `w-full`, che non dipende dalla direzione del contenitore.
+ */
+export function RangeBar({
+  position,
+  color,
+  ticks,
+  ariaLabel,
+  title,
+}: {
+  /** Posizione 0-100 nel range (fuori scala viene riportata dentro). */
+  position: number;
+  /** Colore dell'indicatore: deciso dal chiamante, che conosce la semantica. */
+  color: string;
+  /** Confini opzionali da marcare sulla traccia (es. bande COT). */
+  ticks?: number[];
+  ariaLabel: string;
+  title?: string;
+}) {
+  const clamped = Math.min(100, Math.max(0, position));
+  return (
+    <div
+      className="relative h-2 w-full rounded-full"
+      style={{ backgroundColor: "var(--md-surface-3)" }}
+      role="img"
+      aria-label={ariaLabel}
+      title={title}
+    >
+      {ticks?.map((t) => (
+        <span
+          key={t}
+          aria-hidden
+          className="absolute top-0 h-full w-px"
+          style={{ left: `${t}%`, backgroundColor: "var(--md-border)" }}
+        />
+      ))}
+      <span
+        aria-hidden
+        className="absolute top-1/2 size-3 -translate-x-1/2 -translate-y-1/2 rounded-full"
+        style={{
+          left: `${clamped}%`,
+          backgroundColor: color,
+          boxShadow: `0 0 0 3px color-mix(in oklab, ${color} 28%, transparent)`,
+        }}
+      />
+    </div>
+  );
+}
+
 /** Fallback UNICO per sezione assente: mai crash, mai vuoto muto. */
 export function SectionEmpty({ what }: { what: string }) {
   return (

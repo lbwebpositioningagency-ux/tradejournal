@@ -2,7 +2,11 @@
 
 import { Suspense, use, useMemo, useState } from "react";
 import { CloudOff } from "lucide-react";
-import type { RecessionBand, TrendsSeriesView } from "@/lib/macro-trends";
+import type {
+  RecessionBand,
+  SeriesPercentiles,
+  TrendsSeriesView,
+} from "@/lib/macro-trends";
 import {
   TRENDS_SECTIONS,
   TRENDS_TILE_KEYS,
@@ -17,7 +21,7 @@ import {
   type SeriesMetrics,
   type TrendLabel,
 } from "@/lib/macro-trends-metrics";
-import { Callout, MonoChip, PanelLabel } from "./primitives";
+import { Callout, MonoChip, PanelLabel, RangeBar } from "./primitives";
 import { TrendsLineChart } from "./trends-chart";
 
 /**
@@ -194,6 +198,75 @@ function MetricsRow({
           ciclo: {metrics.cycle}
         </MonoChip>
       ) : null}
+    </div>
+  );
+}
+
+/**
+ * Percentile storico come BARRA DI POSIZIONAMENTO, una per finestra (1A, 3A,
+ * 5A): stessa primitiva `RangeBar` del pannello COT, stessi token. Prima
+ * erano un chip mono di soli numeri («pct 1A 34° · 3A 58° · 5A 71°»): il
+ * numero resta, in coda a destra, ma la posizione nel range adesso si vede
+ * invece di doverla immaginare.
+ *
+ * Indicatore NEUTRO (`--md-info`): un percentile alto o basso non è un bene
+ * o un male di per sé — dipende dal contesto, come dice la nota di lettura
+ * della sezione — e i colori semantici del desk non vanno diluiti su una
+ * scala che non ha un verso. Finestra senza storico sufficiente: riga
+ * dichiarata «—», mai una barra su un dato che non c'è.
+ */
+const PERCENTILE_WINDOWS = [
+  { key: "y1", label: "1A", years: "1 anno" },
+  { key: "y3", label: "3A", years: "3 anni" },
+  { key: "y5", label: "5A", years: "5 anni" },
+] as const;
+
+function PercentileBars({ percentiles }: { percentiles: SeriesPercentiles }) {
+  return (
+    <div className="flex flex-col gap-1.5">
+      <p
+        className="text-2xs uppercase tracking-[0.1em]"
+        style={{ color: "var(--md-muted)" }}
+        title="Percentile storico dell'ultimo valore sulla finestra indicata: 78° = più alto del 78% delle osservazioni di quella finestra. «—» = storico insufficiente per la finestra."
+      >
+        Percentile storico
+      </p>
+      {PERCENTILE_WINDOWS.map((w) => {
+        const value = percentiles[w.key];
+        return (
+          <div key={w.key} className="flex items-center gap-2">
+            <span
+              className="md-mono w-5 shrink-0 text-2xs"
+              style={{ color: "var(--md-muted)" }}
+            >
+              {w.label}
+            </span>
+            {value === null ? (
+              <span
+                className="md-mono flex-1 text-2xs"
+                style={{ color: "var(--md-muted)" }}
+              >
+                storico insufficiente
+              </span>
+            ) : (
+              <span className="flex-1">
+                <RangeBar
+                  position={value}
+                  color="var(--md-info)"
+                  /* "su 100" come nel pannello COT: dire "più alto del
+                     ${value}%" costringerebbe a elidere l'articolo per 8,
+                     11 e 80-89 ("dell'85%"), e uno screen reader legge la
+                     forma sbagliata così com'è scritta. */
+                  ariaLabel={`Percentile su ${w.years}: ${value} su 100`}
+                />
+              </span>
+            )}
+            <span className="md-mono w-9 shrink-0 text-right text-2xs text-[var(--md-text-2)]">
+              {value === null ? "—" : `${value}°`}
+            </span>
+          </div>
+        );
+      })}
     </div>
   );
 }
@@ -488,18 +561,6 @@ function SeriesCard({
         </PanelLabel>
         <div className="flex flex-wrap items-center gap-1.5">
           {view.stale ? <StaleChip /> : null}
-          {view.percentiles ? (
-            <MonoChip
-              title="Percentile storico dell'ultimo valore sulla finestra di 1, 3 e 5 anni: 78° = più alto del 78% delle osservazioni di quella finestra. «—» = storico insufficiente per la finestra."
-            >
-              pct{" "}
-              {view.percentiles.y1 !== null ? `1A ${view.percentiles.y1}°` : "1A —"}
-              {" · "}
-              {view.percentiles.y3 !== null ? `3A ${view.percentiles.y3}°` : "3A —"}
-              {" · "}
-              {view.percentiles.y5 !== null ? `5A ${view.percentiles.y5}°` : "5A —"}
-            </MonoChip>
-          ) : null}
         </div>
       </div>
 
@@ -514,6 +575,8 @@ function SeriesCard({
           </span>
         ) : null}
       </div>
+
+      {view.percentiles ? <PercentileBars percentiles={view.percentiles} /> : null}
 
       <TrendsLineChart
         points={view.points}

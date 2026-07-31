@@ -99,6 +99,22 @@ describe("CotPanel — struttura", () => {
     expect(html.match(/Posizione nel range storico: \d+ su 100/g)?.length).toBe(4);
   });
 
+  it("la barra è una traccia VISIBILE, non il solo puntino sospeso", () => {
+    // Regressione: la traccia usava `flex-1` dentro un contenitore
+    // `flex-col`, dove `flex: 1 1 0%` azzera la flex-basis sull'altezza —
+    // altezza computata 0px, a schermo restava il puntino da solo.
+    const tracce = html.match(/class="relative h-2 w-full rounded-full"/g);
+    expect(tracce?.length).toBe(4);
+    // Nessuna traccia porta più `flex-1` (il `flex-1` del corpo carta, che
+    // è un figlio a stretch di una card alta, resta legittimo).
+    expect(html).not.toMatch(/class="[^"]*\bh-2\b[^"]*\bflex-1\b/);
+    expect(html).not.toMatch(/class="[^"]*\bflex-1\b[^"]*\bh-2\b/);
+    // Le tacche dei confini di banda restano sulla traccia (4 per carta).
+    for (const confine of [10, 30, 70, 90]) {
+      expect(html.match(new RegExp(`left:${confine}%`, "g"))?.length).toBe(4);
+    }
+  });
+
   it("la frase in linguaggio piano combacia col generatore pre-registrato", () => {
     expect(html).toContain("Più alto che nel 62% delle settimane dal 2017");
     expect(html).toContain("Più basso che nel 98% delle settimane dal 2017");

@@ -30,7 +30,7 @@ import {
   type ContestoCotBox,
   type PannelloCot,
 } from "@/lib/cot-panel";
-import { Callout, PanelLabel } from "./primitives";
+import { Callout, PanelLabel, RangeBar } from "./primitives";
 
 function fade(index: number) {
   return { animationDelay: `${index * 60}ms` };
@@ -57,46 +57,6 @@ const COLORE_BANDA: Record<BandaCot, string> = {
 };
 
 const CONFINI_BANDE = [10, 30, 70, 90];
-
-/**
- * Barra orizzontale del range storico: tacche fisse ai confini delle bande,
- * indicatore pieno alla posizione attuale. È un indicatore di posizione, non
- * una quantità: per questo un punto su una scala, non un riempimento.
- */
-function BarraPosizione({
-  posizione,
-  colore,
-}: {
-  posizione: number;
-  colore: string;
-}) {
-  return (
-    <div
-      className="relative h-2 flex-1 rounded-full"
-      style={{ backgroundColor: "var(--md-surface-3)" }}
-      role="img"
-      aria-label={`Posizione nel range storico: ${Math.round(posizione)} su 100`}
-    >
-      {CONFINI_BANDE.map((t) => (
-        <span
-          key={t}
-          aria-hidden
-          className="absolute top-0 h-full w-px"
-          style={{ left: `${t}%`, backgroundColor: "var(--md-border)" }}
-        />
-      ))}
-      <span
-        aria-hidden
-        className="absolute top-1/2 size-3 -translate-x-1/2 -translate-y-1/2 rounded-full"
-        style={{
-          left: `${posizione}%`,
-          backgroundColor: colore,
-          boxShadow: `0 0 0 3px color-mix(in oklab, ${colore} 28%, transparent)`,
-        }}
-      />
-    </div>
-  );
-}
 
 function CartaMetrica({ carta, indice }: { carta: CartaCot; indice: number }) {
   const accento = ACCENTO_STRUMENTO[carta.strumento] ?? "var(--md-info)";
@@ -125,7 +85,12 @@ function CartaMetrica({ carta, indice }: { carta: CartaCot; indice: number }) {
           >
             {carta.banda}
           </span>
-          <BarraPosizione posizione={carta.posizioneBarra} colore={coloreBanda} />
+          <RangeBar
+            position={carta.posizioneBarra}
+            color={coloreBanda}
+            ticks={CONFINI_BANDE}
+            ariaLabel={`Posizione nel range storico: ${Math.round(carta.posizioneBarra)} su 100`}
+          />
         </div>
 
         {/* La frase in linguaggio piano, calcolata con le formule congelate */}
