@@ -1129,6 +1129,8 @@ Intervento 6 dell'incarico (arrivato troncato e completato in un secondo giro).
 
 **Verificato:** typecheck ✅ · lint ✅ · **1146/1146 test** ✅ (7 nuovi: `RangeBar` — altezza dichiarata e mai `flex-1`, posizione, clamp fuori scala, tacche, etichetta accessibile — più la regressione sul pannello COT con 4 tracce visibili e le tacche di banda) · build ✅ · E2E su build di produzione in Chrome headless: pannello COT con traccia + puntino nelle 4 carte; Trends con 9 barre (3 serie × 3 finestre) a 8px e 367px, chip vecchio sparito, zero errori console. Per vedere Trends con dati veri serve aggirare il blocco di rete su stlouisfed: mock CSV locale servito via `FRED_CSV_BASE_URL` (variabile già prevista da `lib/fred.ts` per proxy aziendali) — stessa tecnica della Fase 54.
 
+**Nota di deploy:** i commit `f094c6d` e `201bea5` sono su origin/main, ma **il deploy automatico da GitHub non è partito** (atteso ~10 minuti; per il commit precedente `7a7ffaa` era partito in pochi secondi). Produzione allineata con `vercel deploy --prod` dalla CLI: `tradejournal-ieflgimp9…` **● Ready**, aliasato su `tradejournal-red-zeta.vercel.app`. Se il webhook resta muto anche al prossimo push, va guardata l'integrazione Git del progetto su Vercel.
+
 ### ▶ Prossimi passi
 
 - **Weekend nel widget giorni della settimana:** decisione provvisoria «weekend solo se operato» presa in autonomia perché i soli trade weekend sono del seed SIM1 — confermare o cambiare (sempre nascosto / sempre visibile).
