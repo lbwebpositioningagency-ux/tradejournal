@@ -336,42 +336,66 @@ export function equityAggregatesFromPaths(
   };
 }
 
-export interface EquityBandPoint {
+export interface SigmaBandPoint {
   mean: number;
-  /** Fascia 25–75%: quantili empirici dell'equity al passo. */
-  inner: [number, number];
-  /** Fascia 5–95%: quantili empirici dell'equity al passo. */
-  outer: [number, number];
+  /** μ ± 1σ al passo; il bordo basso può scendere sotto zero (v. nota). */
+  band1: [number, number];
+  /** μ ± 2σ al passo; idem. */
+  band2: [number, number];
+  /** Percorsi la cui equity al passo sta dentro μ±1σ. */
+  inBand1: number;
+  /** Percorsi dentro μ±2σ ma FUORI da μ±1σ. */
+  inBand2Only: number;
+  /** Percorsi fuori anche da μ±2σ. inBand1+inBand2Only+outside = linee. */
+  outside: number;
 }
 
 /**
- * Bande a QUANTILI EMPIRICI per passo, dagli STESSI percorsi del grafico.
+ * Bande a DEVIAZIONE STANDARD per passo (μ±1σ e μ±2σ), dagli STESSI
+ * percorsi del grafico — sostituiscono le fasce a quantili (che a loro
+ * volta avevano sostituito una versione ±σ etichettata "~68%/~95%",
+ * rimossa dal Q-05 perché quelle coperture valgono solo per una normale).
+ * La lezione del Q-05 resta: la distribuzione dell'equity NON è normale
+ * (rischio in % → log-normale, coda destra lunga), quindi qui NESSUNA
+ * etichetta fissa — la copertura reale si CONTA sui percorsi simulati
+ * (`inBand1`/`inBand2Only`/`outside` per passo; la legenda usa il passo
+ * FINALE: quota di percorsi la cui equity di arrivo cade nella banda).
  *
- * Q-05 — le vecchie bande media ± 1σ/2σ erano etichettate "~68%/~95%", ma
- * quelle coperture valgono per una normale: con rischio in % l'equity per
- * passo è log-normale (coda destra lunga) e media−2σ scendeva perfino sotto
- * zero (il clamp era l'ammissione del problema). I quantili per passo hanno
- * copertura ESATTA per costruzione — la fascia 5–95% contiene il 90% dei
- * percorsi, quella 25–75% il 50% — senza assunzioni di forma, e non serve
- * alcun pavimento: i quantili sono equity realmente osservate (mai < 0).
+ * σ è la deviazione standard di POPOLAZIONE (÷N, non N−1): le linee del
+ * grafico sono l'intero insieme che si sta descrivendo, non un campione da
+ * cui inferire. Il bordo basso μ−kσ può scendere sotto zero mentre nessuna
+ * equity può: il grafico lo TRONCA a 0 dichiarandolo in legenda, ma i
+ * conteggi di copertura usano la banda NON troncata (irrilevante in
+ * pratica: nessun valore è negativo, quindi nessun percorso "vive" nella
+ * parte tagliata).
  */
-export function equityBandsFromPaths(paths: number[][]): EquityBandPoint[] {
+export function equitySigmaBands(paths: number[][]): SigmaBandPoint[] {
   if (paths.length === 0) return [];
+  const n = paths.length;
   const steps = paths[0].length;
-  const bands: EquityBandPoint[] = new Array(steps);
+  const bands: SigmaBandPoint[] = new Array(steps);
   for (let t = 0; t < steps; t++) {
     let sum = 0;
-    const values = new Array<number>(paths.length);
-    for (let i = 0; i < paths.length; i++) {
-      values[i] = paths[i][t];
-      sum += paths[i][t];
+    for (let i = 0; i < n; i++) sum += paths[i][t];
+    const mean = sum / n;
+    let sq = 0;
+    for (let i = 0; i < n; i++) {
+      const d = paths[i][t] - mean;
+      sq += d * d;
     }
-    const q = percentiles(values);
-    bands[t] = {
-      mean: sum / paths.length,
-      inner: [q.p25, q.p75],
-      outer: [q.p05, q.p95],
-    };
+    const sigma = Math.sqrt(sq / n);
+    const band1: [number, number] = [mean - sigma, mean + sigma];
+    const band2: [number, number] = [mean - 2 * sigma, mean + 2 * sigma];
+    let inBand1 = 0;
+    let inBand2Only = 0;
+    let outside = 0;
+    for (let i = 0; i < n; i++) {
+      const v = paths[i][t];
+      if (v >= band1[0] && v <= band1[1]) inBand1 += 1;
+      else if (v >= band2[0] && v <= band2[1]) inBand2Only += 1;
+      else outside += 1;
+    }
+    bands[t] = { mean, band1, band2, inBand1, inBand2Only, outside };
   }
   return bands;
 }

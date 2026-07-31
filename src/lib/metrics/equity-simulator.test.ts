@@ -3,7 +3,7 @@ import {
   SIM_MAX_LINES,
   SIM_MAX_TRADES,
   equityAggregatesFromPaths,
-  equityBandsFromPaths,
+  equitySigmaBands,
   equityStatsFromPaths,
   pathMaxDrawdown,
   pathStreaks,
@@ -291,58 +291,92 @@ describe("equityAggregatesFromPaths — Fase 37", () => {
   });
 });
 
-describe("equityBandsFromPaths — quantili empirici per passo (Q-05)", () => {
-  // Le vecchie bande media ± σ dichiaravano coperture (~68%/~95%) da
-  // normale su una distribuzione log-normale: i quantili nearest-rank
-  // hanno copertura esatta per costruzione. Questi valori attesi SONO la
-  // correzione voluta dal rilievo, non un aggiustamento.
-  it("fasce 25–75% e 5–95% come quantili nearest-rank per passo", () => {
-    // Al passo 1: valori 10, 20, …, 100 (n=10, ordinati). Nearest-rank:
-    // p05 → indice round(0,05·9)=0 → 10 · p25 → 2 → 30 · p75 → 7 → 80 ·
-    // p95 → 9 → 100. Media 55.
-    const paths = Array.from({ length: 10 }, (_, i) => [100, (i + 1) * 10]);
-    const bands = equityBandsFromPaths(paths);
-    expect(bands).toHaveLength(2);
-    expect(bands[0]).toEqual({ mean: 100, inner: [100, 100], outer: [100, 100] });
-    expect(bands[1].mean).toBeCloseTo(55, 12);
-    expect(bands[1].inner).toEqual([30, 80]);
-    expect(bands[1].outer).toEqual([10, 100]);
-  });
-
-  it("le fasce sono equity realmente osservate: mai sotto zero, nessun clamp", () => {
-    const bands = equityBandsFromPaths([
-      [100, 0],
-      [100, 40],
+describe("equitySigmaBands — bande μ±1σ/μ±2σ con copertura CONTATA", () => {
+  it("media, σ di popolazione e bande su valori noti", () => {
+    // Passo 1: valori 10 e 30 → μ=20, σ=10 (popolazione, ÷N).
+    const bands = equitySigmaBands([
+      [100, 10],
+      [100, 30],
     ]);
-    expect(bands[1].outer[0]).toBe(0); // il quantile È il percorso azzerato
-    expect(bands[1].outer[1]).toBe(40);
+    expect(bands).toHaveLength(2);
+    expect(bands[1].mean).toBeCloseTo(20, 12);
+    expect(bands[1].band1).toEqual([10, 30]);
+    expect(bands[1].band2).toEqual([0, 40]);
+    // Entrambi i valori stanno esattamente sul bordo di μ±1σ: dentro.
+    expect(bands[1].inBand1).toBe(2);
+    expect(bands[1].inBand2Only).toBe(0);
+    expect(bands[1].outside).toBe(0);
   });
 
-  it("un solo percorso → fasce collassate sul valore", () => {
-    const bands = equityBandsFromPaths([[100, 110]]);
-    expect(bands[1]).toEqual({ mean: 110, inner: [110, 110], outer: [110, 110] });
+  it("i conteggi partizionano i percorsi: dentro 1σ, solo 2σ, fuori", () => {
+    // Valori 0, 90, 100, 110, 200 → μ=100, σ=√(2·100²+2·10²)/√5 ≈ 63,56.
+    // band1 ≈ [36,4, 163,6]: dentro 90/100/110. band2 ≈ [−27,1, 227,1]:
+    // 0 e 200 dentro la 2σ ma fuori dalla 1σ. Nessuno fuori.
+    const bands = equitySigmaBands([[0], [90], [100], [110], [200]]);
+    const b = bands[0];
+    expect(b.inBand1).toBe(3);
+    expect(b.inBand2Only).toBe(2);
+    expect(b.outside).toBe(0);
+    expect(b.inBand1 + b.inBand2Only + b.outside).toBe(5);
+  });
+
+  it("outlier estremo: finisce fuori anche dalla 2σ", () => {
+    // 9 valori a 100 e uno a 1100 → μ=200, σ=300: band2=[−400, 800],
+    // l'outlier (1100) è fuori; i 9 a 100 sono dentro la 1σ ([−100, 500]).
+    const values = [...Array.from({ length: 9 }, () => [100]), [1100]];
+    const b = equitySigmaBands(values)[0];
+    expect(b.inBand1).toBe(9);
+    expect(b.inBand2Only).toBe(0);
+    expect(b.outside).toBe(1);
+  });
+
+  it("il bordo basso può scendere sotto zero: il dato resta NON troncato", () => {
+    // μ=50, σ=50 → band2 = [−50, 150]: il troncamento a 0 è solo visivo,
+    // deciso dal componente — il modulo riporta la banda vera.
+    const b = equitySigmaBands([[0], [100]])[0];
+    expect(b.band2[0]).toBeLessThan(0);
+    // Nessun valore è negativo: la copertura non dipende dal troncamento.
+    expect(b.inBand1 + b.inBand2Only + b.outside).toBe(2);
+  });
+
+  it("un solo percorso → σ=0, bande collassate sul valore, tutto dentro", () => {
+    const b = equitySigmaBands([[100, 110]])[1];
+    expect(b).toEqual({
+      mean: 110,
+      band1: [110, 110],
+      band2: [110, 110],
+      inBand1: 1,
+      inBand2Only: 0,
+      outside: 0,
+    });
   });
 
   it("nessun percorso → nessuna banda", () => {
-    expect(equityBandsFromPaths([])).toEqual([]);
+    expect(equitySigmaBands([])).toEqual([]);
   });
 
-  it("le bande derivano dagli STESSI percorsi della simulazione", () => {
+  it("sulla simulazione vera: media coerente, coperture sensate e sommanti", () => {
     const result = simulateEquityCurves(base)!;
-    const bands = equityBandsFromPaths(result.paths);
+    const bands = equitySigmaBands(result.paths);
     expect(bands).toHaveLength(base.trades + 1);
     for (const t of [0, 50, 100]) {
-      expect(bands[t].mean).toBeCloseTo(result.mean[t], 9);
-      // La fascia interna sta dentro l'esterna per costruzione.
-      expect(bands[t].inner[0]).toBeGreaterThanOrEqual(bands[t].outer[0]);
-      expect(bands[t].inner[1]).toBeLessThanOrEqual(bands[t].outer[1]);
+      const b = bands[t];
+      expect(b.mean).toBeCloseTo(result.mean[t], 9);
+      // La banda 1σ sta dentro la 2σ per costruzione.
+      expect(b.band1[0]).toBeGreaterThanOrEqual(b.band2[0]);
+      expect(b.band1[1]).toBeLessThanOrEqual(b.band2[1]);
+      expect(b.inBand1 + b.inBand2Only + b.outside).toBe(result.paths.length);
     }
-    // All'ultimo passo le fasce coincidono coi percentili della tabella
-    // scenari: stessa convenzione nearest-rank, stessi percorsi.
-    const stats = equityStatsFromPaths(result.paths, base.startEquity)!;
+    // La copertura empirica all'arrivo (quella in legenda) è una frazione
+    // vera, e la 2σ contiene almeno quanto la 1σ. Chebyshev garantisce
+    // ≥ 75% dentro μ±2σ per QUALUNQUE distribuzione.
     const last = bands[bands.length - 1];
-    expect(last.outer).toEqual([stats.finalEquity.p05, stats.finalEquity.p95]);
-    expect(last.inner).toEqual([stats.finalEquity.p25, stats.finalEquity.p75]);
+    const n = result.paths.length;
+    const cov1 = last.inBand1 / n;
+    const cov2 = (last.inBand1 + last.inBand2Only) / n;
+    expect(cov1).toBeGreaterThan(0);
+    expect(cov1).toBeLessThanOrEqual(cov2);
+    expect(cov2).toBeGreaterThanOrEqual(0.75);
   });
 });
 

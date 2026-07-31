@@ -20,7 +20,7 @@ import {
   avgMaxDrawdownInfo,
   biggestMaxDrawdownInfo,
   equityAggregatesFromPaths,
-  equityBandsFromPaths,
+  equitySigmaBands,
   equityStatsFromPaths,
   maxConsecutiveLossesInfo,
   maxConsecutiveWinsInfo,
@@ -101,13 +101,15 @@ function freshSeed(): number {
  * 1.58:1 su card chiara ed era l'unico grafico fuori da chart-spec. Le
  * linee restano decorative (bande e media portano l'informazione): la
  * distinguibilità individuale non serve, la leggibilità nei due temi sì.
+ * Opacità molto basse per scelta: i percorsi sono una "nuvola" di fondo,
+ * la gerarchia visiva la fanno bande e media (in grassetto pieno).
  */
 const LINE_TOKENS = [
   "var(--chart-1)",
   "var(--chart-2)",
   "var(--chart-5)",
 ] as const;
-const LINE_OPACITIES = [0.4, 0.3, 0.22] as const;
+const LINE_OPACITIES = [0.14, 0.1, 0.07] as const;
 
 function lineColor(index: number): string {
   return LINE_TOKENS[index % LINE_TOKENS.length];
@@ -250,7 +252,18 @@ export function EquitySimulator({
     (value: string) =>
       setForm((f) => ({ ...f, [key]: value }));
 
-  const bands = result === null ? [] : equityBandsFromPaths(result.paths);
+  const bands = result === null ? [] : equitySigmaBands(result.paths);
+  // Bordo basso di una banda μ−kσ sotto zero: per l'equity non ha senso e
+  // il grafico lo TRONCA a 0 (dichiarato in legenda). La copertura contata
+  // resta sui dati, non sulla banda troncata — nessun percorso è < 0,
+  // quindi il numero non cambia (v. nota in equitySigmaBands).
+  const clampedBelowZero = bands.some(
+    (b) => b.band1[0] < 0 || b.band2[0] < 0,
+  );
+  const clampBand = (band: [number, number]): [number, number] => [
+    Math.max(0, band[0]),
+    band[1],
+  ];
   // P-07 — al grafico arrivano ≤ SIM_MAX_CHART_POINTS passi (ultimo sempre
   // compreso): l'asse x è numerico, la spaziatura resta corretta. Statistiche
   // e bande sono calcolate sui percorsi INTEGRALI, qui si sceglie solo cosa
@@ -274,15 +287,29 @@ export function EquitySimulator({
           row.mean = scale === "log" && mean <= 0 ? null : mean;
           row.lo = lo;
           row.hi = hi;
-          // Fasce 25–75% e 5–95% come range [min, max]; in log una fascia
+          // Bande μ±1σ/μ±2σ troncate a 0 sul bordo basso; in log una banda
           // che tocca lo zero non è disegnabile e si interrompe, come le linee.
           const band = bands[t];
-          row.inner =
-            scale === "log" && band.inner[0] <= 0 ? null : [...band.inner];
-          row.outer =
-            scale === "log" && band.outer[0] <= 0 ? null : [...band.outer];
+          const b1 = clampBand(band.band1);
+          const b2 = clampBand(band.band2);
+          row.band1 = scale === "log" && b1[0] <= 0 ? null : b1;
+          row.band2 = scale === "log" && b2[0] <= 0 ? null : b2;
+          // Conteggi per il tooltip: quanti percorsi stanno dove, A QUESTO passo.
+          row.c1 = band.inBand1;
+          row.c2 = band.inBand2Only;
+          row.cOut = band.outside;
           return row;
         });
+
+  // Copertura EMPIRICA delle bande, contata sull'equity FINALE dei percorsi
+  // (il dato che conta; per la distribuzione passo per passo c'è il tooltip).
+  const finalBand = bands.length > 0 ? bands[bands.length - 1] : null;
+  const lines = result?.paths.length ?? 0;
+  const coverage1 = finalBand !== null && lines > 0 ? finalBand.inBand1 / lines : null;
+  const coverage2 =
+    finalBand !== null && lines > 0
+      ? (finalBand.inBand1 + finalBand.inBand2Only) / lines
+      : null;
 
   const startEquity = parseNum(applied.form.startEquity);
   const stats: EquitySimulatorStats | null =
@@ -460,8 +487,11 @@ export function EquitySimulator({
                     mean: number | null;
                     lo: number;
                     hi: number;
-                    inner: [number, number] | null;
-                    outer: [number, number] | null;
+                    band1: [number, number] | null;
+                    band2: [number, number] | null;
+                    c1: number;
+                    c2: number;
+                    cOut: number;
                   };
                   const range = (band: [number, number] | null) =>
                     band === null
@@ -477,10 +507,16 @@ export function EquitySimulator({
                         {currency}
                       </div>
                       <div style={CHART.tooltipItemStyle}>
-                        Fascia 25–75%: {range(row.inner)}
+                        μ±1σ: {range(row.band1)} · {row.c1}{" "}
+                        {row.c1 === 1 ? "percorso" : "percorsi"}
                       </div>
                       <div style={CHART.tooltipItemStyle}>
-                        Fascia 5–95%: {range(row.outer)}
+                        μ±2σ (fuori da 1σ): {range(row.band2)} · {row.c2}{" "}
+                        {row.c2 === 1 ? "percorso" : "percorsi"}
+                      </div>
+                      <div style={CHART.tooltipItemStyle}>
+                        Fuori da entrambe: {row.cOut}{" "}
+                        {row.cOut === 1 ? "percorso" : "percorsi"}
                       </div>
                       <div style={CHART.tooltipItemStyle}>
                         Min–max: {fmtEquity(row.lo)} – {fmtEquity(row.hi)}
@@ -490,10 +526,10 @@ export function EquitySimulator({
                 }}
                 cursor={CHART.cursor}
               />
-              {/* Fasce a quantili DIETRO a tutto: famiglia neutra (accento
-                  blu del progetto), esterna più tenue dell'interna. */}
+              {/* Bande μ±σ DIETRO a tutto: famiglia neutra (accento blu del
+                  progetto), esterna più tenue dell'interna. */}
               <Area
-                dataKey="outer"
+                dataKey="band2"
                 stroke="none"
                 fill="var(--chart-1)"
                 fillOpacity={0.1}
@@ -501,7 +537,7 @@ export function EquitySimulator({
                 isAnimationActive={animate}
               />
               <Area
-                dataKey="inner"
+                dataKey="band1"
                 stroke="none"
                 fill="var(--chart-1)"
                 fillOpacity={0.22}
@@ -550,7 +586,10 @@ export function EquitySimulator({
                 className="inline-block h-3 w-5 rounded-sm"
                 style={{ background: "var(--chart-1)", opacity: 0.35 }}
               />
-              Fascia 25–75%
+              Banda μ±1σ
+              {coverage1 !== null
+                ? ` · contiene il ${formatPercent(coverage1.toFixed(4), 0)} dei percorsi all'arrivo`
+                : ""}
             </span>
             <span className="inline-flex items-center gap-1.5">
               <span
@@ -558,7 +597,10 @@ export function EquitySimulator({
                 className="inline-block h-3 w-5 rounded-sm"
                 style={{ background: "var(--chart-1)", opacity: 0.16 }}
               />
-              Fascia 5–95%
+              Banda μ±2σ
+              {coverage2 !== null
+                ? ` · ${formatPercent(coverage2.toFixed(4), 0)}`
+                : ""}
             </span>
             <span className="inline-flex items-center gap-1.5">
               <span
@@ -569,6 +611,17 @@ export function EquitySimulator({
               Percorsi simulati ({result.paths.length})
             </span>
           </div>
+          {/* Percentuali CONTATE sui percorsi (equity finale dentro la
+              banda), non i 68%/95% da manuale: la distribuzione non è
+              normale e il numero vero può discostarsene — è il punto. */}
+          <p className="text-xs text-muted-foreground">
+            Le percentuali delle bande sono misurate su questa simulazione
+            (quota di percorsi la cui equity finale cade nella banda), non i
+            68%/95% teorici della distribuzione normale.
+            {clampedBelowZero
+              ? " Il bordo inferiore delle bande è troncato a 0 nel grafico (un'equity negativa non esiste): le percentuali restano contate sulla banda non troncata."
+              : ""}
+          </p>
 
           {stats !== null ? (
             <SimulatorStats
