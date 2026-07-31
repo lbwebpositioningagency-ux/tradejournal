@@ -149,28 +149,45 @@ async function buildSeriesView(def: TrendsSeriesDef): Promise<TrendsSeriesView> 
   };
 }
 
-export async function getMacroTrendsData(): Promise<TrendsData> {
-  const [seriesResults, recessionResult] = await Promise.all([
-    Promise.allSettled(TRENDS_SERIES.map((def) => buildSeriesView(def))),
-    Promise.allSettled([fetchFredSeries([RECESSION_SERIES_ID])]).then(
-      (r) => r[0],
-    ),
-  ]);
-
-  const series: TrendsSeriesView[] = seriesResults.map((result, i) => {
+/**
+ * P-05 — costruzione PER-SEZIONE, l'unità di streaming della pagina: la
+ * sezione pronta compare senza aspettare la più lenta delle ~50 serie.
+ * Ogni serie che fallisce diventa la sua card in errore (mai un reject:
+ * queste promise alimentano `use()` nel client, un reject bucherebbe la
+ * pagina intera). L'ordine del registry è preservato.
+ */
+export async function getTrendsSection(
+  defs: TrendsSeriesDef[],
+): Promise<TrendsSeriesView[]> {
+  const results = await Promise.allSettled(
+    defs.map((def) => buildSeriesView(def)),
+  );
+  return results.map((result, i) => {
     if (result.status === "fulfilled") return result.value;
     return {
-      def: TRENDS_SERIES[i],
-      status: "error",
+      def: defs[i],
+      status: "error" as const,
       error: String(result.reason).slice(0, 200),
       points: [],
     };
   });
+}
 
-  const recessions =
-    recessionResult.status === "fulfilled"
-      ? recessionBands(recessionResult.value.observations)
-      : [];
+/** USREC per le bande grigie: in errore, nessuna banda (mai un reject). */
+export async function getTrendsRecessions(): Promise<RecessionBand[]> {
+  try {
+    const { observations } = await fetchFredSeries([RECESSION_SERIES_ID]);
+    return recessionBands(observations);
+  } catch {
+    return [];
+  }
+}
+
+export async function getMacroTrendsData(): Promise<TrendsData> {
+  const [series, recessions] = await Promise.all([
+    getTrendsSection([...TRENDS_SERIES]),
+    getTrendsRecessions(),
+  ]);
 
   return {
     generatedAt: new Date().toISOString(),
