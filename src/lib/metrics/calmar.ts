@@ -74,6 +74,6 @@ export function calmarRatio(
 export const calmarInfo = {
   label: "Calmar Ratio",
   description:
-    "Rendimento annualizzato diviso il drawdown massimo: quanto rendimento ottieni per ogni unità di sofferenza massima. Annualizzato sul periodo reale coperto dai dati.",
+    "Rendimento annualizzato diviso il drawdown massimo: quanto rendimento ottieni per ogni unità di sofferenza massima. Annualizzato sul periodo reale coperto dai dati. I ritorni assumono nessun versamento o prelievo sul conto.",
   formula: "Calmar = (Σ P&L / saldo iniziale × 365/giorni coperti) / MaxDD%",
 };

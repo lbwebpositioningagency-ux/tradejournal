@@ -346,7 +346,7 @@ export function seriesRange(values: (string | null)[]): SeriesRange {
 export const rollingRatiosInfo: MetricInfoData = {
   label: "Sharpe e Sortino rolling (annualizzati)",
   description:
-    "Rendimento per unità di rischio calcolato su una finestra mobile di sedute, così vedi se l'edge sta migliorando o degradando invece di un unico numero medio. Annualizzati ×√252 per essere confrontabili con qualunque altra strategia o fondo. Attenzione: sono calcolati sui RITORNI (P&L del giorno ÷ equity a inizio giornata), non sui P&L in valuta come le stesse metriche in dashboard.",
+    "Rendimento per unità di rischio calcolato su una finestra mobile di sedute, così vedi se l'edge sta migliorando o degradando invece di un unico numero medio. Annualizzati ×√252 per essere confrontabili con qualunque altra strategia o fondo. Attenzione: sono calcolati sui RITORNI (P&L del giorno ÷ equity a inizio giornata), non sui P&L in valuta come le stesse metriche in dashboard. I ritorni assumono nessun versamento o prelievo sul conto.",
   formula:
     "Sharpe = (media(r) − rf/252) / σ(r) × √252 · Sortino usa la sola σ negativa · giorni senza trade a r = 0",
 };

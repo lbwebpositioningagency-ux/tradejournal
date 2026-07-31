@@ -45,6 +45,6 @@ export function underwaterSeries(
 export const underwaterInfo: MetricInfoData = {
   label: "Underwater plot",
   description:
-    "Quanto l'equity sta sotto il suo massimo storico, giorno per giorno: la profondità dei drawdown e quanto a lungo resti \"sott'acqua\" prima di recuperare. Zero = nuovo massimo.",
+    "Quanto l'equity sta sotto il suo massimo storico, giorno per giorno: la profondità dei drawdown e quanto a lungo resti \"sott'acqua\" prima di recuperare. Zero = nuovo massimo. Calcolato sul P&L realizzato per giorno di chiusura: le escursioni dei trade aperti e intraday non sono incluse.",
   formula: "DD% del giorno = (equity − picco equity fino a quel giorno) / picco · sulle chiusure di giornata",
 };

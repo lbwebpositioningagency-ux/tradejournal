@@ -81,7 +81,7 @@ export function riskOfRuinAnalytic(input: RiskOfRuinInput): string | null {
 export const riskOfRuinAnalyticInfo: MetricInfoData = {
   label: "Risk of ruin (analitico)",
   description:
-    "La probabilità di azzerare il conto continuando a operare così per sempre, calcolata in formula invece che per simulazione. Assume rischio fisso per trade, trade indipendenti e distribuzione stabile. Senza vantaggio statistico vale 1, ed è la risposta corretta.",
+    "La probabilità di azzerare il conto continuando a operare così per sempre, calcolata in formula invece che per simulazione. Assume rischio fisso per trade, trade indipendenti e distribuzione stabile. Senza vantaggio statistico vale 1, ed è la risposta corretta. Metrica di CONTO: ignora i filtri simbolo/direzione (è l'equity intera che si azzera), e i breakeven non entrano nel lancio della moneta (p = vincite / (vincite + perdite)).",
   formula:
     "RoR ≈ e^(−θ·U), con p·e^(−θ·b) + q·e^θ = 1 · U = equity / perdita media · b = payoff",
 };

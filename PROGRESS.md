@@ -915,6 +915,25 @@ Secondo blocco di correzioni dall'audit funzionale (`docs/audit/02-bug.md`), dia
 
 **Verificato:** typecheck ✅ · lint ✅ · **1062/1062 test** ✅ · build ✅.
 
+## ✅ FASE 46 «Audit: coerenza sui breakeven (Q-09/Q-12), SQN-100 (Q-06), scope di conto per Kelly/RoR (Q-13), parse it-IT (B-04), dichiarazioni nei tooltip (Q-11 + versamenti)» (31/07/2026)
+Terzo blocco dall'audit quantitativo, diagnosi tutte ri-verificate nel codice prima di scrivere. Nota di verifica: l'optimal f usava GIÀ lo scope di conto (`getRMultiples` passa da `whereClosedTrades`, che ignora simbolo/direzione) — lì nessun cambiamento.
+
+**Q-09 — break-even win rate con quota BE**: `breakEvenWinRate(payoff, beShare)` = (1 − quota BE)/(1 + payoff), coerente con la convenzione BE-nel-denominatore del win rate: con B=10% e payoff 1 la soglia è 45%, non 50%, e il margine mostrato è la distanza VERA. `beShare` omessa/null = modello a due esiti (retrocompatibile: i test esistenti passano invariati). **Minori collegati**: Kelly e risk of ruin ora ricevono p = vincite/(vincite+perdite) sui SOLI direzionali (i BE, che perdono 0, non entrano nel lancio della moneta con q=1−p) — dichiarato nei tooltip e nel riquadro delle ipotesi.
+
+**Q-13 — Kelly e RoR metriche di CONTO**: aggregati da un `accountFilter` senza simbolo/direzione (stesso precedente dichiarato delle rolling annualizzate): niente più ibridi "rovina di chi opera solo NQ short con tutto il capitale". `ruinUnits` = equity totale / perdita media di conto.
+
+**Q-06 — SQN-100**: `sqn()` usa √min(N, 100): oltre 100 trade il numero smette di crescere con la dimensione dello storico e resta confrontabile con la scala di Van Tharp (tarata su ~100). Tooltip rinominato «SQN-100» con spiegazione. Test: 120 trade con media 1/sd 1 → 10.00 esatto (senza cap sarebbe 10.95); i test esistenti (tutti N=30, sotto il cap) NON cambiano.
+
+**Q-12 — default del simulatore dal modello binario coerente**: win probability = rWins/(rWins+rLosses) e ratio = avgWinR/avgLossR (aggregati R di conto), non più win rate BE-diluito e payoff in valuta: il ventaglio di default non parte più da un edge sistematicamente peggiore dello storico. Il motore NON è stato toccato; riga esplicativa sui BE non simulati in «Come funziona».
+
+**B-04 — parse it-IT del simulatore**: nuovo `lib/locale-number.ts` (`parseLocaleNumber`) con test dedicati: virgola presente → decimale e punti = migliaia («1.234,56»); nessuna virgola ma pattern di raggruppamento («50.000», «2.000.000») → migliaia; altrimenti punto decimale («50.5»); più virgole → NaN. «50.000» in Start Equity ora vale CINQUANTAMILA. Il componente usa la funzione condivisa.
+
+**Q-11 + disclaimer versamenti**: Max DD, Ulcer e underwater dichiarano nel tooltip «calcolato sul P&L realizzato per giorno di chiusura: le escursioni dei trade aperti e intraday non sono incluse»; Calmar, calendario mensile e rolling Sharpe/Sortino dichiarano «i ritorni assumono nessun versamento o prelievo sul conto».
+
+**Golden**: nessun valore atteso esistente è cambiato (sqn testato sotto il cap, break-even retrocompatibile con beShare assente); cambiano i numeri A SCHERMO di SQN su storici >100 trade, break-even/margine con BE presenti, Kelly/RoR (scope conto + BE esclusi) e i default del simulatore — tutti PER CORREZIONE, come da rilievi.
+
+**Verificato:** typecheck ✅ · lint ✅ · **1070/1070 test** ✅ (8 nuovi) · build ✅.
+
 ### ▶ Prossimi passi
 
 **Il piano premium è completo** (§1 equity simulator — ex Monte Carlo, §2 rolling metrics, §3 metriche pro).

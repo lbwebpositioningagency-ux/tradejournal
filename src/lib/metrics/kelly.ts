@@ -94,7 +94,7 @@ export function optimalF(rMultiples: string[]): OptimalF | null {
 export const kellyInfo: MetricInfoData = {
   label: "Kelly e optimal f",
   description:
-    "La frazione di capitale che massimizzerebbe la crescita composta, se il futuro somigliasse al passato. È un riferimento SUPERIORE, non una size da usare: a Kelly pieno un dimezzamento del conto è un evento ordinario, e l'optimal f è calcolata sui tuoi trade passati, quindi li sovradatta per costruzione. La pratica comune è una frazione (un quarto, metà) di questi valori.",
+    "La frazione di capitale che massimizzerebbe la crescita composta, se il futuro somigliasse al passato. È un riferimento SUPERIORE, non una size da usare: a Kelly pieno un dimezzamento del conto è un evento ordinario, e l'optimal f è calcolata sui tuoi trade passati, quindi li sovradatta per costruzione. La pratica comune è una frazione (un quarto, metà) di questi valori. Metrica di CONTO: ignora i filtri simbolo/direzione, e i breakeven non entrano nel lancio della moneta (W = vincite / (vincite + perdite)).",
   formula:
     "Kelly f* = W − (1 − W)/b · optimal f = argmax della media geometrica di (1 + f × R)",
 };

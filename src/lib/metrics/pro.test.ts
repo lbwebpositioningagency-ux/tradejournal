@@ -31,6 +31,21 @@ describe("breakEvenWinRate", () => {
     expect(breakEvenWinRate("-2")).toBeNull();
   });
 
+  it("Q-09 — quota BE nel denominatore: con B=10% e payoff 1 la soglia è 45%, non 50%", () => {
+    expect(breakEvenWinRate("1", "0.1")).toBe("0.4500");
+    // Verifica algebrica: W=0.45, B=0.1 → L=0.45; 0.45·AvgWin = 0.45·AvgLoss
+    // con payoff 1: pareggio esatto.
+    expect(breakEvenWinRate("3", "0.2")).toBe("0.2000"); // (1−0.2)/4
+    // Quota zero o assente: identica al modello a due esiti.
+    expect(breakEvenWinRate("1", "0")).toBe("0.5000");
+    expect(breakEvenWinRate("1", null)).toBe("0.5000");
+  });
+
+  it("Q-09 — quota BE degenere (tutti breakeven o negativa) → null", () => {
+    expect(breakEvenWinRate("1", "1")).toBeNull();
+    expect(breakEvenWinRate("1", "-0.1")).toBeNull();
+  });
+
   it("il margine è la distanza dalla soglia, col segno", () => {
     expect(winRateMargin("0.55", "0.5000")).toBe("0.0500");
     expect(winRateMargin("0.40", "0.5000")).toBe("-0.1000");

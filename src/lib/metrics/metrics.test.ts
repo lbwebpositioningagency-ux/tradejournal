@@ -401,6 +401,16 @@ describe("sqn", () => {
   it("sistema perdente: SQN negativo", () => {
     expect(sqn(30, "-30", "60")).toBe("-5.48");
   });
+
+  it("Q-06 — cap SQN-100: oltre 100 trade il √N smette di crescere", () => {
+    // Stesso sistema (media 1, sd 1) su 120 trade: senza cap varrebbe
+    // √120 ≈ 10.95; con SQN-100 vale √100 × 1 / 1 = 10 esatto.
+    expect(sqn(120, "120", "240")).toBe("10.00");
+    // A 100 trade cap e N coincidono: √100 × 1 = 10.
+    expect(sqn(100, "100", "200")).toBe("10.00");
+    // Sotto il cap nulla cambia (√30, il caso noto sopra).
+    expect(sqn(30, "30", "60")).toBe("5.48");
+  });
 });
 
 describe("calmarRatio", () => {

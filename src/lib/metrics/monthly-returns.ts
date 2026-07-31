@@ -110,7 +110,7 @@ export function returnIntensity(ret: string | null): 0 | 1 | 2 | 3 {
 export const monthlyCalendarInfo: MetricInfoData = {
   label: "Calendario mensile",
   description:
-    "Il ritorno percentuale di ogni mese dell'anno, calcolato sull'equity a inizio mese (saldo iniziale + P&L precedente) — la stessa convenzione delle metriche rolling. Un mese senza trade mostra il trattino, non 0%: nessuna attività e pareggio esatto sono cose diverse.",
+    "Il ritorno percentuale di ogni mese dell'anno, calcolato sull'equity a inizio mese (saldo iniziale + P&L precedente) — la stessa convenzione delle metriche rolling. Un mese senza trade mostra il trattino, non 0%: nessuna attività e pareggio esatto sono cose diverse. I ritorni assumono nessun versamento o prelievo sul conto.",
   formula:
     "Ritorno mese = P&L del mese / equity a inizio mese · equity = saldo iniziale + P&L chiuso precedente",
 };

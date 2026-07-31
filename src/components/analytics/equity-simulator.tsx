@@ -41,6 +41,7 @@ import {
   type EquitySimulatorStats,
 } from "@/lib/metrics/equity-simulator";
 import { MetricInfo } from "@/components/metric-info";
+import { parseLocaleNumber } from "@/lib/locale-number";
 import {
   formatMoney,
   formatPercent,
@@ -82,10 +83,11 @@ interface FormState {
   scale: Scale;
 }
 
-/** Parse tollerante alla virgola decimale italiana ("1,5" → 1.5). */
-function parseNum(value: string): number {
-  return Number(value.trim().replace(",", "."));
-}
+/**
+ * B-04 — parse it-IT: "50.000" è cinquantamila (raggruppamento), "1,5" è
+ * 1.5. La logica sta in `lib/locale-number.ts` con test dedicati.
+ */
+const parseNum = parseLocaleNumber;
 
 function freshSeed(): number {
   return (Math.random() * 0xffffffff) >>> 0;

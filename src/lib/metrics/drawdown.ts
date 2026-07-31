@@ -67,6 +67,6 @@ export function maxDrawdown(
 export const maxDrawdownInfo = {
   label: "Max Drawdown",
   description:
-    "La discesa più profonda della curva di equity giornaliera dal suo picco: misura il rischio storico che hai davvero sopportato, in valuta e in % del picco.",
+    "La discesa più profonda della curva di equity giornaliera dal suo picco: misura il rischio storico che hai davvero sopportato, in valuta e in % del picco. Calcolato sul P&L realizzato per giorno di chiusura: le escursioni dei trade aperti e intraday non sono incluse — il drawdown mark-to-market reale può essere maggiore.",
   formula: "MaxDD = max(picco equity − equity) · % = MaxDD / picco al momento del massimo",
 };
