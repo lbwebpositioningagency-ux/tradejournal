@@ -41,9 +41,11 @@ function dataIt(iso: string) {
   return `${g}/${m}/${a}`;
 }
 
+/* Fallback = gli stessi hex dei token in globals.css: se il componente
+   venisse montato fuori da .macro-report renderebbe comunque i colori veri. */
 const COLORE_STATO: Record<LetturaTermometro["stato"], string> = {
-  ESPANSA: "var(--md-warn, #d98324)",
-  COMPRESSA: "var(--md-info, #3b82f6)",
+  ESPANSA: "var(--md-warn, #f5a623)",
+  COMPRESSA: "var(--md-info, #4f8ef7)",
 };
 
 function testoPosizione(p: LetturaTermometro["posizione"]) {

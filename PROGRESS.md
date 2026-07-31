@@ -968,6 +968,25 @@ Blocco sul layer calcolato del Macro Desk (prerequisito Q-02 verificato in main:
 
 **Verificato:** typecheck ✅ · lint ✅ · **1076/1076 test** ✅ · build ✅. Verifica a schermo su dati FRED reali non eseguibile in locale (rete bloccata, noto da Fase 29): le etichette live si controllano in produzione.
 
+## ✅ FASE 49 «Audit colori: swatch dai token reali (C-02), --warning AA (C-03), chart-4 annotato (C-04), coppie daltoniche nel Macro Desk (C-05), bordo consolidato (C-06), fallback termometro (C-07)» (31/07/2026)
+Rilievi C-02…C-07 dell'audit cromatico (`docs/audit/04-colori-personalizzazione.md`). Ogni valore nuovo cercato con `scripts/contrast.mjs` (sweep/solver) e aggiunto alle combinazioni del test automatico `theme-contrast.test.ts`.
+
+**C-02 — swatch del picker senza valori propri.** Le mappe hardcoded di `accent-picker.tsx` (che mostravano i colori PRE-revisione-gamut) sono sostituite da elementi con `data-accent`/`data-pnl` che leggono `var(--primary)`/`var(--profit)`/`var(--loss)`: anteprima e colore applicato non possono più divergere, e la swatch segue il modo corrente (light/dark). Per renderlo possibile: i selettori dark di accenti e coppie P&L passano da `.dark[data-…]` a `:where(.dark, .dark *)[data-…]` (stessa specificità (0,1,0) del blocco light, vince per ordine; valgono anche per elementi ANNIDATI, non solo per `<html>`) e nascono i blocchi espliciti `blue`/`classic` (= default :root/.dark), senza i quali una swatch annidata erediterebbe il set scelto a livello di pagina. Verificato E2E via computed style: le 5 swatch accento e le 3 coppie P&L coincidono coi token dell'`<html>` in dark.
+
+**C-03 — token `--warning`.** Nuovo token di tema per gli avvisi non-P&L (esposto come `text-warning` via `@theme inline`): light `oklch(0.565 0.133 60)` (4,58 su bg · 4,75 su card — il vecchio `text-amber-600` stava a 3,08), dark `oklch(0.83 0.17 84)` (11,57 · 10,50 — l'amber-400 usata prima era FUORI gamut, questo è il punto in-gamut più vicino). Il badge divergenze MT5 lo usa; unico consumo Tailwind grezzo dell'app eliminato.
+
+**C-04 — chart-4 annotato.** In globals.css, su entrambi i modi: «SOLO GRAFICA, MAI testo» (su card light 3,65 — sopra il 3:1 non-text, sotto AA); per testo ambra il rimando è `--warning`.
+
+**C-05 — coppie P&L daltoniche estese al Macro Desk.** Override scoped `[data-pnl="blue-red"] .macro-report { --md-up: #4a87ff }` e `[data-pnl="green-violet"] .macro-report { --md-down: #9970ff }` — ognuno cambia SOLO il colore che la coppia sostituisce. Valori cercati al solver sulle 4 superfici del modulo (#080b12→#1a2438): blu oklch(0.645 0.189 262) → 5,82/5,25/4,93/4,59 · viola oklch(0.655 0.203 293) → 5,74/5,18/4,86/4,53. In più il rosso di default passa da `#f2495c` (4,35 su surface-3, sotto AA in hover) a `#ff4160` = oklch(0.665 0.224 17), massima chroma con ≥4,5 anche su surface-3 (5,78/5,21/4,89/4,56). Verificato E2E: computed `--md-up/--md-down` per i 3 valori di `data-pnl` sulla pagina reale.
+
+**C-06 — bordo consolidato.** Le 3 copie inline di `#20293c` (dettaglio report, trends, scorecard) diventano `var(--md-border)`: il token è definito su `.macro-report`, che è lo STESSO elemento che porta il bordo — la custom property si applica anche a se stessa. Computed border verificato identico (rgb(32,41,60)).
+
+**C-07 — fallback termometro allineati.** `var(--md-warn, #f5a623)` / `var(--md-info, #4f8ef7)`: gli stessi hex dei token (prima #d98324/#3b82f6 — mai attivi, ma mentivano su cosa succederebbe fuori da `.macro-report`).
+
+**Test theme-contrast esteso** (30 → 38 combinazioni oklch + 8 check hex nuovi): accento `blue` e coppia `classic` entrano nelle combinazioni (ora che hanno un blocco CSS), `warning` entra nei check base ×2 modi, e una sezione nuova legge i token HEX del Macro Desk dal CSS e verifica up/down EFFETTIVI delle 3 coppie + warn/info ≥4,5 su TUTTE e 4 le superfici, surface-3 (hover) inclusa.
+
+**Verificato:** typecheck ✅ · lint ✅ · **1103/1103 test** ✅ (98 nel solo theme-contrast) · build ✅ · E2E dev server: swatch = token, override Macro Desk per data-pnl, `text-warning` generata, zero errori console. (Nota: servita CSS stantia dalla cache Turbopack al primo giro — risolto con `.next` pulita.)
+
 ### ▶ Prossimi passi
 
 **Il piano premium è completo** (§1 equity simulator — ex Monte Carlo, §2 rolling metrics, §3 metriche pro).

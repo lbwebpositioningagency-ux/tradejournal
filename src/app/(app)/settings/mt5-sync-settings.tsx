@@ -55,7 +55,7 @@ function ResultSummary({ result }: { result: Mt5LastResult | null }) {
       <span>{parts.join(" · ")}</span>
       {(result.divergences?.length ?? 0) > 0 ? (
         <span
-          className="ml-2 text-amber-600 dark:text-amber-400"
+          className="ml-2 text-warning"
           title="Netto calcolato ≠ profit broker (probabile conversione valuta): il trade è importato col calcolo della pipeline"
         >
           ⚠ {result.divergences!.length} divergenze P&L

@@ -22,21 +22,11 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 
-/** Anteprime swatch: i valori reali vivono in globals.css (validati AA). */
-const ACCENT_SWATCH: Record<Accent, string> = {
-  blue: "oklch(0.546 0.245 262.881)",
-  violet: "oklch(0.541 0.281 293.009)",
-  emerald: "oklch(0.508 0.118 165.612)",
-  amber: "oklch(0.555 0.163 48.998)",
-  rose: "oklch(0.514 0.222 16.935)",
-};
-
-/** [profit, loss] della variante light, solo anteprima. */
-const PNL_SWATCH: Record<PnlPalette, [string, string]> = {
-  classic: ["oklch(0.508 0.118 165.612)", "oklch(0.577 0.245 27.325)"],
-  "blue-red": ["oklch(0.452 0.313 264)", "oklch(0.577 0.245 27.325)"],
-  "green-violet": ["oklch(0.508 0.118 165.612)", "oklch(0.526 0.292 293.009)"],
-};
+/* Le swatch NON hanno valori propri: portano data-accent/data-pnl e leggono
+   var(--primary)/var(--profit)/var(--loss) — i token reali di globals.css,
+   nella variante del modo corrente (i blocchi :where(.dark, .dark *) valgono
+   anche per elementi annidati). Impossibile che anteprima e colore applicato
+   divergano di nuovo. */
 
 export function AccentPicker({
   currentAccent,
@@ -94,8 +84,9 @@ export function AccentPicker({
                 )}
               >
                 <span
+                  data-accent={accent}
                   className="flex size-8 items-center justify-center rounded-full"
-                  style={{ backgroundColor: ACCENT_SWATCH[accent] }}
+                  style={{ backgroundColor: "var(--primary)" }}
                 >
                   {accent === currentAccent ? (
                     <Check className="size-4 text-white" aria-hidden />
@@ -115,7 +106,6 @@ export function AccentPicker({
             aria-label="Colori profitto e perdita"
           >
             {PNL_PALETTES.map((palette) => {
-              const [profit, loss] = PNL_SWATCH[palette];
               const active = palette === currentPnl;
               return (
                 <button
@@ -132,10 +122,10 @@ export function AccentPicker({
                     active ? "border-primary" : "border-border",
                   )}
                 >
-                  <span className="flex items-center gap-1.5">
+                  <span data-pnl={palette} className="flex items-center gap-1.5">
                     <span
                       className="flex size-8 items-center justify-center rounded-full"
-                      style={{ backgroundColor: profit }}
+                      style={{ backgroundColor: "var(--profit)" }}
                       title="Profitto"
                     >
                       {active ? (
@@ -144,7 +134,7 @@ export function AccentPicker({
                     </span>
                     <span
                       className="size-8 rounded-full"
-                      style={{ backgroundColor: loss }}
+                      style={{ backgroundColor: "var(--loss)" }}
                       title="Perdita"
                     />
                   </span>

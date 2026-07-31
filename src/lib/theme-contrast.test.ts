@@ -67,6 +67,7 @@ function baseChecks(mode: "light" | "dark", tokens: Map<string, Color>): Check[]
     "loss",
     "breakeven",
     "primary",
+    "warning",
   ];
   const checks: Check[] = names.map((name) => ({
     name: `${mode} ${name}`,
@@ -83,8 +84,10 @@ function baseChecks(mode: "light" | "dark", tokens: Map<string, Color>): Check[]
   return checks;
 }
 
-const ACCENTS = ["violet", "emerald", "amber", "rose"];
-const PNL_PAIRS = ["blue-red", "green-violet"];
+// Anche "blue" e "classic" hanno un blocco esplicito (= default :root/.dark):
+// serve alle swatch annidate del picker, e qui viene verificato come gli altri.
+const ACCENTS = ["blue", "violet", "emerald", "amber", "rose"];
+const PNL_PAIRS = ["classic", "blue-red", "green-violet"];
 
 const checks: Check[] = [
   ...baseChecks("light", light),
@@ -94,7 +97,9 @@ const checks: Check[] = [
 for (const accent of ACCENTS) {
   for (const mode of ["light", "dark"] as const) {
     const selector =
-      mode === "light" ? `[data-accent="${accent}"]` : `.dark[data-accent="${accent}"]`;
+      mode === "light"
+        ? `[data-accent="${accent}"]`
+        : `:where(.dark, .dark *)[data-accent="${accent}"]`;
     const tokens = block(selector);
     checks.push({
       name: `accento ${accent} ${mode}`,
@@ -109,7 +114,9 @@ for (const accent of ACCENTS) {
 for (const pair of PNL_PAIRS) {
   for (const mode of ["light", "dark"] as const) {
     const selector =
-      mode === "light" ? `[data-pnl="${pair}"]` : `.dark[data-pnl="${pair}"]`;
+      mode === "light"
+        ? `[data-pnl="${pair}"]`
+        : `:where(.dark, .dark *)[data-pnl="${pair}"]`;
     const tokens = block(selector);
     for (const key of ["profit", "loss"]) {
       checks.push({
@@ -123,8 +130,8 @@ for (const pair of PNL_PAIRS) {
 
 describe("palette del tema — contrasto WCAG AA e gamut sRGB", () => {
   it("legge dal CSS tutte le combinazioni attese", () => {
-    // 7 base × 2 modi + 4 accenti × 2 + 2 coppie P&L × 2 colori × 2 modi.
-    expect(checks.length).toBe(30);
+    // 8 base × 2 modi + 5 accenti × 2 + 3 coppie P&L × 2 colori × 2 modi.
+    expect(checks.length).toBe(38);
     for (const check of checks) {
       expect(check.color, check.name).toBeDefined();
     }
@@ -161,5 +168,80 @@ describe("palette del tema — contrasto WCAG AA e gamut sRGB", () => {
       ratio,
       `testo ${hex(...check.foreground!)} su ${check.name} = ${ratio.toFixed(2)}:1`,
     ).toBeGreaterThanOrEqual(4.5);
+  });
+});
+
+/* ── Macro Desk ─────────────────────────────────────────────────────────────
+   I token --md-* sono hex (dark fisso). Qui si verifica che la semantica
+   direzionale (up/down, più warn/info del termometro) regga AA su TUTTE e
+   quattro le superfici del modulo — inclusa surface-3, il fondo delle card
+   in hover — e che gli override daltonici per data-pnl facciano lo stesso. */
+
+function hexBlock(selector: string): Map<string, string> {
+  const escaped = selector.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  const match = CSS.match(new RegExp(`(?:^|\\n)${escaped}\\s*\\{([\\s\\S]*?)\\n\\}`));
+  if (!match) throw new Error(`Blocco CSS non trovato: ${selector}`);
+  const tokens = new Map<string, string>();
+  for (const m of match[1].matchAll(/--([\w-]+):\s*(#[0-9a-fA-F]{6})\s*;/g)) {
+    tokens.set(m[1], m[2].toLowerCase());
+  }
+  return tokens;
+}
+
+function hexLuminance(h: string): number {
+  const lin = (c: number) =>
+    c <= 0.04045 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4;
+  const v = h.replace("#", "");
+  const [r, g, b] = [0, 1, 2].map((i) =>
+    lin(parseInt(v.slice(i * 2, i * 2 + 2), 16) / 255),
+  );
+  return 0.2126 * r + 0.7152 * g + 0.0722 * b;
+}
+
+function hexContrast(a: string, b: string): number {
+  const [la, lb] = [hexLuminance(a), hexLuminance(b)];
+  const [hi, lo] = la > lb ? [la, lb] : [lb, la];
+  return (hi + 0.05) / (lo + 0.05);
+}
+
+const md = hexBlock(".macro-report");
+const mdBlueRed = hexBlock('[data-pnl="blue-red"] .macro-report');
+const mdGreenViolet = hexBlock('[data-pnl="green-violet"] .macro-report');
+
+const MD_SURFACES = (["bg", "surface", "surface-2", "surface-3"] as const).map(
+  (name) => [name, md.get(`md-${name}`)!] as const,
+);
+
+// Coppia direzionale EFFETTIVA per palette: gli override cambiano solo il
+// colore che la coppia sostituisce, l'altro resta il default del modulo.
+const MD_CHECKS: Array<[string, string]> = [
+  ["classic up", md.get("md-up")!],
+  ["classic down", md.get("md-down")!],
+  ["blue-red up", mdBlueRed.get("md-up")!],
+  ["blue-red down", mdBlueRed.get("md-down") ?? md.get("md-down")!],
+  ["green-violet up", mdGreenViolet.get("md-up") ?? md.get("md-up")!],
+  ["green-violet down", mdGreenViolet.get("md-down")!],
+  ["warn", md.get("md-warn")!],
+  ["info", md.get("md-info")!],
+];
+
+describe("Macro Desk — up/down/warn/info AA su tutte le superfici (hover incluso)", () => {
+  it("legge i token e le superfici dal CSS", () => {
+    for (const [name, surface] of MD_SURFACES) {
+      expect(surface, `superficie md-${name}`).toBeDefined();
+    }
+    for (const [name, color] of MD_CHECKS) {
+      expect(color, name).toBeDefined();
+    }
+  });
+
+  it.each(MD_CHECKS)("%s regge AA su bg, surface, surface-2 e surface-3", (name, color) => {
+    for (const [sName, surface] of MD_SURFACES) {
+      const ratio = hexContrast(color, surface);
+      expect(
+        ratio,
+        `${name} ${color} su md-${sName} ${surface} = ${ratio.toFixed(2)}:1`,
+      ).toBeGreaterThanOrEqual(4.5);
+    }
   });
 });

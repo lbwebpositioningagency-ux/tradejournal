@@ -67,6 +67,8 @@
   --color-profit: var(--profit);
   --color-loss: var(--loss);
   --color-breakeven: var(--breakeven);
+  /* Avvisi non-P&L (es. divergenze sync): ambra AA come testo in entrambi i modi */
+  --color-warning: var(--warning);
   /* Micro-testo a scala (11px): unico taglio sotto text-xs */
   --text-2xs: 0.6875rem;
   --text-2xs--line-height: 1rem;
@@ -103,6 +105,8 @@
   --chart-1: oklch(0.54 0.251 262);
   --chart-2: oklch(0.525 0.123 158);
   --chart-3: oklch(0.565 0.23 26);
+  /* chart-4: SOLO GRAFICA (stroke/barre, soglia 3:1 — su card 3.65), MAI
+     testo: come testo normale starebbe sotto AA. Per testo ambra: --warning. */
   --chart-4: oklch(0.63 0.176 62);
   --chart-5: oklch(0.53 0.256 300);
   /* P&L light — massimi IN GAMUT a contrasto AA, cercati col solver
@@ -113,6 +117,8 @@
   --profit: oklch(0.525 0.123 158);
   --loss: oklch(0.565 0.23 26);
   --breakeven: oklch(0.44 0.012 264);
+  /* Testo di avviso (ambra) AA su bg e card: 4.58 · 4.75 (solver) */
+  --warning: oklch(0.565 0.133 60);
   --radius: 0.625rem;
   /* Movimento unico per tutta l'app */
   --motion-duration: 150ms;
@@ -154,6 +160,8 @@
   --chart-1: oklch(0.635 0.194 262);
   --chart-2: oklch(0.75 0.175 158);
   --chart-3: oklch(0.655 0.228 26);
+  /* chart-4: SOLO GRAFICA anche qui (in dark regge AA, ma il token resta
+     riservato a stroke/barre per simmetria col light: per testo → --warning) */
   --chart-4: oklch(0.79 0.166 68);
   --chart-5: oklch(0.68 0.211 300);
   /* P&L dark — massimi IN GAMUT a contrasto AA (solver): 8.68 profit ·
@@ -162,6 +170,9 @@
   --profit: oklch(0.75 0.175 158);
   --loss: oklch(0.655 0.228 26);
   --breakeven: oklch(0.714 0.015 264);
+  /* Ambra IN GAMUT più vicina all'amber-400 usata prima (che era clampata):
+     11.57 su bg · 10.50 su card (solver) */
+  --warning: oklch(0.83 0.17 84);
   --sidebar: oklch(0.175 0.013 264);
   --sidebar-foreground: oklch(0.975 0.004 264);
   --sidebar-primary: oklch(0.635 0.194 262);
@@ -177,7 +188,28 @@
    Set curato; ogni coppia primary/foreground è verificata WCAG AA in
    entrambi i modi (rapporti nel commento: light fg-bianco · dark fg-scuro).
    Il resto dell'interfaccia eredita da --primary/--ring/--sidebar-primary.
+
+   I selettori dark usano :where(.dark, .dark *): valgono sia per <html>
+   (dove vive il data-attribute del cookie) sia per elementi ANNIDATI con
+   data-accent/data-pnl — è ciò che permette alle swatch del picker in
+   Impostazioni di leggere i token reali invece di una copia hardcoded.
+   Per lo stesso motivo esistono i blocchi espliciti "blue" e "classic":
+   sono i default di :root, ma un elemento annidato deve poterli riottenere
+   anche quando l'utente ha scelto un altro set a livello di pagina.
    ========================================================================= */
+
+[data-accent="blue"] {
+  --primary: oklch(0.54 0.251 262); /* = :root · 5.40 su card AA */
+  --ring: oklch(0.54 0.251 262);
+  --sidebar-primary: oklch(0.54 0.251 262);
+  --chart-1: oklch(0.54 0.251 262);
+}
+:where(.dark, .dark *)[data-accent="blue"] {
+  --primary: oklch(0.635 0.194 262); /* = .dark · 5.09 su card AA */
+  --ring: oklch(0.635 0.194 262);
+  --sidebar-primary: oklch(0.635 0.194 262);
+  --chart-1: oklch(0.635 0.194 262);
+}
 
 [data-accent="violet"] {
   --primary: oklch(0.541 0.283 293); /* 5.89 su card AA */
@@ -185,7 +217,7 @@
   --sidebar-primary: oklch(0.541 0.283 293);
   --chart-1: oklch(0.541 0.283 293);
 }
-.dark[data-accent="violet"] {
+:where(.dark, .dark *)[data-accent="violet"] {
   --primary: oklch(0.63 0.22 293); /* 4.69 su card AA */
   --ring: oklch(0.63 0.22 293);
   --sidebar-primary: oklch(0.63 0.22 293);
@@ -198,7 +230,7 @@
   --sidebar-primary: oklch(0.525 0.123 158);
   --chart-1: oklch(0.525 0.123 158);
 }
-.dark[data-accent="emerald"] {
+:where(.dark, .dark *)[data-accent="emerald"] {
   --primary: oklch(0.75 0.175 158); /* fg scuro 8.68 AA */
   --ring: oklch(0.75 0.175 158);
   --sidebar-primary: oklch(0.75 0.175 158);
@@ -211,7 +243,7 @@
   --sidebar-primary: oklch(0.555 0.149 49);
   --chart-1: oklch(0.555 0.149 49);
 }
-.dark[data-accent="amber"] {
+:where(.dark, .dark *)[data-accent="amber"] {
   --primary: oklch(0.78 0.171 68); /* fg scuro 8.67 AA */
   --ring: oklch(0.78 0.171 68);
   --sidebar-primary: oklch(0.78 0.171 68);
@@ -224,7 +256,7 @@
   --sidebar-primary: oklch(0.514 0.206 17);
   --chart-1: oklch(0.514 0.206 17);
 }
-.dark[data-accent="rose"] {
+:where(.dark, .dark *)[data-accent="rose"] {
   --primary: oklch(0.65 0.239 16); /* fg scuro 4.92 AA */
   --ring: oklch(0.65 0.239 16);
   --sidebar-primary: oklch(0.65 0.239 16);
@@ -248,13 +280,26 @@
    gamut non concede più chroma. Limite fisico del VERDE su bianco: C~0.12
    (emerald-700) è il tetto prima che il contrasto cada — non spegnimento.
    I grafici leggono --profit/--loss via CSS: si aggiornano da soli.
+
+   Come per gli accenti: dark in :where(.dark, .dark *) e blocco esplicito
+   "classic" (= default :root/.dark) perché le swatch annidate del picker
+   leggano i token reali qualunque sia il set attivo a livello di pagina.
    ========================================================================= */
+
+[data-pnl="classic"] {
+  --profit: oklch(0.525 0.123 158); /* = :root · 5.07 AA */
+  --loss: oklch(0.565 0.23 26); /* 5.12 AA */
+}
+:where(.dark, .dark *)[data-pnl="classic"] {
+  --profit: oklch(0.75 0.175 158); /* = .dark · 8.68 AA su card */
+  --loss: oklch(0.655 0.228 26); /* 5.08 AA su card */
+}
 
 [data-pnl="blue-red"] {
   --profit: oklch(0.452 0.313 264); /* blu profondo · 8.59 AA */
   --loss: oklch(0.565 0.23 26); /* 5.12 AA */
 }
-.dark[data-pnl="blue-red"] {
+:where(.dark, .dark *)[data-pnl="blue-red"] {
   --profit: oklch(0.635 0.194 262); /* 5.09 AA su card */
   --loss: oklch(0.655 0.228 26); /* 5.08 AA su card */
 }
@@ -263,7 +308,7 @@
   --profit: oklch(0.525 0.123 158); /* 5.07 AA */
   --loss: oklch(0.526 0.292 293); /* viola pieno · 6.36 AA */
 }
-.dark[data-pnl="green-violet"] {
+:where(.dark, .dark *)[data-pnl="green-violet"] {
   --profit: oklch(0.75 0.175 158); /* 8.68 AA su card */
   --loss: oklch(0.622 0.225 293); /* 4.51 AA su card */
 }
@@ -335,9 +380,13 @@
   --md-text-2: #c9d3e3;
   --md-muted: #8b98ad;
   /* Semantica (verde rialzista/positivo · rosso ribassista/negativo ·
-     ambra cautela/neutro-attenzione · blu accento/info) */
+     ambra cautela/neutro-attenzione · blu accento/info).
+     Contrasti CALCOLATI sulle 4 superfici (bg→surface-3, cioè anche lo stato
+     hover delle card): up 10.33→8.14 · down 5.78→4.56 · tutti ≥4.5.
+     Il rosso è oklch(0.665 0.224 17), massima chroma che regge AA anche su
+     surface-3 (il vecchio #f2495c scendeva a 4.35 in hover). */
   --md-up: #2fd67a;
-  --md-down: #f2495c;
+  --md-down: #ff4160;
   --md-warn: #f5a623;
   --md-info: #4f8ef7;
   /* Accenti per asset */
@@ -458,6 +507,20 @@
   .md-needle {
     animation: none;
   }
+}
+/* Il Macro Desk eredita la coppia P&L daltonica scelta in Impostazioni:
+   la promessa "adatta al daltonismo rosso-verde" vale anche qui. Valori
+   cercati col solver sulle 4 superfici del modulo (#080b12→#1a2438),
+   massima chroma con contrasto ≥4.5 anche su surface-3 (hover):
+   blu oklch(0.645 0.189 262) = #4a87ff → 5.82/5.25/4.93/4.59 ·
+   viola oklch(0.655 0.203 293) = #9970ff → 5.74/5.18/4.86/4.53.
+   blue-red: cambia solo l'up (il down resta il rosso AA di default);
+   green-violet: cambia solo il down (l'up resta il verde di default). */
+[data-pnl="blue-red"] .macro-report {
+  --md-up: #4a87ff;
+}
+[data-pnl="green-violet"] .macro-report {
+  --md-down: #9970ff;
 }
 /* Barra tab scrollabile senza scrollbar visibile */
 .macro-report .scrollbar-none {

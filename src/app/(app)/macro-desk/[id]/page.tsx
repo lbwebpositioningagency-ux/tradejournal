@@ -89,7 +89,7 @@ export default async function MacroReportPage({
           fontUi.variable,
           fontMono.variable,
         )}
-        style={{ borderColor: "#20293c" }}
+        style={{ borderColor: "var(--md-border)" }}
       >
         <MacroReportDetail
           payload={payload}

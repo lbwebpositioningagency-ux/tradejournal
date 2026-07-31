@@ -60,7 +60,7 @@ export default async function MacroScorecardPage() {
           fontUi.variable,
           fontMono.variable,
         )}
-        style={{ borderColor: "#20293c" }}
+        style={{ borderColor: "var(--md-border)" }}
       >
         <ScorecardEmView
           weeks={weeks}

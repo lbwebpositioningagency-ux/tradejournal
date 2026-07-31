@@ -60,7 +60,7 @@ export default async function MacroTrendsPage() {
           fontUi.variable,
           fontMono.variable,
         )}
-        style={{ borderColor: "#20293c" }}
+        style={{ borderColor: "var(--md-border)" }}
       >
         <TrendsView data={data} />
       </div>
