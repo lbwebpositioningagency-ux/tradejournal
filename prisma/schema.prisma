@@ -371,6 +371,52 @@ model MacroDeskReport {
   @@unique([type, reportDate])
 }
 
+// ───────────────────────── COT (posizionamento futures) ─────────────────────────
+
+enum CotInstrument {
+  GOLD
+  WTI
+}
+
+// Storico settimanale CFTC (Disaggregated Futures Only): open interest e
+// posizioni nette Managed Money / Producer-Merchant. Dato di MERCATO unico
+// per l'istanza, NON per utente: nessun userId, come MacroDeskReport.
+// Chiave logica (instrument, reportDate): APPEND-ONLY — il job settimanale
+// aggiunge settimane nuove e non sovrascrive mai quelle già salvate.
+model CotWeek {
+  id         String        @id @default(cuid())
+  instrument CotInstrument
+  reportDate DateTime      @db.Date // martedì di riferimento del report (mezzanotte UTC)
+
+  // Contratti (conteggi interi, non denaro): open interest totale e netti long-short.
+  openInterest Int
+  mmNet        Int // Managed Money: long − short
+  prodNet      Int // Producer/Merchant: long − short
+
+  createdAt DateTime @default(now())
+
+  @@unique([instrument, reportDate])
+}
+
+// Box di contesto settimanale del pannello COT, generato dal cron del sabato
+// DOPO il sync dati: ricerca web con fonti citate, passata da DUE cancelli
+// automatici PERMANENTI (lessicale + semantico) prima di essere salvata.
+// Se la generazione o un cancello falliscono, semplicemente NON esiste la riga
+// della settimana: il pannello degrada senza box, mai un errore.
+// Chiave logica: la settimana COT a cui il contesto si riferisce.
+model CotContestoBox {
+  id String @id @default(cuid())
+  /** Martedì di riferimento della settimana COT commentata (mezzanotte UTC). */
+  settimanaCot DateTime @db.Date
+  generatedAt  DateTime @default(now())
+  /** Contenuto validato da Zod (src/lib/cot-contesto.ts): contesto per
+   * strumento con fonti; le implicazioni meccaniche NON stanno qui (tabella
+   * statica nel codice, ricavata a render-time dalla banda corrente). */
+  contenuto Json
+
+  @@unique([settimanaCot])
+}
+
 // ───────────────────────── Sync MetaTrader 5 ─────────────────────────
 
 // Una sorgente di sync per conto di trading: il watcher in-app osserva il

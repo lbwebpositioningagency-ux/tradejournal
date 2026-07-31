@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import type { PannelloCot } from "@/lib/cot-panel";
 import type { MacroPayload } from "@/lib/macro-desk-payload";
 import { cn } from "@/lib/utils";
 import {
@@ -12,6 +13,7 @@ import {
   OverviewTab,
   VolatilityTab,
 } from "./report-tabs";
+import { CotPanel } from "./cot-panel";
 
 /**
  * Shell client del dettaglio report: navigazione a schede sul payload.
@@ -22,6 +24,7 @@ const TABS = [
   { id: "overview", label: "Panoramica" },
   { id: "assets", label: "Asset" },
   { id: "vol", label: "Volatilità" },
+  { id: "cot", label: "Posizionamento" },
   { id: "events", label: "Eventi & Watch" },
   { id: "macro", label: "Macro" },
   { id: "news", label: "News" },
@@ -33,10 +36,13 @@ type TabId = (typeof TABS)[number]["id"];
 export function MacroReportDetail({
   payload,
   biasRecord,
+  cotPanel,
 }: {
   payload: MacroPayload;
   /** Weekly Bias Record grezzo: unica fonte numerica di prezzo per il termometro. */
   biasRecord?: unknown;
+  /** Pannello COT calcolato lato server dalla tabella CotWeek. */
+  cotPanel: PannelloCot;
 }) {
   const [active, setActive] = useState<TabId>("overview");
 
@@ -85,6 +91,7 @@ export function MacroReportDetail({
         {active === "overview" ? <OverviewTab payload={payload} /> : null}
         {active === "assets" ? <AssetsTab payload={payload} /> : null}
         {active === "vol" ? <VolatilityTab payload={payload} biasRecord={biasRecord} /> : null}
+        {active === "cot" ? <CotPanel pannello={cotPanel} /> : null}
         {active === "events" ? <EventsTab payload={payload} /> : null}
         {active === "macro" ? <MacroTab payload={payload} /> : null}
         {active === "news" ? <NewsTab payload={payload} /> : null}

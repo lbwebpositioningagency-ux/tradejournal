@@ -1,0 +1,104 @@
+{
+  "generato_il": "2026-07-31",
+  "fonte": "CFTC Commitments of Traders — Disaggregated Futures Only",
+  "api": "https://publicreporting.cftc.gov/resource/72hh-3qpy.json",
+  "contratti": {
+    "GOLD": "GOLD - COMMODITY EXCHANGE INC.",
+    "WTI": "WTI-PHYSICAL - NEW YORK MERCANTILE EXCHANGE"
+  },
+  "cadenza": "Settimanale. Pubblicazione venerdì 15:30 ET, dato riferito al martedì precedente.",
+  "natura_dato": "DESCRITTIVO — nessuna capacità predittiva dimostrata. Il test pre-registrato H1 non è stato superato (0/3 criteri). Non associare hit rate, probabilità o previsioni a questi valori.",
+  "bande": [
+    {
+      "da": 0,
+      "a": 10,
+      "etichetta": "MOLTO BASSO"
+    },
+    {
+      "da": 10,
+      "a": 30,
+      "etichetta": "BASSO"
+    },
+    {
+      "da": 30,
+      "a": 70,
+      "etichetta": "NELLA NORMA"
+    },
+    {
+      "da": 70,
+      "a": 90,
+      "etichetta": "ALTO"
+    },
+    {
+      "da": 90,
+      "a": 101,
+      "etichetta": "MOLTO ALTO"
+    }
+  ],
+  "strumenti": {
+    "GOLD": {
+      "nome_display": "ORO",
+      "aggiornato_al": "2026-06-30",
+      "settimane_riferimento": 496,
+      "finestra_riferimento": "2017 → oggi",
+      "metriche": {
+        "mm_net": {
+          "etichetta": "Posizionamento speculativo",
+          "valore": 120091.0,
+          "posizione_barra": 62.3,
+          "banda": "NELLA NORMA",
+          "riga_principale": "Più alto che nel 62% delle settimane dal 2017",
+          "riga_rarita": null,
+          "delta_4sett": 7912.0,
+          "ultima_volta_simile": "2026-01-27",
+          "min_storico": -109454.0,
+          "max_storico": 253517.0
+        },
+        "open_interest": {
+          "etichetta": "Partecipazione",
+          "valore": 369541.0,
+          "posizione_barra": 2.4,
+          "banda": "MOLTO BASSO",
+          "riga_principale": "Più basso che nel 98% delle settimane dal 2017",
+          "riga_rarita": "Capita circa una settimana l'anno di stare così in basso",
+          "delta_4sett": 43489.0,
+          "ultima_volta_simile": "2026-05-05",
+          "min_storico": 326052.0,
+          "max_storico": 796883.0
+        }
+      }
+    },
+    "WTI": {
+      "nome_display": "PETROLIO WTI",
+      "aggiornato_al": "2026-06-30",
+      "settimane_riferimento": 496,
+      "finestra_riferimento": "2017 → oggi",
+      "metriche": {
+        "mm_net": {
+          "etichetta": "Posizionamento speculativo",
+          "valore": 81282.0,
+          "posizione_barra": 11.1,
+          "banda": "BASSO",
+          "riga_principale": "Più basso che nel 89% delle settimane dal 2017",
+          "riga_rarita": "Capita circa 6 settimane l'anno di stare così in basso",
+          "delta_4sett": -9483.0,
+          "ultima_volta_simile": "2026-04-28",
+          "min_storico": -38154.0,
+          "max_storico": 483829.0
+        },
+        "open_interest": {
+          "etichetta": "Partecipazione",
+          "valore": 1914443.0,
+          "posizione_barra": 35.1,
+          "banda": "NELLA NORMA",
+          "riga_principale": "Più basso che nel 65% delle settimane dal 2017",
+          "riga_rarita": null,
+          "delta_4sett": -110737.0,
+          "ultima_volta_simile": "2026-01-20",
+          "min_storico": 1395622.0,
+          "max_storico": 2706454.0
+        }
+      }
+    }
+  }
+}

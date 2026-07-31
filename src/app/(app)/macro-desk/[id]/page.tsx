@@ -6,6 +6,7 @@ import { ArrowLeft } from "lucide-react";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { parseMacroPayload } from "@/lib/macro-desk-payload";
+import { caricaPannelloCot } from "@/lib/queries/cot-panel";
 import { cn } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
 import { MacroReportDetail } from "@/components/macro-desk/report-detail";
@@ -45,7 +46,10 @@ export default async function MacroReportPage({
   if (!session?.user?.id) redirect("/login");
 
   const { id } = await params;
-  const report = await prisma.macroDeskReport.findUnique({ where: { id } });
+  const [report, cotPanel] = await Promise.all([
+    prisma.macroDeskReport.findUnique({ where: { id } }),
+    caricaPannelloCot(),
+  ]);
   if (!report) notFound();
 
   const payload = parseMacroPayload(report.payload);
@@ -87,7 +91,11 @@ export default async function MacroReportPage({
         )}
         style={{ borderColor: "#20293c" }}
       >
-        <MacroReportDetail payload={payload} biasRecord={report.biasRecord} />
+        <MacroReportDetail
+          payload={payload}
+          biasRecord={report.biasRecord}
+          cotPanel={cotPanel}
+        />
       </div>
     </div>
   );
