@@ -1,12 +1,8 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { Suspense, use, useMemo, useState } from "react";
 import { CloudOff } from "lucide-react";
-import type {
-  RecessionBand,
-  TrendsData,
-  TrendsSeriesView,
-} from "@/lib/macro-trends";
+import type { RecessionBand, TrendsSeriesView } from "@/lib/macro-trends";
 import {
   TRENDS_SECTIONS,
   TRENDS_TILE_KEYS,
@@ -582,27 +578,24 @@ function Tile({ view }: { view: TrendsSeriesView }) {
   );
 }
 
-export function TrendsView({ data }: { data: TrendsData }) {
-  const [section, setSection] = useState<TrendsSectionId>("inflazione");
-  const [horizon, setHorizon] = useState<Horizon>("5A");
-
+/**
+ * P-05 — riepilogo aggregato (badge Ciclo generale + tessere + pillole):
+ * somma TUTTE le serie, quindi vive nella sua Suspense alimentata dalla
+ * promise dell'insieme — per costruzione è l'ultima a risolvere, mentre
+ * le sezioni sotto compaiono man mano. `use()` sospende fino ai dati.
+ */
+function TrendsSummary({
+  allSeries,
+  onSelectSection,
+}: {
+  allSeries: Promise<TrendsSeriesView[]>;
+  onSelectSection: (id: TrendsSectionId) => void;
+}) {
+  const series = use(allSeries);
   const byKey = useMemo(
-    () => new Map(data.series.map((s) => [s.def.key, s])),
-    [data.series],
+    () => new Map(series.map((s) => [s.def.key, s])),
+    [series],
   );
-  const sectionMeta = TRENDS_SECTIONS.find((s) => s.id === section)!;
-  const sectionSeries = data.series.filter((s) => s.def.section === section);
-  // Le serie senza sotto-sezione prima; poi un gruppo titolato per ciascuna
-  // sotto-sezione, nell'ordine di prima apparizione nel registry.
-  const mainSeries = sectionSeries.filter((s) => !s.def.subSection);
-  const subSections = new Map<string, TrendsSeriesView[]>();
-  for (const view of sectionSeries) {
-    if (!view.def.subSection) continue;
-    const group = subSections.get(view.def.subSection) ?? [];
-    group.push(view);
-    subSections.set(view.def.subSection, group);
-  }
-
   // Pillole di riepilogo per sezione (FASE 31): il polso di tutte le
   // sezioni in una riga, dai valori già calcolati — zero calcoli nuovi.
   const pills = useMemo(
@@ -610,29 +603,16 @@ export function TrendsView({ data }: { data: TrendsData }) {
       TRENDS_SECTIONS.map((s) =>
         buildSectionPill(
           s.id,
-          data.series.filter((v) => v.def.section === s.id),
+          series.filter((v) => v.def.section === s.id),
         ),
       ),
-    [data.series],
+    [series],
   );
 
   return (
-    <div className="flex flex-col gap-4 p-4 sm:p-6">
-      {data.keyless ? (
-        <p className="text-2xs leading-relaxed" style={{ color: "var(--md-muted)" }}>
-          Fonte: FRED via CSV pubblico (chiave API non configurata —{" "}
-          <span className="md-mono">FRED_API_KEY</span>
-          {" abilita l'endpoint ufficiale). Cache giornaliera."}
-        </p>
-      ) : (
-        <p className="text-2xs leading-relaxed" style={{ color: "var(--md-muted)" }}>
-          Fonte: FRED (St. Louis FED), API ufficiale. Cache giornaliera: ogni
-          serie mostra la data della SUA ultima osservazione.
-        </p>
-      )}
-
+    <>
       {/* Ciclo generale: il livello più alto della gerarchia, prima di tutto */}
-      <GeneralCycleBadge series={data.series} />
+      <GeneralCycleBadge series={series} />
 
       {/* Quadro sintetico: i numeri chiave prima del dettaglio */}
       <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 xl:grid-cols-6">
@@ -652,7 +632,7 @@ export function TrendsView({ data }: { data: TrendsData }) {
           <button
             key={pill.id}
             type="button"
-            onClick={() => setSection(pill.id)}
+            onClick={() => onSelectSection(pill.id)}
             title={pill.title}
             className="md-mono flex items-center gap-1.5 rounded-[var(--md-r-sm)] border px-2 py-1 text-2xs font-semibold transition-colors hover:brightness-110"
             style={{
@@ -665,6 +645,163 @@ export function TrendsView({ data }: { data: TrendsData }) {
           </button>
         ))}
       </div>
+    </>
+  );
+}
+
+/** Placeholder dell'aggregato: stesse geometrie, in attesa di TUTTE le serie. */
+function TrendsSummaryFallback() {
+  return (
+    <>
+      <div
+        className="md-card flex items-center gap-4 p-4"
+        style={{ borderLeft: "3px solid var(--md-border)" }}
+      >
+        <PanelLabel>Ciclo generale</PanelLabel>
+        <span className="text-2xs" style={{ color: "var(--md-muted)" }}>
+          In attesa di tutte le serie…
+        </span>
+      </div>
+      <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 xl:grid-cols-6">
+        {Array.from({ length: 6 }, (_, i) => (
+          <div
+            key={i}
+            className="md-card h-20 animate-pulse"
+            style={{ backgroundColor: "var(--md-surface-2)" }}
+          />
+        ))}
+      </div>
+    </>
+  );
+}
+
+/**
+ * P-05 — pannello della sezione attiva: sospende sulla SUA promise (più le
+ * recessioni, condivise), non su tutte le serie della pagina.
+ */
+function TrendsSectionPanel({
+  sectionId,
+  seriesPromise,
+  recessionsPromise,
+  horizon,
+  generatedAt,
+}: {
+  sectionId: TrendsSectionId;
+  seriesPromise: Promise<TrendsSeriesView[]>;
+  recessionsPromise: Promise<RecessionBand[]>;
+  horizon: Horizon;
+  generatedAt: string;
+}) {
+  const sectionSeries = use(seriesPromise);
+  const recessions = use(recessionsPromise);
+  const sectionMeta = TRENDS_SECTIONS.find((s) => s.id === sectionId)!;
+  // Le serie senza sotto-sezione prima; poi un gruppo titolato per ciascuna
+  // sotto-sezione, nell'ordine di prima apparizione nel registry.
+  const mainSeries = sectionSeries.filter((s) => !s.def.subSection);
+  const subSections = new Map<string, TrendsSeriesView[]>();
+  for (const view of sectionSeries) {
+    if (!view.def.subSection) continue;
+    const group = subSections.get(view.def.subSection) ?? [];
+    group.push(view);
+    subSections.set(view.def.subSection, group);
+  }
+
+  return (
+    <div className="md-fade flex flex-col gap-3">
+      <Callout label={sectionMeta.feeds} color={SECTION_COLOR[sectionId]}>
+        {sectionMeta.reading}
+      </Callout>
+
+      <div className="grid gap-3 xl:grid-cols-2">
+        {mainSeries.map((view) => (
+          <SeriesCard
+            key={view.def.key}
+            view={view}
+            horizon={horizon}
+            recessions={recessions}
+            generatedAt={generatedAt}
+          />
+        ))}
+      </div>
+
+      {[...subSections.entries()].map(([name, views]) => (
+        <div key={name} className="flex flex-col gap-3">
+          <h3
+            className="text-2xs font-semibold uppercase tracking-[0.14em]"
+            style={{ color: "var(--md-muted)" }}
+          >
+            {name}
+          </h3>
+          <div className="grid gap-3 xl:grid-cols-2">
+            {views.map((view) => (
+              <SeriesCard
+                key={view.def.key}
+                view={view}
+                horizon={horizon}
+                recessions={recessions}
+                generatedAt={generatedAt}
+              />
+            ))}
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+/** Placeholder della sezione: card mute delle stesse proporzioni. */
+function TrendsSectionFallback() {
+  return (
+    <div className="grid gap-3 xl:grid-cols-2">
+      {Array.from({ length: 4 }, (_, i) => (
+        <div
+          key={i}
+          className="md-card h-72 animate-pulse"
+          style={{ backgroundColor: "var(--md-surface-2)" }}
+        />
+      ))}
+    </div>
+  );
+}
+
+export function TrendsView({
+  generatedAt,
+  keyless,
+  sections,
+  allSeries,
+  recessions,
+}: {
+  generatedAt: string;
+  keyless: boolean;
+  /** P-05 — una promise per sezione: l'unità di streaming della pagina. */
+  sections: Record<TrendsSectionId, Promise<TrendsSeriesView[]>>;
+  /** Insieme di tutte le serie, per l'aggregato (ultima Suspense). */
+  allSeries: Promise<TrendsSeriesView[]>;
+  recessions: Promise<RecessionBand[]>;
+}) {
+  const [section, setSection] = useState<TrendsSectionId>("inflazione");
+  const [horizon, setHorizon] = useState<Horizon>("5A");
+
+  return (
+    <div className="flex flex-col gap-4 p-4 sm:p-6">
+      {keyless ? (
+        <p className="text-2xs leading-relaxed" style={{ color: "var(--md-muted)" }}>
+          Fonte: FRED via CSV pubblico (chiave API non configurata —{" "}
+          <span className="md-mono">FRED_API_KEY</span>
+          {" abilita l'endpoint ufficiale). Cache giornaliera."}
+        </p>
+      ) : (
+        <p className="text-2xs leading-relaxed" style={{ color: "var(--md-muted)" }}>
+          Fonte: FRED (St. Louis FED), API ufficiale. Cache giornaliera: ogni
+          serie mostra la data della SUA ultima osservazione.
+        </p>
+      )}
+
+      {/* P-05 — l'aggregato somma TUTTE le serie: ultima Suspense a
+          risolvere, mentre le sezioni sotto arrivano appena pronte. */}
+      <Suspense fallback={<TrendsSummaryFallback />}>
+        <TrendsSummary allSeries={allSeries} onSelectSection={setSection} />
+      </Suspense>
 
       {/* Sub-nav sezioni + orizzonte condiviso */}
       <div className="flex flex-wrap items-center justify-between gap-2">
@@ -729,46 +866,18 @@ export function TrendsView({ data }: { data: TrendsData }) {
         </div>
       </div>
 
-      {/* Sezione attiva: reading da desk + card serie */}
-      <div key={section} className="md-fade flex flex-col gap-3">
-        <Callout label={sectionMeta.feeds} color={SECTION_COLOR[section]}>
-          {sectionMeta.reading}
-        </Callout>
-
-        <div className="grid gap-3 xl:grid-cols-2">
-          {mainSeries.map((view) => (
-            <SeriesCard
-              key={view.def.key}
-              view={view}
-              horizon={horizon}
-              recessions={data.recessions}
-              generatedAt={data.generatedAt}
-            />
-          ))}
-        </div>
-
-        {[...subSections.entries()].map(([name, views]) => (
-          <div key={name} className="flex flex-col gap-3">
-            <h3
-              className="text-2xs font-semibold uppercase tracking-[0.14em]"
-              style={{ color: "var(--md-muted)" }}
-            >
-              {name}
-            </h3>
-            <div className="grid gap-3 xl:grid-cols-2">
-              {views.map((view) => (
-                <SeriesCard
-                  key={view.def.key}
-                  view={view}
-                  horizon={horizon}
-                  recessions={data.recessions}
-                  generatedAt={data.generatedAt}
-                />
-              ))}
-            </div>
-          </div>
-        ))}
-      </div>
+      {/* Sezione attiva: reading da desk + card serie. La `key` rimonta la
+          Suspense al cambio tab (conserva la md-fade); una sezione già
+          risolta rientra senza fallback, `use()` è sincrono sul valore. */}
+      <Suspense key={section} fallback={<TrendsSectionFallback />}>
+        <TrendsSectionPanel
+          sectionId={section}
+          seriesPromise={sections[section]}
+          recessionsPromise={recessions}
+          horizon={horizon}
+          generatedAt={generatedAt}
+        />
+      </Suspense>
 
       <p className="text-2xs" style={{ color: "var(--md-muted)" }}>
         Bande grigie = recessioni NBER (USREC). Orizzonte {horizon}: il cambio

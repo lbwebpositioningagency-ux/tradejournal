@@ -1,7 +1,6 @@
-import { fetchFredSeries, hasFredApiKey } from "@/lib/fred";
+import { fetchFredSeries } from "@/lib/fred";
 import {
   RECESSION_SERIES_ID,
-  TRENDS_SERIES,
   type TrendsSeriesDef,
 } from "@/lib/macro-trends-series";
 import {
@@ -19,10 +18,11 @@ import {
 } from "@/lib/macro-trends-metrics";
 
 /**
- * Orchestratore server della pagina Trends: scarica TUTTE le serie in
- * parallelo (Promise.allSettled: una serie che fallisce non fa cadere la
- * pagina), applica i transform puri e riduce il payload per il client
- * (osservazioni sfoltite, valori arrotondati a 4 decimali).
+ * Orchestratore server della pagina Trends: scarica le serie in parallelo
+ * PER SEZIONE (P-05 — l'unità di streaming: Promise.allSettled, una serie
+ * che fallisce non fa cadere la sezione), applica i transform puri e
+ * riduce il payload per il client (osservazioni sfoltite, valori
+ * arrotondati a 4 decimali).
  *
  * SOLO server-side: il client riceve dati già pronti, mai chiavi o fetch.
  */
@@ -57,15 +57,6 @@ export interface TrendsSeriesView {
   percentiles?: SeriesPercentiles;
   /** Layer calcolato FASE 29 (trend, variazioni, percentile, ciclo). */
   metrics?: SeriesMetrics;
-}
-
-export interface TrendsData {
-  /** ISO dell'assemblaggio (= "ultimo tentativo" per le card in errore). */
-  generatedAt: string;
-  /** true se si sta lavorando col solo CSV keyless (chiave non configurata). */
-  keyless: boolean;
-  recessions: RecessionBand[];
-  series: TrendsSeriesView[];
 }
 
 function round4(value: number): number {
@@ -181,18 +172,4 @@ export async function getTrendsRecessions(): Promise<RecessionBand[]> {
   } catch {
     return [];
   }
-}
-
-export async function getMacroTrendsData(): Promise<TrendsData> {
-  const [series, recessions] = await Promise.all([
-    getTrendsSection([...TRENDS_SERIES]),
-    getTrendsRecessions(),
-  ]);
-
-  return {
-    generatedAt: new Date().toISOString(),
-    keyless: !hasFredApiKey(),
-    recessions,
-    series,
-  };
 }
