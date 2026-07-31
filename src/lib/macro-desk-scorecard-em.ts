@@ -275,6 +275,14 @@ export interface ScorecardMetrics {
   hitRateSuppressedReason: string | null;
 }
 
+/**
+ * Q-08 — le regole di risoluzione hanno denominatori DIVERSI: i direzionali
+ * hanno la zona NULLO (movimento sotto K_HIT esce dal denominatore), i
+ * neutrali sono sempre HIT o MISS. Una hit-rate unica dipenderebbe dal MIX
+ * dei bias dichiarati, non solo dalla bravura: la vista pubblica quindi due
+ * `scorecardMetrics` filtrate per tipo (direzionali / neutrali). Questa
+ * funzione resta agnostica: calcola sui `weeks` che riceve.
+ */
 export function scorecardMetrics(weeks: ResolvedWeek[]): ScorecardMetrics {
   const hits = weeks.filter((w) => w.outcome === "HIT").length;
   const misses = weeks.filter((w) => w.outcome === "MISS").length;
@@ -305,12 +313,19 @@ export function scorecardMetrics(weeks: ResolvedWeek[]): ScorecardMetrics {
 
 /**
  * CALIBRAZIONE — correlazione fra la confidenza dichiarata e il rendimento
- * settimanale in EM, orientato per direzione.
+ * settimanale in EM, orientato per direzione, sui SOLI bias direzionali.
  *
  * Risponde a una domanda che la hit-rate non vede: il modello sa quando
  * fidarsi di sé stesso? Una hit-rate del 55% con confidenza scorrelata dice
  * che il desk azzecca ma non sa quando; correlazione positiva dice che le
  * settimane in cui si sbilancia sono davvero le sue migliori.
+ *
+ * Q-07 — i NEUTRALI restano FUORI: per un bias direzionale "successo" =
+ * closeEm grande e positivo (funzione di perdita coerente con Pearson),
+ * per un neutrale "successo" = |closeEm| PICCOLO — un neutrale ad alta
+ * confidenza perfettamente azzeccato (closeEm ≈ 0) tirerebbe la
+ * correlazione verso il basso. Mescolare le due funzioni di perdita
+ * renderebbe il coefficiente non interpretabile.
  *
  * Coefficiente di Pearson su (confidence, closeEm). Null sotto il minimo di
  * osservazioni o se una delle due serie è costante (correlazione indefinita).
@@ -319,7 +334,10 @@ export const MIN_SAMPLES_FOR_CALIBRATION = 8;
 
 export function confidenceCalibration(weeks: ResolvedWeek[]): string | null {
   const points = weeks
-    .filter((w) => w.confidence !== null && w.closeEm !== null)
+    .filter(
+      (w) =>
+        w.bias !== "NEUTRALE" && w.confidence !== null && w.closeEm !== null,
+    )
     .map((w) => [w.confidence as number, w.closeEm as number] as const);
   if (points.length < MIN_SAMPLES_FOR_CALIBRATION) return null;
 

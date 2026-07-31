@@ -46,7 +46,10 @@ export default async function MacroTrendsPage() {
         <p className="page-subtitle">
           Le serie economiche che alimentano il bias su oro, petrolio e
           indici: storico pluriennale, recessioni NBER, tabelle di
-          comparazione. Ogni valore porta la data della sua osservazione.
+          comparazione. Ogni valore porta la data della sua osservazione. I
+          valori sono quelli pubblicati oggi da FRED, revisioni incluse:
+          per le serie riviste (payroll, PIL, JOLTS) trend ed etichette
+          possono cambiare retroattivamente senza che esca un dato nuovo.
         </p>
       </div>
 

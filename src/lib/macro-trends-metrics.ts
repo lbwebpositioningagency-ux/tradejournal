@@ -3,6 +3,7 @@ import type { DeltaMode, GoodDirection } from "@/lib/macro-trends-series";
 import {
   dateKeyToDays,
   nearestObservation,
+  percentileRank,
   type SeriesCadence,
 } from "@/lib/macro-trends-transforms";
 
@@ -13,8 +14,9 @@ import {
  * chiamata FRED, nessuna interpolazione, aritmetica float da display.
  *
  * Onestà statistica:
- * - il percentile è calcolato sulla storia disponibile della serie (che
- *   varia da indicatore a indicatore): la UI dichiara l'anno di partenza;
+ * - percentile e livello del ciclo sono calcolati sulla finestra di regime
+ *   (CYCLE_LEVEL_YEARS anni), con fallback dichiarato alla storia intera
+ *   per le serie corte; la UI dichiara l'anno di partenza;
  * - meno di MIN_HISTORY_SAMPLES osservazioni = metrica assente, mai un
  *   numero su un pugno di punti;
  * - i valori sono gli ultimi RIVISTI pubblicati da FRED (default dell'API,
@@ -38,24 +40,79 @@ export interface PeriodChange {
 
 export interface SeriesMetrics {
   trend: TrendLabel | null;
-  /** Pendenza (ultime 6 oss.) / dev. std. delle variazioni storiche. */
+  /**
+   * Q-03 — pendenza (ultime 6 oss.) / sd DELLA PENDENZA sotto rumore
+   * (σ recente × slopeNoiseFactor): ~N(0,1) su una passeggiata aleatoria.
+   */
   trendZ: number | null;
   changes: PeriodChange[];
-  /** Percentile (0-100) dell'ultimo valore sulla storia intera. */
+  /**
+   * Q-04 — percentile (0-100) dell'ultimo valore sulla finestra di
+   * CYCLE_LEVEL_YEARS anni; fallback dichiarato alla storia intera se la
+   * finestra non ha abbastanza campioni.
+   */
   percentile: number | null;
   /** Anno della prima osservazione: il "dal ..." dichiarato in UI. */
   historyStartYear: string | null;
   cycle: CycleLabel | null;
-  /** Z-score dell'ultimo livello vs storia intera (asse X del ciclo). */
+  /**
+   * Q-04 — z-score dell'ultimo livello vs finestra di CYCLE_LEVEL_YEARS
+   * anni (asse X del ciclo); fallback alla storia intera se corta.
+   */
   levelZ: number | null;
 }
 
 /** Finestra della regressione del trend (spec: ultime 6 osservazioni). */
 export const TREND_WINDOW = 6;
-/** |z| sotto la soglia = laterale. */
-export const TREND_Z_THRESHOLD = 0.5;
+/**
+ * Q-03 — |z| sotto la soglia = laterale. Con la normalizzazione corretta
+ * (vedi `slopeNoiseFactor`) z è ~N(0,1) sotto una passeggiata aleatoria
+ * senza trend: la soglia 1,645 è il quantile 95% della normale, quindi il
+ * tasso di falsi trend su puro rumore è ~10% (5% per coda). La vecchia
+ * soglia 0,5 applicata a una z NON normalizzata per la varianza dello
+ * stimatore produceva ~28% di falsi trend.
+ */
+export const TREND_Z_THRESHOLD = 1.645;
+/**
+ * Q-03 — la dev. std. delle variazioni si stima sugli ultimi 5 anni, non
+ * sull'intera storia: la sd full-history mescola regimi di volatilità (la
+ * sd del MoM CPI include il 2021-22) e schiaccia sistematicamente i trend
+ * recenti su "laterale". Fallback dichiarato alla storia intera quando la
+ * finestra non raggiunge MIN_HISTORY_SAMPLES variazioni.
+ */
+export const TREND_SD_YEARS = 5;
+/** Q-04 — finestra del livello del ciclo: 10 anni è lo standard di lettura. */
+export const CYCLE_LEVEL_YEARS = 10;
 /** Sotto questo numero di campioni le statistiche non si calcolano. */
 export const MIN_HISTORY_SAMPLES = 20;
+
+/**
+ * Q-03 — deviazione standard della pendenza OLS su una passeggiata
+ * aleatoria, in unità della sd σ del singolo passo. Forma chiusa:
+ *
+ *   slope = Σᵢ wᵢ·yᵢ   con  wᵢ = (i − x̄)/D,  D = Σᵢ (i − x̄)²
+ *   yᵢ = y₀ + Σ_{k≤i} eₖ  (Σwᵢ = 0 ⇒ y₀ sparisce)
+ *   ⇒ slope = Σ_{k=1}^{n−1} cₖ·eₖ   con  cₖ = Σ_{i≥k} wᵢ
+ *   ⇒ sd(slope) = σ·√(Σ cₖ²)
+ *
+ * Per n = 6: D = 17,5, i cₖ valgono (2,5 · 4 · 4,5 · 4 · 2,5)/17,5 e
+ * √(64,75/306,25) ≈ 0,4598 — il "sd(slope) ≈ 0,46σ" del rilievo. La
+ * vecchia z divideva la pendenza per σ direttamente: era sottostimata di
+ * questo fattore, e la soglia 0,5 corrispondeva a ~0,5/0,46 ≈ 1,09 sd
+ * dello stimatore → ~28% di falsi positivi.
+ */
+export function slopeNoiseFactor(window: number): number {
+  const meanX = (window - 1) / 2;
+  let den = 0;
+  for (let i = 0; i < window; i += 1) den += (i - meanX) ** 2;
+  let acc = 0;
+  let sumSq = 0;
+  for (let k = window - 1; k >= 1; k -= 1) {
+    acc += (k - meanX) / den;
+    sumSq += acc * acc;
+  }
+  return Math.sqrt(sumSq);
+}
 
 /**
  * Pendenza dei minimi quadrati per passo di osservazione (x = 0,1,2…).
@@ -98,25 +155,41 @@ export interface TrendResult {
 
 /**
  * TREND: pendenza sulle ultime TREND_WINDOW osservazioni, normalizzata
- * sulla dev. std. STORICA delle variazioni periodo-su-periodo dell'intera
- * serie. Serie senza variazioni (sd=0) = laterale per definizione.
+ * sulla deviazione standard DELLA PENDENZA sotto rumore (Q-03):
+ *
+ *   z = slope / (σ · slopeNoiseFactor(TREND_WINDOW))
+ *
+ * dove σ è la sd delle variazioni periodo-su-periodo stimata sugli ultimi
+ * TREND_SD_YEARS anni (fallback alla storia intera se la finestra recente
+ * non raggiunge MIN_HISTORY_SAMPLES variazioni). Così z è ~N(0,1) su una
+ * passeggiata aleatoria e la soglia ha una copertura nota (~10% di falsi
+ * trend, verificata da un test Monte Carlo). Serie senza variazioni
+ * (σ=0) = laterale per definizione.
  */
 export function trendMetric(
   observations: FredObservation[],
 ): TrendResult | null {
   if (observations.length < TREND_WINDOW) return null;
+  if (observations.length - 1 < MIN_HISTORY_SAMPLES) return null;
+
+  // Variazioni sulla finestra recente (TREND_SD_YEARS dall'ultima
+  // osservazione); sotto la soglia di campioni, l'intera storia.
+  const lastDays = dateKeyToDays(observations[observations.length - 1].date);
+  const fromDays = lastDays - Math.round(TREND_SD_YEARS * 365.25);
+  const recent = observations.filter((o) => dateKeyToDays(o.date) >= fromDays);
+  const source = recent.length - 1 >= MIN_HISTORY_SAMPLES ? recent : observations;
   const diffs: number[] = [];
-  for (let i = 1; i < observations.length; i += 1) {
-    diffs.push(observations[i].value - observations[i - 1].value);
+  for (let i = 1; i < source.length; i += 1) {
+    diffs.push(source[i].value - source[i - 1].value);
   }
-  if (diffs.length < MIN_HISTORY_SAMPLES) return null;
+
   const sd = stdDev(diffs);
   const slope = linearSlope(
     observations.slice(-TREND_WINDOW).map((o) => o.value),
   );
   if (sd === null || slope === null) return null;
   if (sd === 0) {
-    // Variazioni storiche tutte identiche: una pendenza non nulla è un
+    // Variazioni recenti tutte identiche: una pendenza non nulla è un
     // trend "infinitamente" netto (z convenzionale ±99, mai Infinity nel
     // payload RSC); pendenza nulla = serie ferma.
     if (slope === 0) return { label: "laterale", z: 0, slope };
@@ -124,7 +197,7 @@ export function trendMetric(
       ? { label: "rialzista", z: 99, slope }
       : { label: "ribassista", z: -99, slope };
   }
-  const z = slope / sd;
+  const z = slope / (sd * slopeNoiseFactor(TREND_WINDOW));
   const label: TrendLabel =
     Math.abs(z) < TREND_Z_THRESHOLD
       ? "laterale"
@@ -229,8 +302,8 @@ export interface CycleResult {
 
 /**
  * POSIZIONE NEL CICLO, a quadranti:
- * asse X = livello vs trend storico (z-score dell'ultimo valore su media e
- * dev. std. dell'intera serie) · asse Y = direzione (segno della pendenza
+ * asse X = livello vs regime recente (z-score dell'ultimo valore su media e
+ * dev. std. degli ultimi CYCLE_LEVEL_YEARS anni, Q-04) · asse Y = direzione (segno della pendenza
  * del TREND — anche quando l'etichetta è "laterale" la direzione resta
  * quella della regressione).
  * Sopra + salita = espansione · sopra + discesa = rallentamento ·
@@ -251,7 +324,18 @@ export function cycleMetric(
 ): CycleResult | null {
   if (goodDirection === "neutral") return null;
   if (observations.length < MIN_HISTORY_SAMPLES) return null;
-  const values = observations.map((o) => o.value);
+  // Q-04 — il livello si confronta con gli ultimi CYCLE_LEVEL_YEARS anni,
+  // non con l'intera storia: un Fed funds al 4,5% è "alto" rispetto al
+  // decennio ZIRP e "medio" rispetto al 1980 — la media full-history
+  // mescola regimi incomparabili. Fallback DICHIARATO alla storia intera
+  // quando la finestra non raggiunge MIN_HISTORY_SAMPLES campioni.
+  const lastDays = dateKeyToDays(observations[observations.length - 1].date);
+  const fromDays = lastDays - Math.round(CYCLE_LEVEL_YEARS * 365.25);
+  const windowed = observations.filter(
+    (o) => dateKeyToDays(o.date) >= fromDays,
+  );
+  const source = windowed.length >= MIN_HISTORY_SAMPLES ? windowed : observations;
+  const values = source.map((o) => o.value);
   const sd = stdDev(values);
   if (sd === null || sd === 0) return null;
   let mean = 0;
@@ -337,7 +421,11 @@ export function computeSeriesMetrics(
     trend: trend?.label ?? null,
     trendZ: trend?.z ?? null,
     changes: periodChanges(observations, options.cadence, options.deltaMode),
-    percentile: percentileAllHistory(observations),
+    // Q-04 — percentile sulla finestra di regime (10A, stesso gate a 20
+    // campioni di percentileRank); serie più corta → storia intera.
+    percentile:
+      percentileRank(observations, CYCLE_LEVEL_YEARS) ??
+      percentileAllHistory(observations),
     historyStartYear:
       observations.length > 0 ? observations[0].date.slice(0, 4) : null,
     cycle: cycle?.label ?? null,

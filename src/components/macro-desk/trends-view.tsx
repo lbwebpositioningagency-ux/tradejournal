@@ -279,35 +279,57 @@ function buildSectionPill(
 }
 
 /**
- * Badge «Ciclo generale» (FASE 33): il vertice della gerarchia informativa
- * della pagina — l'etichetta di ciclo prevalente su TUTTI gli indicatori
- * delle 9 sezioni economiche, in un colpo solo. Stessa `prevailingLabel`
- * delle pillole di sezione, su elenco flat; non votano la Volatilità
- * (niente ciclo, Fase 29) e il Dollaro (indice FX, Fase 30). Stesse
- * regole già testate: null sotto soglia fuori, pareggio = «Misto»,
- * nessun voto = «N/D».
+ * Badge «Ciclo generale» (FASE 33, ricomposto in Q-14): il vertice della
+ * gerarchia informativa della pagina. Il voto è a DUE STADI: prima
+ * l'etichetta di ciclo prevalente per ciascuna sezione economica (le
+ * stesse `prevailingLabel` delle pillole), poi la prevalenza FRA le
+ * sezioni — «N sezioni su 9», un voto per blocco economico. Il vecchio
+ * conteggio flat per serie era pseudo-replicazione: le serie dentro una
+ * sezione sono fortemente correlate (headline/core/PCE si muovono
+ * insieme) e la sezione più popolata dominava il badge. La Volatilità
+ * resta fuori (nessun ciclo, Fase 29); l'esclusione per-serie del Dollaro
+ * (Fase 30) è superata dal voto per sezione — al più orienta la pillola
+ * di Liquidità, mai il badge da solo. Il tooltip mantiene il dettaglio:
+ * sezione per sezione, coi voti delle serie.
  */
 function GeneralCycleBadge({ series }: { series: TrendsSeriesView[] }) {
-  const result = prevailingLabel(
-    series
-      .filter(
-        (v) => v.def.section !== "volatilita" && v.def.key !== "dollar",
-      )
-      .map((v) => v.metrics?.cycle ?? null),
-  );
+  const sections = TRENDS_SECTIONS.filter((s) => s.id !== "volatilita");
+  const perSection = sections.map((section) => ({
+    section,
+    result: prevailingLabel(
+      series
+        .filter((v) => v.def.section === section.id)
+        .map((v) => v.metrics?.cycle ?? null),
+    ),
+  }));
+  const result = prevailingLabel(perSection.map((s) => s.result.winner));
+
+  // Dettaglio per il tooltip: ogni sezione con la sua etichetta e i voti
+  // delle serie che l'hanno prodotta.
+  const breakdown = perSection
+    .map(({ section, result: r }) => {
+      const label =
+        r.total === 0
+          ? "n/d"
+          : r.tie || r.winner === null
+            ? `misto (${r.count} pari su ${r.total})`
+            : `${r.winner} (${r.count} di ${r.total} serie)`;
+      return `${SECTION_SHORT[section.id]}: ${label}`;
+    })
+    .join(" · ");
 
   let text = "N/D";
   let color = "var(--md-muted)";
-  let detail = "Nessun indicatore con etichetta di ciclo calcolabile";
+  let detail = "Nessuna sezione con etichetta di ciclo calcolabile";
   if (result.total > 0) {
     if (result.tie || result.winner === null) {
       text = "Misto";
       color = "var(--md-text-2)";
-      detail = `Pareggio tra le etichette più frequenti (${result.count} voti a testa su ${result.total} indicatori)`;
+      detail = `Pareggio tra le etichette in testa (${result.count} sezioni a testa su ${result.total} con voto, di ${sections.length})`;
     } else {
       text = capitalize(result.winner);
       color = CYCLE_COLOR[result.winner as CycleLabel];
-      detail = `${result.count} di ${result.total} indicatori: ${text}`;
+      detail = `${result.count} di ${result.total} sezioni con voto (su ${sections.length}): ${text}`;
     }
   }
 
@@ -315,7 +337,7 @@ function GeneralCycleBadge({ series }: { series: TrendsSeriesView[] }) {
     <div
       className="md-card flex flex-wrap items-center gap-x-4 gap-y-1 p-4"
       style={{ borderLeft: `3px solid ${color}` }}
-      title={detail}
+      title={`${detail}\n${breakdown}`}
     >
       <PanelLabel>Ciclo generale</PanelLabel>
       <span

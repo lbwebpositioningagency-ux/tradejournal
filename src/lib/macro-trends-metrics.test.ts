@@ -8,9 +8,13 @@ import {
   percentileAllHistory,
   periodChanges,
   prevailingLabel,
+  slopeNoiseFactor,
   stdDev,
+  TREND_WINDOW,
+  TREND_Z_THRESHOLD,
   trendMetric,
 } from "@/lib/macro-trends-metrics";
+import { mulberry32 } from "@/lib/metrics/monte-carlo";
 import { daysToDateKey, dateKeyToDays } from "@/lib/macro-trends-transforms";
 
 /** Osservazioni mensili consecutive (primo del mese) a partire da start. */
@@ -66,22 +70,35 @@ describe("stdDev", () => {
   });
 });
 
+describe("slopeNoiseFactor — derivazione in forma chiusa (Q-03)", () => {
+  it("finestra 6: √(64,75/306,25) ≈ 0,4598 — il «sd(slope) ≈ 0,46σ» del rilievo", () => {
+    // Derivazione: pesi wᵢ = (i−2,5)/17,5, cₖ = Σ_{i≥k} wᵢ →
+    // numeratori (2,5 · 4 · 4,5 · 4 · 2,5), Σc² = 64,75/17,5².
+    expect(slopeNoiseFactor(6)).toBeCloseTo(Math.sqrt(64.75) / 17.5, 12);
+    expect(slopeNoiseFactor(TREND_WINDOW)).toBeCloseTo(0.4598, 4);
+  });
+
+  it("la soglia è il quantile 95% della normale (~10% di falsi trend a due code)", () => {
+    expect(TREND_Z_THRESHOLD).toBeCloseTo(1.645, 3);
+  });
+});
+
 describe("trendMetric", () => {
-  it("salita netta nelle ultime 6 vs storia calma → rialzista con z > 0,5", () => {
+  it("salita netta nelle ultime 6 vs storia calma → rialzista sopra la soglia", () => {
     // 24 osservazioni con rumore ±0,1 poi 6 in salita di +1 a passo.
     const noise = Array.from({ length: 24 }, (_, i) => (i % 2 === 0 ? 0 : 0.1));
     const rise = [1, 2, 3, 4, 5, 6];
     const result = trendMetric(monthly([...noise, ...rise]));
     expect(result?.label).toBe("rialzista");
-    expect(result!.z).toBeGreaterThan(0.5);
+    expect(result!.z).toBeGreaterThan(TREND_Z_THRESHOLD);
   });
 
-  it("discesa netta → ribassista con z < -0,5", () => {
+  it("discesa netta → ribassista sotto la soglia negativa", () => {
     const noise = Array.from({ length: 24 }, (_, i) => (i % 2 === 0 ? 0 : 0.1));
     const fall = [-1, -2, -3, -4, -5, -6];
     const result = trendMetric(monthly([...noise, ...fall]));
     expect(result?.label).toBe("ribassista");
-    expect(result!.z).toBeLessThan(-0.5);
+    expect(result!.z).toBeLessThan(-TREND_Z_THRESHOLD);
   });
 
   it("ultime 6 piatte con storia mossa → laterale (z ≈ 0)", () => {
@@ -90,7 +107,34 @@ describe("trendMetric", () => {
     const flat = [0.5, 0.5, 0.5, 0.5, 0.5, 0.5];
     const result = trendMetric(monthly([...wobble, ...flat]));
     expect(result?.label).toBe("laterale");
-    expect(Math.abs(result!.z)).toBeLessThan(0.5);
+    expect(Math.abs(result!.z)).toBeLessThan(TREND_Z_THRESHOLD);
+  });
+
+  it("Q-03 — Monte Carlo: su una passeggiata aleatoria SENZA trend l'etichetta esce ~10% delle volte", () => {
+    // 1000 passeggiate aleatorie di 84 osservazioni mensili (la finestra
+    // recente di 5 anni resta sopra il gate), passi ~N(0,1) via Box-Muller
+    // con RNG deterministico. Con la vecchia normalizzazione (z = slope/σ,
+    // soglia 0,5) il tasso di falsi trend era ~28%: la taratura corretta
+    // deve stare intorno al 10% dichiarato (z è una t con ~59 gdl, non una
+    // normale esatta: tolleranza [6%, 14%]).
+    const rng = mulberry32(20260731);
+    const normal = () =>
+      Math.sqrt(-2 * Math.log(1 - rng())) * Math.cos(2 * Math.PI * rng());
+    let falseTrends = 0;
+    const walks = 1000;
+    for (let w = 0; w < walks; w += 1) {
+      let level = 0;
+      const values: number[] = [level];
+      for (let i = 1; i < 84; i += 1) {
+        level += normal();
+        values.push(level);
+      }
+      const result = trendMetric(monthly(values, "2016-01"));
+      if (result !== null && result.label !== "laterale") falseTrends += 1;
+    }
+    const rate = falseTrends / walks;
+    expect(rate).toBeGreaterThan(0.06);
+    expect(rate).toBeLessThan(0.14);
   });
 
   it("serie costante (sd variazioni = 0) → laterale, non divisione per zero", () => {
@@ -222,6 +266,29 @@ describe("cycleMetric", () => {
   it("serie costante (sd = 0) o corta → null", () => {
     expect(cycleMetric(monthly(Array(30).fill(4)), 1, "up")).toBeNull();
     expect(cycleMetric(monthly([1, 2, 3]), 1, "up")).toBeNull();
+  });
+
+  it("Q-04 — il livello si confronta col regime degli ultimi 10 anni, non con l'intera storia", () => {
+    // 20 anni a 10, poi ~10 anni a 2 con ultimo valore 3 (start 1995-01,
+    // 360 osservazioni mensili → ultima 2024-12). Sul regime recente
+    // (finestra 10A: i 2 e il 3 finale) il 3 è ALTO → espansione con
+    // pendenza positiva. Sulla storia intera (media ≈ 7,3) sarebbe stato
+    // "basso" → ripresa: l'etichetta del vecchio full-history era il
+    // confronto con un regime che non esiste più.
+    const regime = monthly(
+      [...Array(240).fill(10), ...Array(119).fill(2), 3],
+      "1995-01",
+    );
+    const result = cycleMetric(regime, 1, "up");
+    expect(result?.label).toBe("espansione");
+    expect(result!.levelZ).toBeGreaterThan(0);
+  });
+
+  it("Q-04 — serie più corta di 10 anni: fallback dichiarato alla storia intera", () => {
+    // 31 osservazioni (~2,6 anni): la finestra 10A coincide con la storia,
+    // il comportamento resta quello dei test dei quadranti qui sopra.
+    const obs = monthly([...base, 2]);
+    expect(cycleMetric(obs, 1, "up")?.label).toBe("espansione");
   });
 });
 

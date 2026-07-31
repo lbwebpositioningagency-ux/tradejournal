@@ -949,6 +949,25 @@ Blocco dedicato all'equity simulator, dai rilievi quant/design/colori.
 
 **Verificato:** typecheck ✅ · lint ✅ · **1070/1070 test** ✅ (bande riscritte, aggregati aggiornati, conteggio invariato) · build ✅ · contrasti via `contrast.mjs` su light e dark ✅. Nessun test bloccava le stringhe UI del simulatore (verificato con grep prima di toccarle).
 
+## ✅ FASE 48 «Audit Macro Desk: trend calibrato (Q-03), regime 10 anni (Q-04), badge a due stadi (Q-14), calibrazione direzionale (Q-07), hit-rate separate (Q-08), revisioni dichiarate (Q-15)» (31/07/2026)
+Blocco sul layer calcolato del Macro Desk (prerequisito Q-02 verificato in main: commit b2a2012). Diagnosi tutte ri-verificate nel codice. **Molte etichette visibili di Trends e Scorecard CAMBIANO per correzione statistica**, come da rilievi.
+
+**Q-03 — trend con normalizzazione corretta.** La vecchia z divideva la pendenza OLS (6 punti) per la sd di UNA variazione dell'intera storia, con soglia 0,5: su un random walk senza trend usciva un'etichetta ~28% delle volte. Ora: z = pendenza / (σ · `slopeNoiseFactor(6)`), dove il fattore è in FORMA CHIUSA (slope = Σcₖeₖ con cₖ = somme cumulate dei pesi OLS → sd = σ·√Σcₖ² = σ·√(64,75/306,25) ≈ 0,4598 per finestra 6 — derivazione nel commento del modulo e verificata da test numerico); σ stimata sulle variazioni degli ULTIMI 5 ANNI (`TREND_SD_YEARS`, fallback dichiarato alla storia intera sotto 20 variazioni: la sd full-history mescola regimi — il 2021-22 schiacciava i trend recenti su "laterale"); soglia 1,645 = quantile 95% della normale → **~10% di falsi trend su rumore, verificato da un test Monte Carlo** (1000 passeggiate aleatorie deterministiche, tasso atteso nel range 6-14%: z è una t con ~59 gdl, non una normale esatta).
+
+**Q-04 — livello del ciclo sul regime recente.** `levelZ` (asse X dei quadranti) e il campo `percentile` del payload ora si calcolano sulla finestra di 10 anni (`CYCLE_LEVEL_YEARS`, il percentile riusa `percentileRank` col suo gate a 20 campioni), con fallback DICHIARATO alla storia intera per le serie corte: un Fed funds al 4,5% è alto rispetto al decennio ZIRP, non "medio rispetto al 1980". Test: serie a cambio di regime (20 anni a 10, poi 10 anni a 2 con ultimo 3) → «espansione» sul regime recente dove il full-history avrebbe detto «ripresa».
+
+**Q-14 — badge «Ciclo generale» a due stadi.** Prima l'etichetta prevalente PER SEZIONE (le stesse `prevailingLabel` delle pillole), poi la prevalenza fra le 9 sezioni economiche: «N di M sezioni», un voto per blocco economico — il conteggio flat per serie era pseudo-replicazione (headline/core/PCE si muovono insieme e la sezione più popolata dominava). Il tooltip mantiene il dettaglio: ogni sezione con etichetta e voti delle serie. L'esclusione per-serie del Dollaro (Fase 30) è superata dal voto per sezione (al più orienta la pillola Liquidità, mai il badge) — documentato nel componente.
+
+**Q-07 — calibrazione sui soli bias direzionali.** Per un direzionale «successo» = closeEm grande positivo (coerente con Pearson); per un neutrale = |closeEm| PICCOLO: un neutrale perfetto ad alta confidenza tirava la correlazione verso il basso. Filtro `bias !== "NEUTRALE"` dentro `confidenceCalibration`, dichiarato in UI («sui soli bias direzionali»). Test: 8 direzionali ben calibrati + 4 neutrali perfetti ad alta confidenza → correlazione identica ai soli direzionali.
+
+**Q-08 — hit-rate separate direzionali/neutrali.** Le due regole hanno denominatori diversi (i direzionali scartano la zona NULLO, i neutrali sono sempre HIT o MISS): un'unica percentuale si muoveva col MIX dei bias. La vista pubblica ora DUE hit-rate (asset per asset e nel complessivo), ciascuna col suo denominatore e col gate delle 8 settimane; la regola di risoluzione NON è cambiata. Dichiarato in pagina il perché.
+
+**Q-15 — revisioni FRED dichiarate dove l'utente legge.** Riga nell'intro di Trends: valori come pubblicati oggi, revisioni incluse — per payroll/PIL/JOLTS le etichette possono cambiare retroattivamente senza dati nuovi.
+
+**Test aggiornati con motivazione**: le asserzioni del trend passano dalla soglia 0,5 a `TREND_Z_THRESHOLD` (la z ora è in unità della sd DELLO STIMATORE: i sintetici netti valgono z≈5, ben oltre 1,645); i test dei quadranti restano invariati (serie corte: finestra 10A ≡ storia); 6 test nuovi (derivazione in forma chiusa, soglia, Monte Carlo, regime 10A, fallback, neutrali fuori dalla calibrazione).
+
+**Verificato:** typecheck ✅ · lint ✅ · **1076/1076 test** ✅ · build ✅. Verifica a schermo su dati FRED reali non eseguibile in locale (rete bloccata, noto da Fase 29): le etichette live si controllano in produzione.
+
 ### ▶ Prossimi passi
 
 **Il piano premium è completo** (§1 equity simulator — ex Monte Carlo, §2 rolling metrics, §3 metriche pro).

@@ -34,6 +34,48 @@ function em(value: number | null): string {
   return `${sign}${value.toFixed(2).replace(".", ",")} EM`;
 }
 
+/**
+ * Q-08 — hit-rate PUBBLICATE SEPARATE per bias direzionali e neutrali: le
+ * due regole hanno denominatori diversi (i direzionali scartano la zona
+ * NULLO, i neutrali sono sempre valutati), quindi un'unica percentuale si
+ * muoverebbe col mix dei bias dichiarati, non con la bravura.
+ */
+function splitByBiasType(rows: ResolvedWeek[]) {
+  return {
+    directional: rows.filter((w) => w.bias !== "NEUTRALE"),
+    neutral: rows.filter((w) => w.bias === "NEUTRALE"),
+  };
+}
+
+function HitRateLine({
+  label,
+  rows,
+}: {
+  label: string;
+  rows: ResolvedWeek[];
+}) {
+  const m = scorecardMetrics(rows);
+  return (
+    <div className="flex items-baseline gap-2">
+      <span className="text-2xs" style={{ color: "var(--md-muted)" }}>
+        {label}
+      </span>
+      {m.hitRate !== null ? (
+        <>
+          <span className="md-mono text-lg font-bold">{pct(m.hitRate)}</span>
+          <span className="text-2xs" style={{ color: "var(--md-muted)" }}>
+            su {m.hits + m.misses} valutate
+          </span>
+        </>
+      ) : (
+        <span className="text-2xs" style={{ color: "var(--md-warn)" }}>
+          {m.hitRateSuppressedReason}
+        </span>
+      )}
+    </div>
+  );
+}
+
 function AssetBlock({
   asset,
   weeks,
@@ -43,6 +85,9 @@ function AssetBlock({
 }) {
   const rows = weeks.filter((w) => w.asset === asset);
   const m = scorecardMetrics(rows);
+  const { directional, neutral } = splitByBiasType(rows);
+  // Q-07 — calibrazione sui soli direzionali (il filtro sta nella funzione;
+  // qui si passa tutto e si dichiara in nota).
   const calibration = confidenceCalibration(rows);
 
   return (
@@ -54,19 +99,10 @@ function AssetBlock({
         </span>
       </div>
 
-      <div className="mt-2 flex items-baseline gap-2">
-        {m.hitRate !== null ? (
-          <>
-            <span className="md-mono text-2xl font-bold">{pct(m.hitRate)}</span>
-            <span className="text-2xs" style={{ color: "var(--md-muted)" }}>
-              su {m.hits + m.misses} settimane valutate
-            </span>
-          </>
-        ) : (
-          <span className="text-xs" style={{ color: "var(--md-warn)" }}>
-            {m.hitRateSuppressedReason}
-          </span>
-        )}
+      {/* Q-08 — due percentuali, mai una sola: denominatori diversi. */}
+      <div className="mt-2 flex flex-col gap-1">
+        <HitRateLine label="Direzionali" rows={directional} />
+        <HitRateLine label="Neutrali" rows={neutral} />
       </div>
 
       {/* I conteggi grezzi restano SEMPRE visibili, anche quando la
@@ -90,7 +126,10 @@ function AssetBlock({
       <p className="mt-2 text-2xs leading-relaxed" style={{ color: "var(--md-muted)" }}>
         «Senza informazione» = movimento sotto {K_HIT} EM: fuori dal
         denominatore insieme alle invalidate. Un ramo attivato non è un errore.
-        La calibrazione è la correlazione fra confidenza dichiarata e risultato.
+        Le hit-rate sono separate perché le due regole hanno denominatori
+        diversi (i neutrali non hanno la zona senza informazione). La
+        calibrazione è la correlazione fra confidenza dichiarata e risultato,
+        sui soli bias direzionali.
       </p>
     </div>
   );
@@ -127,6 +166,7 @@ export function ScorecardEmView({
   trackRecordStart: string | null;
 }) {
   const overall = scorecardMetrics(weeks);
+  const overallSplit = splitByBiasType(weeks);
 
   return (
     <div className="p-4 sm:p-6">
@@ -168,22 +208,13 @@ export function ScorecardEmView({
           <div className="md-card-2 mt-4 flex flex-wrap items-baseline gap-x-6 gap-y-2 p-4">
             <div>
               <div className="text-2xs" style={{ color: "var(--md-muted)" }}>
-                Complessivo
+                Complessivo (per tipo di bias: denominatori diversi, mai una
+                percentuale unica)
               </div>
-              {overall.hitRate !== null ? (
-                <div className="flex items-baseline gap-2">
-                  <span className="md-mono text-3xl font-bold">
-                    {pct(overall.hitRate)}
-                  </span>
-                  <span className="text-2xs" style={{ color: "var(--md-muted)" }}>
-                    su {overall.hits + overall.misses} settimane-asset valutate
-                  </span>
-                </div>
-              ) : (
-                <div className="text-sm" style={{ color: "var(--md-warn)" }}>
-                  {overall.hitRateSuppressedReason}
-                </div>
-              )}
+              <div className="mt-1 flex flex-col gap-1">
+                <HitRateLine label="Direzionali" rows={overallSplit.directional} />
+                <HitRateLine label="Neutrali" rows={overallSplit.neutral} />
+              </div>
             </div>
             <div className="text-2xs" style={{ color: "var(--md-muted)" }}>
               {overall.weeks} righe · {eligibleReports} report idonei ·{" "}
