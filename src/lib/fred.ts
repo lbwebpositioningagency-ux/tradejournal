@@ -9,7 +9,8 @@
  *
  * Disciplina dati:
  * - il valore "." di FRED = osservazione MANCANTE: scartata, mai uno zero;
- * - cache giornaliera via Next data cache (`next.revalidate` 86400): i dati
+ * - cache giornaliera via Next data cache (`next.revalidate` ~86400, con
+ *   scadenza scaglionata per serie — vedi `revalidateSecondsFor`): i dati
  *   macro non cambiano intraday e non martelliamo FRED;
  * - timeout esplicito: una serie lenta non blocca la pagina (il chiamante
  *   usa Promise.allSettled e mostra la card in errore).
@@ -40,6 +41,26 @@ const CSV_BASE =
   "https://fred.stlouisfed.org/graph/fredgraph.csv";
 const REVALIDATE_SECONDS = 86_400;
 const TIMEOUT_MS = 15_000;
+
+/**
+ * P-05 — scadenze SCAGLIONATE per serie: con `revalidate` identico per
+ * tutte, la data cache delle ~50 serie scade in blocco e il primo
+ * visitatore del giorno paga tutti i refetch insieme. Un jitter di ±3 h
+ * attorno alle 24 h, DETERMINISTICO sull'ID (stesso valore a ogni build e
+ * istanza: la chiave di cache resta stabile), distribuisce le scadenze
+ * nell'arco di 6 ore senza cambiare la cadenza giornaliera.
+ */
+const REVALIDATE_JITTER_SECONDS = 10_800;
+
+export function revalidateSecondsFor(id: string): number {
+  let hash = 0;
+  for (let i = 0; i < id.length; i += 1) {
+    hash = (hash * 31 + id.charCodeAt(i)) >>> 0;
+  }
+  const offset =
+    (hash % (2 * REVALIDATE_JITTER_SECONDS + 1)) - REVALIDATE_JITTER_SECONDS;
+  return REVALIDATE_SECONDS + offset;
+}
 
 const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
 
@@ -86,7 +107,10 @@ export function parseFredCsv(text: string): FredObservation[] {
 }
 
 /** fetch con data-cache giornaliera e timeout (la richiesta persa non blocca). */
-async function fetchWithTimeout(url: string): Promise<Response> {
+async function fetchWithTimeout(
+  url: string,
+  revalidate: number,
+): Promise<Response> {
   let timer: ReturnType<typeof setTimeout> | undefined;
   const timeout = new Promise<never>((_, reject) => {
     timer = setTimeout(
@@ -95,10 +119,7 @@ async function fetchWithTimeout(url: string): Promise<Response> {
     );
   });
   try {
-    return await Promise.race([
-      fetch(url, { next: { revalidate: REVALIDATE_SECONDS } }),
-      timeout,
-    ]);
+    return await Promise.race([fetch(url, { next: { revalidate } }), timeout]);
   } finally {
     clearTimeout(timer);
   }
@@ -109,7 +130,7 @@ async function fetchViaApi(
   apiKey: string,
 ): Promise<FredObservation[]> {
   const url = `${API_BASE}?series_id=${encodeURIComponent(id)}&api_key=${encodeURIComponent(apiKey)}&file_type=json`;
-  const res = await fetchWithTimeout(url);
+  const res = await fetchWithTimeout(url, revalidateSecondsFor(id));
   if (!res.ok) throw new Error(`API FRED ${id}: HTTP ${res.status}`);
   const payload: unknown = await res.json();
   const observations = parseFredJson(payload);
@@ -121,7 +142,7 @@ async function fetchViaApi(
 
 async function fetchViaCsv(id: string): Promise<FredObservation[]> {
   const url = `${CSV_BASE}?id=${encodeURIComponent(id)}`;
-  const res = await fetchWithTimeout(url);
+  const res = await fetchWithTimeout(url, revalidateSecondsFor(id));
   if (!res.ok) throw new Error(`CSV FRED ${id}: HTTP ${res.status}`);
   const observations = parseFredCsv(await res.text());
   if (observations.length === 0) {
