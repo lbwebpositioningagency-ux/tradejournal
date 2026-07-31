@@ -247,8 +247,9 @@ describe("equityAggregatesFromPaths — Fase 37", () => {
     const agg = equityAggregatesFromPaths(paths, 100)!;
     expect(agg.avgMaxDrawdown).toBeCloseTo(0.5 / 3, 12); // (0 + 0,2 + 0,3)/3
     expect(agg.biggestMaxDrawdown).toBeCloseTo(0.3, 12);
-    expect(agg.avgPerformance).toBeCloseTo(0.1 / 3, 12); // (0,5 − 0,1 − 0,3)/3
-    // (0,1/3) / (0,5/3) = 0,2 esatto.
+    // Il rapporto è (meanEquity/start − 1)/avgMaxDrawdown: la media dei
+    // ritorni (0,1/3) È meanEquity/start − 1, quindi (0,1/3)/(0,5/3) = 0,2 —
+    // identico a prima della rimozione di avgPerformance.
     expect(agg.returnOnMaxDrawdown).toBeCloseTo(0.2, 12);
   });
 
@@ -266,7 +267,7 @@ describe("equityAggregatesFromPaths — Fase 37", () => {
 
   it("performance media negativa → rapporto negativo, non nascosto", () => {
     const agg = equityAggregatesFromPaths([[100, 120, 60]], 100)!;
-    expect(agg.avgPerformance).toBeCloseTo(-0.4, 12);
+    expect(agg.meanEquity).toBeCloseTo(60, 12); // ritorno medio −40%
     expect(agg.avgMaxDrawdown).toBeCloseTo(0.5, 12); // da 120 a 60
     expect(agg.returnOnMaxDrawdown).toBeCloseTo(-0.8, 12);
   });
@@ -289,33 +290,36 @@ describe("equityAggregatesFromPaths — Fase 37", () => {
   });
 });
 
-describe("equityBandsFromPaths — Fase 34b", () => {
-  it("media ± 1σ e ± 2σ di popolazione, per passo", () => {
-    // Al passo 1: valori 10 e 20 → media 15, σ = 5.
-    const bands = equityBandsFromPaths([
-      [100, 10],
-      [100, 20],
-    ]);
+describe("equityBandsFromPaths — quantili empirici per passo (Q-05)", () => {
+  // Le vecchie bande media ± σ dichiaravano coperture (~68%/~95%) da
+  // normale su una distribuzione log-normale: i quantili nearest-rank
+  // hanno copertura esatta per costruzione. Questi valori attesi SONO la
+  // correzione voluta dal rilievo, non un aggiustamento.
+  it("fasce 25–75% e 5–95% come quantili nearest-rank per passo", () => {
+    // Al passo 1: valori 10, 20, …, 100 (n=10, ordinati). Nearest-rank:
+    // p05 → indice round(0,05·9)=0 → 10 · p25 → 2 → 30 · p75 → 7 → 80 ·
+    // p95 → 9 → 100. Media 55.
+    const paths = Array.from({ length: 10 }, (_, i) => [100, (i + 1) * 10]);
+    const bands = equityBandsFromPaths(paths);
     expect(bands).toHaveLength(2);
-    expect(bands[0]).toEqual({ mean: 100, sd: 0, inner: [100, 100], outer: [100, 100] });
-    expect(bands[1].mean).toBe(15);
-    expect(bands[1].sd).toBe(5);
-    expect(bands[1].inner).toEqual([10, 20]);
-    expect(bands[1].outer).toEqual([5, 25]);
+    expect(bands[0]).toEqual({ mean: 100, inner: [100, 100], outer: [100, 100] });
+    expect(bands[1].mean).toBeCloseTo(55, 12);
+    expect(bands[1].inner).toEqual([30, 80]);
+    expect(bands[1].outer).toEqual([10, 100]);
   });
 
-  it("la banda non scende mai sotto zero (l'equity non può)", () => {
+  it("le fasce sono equity realmente osservate: mai sotto zero, nessun clamp", () => {
     const bands = equityBandsFromPaths([
-      [100, 1],
-      [100, 41],
+      [100, 0],
+      [100, 40],
     ]);
-    // media 21, σ 20: inner [1, 41], outer [max(0, −19), 61].
-    expect(bands[1].outer).toEqual([0, 61]);
+    expect(bands[1].outer[0]).toBe(0); // il quantile È il percorso azzerato
+    expect(bands[1].outer[1]).toBe(40);
   });
 
-  it("un solo percorso → σ 0, bande collassate sulla media", () => {
+  it("un solo percorso → fasce collassate sul valore", () => {
     const bands = equityBandsFromPaths([[100, 110]]);
-    expect(bands[1]).toEqual({ mean: 110, sd: 0, inner: [110, 110], outer: [110, 110] });
+    expect(bands[1]).toEqual({ mean: 110, inner: [110, 110], outer: [110, 110] });
   });
 
   it("nessun percorso → nessuna banda", () => {
@@ -328,6 +332,15 @@ describe("equityBandsFromPaths — Fase 34b", () => {
     expect(bands).toHaveLength(base.trades + 1);
     for (const t of [0, 50, 100]) {
       expect(bands[t].mean).toBeCloseTo(result.mean[t], 9);
+      // La fascia interna sta dentro l'esterna per costruzione.
+      expect(bands[t].inner[0]).toBeGreaterThanOrEqual(bands[t].outer[0]);
+      expect(bands[t].inner[1]).toBeLessThanOrEqual(bands[t].outer[1]);
     }
+    // All'ultimo passo le fasce coincidono coi percentili della tabella
+    // scenari: stessa convenzione nearest-rank, stessi percorsi.
+    const stats = equityStatsFromPaths(result.paths, base.startEquity)!;
+    const last = bands[bands.length - 1];
+    expect(last.outer).toEqual([stats.finalEquity.p05, stats.finalEquity.p95]);
+    expect(last.inner).toEqual([stats.finalEquity.p25, stats.finalEquity.p75]);
   });
 });

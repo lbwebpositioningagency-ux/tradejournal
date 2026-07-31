@@ -643,14 +643,15 @@ export default async function AnalyticsPage({
               <p className="rounded-md border border-dashed p-3 text-xs text-muted-foreground">
                 <strong className="text-foreground">Come funziona.</strong>{" "}
                 Per ogni trade simulato si estrae un numero casuale: se cade
-                sotto la win probability il trade vale +ratio R, altrimenti
-                −1 R, e l&apos;equity si aggiorna rischiando la quota indicata
-                dell&apos;equity corrente (compounding) o l&apos;importo fisso
-                scelto. Nessun dato storico viene ricampionato: contano solo i
-                tre parametri del form. Serve a vedere la <em>variabilità</em>{" "}
-                di un edge — quanto possono divergere futuri con le stesse
-                statistiche — non a prevedere il tuo risultato. I breakeven
-                non sono simulati: i default di win probability e ratio
+                sotto la probabilità di vincita il trade vale +rapporto R,
+                altrimenti −1 R, e l&apos;equity si aggiorna rischiando la
+                quota indicata dell&apos;equity corrente (compounding) o
+                l&apos;importo fisso scelto. Nessun dato storico viene
+                ricampionato: contano solo i tre parametri del form. Serve a
+                vedere la <em>variabilità</em> di un edge — quanto possono
+                divergere futuri con le stesse statistiche — non a prevedere
+                il tuo risultato. I breakeven non sono simulati: i default di
+                probabilità e rapporto win/loss
                 partono dai soli trade vincenti/perdenti con rischio definito
                 (p = R vincenti / (R vincenti + R perdenti), ratio = R medio
                 vincente / R medio perdente), perché nel modello ogni

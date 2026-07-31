@@ -934,6 +934,21 @@ Terzo blocco dall'audit quantitativo, diagnosi tutte ri-verificate nel codice pr
 
 **Verificato:** typecheck ✅ · lint ✅ · **1070/1070 test** ✅ (8 nuovi) · build ✅.
 
+## ✅ FASE 47 «Equity simulator: quantili empirici (Q-05), palette a token (D-17/C-01), glossario F18 (D-01), validazione per campo (D-12), −1 statistica ridondante» (31/07/2026)
+Blocco dedicato all'equity simulator, dai rilievi quant/design/colori.
+
+**Q-05 — bande a QUANTILI EMPIRICI per passo.** Le bande media ±1σ/±2σ etichettate «~68%/~95%» assumevano una normale su una distribuzione log-normale (il clamp a zero era l'ammissione del problema). `equityBandsFromPaths` ora restituisce le fasce 25–75% e 5–95% come quantili nearest-rank per passo (stessa convenzione della tabella scenari, stessi percorsi): copertura ESATTA per costruzione, nessun pavimento necessario (i quantili sono equity osservate). Legenda «Fascia 25–75% / Fascia 5–95%», tooltip allineato. **I test delle bande sono stati riscritti**: i valori attesi cambiano perché il cambiamento È la correzione (σ→quantili), con in più l'asserzione che all'ultimo passo le fasce coincidono ESATTAMENTE coi percentili della tabella scenari.
+
+**Metriche rimosse #2 — via «Average performance».** Era Mean equity riscalata sulla partenza (ridondanza perfino dichiarata nel tooltip): campo e card rimossi; «Return on max drawdown» ridefinito come (equity media / equity iniziale − 1) / max drawdown medio — valore IDENTICO per algebra (i test lo dimostrano: 0,2 e −0,8 invariati). Il gruppo «Performance» sparisce, la griglia aggregati passa a 3 colonne.
+
+**D-17/C-01 — palette dentro il sistema.** Via la `hsl(i·137.508°, 65%, 52%)` (giallo-verdi a 1,58:1 su card chiara, unico grafico fuori da chart-spec): i percorsi ruotano su TRE token chart (`--chart-1/2/5` — blu, verde, viola) con opacità a fasce (0,40/0,30/0,22) per la texture. **Contrasti verificati con `scripts/contrast.mjs` sui due temi**: tutti i token pieni ≥ 4,69:1 su card E background (light: 5,07–6,32 · dark: 4,69–9,57), incluse le 5 varianti accento che ridefiniscono `--chart-1`. Nota a margine: il token esistente `--chart-5` dark risulta marginalmente fuori gamut sRGB (clampato dal browser, contrasto post-clamp 5,66 ok) — preesistente, non introdotto qui.
+
+**D-01 — glossario F18 applicato.** Form: «Equity iniziale», «Probabilità di vincita (%)», «Rapporto win/loss (X : 1)», «Numero di trade/linee», «Rischio per trade», «Scala (asse Y)» con «Normale/Logaritmica», bottone «Avvia simulazione». Tabella scenari: «Median»→«Mediano». Statistiche: «Ritorno mediano», «Max drawdown mediano», «Equity media», «Max drawdown medio/peggiore», «Max vincite/perdite consecutive» — termine inglese solo dove è gergo (max drawdown, equity, risk of ruin, streak). Aggiornati i testi di pagina che citavano i vecchi nomi («win probability», «Number of lines»).
+
+**D-12 — validazione per campo (il budget lo consentiva).** Al submit ogni campo invalido è marcato (`aria-invalid` + bordo destructive) col SUO messaggio sotto la label (equity positiva, probabilità 0–100, rapporto positivo, ≥1 trade/linea, rischio positivo e <100 in modalità %); con errori il grafico resta sull'ultima simulazione valida. Il paragrafo cumulativo resta come fallback del motore.
+
+**Verificato:** typecheck ✅ · lint ✅ · **1070/1070 test** ✅ (bande riscritte, aggregati aggiornati, conteggio invariato) · build ✅ · contrasti via `contrast.mjs` su light e dark ✅. Nessun test bloccava le stringhe UI del simulatore (verificato con grep prima di toccarle).
+
 ### ▶ Prossimi passi
 
 **Il piano premium è completo** (§1 equity simulator — ex Monte Carlo, §2 rolling metrics, §3 metriche pro).

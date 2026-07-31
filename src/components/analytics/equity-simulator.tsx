@@ -18,7 +18,6 @@ import {
   SIM_MAX_TRADES,
   aggregateStatsInfo,
   avgMaxDrawdownInfo,
-  avgPerformanceInfo,
   biggestMaxDrawdownInfo,
   equityAggregatesFromPaths,
   equityBandsFromPaths,
@@ -93,9 +92,30 @@ function freshSeed(): number {
   return (Math.random() * 0xffffffff) >>> 0;
 }
 
-/** Colori distinti per N linee: rotazione di tinta ad angolo aureo. */
+/**
+ * D-17/C-01 — percorsi DENTRO il sistema token: rotazione su tre token
+ * chart (blu, verde, viola — le tinte validate dal solver in entrambi i
+ * temi) con opacità a fasce per dare texture. La vecchia
+ * `hsl(i·137.508°, 65%, 52%)` a lightness fissa produceva giallo-verdi a
+ * 1.58:1 su card chiara ed era l'unico grafico fuori da chart-spec. Le
+ * linee restano decorative (bande e media portano l'informazione): la
+ * distinguibilità individuale non serve, la leggibilità nei due temi sì.
+ */
+const LINE_TOKENS = [
+  "var(--chart-1)",
+  "var(--chart-2)",
+  "var(--chart-5)",
+] as const;
+const LINE_OPACITIES = [0.4, 0.3, 0.22] as const;
+
 function lineColor(index: number): string {
-  return `hsl(${Math.round((index * 137.508) % 360)} 65% 52%)`;
+  return LINE_TOKENS[index % LINE_TOKENS.length];
+}
+
+function lineOpacity(index: number): number {
+  return LINE_OPACITIES[
+    Math.floor(index / LINE_TOKENS.length) % LINE_OPACITIES.length
+  ];
 }
 
 const fmtEquity = (v: number) =>
@@ -118,10 +138,13 @@ function runSimulation(form: FormState, seed: number): EquitySimulatorResult | n
 
 function Field({
   label,
+  error,
   children,
 }: {
   label: string;
-  children: (id: string) => React.ReactNode;
+  /** D-12 — errore contestuale del campo, mostrato sotto l'input. */
+  error?: string;
+  children: (id: string, invalid: boolean) => React.ReactNode;
 }) {
   const id = useId();
   return (
@@ -129,9 +152,58 @@ function Field({
       <Label htmlFor={id} className="text-xs text-muted-foreground">
         {label}
       </Label>
-      {children(id)}
+      {children(id, error !== undefined)}
+      {error !== undefined ? (
+        <p className="text-xs text-destructive">{error}</p>
+      ) : null}
     </div>
   );
+}
+
+/** Campi liberi del form (il rischio valida valore+modalità insieme). */
+type FieldKey =
+  | "startEquity"
+  | "winProbability"
+  | "winLossRatio"
+  | "trades"
+  | "lines"
+  | "riskValue";
+
+/**
+ * D-12 — validazione PER CAMPO al submit: ogni input invalido è marcato
+ * (`aria-invalid` + bordo destructive) col suo messaggio sotto la label,
+ * invece dell'unico paragrafo cumulativo da decifrare. Stesse regole del
+ * motore (`simulateEquityCurves`): qui si spiegano, lì si applicano.
+ */
+function validateForm(form: FormState): Partial<Record<FieldKey, string>> {
+  const errors: Partial<Record<FieldKey, string>> = {};
+  const equity = parseNum(form.startEquity);
+  if (!Number.isFinite(equity) || equity <= 0) {
+    errors.startEquity = "Serve un'equity positiva (es. 50.000).";
+  }
+  const probability = parseNum(form.winProbability);
+  if (!Number.isFinite(probability) || probability < 0 || probability > 100) {
+    errors.winProbability = "Serve una probabilità fra 0 e 100.";
+  }
+  const ratio = parseNum(form.winLossRatio);
+  if (!Number.isFinite(ratio) || ratio <= 0) {
+    errors.winLossRatio = "Serve un rapporto positivo (es. 1,5).";
+  }
+  const trades = parseNum(form.trades);
+  if (!Number.isFinite(trades) || trades < 1) {
+    errors.trades = "Serve almeno 1 trade.";
+  }
+  const lines = parseNum(form.lines);
+  if (!Number.isFinite(lines) || lines < 1) {
+    errors.lines = "Serve almeno 1 linea.";
+  }
+  const risk = parseNum(form.riskValue);
+  if (!Number.isFinite(risk) || risk <= 0) {
+    errors.riskValue = "Serve un rischio positivo.";
+  } else if (form.riskMode === "percent" && risk >= 100) {
+    errors.riskValue = "In modalità % il rischio deve stare sotto il 100.";
+  }
+  return errors;
 }
 
 export function EquitySimulator({
@@ -165,6 +237,9 @@ export function EquitySimulator({
   const [applied, setApplied] = useState<{ form: FormState; seed: number }>(
     () => ({ form: { ...form }, seed: freshSeed() }),
   );
+  // D-12 — errori per campo dell'ULTIMO submit: digitare non li tocca,
+  // il submit successivo li ricalcola (o li azzera e applica).
+  const [errors, setErrors] = useState<Partial<Record<FieldKey, string>>>({});
 
   const result = runSimulation(applied.form, applied.seed);
   const scale = applied.form.scale;
@@ -193,14 +268,13 @@ export function EquitySimulator({
           row.mean = scale === "log" && mean <= 0 ? null : mean;
           row.lo = lo;
           row.hi = hi;
-          // Bande ±1σ/±2σ come range [min, max]; in log una banda che tocca
-          // lo zero non è disegnabile e si interrompe, come le linee.
+          // Fasce 25–75% e 5–95% come range [min, max]; in log una fascia
+          // che tocca lo zero non è disegnabile e si interrompe, come le linee.
           const band = bands[t];
           row.inner =
             scale === "log" && band.inner[0] <= 0 ? null : [...band.inner];
           row.outer =
             scale === "log" && band.outer[0] <= 0 ? null : [...band.outer];
-          row.sd = band.sd;
           return row;
         });
 
@@ -216,66 +290,82 @@ export function EquitySimulator({
         className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4"
         onSubmit={(e) => {
           e.preventDefault();
+          // D-12 — con campi invalidi si marcano i colpevoli e il grafico
+          // resta sull'ultima simulazione valida.
+          const nextErrors = validateForm(form);
+          setErrors(nextErrors);
+          if (Object.keys(nextErrors).length > 0) return;
           setApplied({ form: { ...form }, seed: freshSeed() });
         }}
       >
-        <Field label={`Start equity (${currency})`}>
-          {(id) => (
+        <Field label={`Equity iniziale (${currency})`} error={errors.startEquity}>
+          {(id, invalid) => (
             <Input
               id={id}
               inputMode="decimal"
+              aria-invalid={invalid || undefined}
+              className={cn(invalid && "border-destructive")}
               value={form.startEquity}
               onChange={(e) => set("startEquity")(e.target.value)}
             />
           )}
         </Field>
-        <Field label="Win probability (%)">
-          {(id) => (
+        <Field label="Probabilità di vincita (%)" error={errors.winProbability}>
+          {(id, invalid) => (
             <Input
               id={id}
               inputMode="decimal"
+              aria-invalid={invalid || undefined}
+              className={cn(invalid && "border-destructive")}
               value={form.winProbability}
               onChange={(e) => set("winProbability")(e.target.value)}
             />
           )}
         </Field>
-        <Field label="Win/loss relation (X : 1)">
-          {(id) => (
+        <Field label="Rapporto win/loss (X : 1)" error={errors.winLossRatio}>
+          {(id, invalid) => (
             <Input
               id={id}
               inputMode="decimal"
+              aria-invalid={invalid || undefined}
+              className={cn(invalid && "border-destructive")}
               value={form.winLossRatio}
               onChange={(e) => set("winLossRatio")(e.target.value)}
             />
           )}
         </Field>
-        <Field label={`Number of trades (max ${SIM_MAX_TRADES})`}>
-          {(id) => (
+        <Field label={`Numero di trade (max ${SIM_MAX_TRADES})`} error={errors.trades}>
+          {(id, invalid) => (
             <Input
               id={id}
               inputMode="numeric"
+              aria-invalid={invalid || undefined}
+              className={cn(invalid && "border-destructive")}
               value={form.trades}
               onChange={(e) => set("trades")(e.target.value)}
             />
           )}
         </Field>
-        <Field label={`Number of lines (max ${SIM_MAX_LINES})`}>
-          {(id) => (
+        <Field label={`Numero di linee (max ${SIM_MAX_LINES})`} error={errors.lines}>
+          {(id, invalid) => (
             <Input
               id={id}
               inputMode="numeric"
+              aria-invalid={invalid || undefined}
+              className={cn(invalid && "border-destructive")}
               value={form.lines}
               onChange={(e) => set("lines")(e.target.value)}
             />
           )}
         </Field>
-        <Field label="Risk per trade">
-          {(id) => (
+        <Field label="Rischio per trade" error={errors.riskValue}>
+          {(id, invalid) => (
             <div className="flex gap-2">
               <Input
                 id={id}
                 inputMode="decimal"
-                className="min-w-0 flex-1"
+                aria-invalid={invalid || undefined}
+                className={cn("min-w-0 flex-1", invalid && "border-destructive")}
                 value={form.riskValue}
                 onChange={(e) => set("riskValue")(e.target.value)}
               />
@@ -297,7 +387,7 @@ export function EquitySimulator({
             </div>
           )}
         </Field>
-        <Field label="Scale (asse Y)">
+        <Field label="Scala (asse Y)">
           {(id) => (
             <Select
               value={form.scale}
@@ -307,15 +397,15 @@ export function EquitySimulator({
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="normal">Normal</SelectItem>
-                <SelectItem value="log">Logarithmic</SelectItem>
+                <SelectItem value="normal">Normale</SelectItem>
+                <SelectItem value="log">Logaritmica</SelectItem>
               </SelectContent>
             </Select>
           )}
         </Field>
         <div className="flex items-end">
           <Button type="submit" className="w-full">
-            Start simulation
+            Avvia simulazione
           </Button>
         </div>
       </form>
@@ -364,12 +454,13 @@ export function EquitySimulator({
                     mean: number | null;
                     lo: number;
                     hi: number;
-                    sd: number;
+                    inner: [number, number] | null;
+                    outer: [number, number] | null;
                   };
-                  const range = (k: number) =>
-                    row.mean === null
+                  const range = (band: [number, number] | null) =>
+                    band === null
                       ? "—"
-                      : `${fmtEquity(Math.max(0, row.mean - k * row.sd))} – ${fmtEquity(row.mean + k * row.sd)}`;
+                      : `${fmtEquity(band[0])} – ${fmtEquity(band[1])}`;
                   return (
                     <div style={CHART.tooltipStyle} className="px-3 py-2">
                       <div style={CHART.tooltipLabelStyle} className="font-medium">
@@ -379,8 +470,12 @@ export function EquitySimulator({
                         Media: {row.mean === null ? "0" : fmtEquity(row.mean)}{" "}
                         {currency}
                       </div>
-                      <div style={CHART.tooltipItemStyle}>±1σ (68%): {range(1)}</div>
-                      <div style={CHART.tooltipItemStyle}>±2σ (95%): {range(2)}</div>
+                      <div style={CHART.tooltipItemStyle}>
+                        Fascia 25–75%: {range(row.inner)}
+                      </div>
+                      <div style={CHART.tooltipItemStyle}>
+                        Fascia 5–95%: {range(row.outer)}
+                      </div>
                       <div style={CHART.tooltipItemStyle}>
                         Min–max: {fmtEquity(row.lo)} – {fmtEquity(row.hi)}
                       </div>
@@ -389,8 +484,8 @@ export function EquitySimulator({
                 }}
                 cursor={CHART.cursor}
               />
-              {/* Bande σ DIETRO a tutto: famiglia neutra (accento blu del
-                  progetto), esterna più tenue dell'interna. */}
+              {/* Fasce a quantili DIETRO a tutto: famiglia neutra (accento
+                  blu del progetto), esterna più tenue dell'interna. */}
               <Area
                 dataKey="outer"
                 stroke="none"
@@ -414,7 +509,7 @@ export function EquitySimulator({
                   dataKey={`l${i}`}
                   stroke={lineColor(i)}
                   strokeWidth={1}
-                  strokeOpacity={0.2}
+                  strokeOpacity={lineOpacity(i)}
                   dot={false}
                   connectNulls={false}
                   isAnimationActive={animate}
@@ -449,7 +544,7 @@ export function EquitySimulator({
                 className="inline-block h-3 w-5 rounded-sm"
                 style={{ background: "var(--chart-1)", opacity: 0.35 }}
               />
-              ±1σ (~68%)
+              Fascia 25–75%
             </span>
             <span className="inline-flex items-center gap-1.5">
               <span
@@ -457,7 +552,7 @@ export function EquitySimulator({
                 className="inline-block h-3 w-5 rounded-sm"
                 style={{ background: "var(--chart-1)", opacity: 0.16 }}
               />
-              ±2σ (~95%)
+              Fascia 5–95%
             </span>
             <span className="inline-flex items-center gap-1.5">
               <span
@@ -536,7 +631,7 @@ function SimulatorStats({
   const scenarios = [
     ["Peggiore (5%)", "p05"],
     ["Sfavorevole (25%)", "p25"],
-    ["Median", "p50"],
+    ["Mediano", "p50"],
     ["Favorevole (75%)", "p75"],
     ["Migliore (95%)", "p95"],
   ] as const;
@@ -551,13 +646,13 @@ function SimulatorStats({
           info={probProfitInfo}
         />
         <MiniStat
-          label="Median return"
+          label="Ritorno mediano"
           value={formatPercent(stats.finalReturn.p50.toFixed(4))}
           tone={stats.finalReturn.p50 >= 0 ? "profit" : "loss"}
           info={medianReturnInfo}
         />
         <MiniStat
-          label="Median max drawdown"
+          label="Max drawdown mediano"
           value={formatPercent(stats.maxDrawdown.p50.toFixed(4))}
           sub={`95° percentile ${formatPercent(stats.maxDrawdown.p95.toFixed(4))}`}
           info={medianMaxDrawdownInfo}
@@ -627,7 +722,7 @@ function SimulatorStats({
       <p className="text-xs text-muted-foreground">
         Statistiche calcolate sulle {stats.lines} linee del grafico (nessuna
         simulazione separata): con poche linee i percentili estremi sono
-        indicativi — alza «Number of lines» per stime più stabili.
+        indicativi — alza «Numero di linee» per stime più stabili.
       </p>
 
       {aggregates !== null ? (
@@ -687,7 +782,7 @@ function AggregateStats({
           info: maxEquityInfo,
         },
         {
-          label: "Mean equity",
+          label: "Equity media",
           value: formatMoney(agg.meanEquity.toFixed(2), currency),
           sub: `${fmtPct1(returnOf(agg.meanEquity))} sulla partenza`,
           tone: agg.meanEquity >= startEquity ? "profit" : "loss",
@@ -699,13 +794,13 @@ function AggregateStats({
       title: "Rischio",
       cards: [
         {
-          label: "Average max drawdown",
+          label: "Max drawdown medio",
           value: fmtPct1(agg.avgMaxDrawdown),
           tone: "loss",
           info: avgMaxDrawdownInfo,
         },
         {
-          label: "Biggest max drawdown",
+          label: "Max drawdown peggiore",
           value: fmtPct1(agg.biggestMaxDrawdown),
           sub: "worst case fra tutte le linee",
           tone: "loss",
@@ -720,7 +815,7 @@ function AggregateStats({
           sub:
             agg.returnOnMaxDrawdown === null
               ? "nessun drawdown da rapportare"
-              : "performance media / drawdown medio",
+              : "equity media sulla partenza / max drawdown medio",
           tone:
             agg.returnOnMaxDrawdown === null
               ? undefined
@@ -735,30 +830,18 @@ function AggregateStats({
       title: "Streak",
       cards: [
         {
-          label: "Max consecutive wins",
+          label: "Max vincite consecutive",
           value: String(agg.maxConsecutiveWins),
           sub: "trade di fila",
           tone: "profit",
           info: maxConsecutiveWinsInfo,
         },
         {
-          label: "Max consecutive losses",
+          label: "Max perdite consecutive",
           value: String(agg.maxConsecutiveLosses),
           sub: "trade di fila",
           tone: "loss",
           info: maxConsecutiveLossesInfo,
-        },
-      ],
-    },
-    {
-      title: "Performance",
-      cards: [
-        {
-          label: "Average performance",
-          value: fmtPct1(agg.avgPerformance),
-          sub: `media dei ritorni di ${agg.lines} linee`,
-          tone: agg.avgPerformance >= 0 ? "profit" : "loss",
-          info: avgPerformanceInfo,
         },
       ],
     },
@@ -770,7 +853,7 @@ function AggregateStats({
         Statistiche aggregate (tutte le linee)
         <MetricInfo info={aggregateStatsInfo} />
       </div>
-      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+      <div className="grid gap-4 md:grid-cols-3">
         {groups.map((group) => (
           <div key={group.title} className="flex flex-col gap-2">
             <div className="text-xs font-medium text-muted-foreground">

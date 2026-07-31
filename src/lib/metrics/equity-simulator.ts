@@ -254,10 +254,12 @@ export interface EquityAggregateStats {
   maxConsecutiveWins: number;
   /** Serie di perdite più lunga osservata su una qualunque linea. */
   maxConsecutiveLosses: number;
-  /** Media dei ritorni finali (frazione dell'equity iniziale). */
-  avgPerformance: number;
   /**
-   * Average performance / average max drawdown (rapporto tipo Calmar).
+   * (Mean equity / equity iniziale − 1) / average max drawdown — rapporto
+   * tipo Calmar. La vecchia "Average performance" era esattamente
+   * mean equity riscalata sulla partenza (stessa informazione due volte
+   * nella stessa sezione: rimossa, v. audit "Metriche da rimuovere" #2);
+   * il rapporto si definisce direttamente da qui, con valore identico.
    * null quando il drawdown medio è zero: il rapporto non è definito, e un
    * numero finto direbbe più del dato.
    */
@@ -274,66 +276,72 @@ export function equityAggregatesFromPaths(
 
   const finals = paths.map((p) => p[p.length - 1]);
   const drawdowns = paths.map(pathMaxDrawdown);
-  const returns = finals.map((v) => (v - startEquity) / startEquity);
   const streaks = paths.map(pathStreaks);
   const mean = (values: number[]) =>
     values.reduce((a, b) => a + b, 0) / values.length;
 
   const avgMaxDrawdown = mean(drawdowns);
-  const avgPerformance = mean(returns);
+  const meanEquity = mean(finals);
+  // La media dei ritorni è algebricamente meanEquity/start − 1: il rapporto
+  // si definisce da qui senza una statistica intermedia ridondante.
+  const meanReturn = meanEquity / startEquity - 1;
 
   return {
     maxEquity: Math.max(...finals),
-    meanEquity: mean(finals),
+    meanEquity,
     avgMaxDrawdown,
     biggestMaxDrawdown: Math.max(...drawdowns),
     maxConsecutiveWins: Math.max(...streaks.map((s) => s.maxWins)),
     maxConsecutiveLosses: Math.max(...streaks.map((s) => s.maxLosses)),
-    avgPerformance,
     returnOnMaxDrawdown:
-      avgMaxDrawdown > 0 ? avgPerformance / avgMaxDrawdown : null,
+      avgMaxDrawdown > 0 ? meanReturn / avgMaxDrawdown : null,
     lines: paths.length,
   };
 }
 
 export interface EquityBandPoint {
   mean: number;
-  /** Deviazione standard di POPOLAZIONE (÷N) dell'equity al passo. */
-  sd: number;
-  /** media ± 1σ (~68% degli esiti), pavimento a zero. */
+  /** Fascia 25–75%: quantili empirici dell'equity al passo. */
   inner: [number, number];
-  /** media ± 2σ (~95% degli esiti), pavimento a zero. */
+  /** Fascia 5–95%: quantili empirici dell'equity al passo. */
   outer: [number, number];
 }
 
-/** Bande di deviazione standard per passo, dagli STESSI percorsi del grafico. */
+/**
+ * Bande a QUANTILI EMPIRICI per passo, dagli STESSI percorsi del grafico.
+ *
+ * Q-05 — le vecchie bande media ± 1σ/2σ erano etichettate "~68%/~95%", ma
+ * quelle coperture valgono per una normale: con rischio in % l'equity per
+ * passo è log-normale (coda destra lunga) e media−2σ scendeva perfino sotto
+ * zero (il clamp era l'ammissione del problema). I quantili per passo hanno
+ * copertura ESATTA per costruzione — la fascia 5–95% contiene il 90% dei
+ * percorsi, quella 25–75% il 50% — senza assunzioni di forma, e non serve
+ * alcun pavimento: i quantili sono equity realmente osservate (mai < 0).
+ */
 export function equityBandsFromPaths(paths: number[][]): EquityBandPoint[] {
   if (paths.length === 0) return [];
   const steps = paths[0].length;
   const bands: EquityBandPoint[] = new Array(steps);
   for (let t = 0; t < steps; t++) {
     let sum = 0;
-    for (const path of paths) sum += path[t];
-    const mean = sum / paths.length;
-    let squares = 0;
-    for (const path of paths) {
-      const d = path[t] - mean;
-      squares += d * d;
+    const values = new Array<number>(paths.length);
+    for (let i = 0; i < paths.length; i++) {
+      values[i] = paths[i][t];
+      sum += paths[i][t];
     }
-    const sd = Math.sqrt(squares / paths.length);
+    const q = percentiles(values);
     bands[t] = {
-      mean,
-      sd,
-      // L'equity non può essere negativa: la banda non deve suggerirlo.
-      inner: [Math.max(0, mean - sd), mean + sd],
-      outer: [Math.max(0, mean - 2 * sd), mean + 2 * sd],
+      mean: sum / paths.length,
+      inner: [q.p25, q.p75],
+      outer: [q.p05, q.p95],
     };
   }
   return bands;
 }
 
 // Fase 35 — spiegazioni dei quattro riquadri e della tabella percentili.
-// Etichette con "Median" (inglese), testi in italiano come il resto dell'app.
+// D-01 — etichette secondo il glossario F18: frase italiana, termine tecnico
+// inglese solo dove è gergo consolidato (max drawdown, equity, risk of ruin).
 
 export const probProfitInfo: MetricInfoData = {
   label: "P(in profitto)",
@@ -343,14 +351,14 @@ export const probProfitInfo: MetricInfoData = {
 };
 
 export const medianReturnInfo: MetricInfoData = {
-  label: "Median return",
+  label: "Ritorno mediano",
   description:
     "Il ritorno del percorso «di mezzo» tra tutti quelli simulati: metà delle simulazioni fa meglio, metà fa peggio.",
   formula: "mediana dei ritorni finali · ritorno = (equity finale − iniziale) / iniziale",
 };
 
 export const medianMaxDrawdownInfo: MetricInfoData = {
-  label: "Median max drawdown",
+  label: "Max drawdown mediano",
   description:
     "Il calo massimo dal picco che il percorso «di mezzo» ha sperimentato. Accanto c'è il 95° percentile: il drawdown che solo il 5% dei percorsi supera, cioè lo scenario quasi peggiore.",
   formula: "mediana dei max drawdown per percorso · DD = (picco − equity) / picco",
@@ -366,7 +374,7 @@ export const simulatorRuinInfo: MetricInfoData = {
 export const percentileTableInfo: MetricInfoData = {
   label: "Scenari per percentile",
   description:
-    "Come leggere le fasce: «Peggiore (5%)» = solo il 5% dei percorsi simulati va peggio di questo scenario, il 95% fa meglio. «Sfavorevole (25%)» = il 25% fa peggio, il 75% fa meglio. «Favorevole (75%)» = il 75% dei percorsi fa peggio di questo scenario, solo il 25% fa meglio. «Migliore (95%)» = il 95% fa peggio, solo il 5% fa meglio. «Median» è il percorso di mezzo (50% peggio, 50% meglio).",
+    "Come leggere le fasce: «Peggiore (5%)» = solo il 5% dei percorsi simulati va peggio di questo scenario, il 95% fa meglio. «Sfavorevole (25%)» = il 25% fa peggio, il 75% fa meglio. «Favorevole (75%)» = il 75% dei percorsi fa peggio di questo scenario, solo il 25% fa meglio. «Migliore (95%)» = il 95% fa peggio, solo il 5% fa meglio. «Mediano» è il percorso di mezzo (50% peggio, 50% meglio).",
   formula: "percentili 5/25/50/75/95 su equity finale, ritorno e max drawdown delle linee simulate",
 };
 
@@ -387,52 +395,45 @@ export const maxEquityInfo: MetricInfoData = {
 };
 
 export const meanEquityInfo: MetricInfoData = {
-  label: "Mean equity",
+  label: "Equity media",
   description:
     "La media delle equity finali di tutte le linee. Diversa dalla mediana della tabella percentili: qui i percorsi molto fortunati tirano su la media, là contano solo per la posizione in classifica.",
   formula: "media(equity finale) su tutte le linee",
 };
 
 export const avgMaxDrawdownInfo: MetricInfoData = {
-  label: "Average max drawdown",
+  label: "Max drawdown medio",
   description:
     "La media dei cali massimi dal picco, uno per linea: quanto in genere è profonda la buca peggiore di un percorso con questi parametri.",
   formula: "media dei max drawdown per linea · DD = (picco − equity) / picco",
 };
 
 export const biggestMaxDrawdownInfo: MetricInfoData = {
-  label: "Biggest max drawdown",
+  label: "Max drawdown peggiore",
   description:
     "Il calo dal picco peggiore osservato su una qualunque linea: il caso più duro comparso in questa simulazione. È la domanda «quanto può andare male» in versione worst case.",
   formula: "max dei max drawdown per linea",
 };
 
 export const maxConsecutiveWinsInfo: MetricInfoData = {
-  label: "Max consecutive wins",
+  label: "Max vincite consecutive",
   description:
     "La serie di trade vincenti più lunga comparsa in una qualunque linea. Serve a ricordare che serie lunghe nascono anche dal solo caso, con la stessa win probability.",
   formula: "max, su tutte le linee, della serie di passi in salita più lunga",
 };
 
 export const maxConsecutiveLossesInfo: MetricInfoData = {
-  label: "Max consecutive losses",
+  label: "Max perdite consecutive",
   description:
     "La serie di trade perdenti più lunga comparsa in una qualunque linea: il tratto peggiore che dovresti riuscire a reggere senza cambiare piano. I passi dopo l'eventuale azzeramento del conto non contano.",
   formula: "max, su tutte le linee, della serie di passi in discesa più lunga",
 };
 
-export const avgPerformanceInfo: MetricInfoData = {
-  label: "Average performance",
-  description:
-    "La media dei ritorni finali di tutte le linee, in percentuale dell'equity di partenza.",
-  formula: "media di (equity finale − iniziale) / iniziale",
-};
-
 export const returnOnMaxDrawdownInfo: MetricInfoData = {
   label: "Return on max drawdown",
   description:
-    "Quanto rendimento medio produci per ogni punto di drawdown medio: un rapporto tipo Calmar. Sopra 1 il guadagno tipico supera la buca tipica; più è alto, meno sofferenza costa il risultato. Non definito se il drawdown medio è zero.",
-  formula: "average performance / average max drawdown",
+    "Quanto rendimento medio produci per ogni punto di drawdown medio: un rapporto tipo Calmar. Il rendimento medio è l'equity media riscalata sulla partenza (la stessa informazione della card «Equity media», in percentuale). Sopra 1 il guadagno tipico supera la buca tipica; più è alto, meno sofferenza costa il risultato. Non definito se il drawdown medio è zero.",
+  formula: "(equity media / equity iniziale − 1) / max drawdown medio",
 };
 
 export const equitySimulatorInfo: MetricInfoData = {
