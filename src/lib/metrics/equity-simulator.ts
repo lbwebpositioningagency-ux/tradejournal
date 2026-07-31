@@ -45,6 +45,43 @@ export interface EquitySimulatorInput {
 export const SIM_MAX_TRADES = 1000;
 export const SIM_MAX_LINES = 100;
 
+/**
+ * P-07 — tetto dei punti DISEGNATI sull'asse x. Al massimo dei parametri
+ * (1000 trade × 100 linee) Recharts riceveva 100.100 punti SVG e bloccava
+ * il main thread per secondi: il grafico campiona i passi PRIMA del render,
+ * le statistiche restano sui percorsi integrali. 250 punti superano la
+ * risoluzione orizzontale della card: la differenza visiva è nulla.
+ */
+export const SIM_MAX_CHART_POINTS = 250;
+
+/**
+ * Indici dei passi da disegnare: passo uniforme, primo e ULTIMO indice
+ * sempre presenti (l'equity finale è il dato che conta — stessa regola del
+ * campionamento delle rolling window). Con `length` ≤ `max` restituisce
+ * tutti gli indici: il caso default (101 passi) non viene toccato.
+ */
+export function sampleChartIndices(
+  length: number,
+  max: number = SIM_MAX_CHART_POINTS,
+): number[] {
+  if (length <= 0) return [];
+  if (length <= max || max < 2) {
+    return Array.from({ length }, (_, i) => i);
+  }
+  const step = (length - 1) / (max - 1);
+  const indices: number[] = [];
+  let previous = -1;
+  for (let i = 0; i < max; i++) {
+    const index = Math.round(i * step);
+    if (index !== previous) indices.push(index);
+    previous = index;
+  }
+  // Il rounding non salta mai l'ultimo (i = max-1 → length-1), ma la
+  // garanzia resta esplicita.
+  if (indices[indices.length - 1] !== length - 1) indices.push(length - 1);
+  return indices;
+}
+
 export interface EquitySimulatorResult {
   /**
    * Un array per percorso, lungo `trades + 1`: l'indice 0 è l'equity di

@@ -7,6 +7,7 @@ import {
   equityStatsFromPaths,
   pathMaxDrawdown,
   pathStreaks,
+  sampleChartIndices,
   simulateEquityCurves,
   type EquitySimulatorInput,
 } from "./equity-simulator";
@@ -342,5 +343,43 @@ describe("equityBandsFromPaths — quantili empirici per passo (Q-05)", () => {
     const last = bands[bands.length - 1];
     expect(last.outer).toEqual([stats.finalEquity.p05, stats.finalEquity.p95]);
     expect(last.inner).toEqual([stats.finalEquity.p25, stats.finalEquity.p75]);
+  });
+});
+
+describe("sampleChartIndices — campionamento dei passi da disegnare (P-07)", () => {
+  it("serie corta (≤ max): tutti gli indici, identici", () => {
+    expect(sampleChartIndices(101)).toEqual(
+      Array.from({ length: 101 }, (_, i) => i),
+    );
+    expect(sampleChartIndices(250)).toHaveLength(250);
+  });
+
+  it("serie massima (1001 passi): ≤ 250 punti, primo e ultimo compresi", () => {
+    const indices = sampleChartIndices(SIM_MAX_TRADES + 1);
+    expect(indices.length).toBeLessThanOrEqual(250);
+    expect(indices[0]).toBe(0);
+    expect(indices[indices.length - 1]).toBe(SIM_MAX_TRADES);
+  });
+
+  it("indici strettamente crescenti, senza duplicati", () => {
+    const indices = sampleChartIndices(1001);
+    for (let i = 1; i < indices.length; i++) {
+      expect(indices[i]).toBeGreaterThan(indices[i - 1]);
+    }
+  });
+
+  it("l'ultimo indice è SEMPRE presente, per ogni lunghezza", () => {
+    for (const length of [251, 300, 499, 500, 777, 1000, 1001]) {
+      const indices = sampleChartIndices(length);
+      expect(indices[indices.length - 1]).toBe(length - 1);
+      expect(indices.length).toBeLessThanOrEqual(250);
+    }
+  });
+
+  it("casi degeneri: lunghezza 0, 1 e max < 2", () => {
+    expect(sampleChartIndices(0)).toEqual([]);
+    expect(sampleChartIndices(1)).toEqual([0]);
+    // max non valido → nessun campionamento (si disegna tutto).
+    expect(sampleChartIndices(5, 1)).toEqual([0, 1, 2, 3, 4]);
   });
 });

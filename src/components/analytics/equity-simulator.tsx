@@ -32,6 +32,7 @@ import {
   probProfitInfo,
   returnOnMaxDrawdownInfo,
   RUIN_THRESHOLD,
+  sampleChartIndices,
   simulateEquityCurves,
   simulatorRuinInfo,
   type EquityAggregateStats,
@@ -250,10 +251,15 @@ export function EquitySimulator({
       setForm((f) => ({ ...f, [key]: value }));
 
   const bands = result === null ? [] : equityBandsFromPaths(result.paths);
+  // P-07 — al grafico arrivano ≤ SIM_MAX_CHART_POINTS passi (ultimo sempre
+  // compreso): l'asse x è numerico, la spaziatura resta corretta. Statistiche
+  // e bande sono calcolate sui percorsi INTEGRALI, qui si sceglie solo cosa
+  // disegnare.
   const rows =
     result === null
       ? []
-      : result.mean.map((mean, t) => {
+      : sampleChartIndices(result.mean.length).map((t) => {
+          const mean = result.mean[t];
           const row: Record<string, number | number[] | null> = { trade: t };
           let lo = Infinity;
           let hi = -Infinity;

@@ -1039,6 +1039,29 @@ Il guadagno supera la stima dell'audit (−15–20 zod, −23 calendario): togli
 
 **Verificato:** typecheck ✅ · lint ✅ · **1103/1103 test** ✅ · build ✅ · migrazione applicata al DB locale · E2E su build di produzione (Chrome headless): calendario on-demand, nota MT5 in pagina, log watcher «polling 10s · 120s senza sorgenti».
 
+## ✅ FASE 52 «Performance: recharts fuori dal percorso critico (P-01), widget dashboard lazy + toggle mobile a render condizionale (P-06), simulatore campionato a ≤250 punti (P-07)» (31/07/2026)
+Rilievi dall'audit performance (`docs/audit/05-performance.md`).
+
+**P-01 — recharts (110 kB gz con d3) fuori dal bundle iniziale di /trades.** Nuovo client module `components/charts/lazy-charts.tsx`: wrapper `next/dynamic` `ssr:false` di `TradeSequenceChart`/`RDistributionChart`/`UnderwaterChart` (la regola Next vuole `ssr:false` DENTRO un client module, per questo il file a parte — le pagine server importano da qui). Il fallback è uno skeleton alla STESSA altezza del grafico (`CHART.height`): lo swap non sposta nulla. `/trades` usa il wrapper e resta quello che è — una tabella: il grafico arriva dopo l'idratazione, fuori dal percorso di prima interazione.
+
+**P-06 — dashboard: i widget sotto la piega non pesano più sul primo frame.** Sequenza, distribuzione R e underwater passano ai wrapper lazy; sessioni e calendario mensile diventano `next/dynamic` `ssr:false` locali a `dashboard-view` con skeleton ad altezza equivalente (5 righe la tabella, header+12 celle il calendario). I grafici SOPRA la piega (sparkline, cumulativo, P&L giornaliero, gauge) restano eager come da audit: su /dashboard il chunk recharts resta nel bundle, il guadagno è il mount/idratazione differiti dei widget in coda.
+
+**P-06 — toggle mobile: da CSS a render condizionale.** La verifica chiesta dall'audit ha dato esito negativo: i toggle F26 erano solo `max-lg:hidden` — i widget collassati venivano comunque montati e idratati. Ora: prima del mount il viewport è ignoto e si emette il markup completo (identico all'SSR, zero mismatch — ci pensano le classi CSS come prima); il primo effect misura `matchMedia("(width < 64rem)")` (stessa soglia di `max-lg`) e sotto lg le sezioni chiuse si SMONTANO. Su mobile collassato: niente idratazione dei widget analytics né download dei loro chunk lazy. Browser senza range syntax → `matches:false` → comportamento CSS-only di prima (degrado innocuo).
+
+**P-07 — simulatore: al grafico arrivano ≤250 punti per linea.** `sampleChartIndices(length, max=SIM_MAX_CHART_POINTS)` in `lib/metrics/equity-simulator.ts` (5 unit test: identità sotto soglia, primo+ULTIMO indice sempre presenti, crescenza stretta, degeneri): passo uniforme sugli indici, statistiche e bande restano sui percorsi INTEGRALI — si sceglie solo cosa disegnare. Al massimo dei parametri (1000×100) i punti SVG passano da 100.100 a ≤25.100; l'asse x è numerico, la spaziatura resta corretta e il default (101 passi) non è toccato.
+
+**Bundle misurati col metodo del report** (baseline = build Fase 51):
+
+| Route | Prima (gz) | Dopo (gz) | Δ |
+|---|---|---|---|
+| /trades | 222 kB | **112 kB** | **−110** (esattamente la stima dell'audit) |
+| /dashboard | 246 kB | 246 kB | 0 — atteso: recharts serve ai grafici sopra la piega; il guadagno qui è il mount differito |
+| /reports | 220 kB | 222 kB | +2 (rispezzatura chunk di Turbopack) |
+| /analytics | 253 kB | 254 kB | +1 (idem) |
+| /day/[date] | 216 kB | 217 kB | +1 (idem; il suo grafico sequenza resta eager, fuori scope) |
+
+**Verificato:** typecheck ✅ · lint ✅ · **1108/1108 test** ✅ · build ✅ · E2E su build di produzione (Chrome headless, `measure.mjs`): **CLS = 0** su /trades e /dashboard (PerformanceObserver `layout-shift` buffered — nessun layout shift allo swap skeleton→grafico); /trades 200 barre renderizzate e skeleton spariti; a 500px le sezioni collassate NON sono nel DOM, il toggle le monta (chart con barre) e le rismonta; simulatore a 1000×100 → max **250 punti** per curva (misurato sui path SVG), legenda «100 percorsi»; **zero errori console** su /trades, /dashboard (1280 e 500px), /analytics con hook `console.error` pre-navigazione. Screenshot: sequenza /trades e dashboard completa coi widget lazy renderizzati (il vuoto del full-page shot è il noto artefatto `captureBeyondViewport` della Fase 21, smentito da `--scroll-to` e dalle geometrie DOM).
+
 ### ▶ Prossimi passi
 
 **Il piano premium è completo** (§1 equity simulator — ex Monte Carlo, §2 rolling metrics, §3 metriche pro).

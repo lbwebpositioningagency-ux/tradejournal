@@ -44,7 +44,9 @@ import { TradeFiltersBar } from "@/components/trades/trade-filters-bar";
 import { EmptyState } from "@/components/empty-state";
 import { classifyOutcome, streakSummary, streaksInfo } from "@/lib/metrics";
 import { MetricInfo } from "@/components/metric-info";
-import { TradeSequenceChart } from "@/components/charts/trade-sequence-chart";
+// P-01 — versione lazy: recharts (~110 kB gz) fuori dal bundle iniziale
+// della pagina, che senza il grafico è una tabella.
+import { TradeSequenceChart } from "@/components/charts/lazy-charts";
 import {
   Card,
   CardContent,

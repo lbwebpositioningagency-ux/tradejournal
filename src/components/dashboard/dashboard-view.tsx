@@ -1,7 +1,8 @@
 "use client";
 
-import { useMemo, useRef, useState, useTransition } from "react";
+import { useEffect, useMemo, useRef, useState, useTransition } from "react";
 import Link from "next/link";
+import dynamicImport from "next/dynamic";
 import Decimal from "decimal.js";
 import {
   ChartLine as LineChartIcon,
@@ -71,14 +72,16 @@ import { formatDayKey, formatDurationSec } from "@/lib/dates";
 import { sessionsInfo, type SessionPoint } from "@/lib/sessions";
 import { MetricInfo } from "@/components/metric-info";
 import { EmptyState } from "@/components/empty-state";
+import type { TradeSequencePointView } from "@/components/charts/trade-sequence-chart";
+// P-01/P-06 — i widget sotto la piega arrivano dai wrapper lazy: recharts
+// resta nel bundle per i grafici sopra la piega (pnl-charts), ma il mount
+// di questi non pesa più sull'idratazione iniziale.
 import {
+  RDistributionChart,
   TradeSequenceChart,
-  type TradeSequencePointView,
-} from "@/components/charts/trade-sequence-chart";
-import { RDistributionChart } from "@/components/charts/r-distribution-chart";
-import { UnderwaterChart } from "@/components/charts/underwater-chart";
+  UnderwaterChart,
+} from "@/components/charts/lazy-charts";
 import type { RDistPoint } from "@/lib/reports";
-import { SessionTable } from "./session-table";
 import { cn, pluralize } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -96,6 +99,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { Skeleton } from "@/components/ui/skeleton";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import {
   CumulativePnlChart,
@@ -106,7 +110,43 @@ import {
 import { ScoreGauge } from "./score-gauge";
 import { OnboardingHero } from "./onboarding-hero";
 import { MiniCalendar, type MiniCalendarDay } from "./mini-calendar";
-import { MonthlyCalendar } from "./monthly-calendar";
+
+/**
+ * P-06 — sessioni e calendario mensile chiudono la pagina: montarli col
+ * primo frame dell'idratazione non serve. `next/dynamic` `ssr:false` con
+ * fallback ad altezza equivalente: niente layout shift, mount fuori dal
+ * percorso critico.
+ */
+const SessionTable = dynamicImport(
+  () => import("./session-table").then((m) => m.SessionTable),
+  {
+    ssr: false,
+    loading: () => (
+      <div className="flex flex-col gap-2">
+        {Array.from({ length: 5 }, (_, i) => (
+          <Skeleton key={i} className="h-9 w-full" />
+        ))}
+      </div>
+    ),
+  },
+);
+
+const MonthlyCalendar = dynamicImport(
+  () => import("./monthly-calendar").then((m) => m.MonthlyCalendar),
+  {
+    ssr: false,
+    loading: () => (
+      <div className="flex flex-col gap-3">
+        <Skeleton className="h-9 w-full" />
+        <div className="grid grid-cols-3 gap-2 sm:grid-cols-4 xl:grid-cols-6">
+          {Array.from({ length: 12 }, (_, i) => (
+            <Skeleton key={i} className="h-14" />
+          ))}
+        </div>
+      </div>
+    ),
+  },
+);
 
 export interface DashboardData {
   currency: string;
@@ -396,6 +436,23 @@ export function DashboardView({ data }: { data: DashboardData }) {
   const extraMetricCls = mobileLayout.showAllMetrics ? undefined : "max-lg:hidden";
   const analyticsCls = mobileLayout.showAnalytics ? undefined : "max-lg:hidden";
 
+  // P-06 — sotto lg i widget collassati non vengono solo nascosti via CSS:
+  // dopo il primo effect si SMONTANO (render condizionale), così su mobile
+  // niente idratazione né download dei chunk lazy per le sezioni chiuse.
+  // Prima del mount il viewport è ignoto: si emette il markup completo
+  // (identico all'SSR, nessun mismatch) e ci pensano le classi `max-lg:hidden`.
+  const [isMobileViewport, setIsMobileViewport] = useState(false);
+  useEffect(() => {
+    // Stessa soglia di `max-lg` (Tailwind lg = 64rem).
+    const query = window.matchMedia("(width < 64rem)");
+    const update = () => setIsMobileViewport(query.matches);
+    update();
+    query.addEventListener("change", update);
+    return () => query.removeEventListener("change", update);
+  }, []);
+  const hideExtraMetrics = isMobileViewport && !mobileLayout.showAllMetrics;
+  const hideAnalytics = isMobileViewport && !mobileLayout.showAnalytics;
+
   function toggleMobile(key: "showAllMetrics" | "showAnalytics") {
     const next = { ...mobileRef.current, [key]: !mobileRef.current[key] };
     mobileRef.current = next;
@@ -622,7 +679,7 @@ export function DashboardView({ data }: { data: DashboardData }) {
             sub={`${data.wins} W · ${data.losses} L${data.breakevens > 0 ? ` · ${data.breakevens} BE` : ""}`}
           />
         ) : null}
-        {show("profit-factor") ? (
+        {show("profit-factor") && !hideExtraMetrics ? (
           <StatCard
             className={cn("max-lg:order-4", extraMetricCls)}
             label="Profit Factor"
@@ -637,7 +694,7 @@ export function DashboardView({ data }: { data: DashboardData }) {
             sub="Profitti / |Perdite|"
           />
         ) : null}
-        {show("day-win-rate") ? (
+        {show("day-win-rate") && !hideExtraMetrics ? (
           <StatCard
             className={cn("max-lg:order-5", extraMetricCls)}
             label="Day Win %"
@@ -646,7 +703,7 @@ export function DashboardView({ data }: { data: DashboardData }) {
             sub={`${data.dayWins} giorni verdi su ${data.dayCount}`}
           />
         ) : null}
-        {show("avg-win-loss") ? (
+        {show("avg-win-loss") && !hideExtraMetrics ? (
           <StatCard
             className={cn("max-lg:order-6", extraMetricCls)}
             label="Avg Win / Loss"
@@ -665,7 +722,7 @@ export function DashboardView({ data }: { data: DashboardData }) {
             }
           />
         ) : null}
-        {show("expectancy") ? (
+        {show("expectancy") && !hideExtraMetrics ? (
           <StatCard
             className={cn("max-lg:order-7", extraMetricCls)}
             label="Expectancy"
@@ -679,7 +736,7 @@ export function DashboardView({ data }: { data: DashboardData }) {
             sub="Attesa media per trade"
           />
         ) : null}
-        {show("max-drawdown") ? (
+        {show("max-drawdown") && !hideExtraMetrics ? (
           <StatCard
             className={cn("max-lg:order-8", extraMetricCls)}
             label="Max Drawdown"
@@ -713,6 +770,7 @@ export function DashboardView({ data }: { data: DashboardData }) {
 
       {/* Metriche avanzate (FASE 9): ratio adimensionali, visibili anche in
           privacy come gli altri ratio; lo Sharpe è la secondaria del Sortino */}
+      {hideExtraMetrics ? null : (
       <div
         className={cn(
           "grid gap-4 max-lg:order-2 sm:grid-cols-2 xl:grid-cols-4",
@@ -772,6 +830,7 @@ export function DashboardView({ data }: { data: DashboardData }) {
           />
         ) : null}
       </div>
+      )}
 
       {/* F26 — toggle mobile in CODA al gruppo metriche (core + rivelate) */}
       <div className="max-lg:order-3 lg:hidden">
@@ -882,6 +941,7 @@ export function DashboardView({ data }: { data: DashboardData }) {
         </Button>
       </div>
 
+      {hideAnalytics ? null : (
       <div
         className={cn(
           "grid gap-4 max-lg:order-8",
@@ -971,10 +1031,12 @@ export function DashboardView({ data }: { data: DashboardData }) {
           </Card>
         ) : null}
       </div>
+      )}
 
       {/* Winners & Losers · Best/Worst Days.
           F41 — con zero trade nel periodo: UN solo messaggio compatto al
           posto di due pannelli pieni di zeri e trattini. */}
+      {hideAnalytics ? null : (
       <div className={cn("grid gap-4 max-lg:order-9 xl:grid-cols-2", analyticsCls)}>
         {data.totalTrades === 0 &&
         (show("winners-losers") || show("best-worst-days")) ? (
@@ -1164,10 +1226,11 @@ export function DashboardView({ data }: { data: DashboardData }) {
           </Card>
         ) : null}
       </div>
+      )}
 
       {/* F22 — performance per sessione: tabella compatta con barre (F7:
           classificazione nel fuso dell'exchange) */}
-      {show("sessions") ? (
+      {show("sessions") && !hideAnalytics ? (
         <Card className={cn("max-lg:order-10", analyticsCls)}>
           <CardHeader>
             <CardTitle className="stat-label flex items-center gap-1">
@@ -1195,6 +1258,7 @@ export function DashboardView({ data }: { data: DashboardData }) {
       ) : null}
 
       {/* Grafici */}
+      {hideAnalytics ? null : (
       <div className={cn("grid gap-4 max-lg:order-11 lg:grid-cols-3", analyticsCls)}>
         {show("score") ? (
           <Card>
@@ -1267,11 +1331,12 @@ export function DashboardView({ data }: { data: DashboardData }) {
           </Card>
         ) : null}
       </div>
+      )}
 
       {/* W4 — underwater: statistica seria presentata semplice. Il Monte
           Carlo vive SOLO in Analytics (Fase 26): la dashboard mostra cosa è
           successo, non proiezioni ipotetiche configurabili. */}
-      {show("underwater") ? (
+      {show("underwater") && !hideAnalytics ? (
         <div className={cn("grid gap-4 max-lg:order-12", analyticsCls)}>
           <Card>
             <CardHeader>
