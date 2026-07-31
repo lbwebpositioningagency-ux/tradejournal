@@ -151,6 +151,81 @@ describe.skipIf(!hasDb)("bucketing timezone su Postgres", () => {
     expect(streaks).toEqual({ maxWinStreak: 4, maxLossStreak: 0 });
   });
 
+  it("Q-01: col filtro periodo attivo la base della curva è l'equity a inizio periodo, non il saldo iniziale", async () => {
+    // Convenzione fissata dal fix del rilievo Q-01/B-01: la dashboard passa
+    // a maxDrawdown/ulcer/calmar/underwater una base = saldo iniziale +
+    // getNetPnlBefore(from). Questo test blocca la composizione delle query.
+    const { maxDrawdown } = await import("@/lib/metrics");
+    const { default: Decimal } = await import("decimal.js");
+    const { prisma: db } = await import("@/lib/db");
+
+    const email = "it-dd-period-base@test.local";
+    await db.user.deleteMany({ where: { email } });
+    const user = await db.user.create({
+      data: {
+        email,
+        timezone: ROME,
+        tradingAccounts: {
+          create: {
+            name: "Conto DD periodo",
+            currency: "USD",
+            initialBalance: "10000",
+          },
+        },
+      },
+      include: { tradingAccounts: true },
+    });
+    const acc = user.tradingAccounts[0].id;
+    const mk = (closedAtUtc: string, netPnl: string) => ({
+      tradingAccountId: acc,
+      symbol: "DDTEST",
+      assetClass: "FUTURES" as const,
+      direction: "LONG" as const,
+      status: "CLOSED" as const,
+      openedAt: new Date(closedAtUtc),
+      closedAt: new Date(closedAtUtc),
+      quantity: "1",
+      avgEntryPrice: "100",
+      avgExitPrice: "101",
+      grossPnl: netPnl,
+      fees: "0",
+      netPnl,
+    });
+    try {
+      await db.trade.createMany({
+        data: [
+          // PRIMA del periodo: +5.000 → equity a inizio periodo 15.000
+          mk("2026-06-01T12:00:00Z", "5000.00"),
+          // NEL periodo: +1.000 poi −1.500 → picco 16.000, DD 1.500
+          mk("2026-07-02T12:00:00Z", "1000.00"),
+          mk("2026-07-03T12:00:00Z", "-1500.00"),
+        ],
+      });
+
+      const from = new Date("2026-07-01T00:00:00Z");
+      const filter = { userId: user.id, accountId: acc, from };
+      const { getStartingBalance, getNetPnlBefore, getDailyPnl } =
+        await import("./stats");
+      const [balance, before, dailyPeriod] = await Promise.all([
+        getStartingBalance(filter),
+        getNetPnlBefore({ userId: user.id, accountId: acc }, from),
+        getDailyPnl(filter, ROME),
+      ]);
+
+      expect(balance).toBe("10000.00");
+      expect(before).toBe("5000.00");
+      const equityStart = new Decimal(balance).plus(before).toFixed(2);
+      const dd = maxDrawdown(dailyPeriod, equityStart);
+      // DD in $ identico con qualunque base; la % è sul picco VERO (16.000),
+      // non su quello monco del solo saldo iniziale (11.000 → 0.1364).
+      expect(dd.maxDrawdown).toBe("1500.00");
+      expect(dd.maxDrawdownPct).toBe("0.0938"); // 1500 / 16000
+      expect(maxDrawdown(dailyPeriod, balance).maxDrawdownPct).toBe("0.1364");
+    } finally {
+      await db.user.deleteMany({ where: { email } });
+    }
+  });
+
   it("la domenica sera UTC (lunedì a Roma) apre la settimana del lunedì", async () => {
     const weeks = await getPeriodPnl({ userId, accountId }, ROME, "week");
     const byWeek = Object.fromEntries(

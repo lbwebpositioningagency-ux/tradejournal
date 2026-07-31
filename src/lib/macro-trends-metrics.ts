@@ -1,5 +1,5 @@
 import type { FredObservation } from "@/lib/fred";
-import type { DeltaMode } from "@/lib/macro-trends-series";
+import type { DeltaMode, GoodDirection } from "@/lib/macro-trends-series";
 import {
   dateKeyToDays,
   nearestObservation,
@@ -235,11 +235,21 @@ export interface CycleResult {
  * quella della regressione).
  * Sopra + salita = espansione · sopra + discesa = rallentamento ·
  * sotto + discesa = contrazione · sotto + salita = ripresa.
+ *
+ * `goodDirection` orienta i quadranti sulla semantica ECONOMICA della serie:
+ * per le serie dove "giù è buono" (disoccupazione, spread, claims) livello e
+ * pendenza vengono invertiti prima di assegnare il quadrante — disoccupazione
+ * alta e in salita è contrazione, non "espansione". Le serie neutral (tassi,
+ * breakeven…) non hanno un ciclo definibile: null, come la Volatilità — e
+ * quindi non votano né nelle pillole di sezione né nel badge generale.
+ * `levelZ` resta il posizionamento statistico grezzo (non invertito).
  */
 export function cycleMetric(
   observations: FredObservation[],
   slope: number,
+  goodDirection: GoodDirection,
 ): CycleResult | null {
+  if (goodDirection === "neutral") return null;
   if (observations.length < MIN_HISTORY_SAMPLES) return null;
   const values = observations.map((o) => o.value);
   const sd = stdDev(values);
@@ -248,8 +258,9 @@ export function cycleMetric(
   for (const v of values) mean += v;
   mean /= values.length;
   const levelZ = (values[values.length - 1] - mean) / sd;
-  const above = levelZ >= 0;
-  const up = slope >= 0;
+  const invert = goodDirection === "down";
+  const above = invert ? levelZ <= 0 : levelZ >= 0;
+  const up = invert ? slope <= 0 : slope >= 0;
   const label: CycleLabel = above
     ? up
       ? "espansione"
@@ -308,6 +319,8 @@ export interface MetricsOptions {
   deltaMode: DeltaMode;
   /** false per la sezione Volatilità: lì il "ciclo" non ha senso. */
   includeCycle: boolean;
+  /** Direzione economica della serie: orienta (o esclude) il ciclo. */
+  goodDirection: GoodDirection;
 }
 
 /** Orchestratore: ogni metrica degrada a null per conto suo, mai un crash. */
@@ -318,7 +331,7 @@ export function computeSeriesMetrics(
   const trend = trendMetric(observations);
   const cycle =
     options.includeCycle && trend !== null
-      ? cycleMetric(observations, trend.slope)
+      ? cycleMetric(observations, trend.slope, options.goodDirection)
       : null;
   return {
     trend: trend?.label ?? null,

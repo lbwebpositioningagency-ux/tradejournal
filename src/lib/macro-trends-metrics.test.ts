@@ -182,19 +182,46 @@ describe("cycleMetric", () => {
 
   it("quadranti: sopra+salita espansione · sopra+discesa rallentamento", () => {
     const obs = monthly([...base, 2]);
-    expect(cycleMetric(obs, 1)?.label).toBe("espansione");
-    expect(cycleMetric(obs, -1)?.label).toBe("rallentamento");
+    expect(cycleMetric(obs, 1, "up")?.label).toBe("espansione");
+    expect(cycleMetric(obs, -1, "up")?.label).toBe("rallentamento");
   });
 
   it("quadranti: sotto+discesa contrazione · sotto+salita ripresa", () => {
     const obs = monthly([...base, -2]);
-    expect(cycleMetric(obs, -1)?.label).toBe("contrazione");
-    expect(cycleMetric(obs, 1)?.label).toBe("ripresa");
+    expect(cycleMetric(obs, -1, "up")?.label).toBe("contrazione");
+    expect(cycleMetric(obs, 1, "up")?.label).toBe("ripresa");
+  });
+
+  it("goodDirection down: disoccupazione sintetica alta e in salita → contrazione, non espansione", () => {
+    // Serie stile UNRATE: storia attorno al 4-5%, ultimo valore ben sopra la
+    // media e pendenza positiva. Con la semantica economica invertita il
+    // quadrante è deterioramento (contrazione), mai "espansione" verde.
+    const unemployment = monthly([...base.map((v) => v + 4.5), 6.5]);
+    expect(cycleMetric(unemployment, 1, "down")?.label).toBe("contrazione");
+    // Alta ma in discesa = ripresa; bassa e in discesa = espansione;
+    // bassa ma in risalita = rallentamento (mappa completa del rilievo).
+    expect(cycleMetric(unemployment, -1, "down")?.label).toBe("ripresa");
+    const low = monthly([...base.map((v) => v + 4.5), 3]);
+    expect(cycleMetric(low, -1, "down")?.label).toBe("espansione");
+    expect(cycleMetric(low, 1, "down")?.label).toBe("rallentamento");
+  });
+
+  it("goodDirection down: il levelZ resta il posizionamento statistico grezzo", () => {
+    const obs = monthly([...base, 2]);
+    const up = cycleMetric(obs, 1, "up");
+    const down = cycleMetric(obs, 1, "down");
+    expect(down?.levelZ).toBe(up?.levelZ);
+    expect(down!.levelZ).toBeGreaterThan(0);
+  });
+
+  it("goodDirection neutral (tassi, breakeven): nessun ciclo → non vota", () => {
+    const obs = monthly([...base, 2]);
+    expect(cycleMetric(obs, 1, "neutral")).toBeNull();
   });
 
   it("serie costante (sd = 0) o corta → null", () => {
-    expect(cycleMetric(monthly(Array(30).fill(4)), 1)).toBeNull();
-    expect(cycleMetric(monthly([1, 2, 3]), 1)).toBeNull();
+    expect(cycleMetric(monthly(Array(30).fill(4)), 1, "up")).toBeNull();
+    expect(cycleMetric(monthly([1, 2, 3]), 1, "up")).toBeNull();
   });
 });
 
@@ -272,6 +299,7 @@ describe("computeSeriesMetrics", () => {
       cadence: "monthly",
       deltaMode: "abs",
       includeCycle: true,
+      goodDirection: "up",
     });
     expect(m.trend).toBe("rialzista");
     expect(m.changes.map((c) => c.label)).toEqual(["MoM", "YoY"]);
@@ -286,6 +314,7 @@ describe("computeSeriesMetrics", () => {
       cadence: "monthly",
       deltaMode: "abs",
       includeCycle: false,
+      goodDirection: "up",
     });
     expect(m.cycle).toBeNull();
     expect(m.levelZ).toBeNull();
@@ -293,11 +322,24 @@ describe("computeSeriesMetrics", () => {
     expect(m.percentile).toBe(100);
   });
 
+  it("goodDirection neutral → niente ciclo né levelZ, il resto sì", () => {
+    const m = computeSeriesMetrics(obs, {
+      cadence: "monthly",
+      deltaMode: "abs",
+      includeCycle: true,
+      goodDirection: "neutral",
+    });
+    expect(m.cycle).toBeNull();
+    expect(m.levelZ).toBeNull();
+    expect(m.trend).toBe("rialzista");
+  });
+
   it("serie vuota → tutto null senza crash", () => {
     const m = computeSeriesMetrics([], {
       cadence: "daily",
       deltaMode: "abs",
       includeCycle: true,
+      goodDirection: "up",
     });
     expect(m.trend).toBeNull();
     expect(m.percentile).toBeNull();

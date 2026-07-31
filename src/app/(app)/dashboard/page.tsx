@@ -43,6 +43,7 @@ import {
   getCurrencyBreakdown,
   getDailyPnl,
   getLifetimeNetPnl,
+  getNetPnlBefore,
   getRDistribution,
   getPeriodPnl,
   getRecentTradeOutcomes,
@@ -157,6 +158,7 @@ export default async function DashboardPage({
     monthDaily,
     outcomes,
     baseBalance,
+    pnlBeforePeriod,
     lifetimeNetPnl,
     sequence,
     sessionRows,
@@ -171,6 +173,14 @@ export default async function DashboardPage({
       getDailyPnl(monthFilter, user.timezone),
       getRecentTradeOutcomes(filter),
       getStartingBalance(filter),
+      // Q-01 — equity a INIZIO periodo: il P&L chiuso prima di `from` va
+      // sommato al saldo iniziale, altrimenti la curva del periodo riparte
+      // dal saldo di apertura del conto e DD%/Ulcer/Calmar/underwater/Score
+      // risultano gonfiati (stessa convenzione delle rolling di /analytics).
+      getNetPnlBefore(
+        { userId, accountId: activeAccountId, currency: scope.active },
+        period.from,
+      ),
       getLifetimeNetPnl(filter),
       getTradeSequence(filter),
       getSessionBreakdown(filter),
@@ -222,7 +232,12 @@ export default async function DashboardPage({
   // Metriche (tutte Decimal-safe, sul server; il client formatta soltanto)
   const dayWins = daily.filter((d) => new Decimal(d.netPnl).gt(0)).length;
   const dayWinRate = winRate(dayWins, daily.length);
-  const dd = maxDrawdown(daily, baseBalance);
+  // Q-01 — base della curva di equity del periodo (senza `from` il
+  // correttivo è zero e la base coincide col saldo iniziale).
+  const equityStart = new Decimal(baseBalance)
+    .plus(pnlBeforePeriod)
+    .toFixed(2);
+  const dd = maxDrawdown(daily, equityStart);
   const ddR = maxDrawdown(
     daily.map((d) => ({ ...d, netPnl: d.rSum })),
     "0",
@@ -332,9 +347,9 @@ export default async function DashboardPage({
     // giornaliera del drawdown e sugli aggregati R già in SQL.
     sortino: sortinoRatio(daily),
     sharpe: sharpeRatio(daily),
-    calmar: calmarRatio(daily, baseBalance, dd.maxDrawdownPct),
+    calmar: calmarRatio(daily, equityStart, dd.maxDrawdownPct),
     sqn: sqn(agg.rCount, agg.rSum, agg.rSumSq),
-    ulcer: ulcerIndex(daily, baseBalance),
+    ulcer: ulcerIndex(daily, equityStart),
     tradeStreak: currentStreak(outcomes),
     dayStreak: currentDayStreak([...daily].reverse()),
     score: scoreParts?.score ?? null,
@@ -349,7 +364,7 @@ export default async function DashboardPage({
     // F32 — istogramma R (bin 0,5R + colonna BE) da aggregato SQL completo.
     rDistribution: fillRDistribution(rDistributionRows, BE_BIN),
     // W4 — underwater sulla stessa serie del cumulativo.
-    underwater: underwaterSeries(daily, baseBalance),
+    underwater: underwaterSeries(daily, equityStart),
     daily: daily.map((d) => ({ day: d.day, netPnl: d.netPnl, rSum: d.rSum })),
     recent: recentTrades.map((t) => ({
       id: t.id,

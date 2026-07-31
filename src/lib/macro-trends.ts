@@ -114,6 +114,7 @@ async function buildSeriesView(def: TrendsSeriesDef): Promise<TrendsSeriesView> 
     cadence: def.cadence,
     deltaMode: def.deltaMode,
     includeCycle: def.section !== "volatilita",
+    goodDirection: def.goodDirection,
   });
   const metrics: SeriesMetrics = {
     ...rawMetrics,

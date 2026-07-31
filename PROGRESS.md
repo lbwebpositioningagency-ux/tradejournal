@@ -891,6 +891,17 @@ Fix operativo: `scripts/cot-contesto-once.ts` ora carica GEMINI_API_KEY da `.env
 
 **Verificato:** typecheck ✅ · lint ✅ · **1056/1056 test** ✅ · build ✅ · DOM reale ✅. Il patto resta: il primo output del PRIMO SABATO in produzione va mostrato all'utente prima di dichiarare la pipeline autonoma confermata.
 
+## ✅ FASE 44 «Audit: le due correzioni P0 (Q-01/B-01 base equity, Q-02 ciclo goodDirection)» (31/07/2026)
+Prime correzioni dall'audit del 31/07 (`docs/audit/`), implementate come proposte nei rilievi, con diagnosi ri-verificata nel codice prima di scrivere (confermata al 100% in entrambi i casi).
+
+**Q-01/B-01 — base equity col filtro periodo attivo (P0).** Con `?period=` attivo la curva di equity della dashboard partiva dal saldo INIZIALE del conto, ignorando il P&L chiuso prima del periodo: Max DD %, Ulcer, Calmar (entrambi i termini), underwater e la componente risk dello Score risultavano gonfiati (su SIM1 a 30 giorni ~2,4×). Fix in `dashboard/page.tsx`: `equityStart = baseBalance + getNetPnlBefore(from)` — la stessa convenzione già adottata dalle rolling di /analytics (Fase 21) — passata a `maxDrawdown`, `ulcerIndex`, `calmarRatio`, `underwaterSeries` (e via `maxDrawdownPct` allo Score). **Il DD in $ e la curva R non cambiano** (la base trasla picco ed equity insieme); senza `from` il correttivo è zero e tutto resta identico (golden SIM1 full-history invariato, verificato). Nuovo test di integrazione in `stats.integration.test.ts` che blocca la composizione: DD% del periodo = 1500/16000 sul picco vero, non 1500/11000 sul picco monco. La nota S-04 (`formatPercentOfBase` in vista % divide per il saldo iniziale, convenzione dichiarata in FASE 5) resta INVARIATA di proposito: da riconsiderare a parte.
+
+**Q-02 — ciclo del Macro Desk e `goodDirection` (P0).** `cycleMetric` etichettava "espansione" qualunque serie alta e in salita: disoccupazione al 6% in aumento usciva VERDE, e il voto sbagliato entrava nelle pillole di sezione (Fase 31) e nel badge «Ciclo generale» (Fase 33). Fix nel modulo puro: `cycleMetric` ora riceve `goodDirection` dal registry; per le serie "down" (UNRATE, claims, HY OAS, NFCI…) livello e pendenza si invertono prima del quadrante (alto+salita→contrazione, alto+discesa→ripresa, basso+discesa→espansione, basso+salita→rallentamento); le serie "neutral" (tassi, breakeven, JOLTS…) non hanno un ciclo economico definibile → null, come la Volatilità: niente chip e niente voto, né in sezione né nel badge (la sezione Tassi, tutta neutral, ora mostra N/D — onesto). `levelZ` resta il posizionamento statistico GREZZO (non invertito). Test: serie sintetica stile disoccupazione alta e in salita → «contrazione» + mappa completa dei quadranti invertiti + neutral esclusa.
+
+**⚠️ Le etichette del Macro Desk Trends CAMBIANO a schermo PER CORREZIONE, non per rumore**: i cicli delle serie a direzione "down" si ribaltano sull'interpretazione economica corretta, le serie neutral perdono il chip di ciclo, e pillole/badge «Ciclo generale» possono cambiare verdetto. È l'esito voluto del rilievo Q-02.
+
+**Verificato:** typecheck ✅ · lint ✅ · **1061/1061 test** ✅ (5 nuovi; nessun golden RITOCCATO: i valori attesi esistenti sono rimasti tutti identici, sono cambiate solo le firme nei test del ciclo) · build ✅.
+
 ### ▶ Prossimi passi
 
 **Il piano premium è completo** (§1 equity simulator — ex Monte Carlo, §2 rolling metrics, §3 metriche pro).
