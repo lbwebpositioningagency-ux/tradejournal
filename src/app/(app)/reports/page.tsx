@@ -53,6 +53,8 @@ import {
   type StatsFilter,
 } from "@/lib/queries/stats";
 import { resolveCurrencyScope } from "@/lib/currency-scope";
+// TODO(P-04): import TEMPORANEO della misura stadi — rimuovere dopo la misura.
+import { createStageTimer } from "@/lib/stage-timing";
 import { cn } from "@/lib/utils";
 import { PeriodFilter } from "@/components/filters/period-filter";
 import { CurrencyFilter } from "@/components/filters/currency-filter";
@@ -319,7 +321,13 @@ export default async function ReportsPage({
 }: {
   searchParams: Promise<Record<string, string | string[] | undefined>>;
 }) {
+  // TODO(P-04): misura TEMPORANEA degli stadi (vedi lib/stage-timing.ts) —
+  // rimuovere timer e mark dopo la lettura dei numeri in produzione.
+  // Qui non c'è nulla da fondere senza cambiare query: ogni report dello
+  // stadio finale dipende dalla valuta attiva, che dipende dal breakdown.
+  const timing = createStageTimer("/reports");
   const session = await auth();
+  timing.mark("auth");
   if (!session?.user?.id) redirect("/login");
   const sessionUserId = session.user.id;
 
@@ -331,6 +339,7 @@ export default async function ReportsPage({
     resolveTradeScope(sessionUserId),
     searchParams,
   ]);
+  timing.mark("scope");
   // Scope dei dati: utente di sistema quando il conto attivo è il demo SIM1.
   const userId = tradeScope.userId;
   const activeAccountId = tradeScope.accountId;
@@ -355,6 +364,7 @@ export default async function ReportsPage({
           select: { currency: true },
         }),
   ]);
+  timing.mark("currency");
   const scope = resolveCurrencyScope(currencyTotals, curParam);
   const filter: StatsFilter = { ...baseFilter, currency: scope.active };
   const currency = scope.active ?? activeAccount?.currency ?? user.baseCurrency;
@@ -372,6 +382,8 @@ export default async function ReportsPage({
       getRecentTradeOutcomes(filter),
       getBiasAlignmentBreakdown(filter, user.timezone),
     ]);
+  timing.mark("queries");
+  timing.flush();
   // W2 — bias × esecuzione: righe classificate e non.
   const biasAligned = biasRows.find((r) => r.alignment === "ALIGNED");
   const biasAgainst = biasRows.find((r) => r.alignment === "AGAINST");

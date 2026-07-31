@@ -1062,6 +1062,19 @@ Rilievi dall'audit performance (`docs/audit/05-performance.md`).
 
 **Verificato:** typecheck ✅ · lint ✅ · **1108/1108 test** ✅ · build ✅ · E2E su build di produzione (Chrome headless, `measure.mjs`): **CLS = 0** su /trades e /dashboard (PerformanceObserver `layout-shift` buffered — nessun layout shift allo swap skeleton→grafico); /trades 200 barre renderizzate e skeleton spariti; a 500px le sezioni collassate NON sono nel DOM, il toggle le monta (chart con barre) e le rismonta; simulatore a 1000×100 → max **250 punti** per curva (misurato sui path SVG), legenda «100 percorsi»; **zero errori console** su /trades, /dashboard (1280 e 500px), /analytics con hook `console.error` pre-navigazione. Screenshot: sequenza /trades e dashboard completa coi widget lazy renderizzati (il vuoto del full-page shot è il noto artefatto `captureBeyondViewport` della Fase 21, smentito da `--scroll-to` e dalle geometrie DOM).
 
+## ✅ FASE 53 «Performance: waterfall di query appiattito su /analytics, count onboarding anticipata su dashboard (P-04) + misura temporanea degli stadi» (31/07/2026)
+Rilievo P-04 dell'audit performance. **Nessuna query è cambiata: cambia solo quando parte.**
+
+**/analytics: da 7 stadi a 4.** I vecchi stadi ③ (coverage+distribuzioni, 7 query), ④ (dati simulatore, 4), ⑤ (`getNetPnlBefore`) e ⑦ (aggregati pro, 5) erano `await` in sequenza senza dipendenze reali: ora sono UN solo `Promise.all` da 18 query dopo la risoluzione valuta. L'unica dipendenza vera — la rolling window a trade sceglie il preset con `coverage.total` — è risolta agganciando `getRollingTradeWindow` alla promise della coverage (la COUNT "anticipata" dell'audit): parte appena quella risolve, in overlap con le altre. Restano gli stadi irriducibili: auth → user/scope → breakdown valuta (la valuta attiva entra nel filtro di tutto il resto) → stadio unico.
+
+**/dashboard: la count dell'onboarding (F15) anticipata.** `prisma.trade.count({ account: { userId } })` non dipende dalla valuta: passa dallo stadio delle 16 query a quello del breakdown valuta. È l'unica query del blocco principale senza dipendenza dalla valuta attiva — il resto degli stadi della dashboard è irriducibile a query invariate.
+
+**/reports: niente da fondere** — ogni report dello stadio finale dipende dalla valuta attiva. Documentato nel codice; strumentata comunque per la misura.
+
+**Misura temporanea (TODO da rimuovere dopo la lettura in produzione).** `lib/stage-timing.ts` + mark negli stadi delle tre pagine, riga `[server-timing] /pagina auth;dur=… scope;dur=… currency;dur=… queries;dur=… total;dur=…` in formato Server-Timing. Nei LOG e non nell'header, con motivazione nel modulo: un server component non può scrivere header di risposta (con lo streaming dell'App Router gli header partono prima della fine del render) — su Vercel si legge con `vercel logs` cercando `[server-timing]`. Ogni call-site è marcato `TODO(P-04)`.
+
+**Verificato:** typecheck ✅ · lint ✅ · **1108/1108 test** ✅ · build ✅ · E2E su build di produzione (Chrome headless): /analytics con tutte le 11 sezioni e 8 grafici, rolling con `?rt=50` funzionante, /dashboard e /reports integri, **zero errori console** sulle tre pagine; log locali `[server-timing]` presenti — su /analytics lo stadio unico «queries» chiude le 18 query in ~11–14 ms in locale (il guadagno vero, i 4 round-trip evitati, si leggerà in produzione con la latenza Neon reale).
+
 ### ▶ Prossimi passi
 
 **Il piano premium è completo** (§1 equity simulator — ex Monte Carlo, §2 rolling metrics, §3 metriche pro).

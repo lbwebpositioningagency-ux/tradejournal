@@ -3,6 +3,8 @@ import { redirect } from "next/navigation";
 import Decimal from "decimal.js";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/db";
+// TODO(P-04): import TEMPORANEO della misura stadi — rimuovere dopo la misura.
+import { createStageTimer } from "@/lib/stage-timing";
 import { tradeAccountWhere } from "@/lib/active-account";
 import { resolveTradeScope } from "@/lib/demo-account";
 import { ALL_ACCOUNTS } from "@/lib/constants";
@@ -74,7 +76,11 @@ export default async function DashboardPage({
     cur?: string;
   }>;
 }) {
+  // TODO(P-04): misura TEMPORANEA degli stadi (vedi lib/stage-timing.ts) —
+  // rimuovere timer e mark dopo la lettura dei numeri in produzione.
+  const timing = createStageTimer("/dashboard");
   const session = await auth();
+  timing.mark("auth");
   if (!session?.user?.id) redirect("/login");
   const sessionUserId = session.user.id;
 
@@ -95,6 +101,7 @@ export default async function DashboardPage({
     }),
     resolveTradeScope(sessionUserId),
   ]);
+  timing.mark("scope");
   const userId = tradeScope.userId;
   const activeAccountId = tradeScope.accountId;
 
@@ -111,7 +118,8 @@ export default async function DashboardPage({
   // attiva (mai sommare valute diverse), poi tutte le metriche girano ristrette
   // a quella valuta.
   const hasPeriod = Boolean(period.from || period.to);
-  const [currencyTotals, lifetimeTotalsRaw, activeAccount] = await Promise.all([
+  const [currencyTotals, lifetimeTotalsRaw, activeAccount, lifetimeTradeCount] =
+    await Promise.all([
     getCurrencyBreakdown(baseFilter),
     // B-02 — valute presenti in TUTTO lo storico dello scope conto: i widget
     // lifetime (Saldo, mini-calendario, calendario mensile) risolvono la
@@ -126,7 +134,12 @@ export default async function DashboardPage({
           where: { id: activeAccountId, userId },
           select: { currency: true },
         }),
+    // F15 — onboarding: l'utente ha mai inserito un trade (qualsiasi
+    // conto/stato)? P-04 — non dipende dalla valuta: parte in questo stadio
+    // invece che nel successivo (query invariata, cambia solo quando parte).
+    prisma.trade.count({ where: { account: { userId } } }),
   ]);
+  timing.mark("currency");
   const lifetimeTotals = lifetimeTotalsRaw ?? currencyTotals;
   // B-02 — periodo senza trade: lo scope di periodo ricade sulle valute
   // lifetime invece che su `undefined` — MAI una query di denaro senza
@@ -185,7 +198,6 @@ export default async function DashboardPage({
     openTradeRows,
     openTradeCount,
     recentTrades,
-    lifetimeTradeCount,
     monthlyRows,
   ] = await Promise.all([
       getTradeAggregates(filter),
@@ -252,8 +264,6 @@ export default async function DashboardPage({
           account: { select: { currency: true } },
         },
       }),
-      // F15 — onboarding: l'utente ha mai inserito un trade (qualsiasi conto/stato)?
-      prisma.trade.count({ where: { account: { userId } } }),
       // Fase 27 — P&L per mese di TUTTO lo storico (fuso utente): il
       // calendario mensile ha la sua navigazione per anno e, come saldo e
       // mini-calendario, non segue il filtro periodo della dashboard.
@@ -264,6 +274,8 @@ export default async function DashboardPage({
         "month",
       ),
     ]);
+  timing.mark("queries");
+  timing.flush();
 
   // Metriche (tutte Decimal-safe, sul server; il client formatta soltanto)
   const dayWins = daily.filter((d) => new Decimal(d.netPnl).gt(0)).length;

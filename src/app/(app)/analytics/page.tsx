@@ -9,6 +9,8 @@ import { resolveTradeScope } from "@/lib/demo-account";
 import { resolvePeriod } from "@/lib/period";
 import { resolveCurrencyScope } from "@/lib/currency-scope";
 import { getCurrencyBreakdown } from "@/lib/queries/stats";
+// TODO(P-04): import TEMPORANEO della misura stadi — rimuovere dopo la misura.
+import { createStageTimer } from "@/lib/stage-timing";
 import {
   getAnalyticsSymbols,
   getPlanCoverage,
@@ -238,7 +240,11 @@ export default async function AnalyticsPage({
 }: {
   searchParams: Promise<Record<string, string | string[] | undefined>>;
 }) {
+  // TODO(P-04): misura TEMPORANEA degli stadi (vedi lib/stage-timing.ts) —
+  // rimuovere timer e mark dopo la lettura dei numeri in produzione.
+  const timing = createStageTimer("/analytics");
   const session = await auth();
+  timing.mark("auth");
   if (!session?.user?.id) redirect("/login");
   const sessionUserId = session.user.id;
 
@@ -250,6 +256,7 @@ export default async function AnalyticsPage({
     resolveTradeScope(sessionUserId),
     searchParams,
   ]);
+  timing.mark("scope");
   const userId = tradeScope.userId;
   const accountId = tradeScope.accountId;
 
@@ -258,6 +265,7 @@ export default async function AnalyticsPage({
 
   // Stessa regola del resto dell'app: mai sommare valute diverse.
   const currencyTotals = await getCurrencyBreakdown(base);
+  timing.mark("currency");
   const currencyScope = resolveCurrencyScope(
     currencyTotals,
     typeof params.cur === "string" ? params.cur : undefined,
@@ -277,26 +285,73 @@ export default async function AnalyticsPage({
     direction,
   };
 
-  const [coverage, bucketRows, histogram, scatter, symbols, hourRows, durationRows] =
-    await Promise.all([
-      getPlanCoverage(filter),
-      getTargetRBuckets(filter),
-      getRHistogram(filter),
-      getTargetVsRealized(filter),
-      getAnalyticsSymbols({ ...base, currency: currencyScope.active }),
-      getHourPerformance(filter, user.timezone),
-      getDurationPerformance(filter, DURATION_BUCKETS),
-    ]);
+  // Q-13 — Kelly, optimal f, risk of ruin e gli aggregati R dei default del
+  // simulatore (Q-12) sono metriche di CONTO (frazioni dell'equity intera):
+  // ignorano simbolo/direzione, come le rolling annualizzate.
+  const accountFilter: AnalyticsFilter = {
+    ...base,
+    currency: currencyScope.active,
+  };
 
-  // §1 — Equity curve simulator (Fase 34): il saldo reale del conto è il
-  // default di Start Equity. Gli R storici servono all'optimal f (§3), la
-  // serie giornaliera alle metriche rolling (§2): le query restano condivise.
-  const [mcR, mcDaily, mcStartBalance, mcLifetime] = await Promise.all([
+  // P-04 — UN solo stadio di query dopo la risoluzione valuta: i vecchi
+  // stadi ③④⑤⑦ (coverage+distribuzioni, dati simulatore, P&L pre-periodo,
+  // aggregati pro) erano `await` in sequenza senza dipendenze reali tra
+  // loro — ogni stadio pagava un round-trip pieno verso il DB. Le query
+  // sono INVARIATE: cambia solo quando partono. L'unica dipendenza vera è
+  // la rolling window a trade, che sceglie il preset con `coverage.total`:
+  // si aggancia alla promise della coverage (la COUNT "anticipata") e parte
+  // appena quella risolve, in overlap con tutte le altre.
+  const coveragePromise = getPlanCoverage(filter);
+  const rollingRowsPromise = coveragePromise.then((cov) => {
+    const window = pickWindow(TRADE_WINDOWS, Number(params.rt), cov.total);
+    return window ? getRollingTradeWindow(filter, user.timezone, window) : [];
+  });
+  const [
+    coverage,
+    bucketRows,
+    histogram,
+    scatter,
+    symbols,
+    hourRows,
+    durationRows,
+    // §1 — Equity curve simulator (Fase 34): il saldo reale del conto è il
+    // default di Start Equity. Gli R storici servono all'optimal f (§3), la
+    // serie giornaliera alle metriche rolling (§2): le query restano condivise.
+    mcR,
+    mcDaily,
+    mcStartBalance,
+    mcLifetime,
+    pnlBeforePeriod,
+    // §3 — metriche pro: aggregati coi filtri di pagina e di conto.
+    proAgg,
+    accountAgg,
+    rAgg,
+    streakRuns,
+    concentrationRow,
+    rollingRows,
+  ] = await Promise.all([
+    coveragePromise,
+    getTargetRBuckets(filter),
+    getRHistogram(filter),
+    getTargetVsRealized(filter),
+    getAnalyticsSymbols({ ...base, currency: currencyScope.active }),
+    getHourPerformance(filter, user.timezone),
+    getDurationPerformance(filter, DURATION_BUCKETS),
     getRMultiples(filter),
     getDailyPnl(filter, user.timezone),
     getStartingBalance(filter),
     getLifetimeNetPnl(filter),
+    // Equity a INIZIO periodo per i ritorni rolling (vedi §2 sotto).
+    getNetPnlBefore({ userId, accountId, currency: currencyScope.active }, period.from),
+    getProAggregates(filter),
+    getProAggregates(accountFilter),
+    getTradeAggregates(accountFilter),
+    getStreakRuns(filter),
+    getTopConcentration(filter),
+    rollingRowsPromise,
   ]);
+  timing.mark("queries");
+  timing.flush();
   const startingEquity = new Decimal(mcStartBalance).plus(mcLifetime).toFixed(2);
 
   const buckets = targetRBucketStats(bucketRows);
@@ -322,10 +377,6 @@ export default async function AnalyticsPage({
   // del periodo selezionato. Senza quest'ultimo pezzo un periodo che inizia
   // a metà storia dividerebbe per il solo saldo iniziale, gonfiando ogni
   // ritorno di un conto cresciuto nel frattempo.
-  const pnlBeforePeriod = await getNetPnlBefore(
-    { userId, accountId, currency: currencyScope.active },
-    period.from,
-  );
   const seriesEquity = new Decimal(mcStartBalance)
     .plus(pnlBeforePeriod)
     .toFixed(2);
@@ -346,16 +397,14 @@ export default async function AnalyticsPage({
 
   // La finestra a trade, invece, rispetta i filtri della pagina: lì ogni
   // punto è una statistica di trade, non di conto.
+  // P-04 — stesso `pickWindow` (puro) usato per far partire la query nello
+  // stadio unico: qui serve solo per l'interfaccia dei controlli.
   const tradeWindow = pickWindow(
     TRADE_WINDOWS,
     Number(params.rt),
     coverage.total,
   );
-  const tradePoints = rollingTradePoints(
-    tradeWindow
-      ? await getRollingTradeWindow(filter, user.timezone, tradeWindow)
-      : [],
-  );
+  const tradePoints = rollingTradePoints(rollingRows);
   const unitFormat: Record<
     (typeof ROLLING_TRADE_METRICS)[number]["unit"],
     (value: string) => string
@@ -376,23 +425,7 @@ export default async function AnalyticsPage({
 
   // §3 — METRICHE PRO. Gli aggregati rispettano i filtri della pagina; R²
   // ed equity vengono dalla serie di conto (come il rolling annualizzato).
-  // Q-13 — Kelly, optimal f e risk of ruin sono invece metriche di CONTO
-  // (frazioni dell'equity intera): ignorano simbolo/direzione, come le
-  // rolling annualizzate — il precedente già dichiarato in pagina. Gli
-  // aggregati R dei default del simulatore (Q-12) hanno lo stesso scope.
-  const accountFilter: AnalyticsFilter = {
-    ...base,
-    currency: currencyScope.active,
-  };
-  const [proAgg, accountAgg, rAgg, streakRuns, concentrationRow] =
-    await Promise.all([
-      getProAggregates(filter),
-      getProAggregates(accountFilter),
-      getTradeAggregates(accountFilter),
-      getStreakRuns(filter),
-      getTopConcentration(filter),
-    ]);
-
+  // Le query stanno nello stadio unico qui sopra (P-04).
   const proWinRate = winRateOf(proAgg.wins, proAgg.total);
   const proAvgWin = avgWin(proAgg.winSum, proAgg.wins);
   const proAvgLoss = avgLoss(proAgg.lossSum, proAgg.losses);
