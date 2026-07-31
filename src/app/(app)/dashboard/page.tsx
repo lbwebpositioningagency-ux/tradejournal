@@ -110,8 +110,16 @@ export default async function DashboardPage({
   // F6 — prima si determinano le valute presenti nel periodo/scope e la valuta
   // attiva (mai sommare valute diverse), poi tutte le metriche girano ristrette
   // a quella valuta.
-  const [currencyTotals, activeAccount] = await Promise.all([
+  const hasPeriod = Boolean(period.from || period.to);
+  const [currencyTotals, lifetimeTotalsRaw, activeAccount] = await Promise.all([
     getCurrencyBreakdown(baseFilter),
+    // B-02 — valute presenti in TUTTO lo storico dello scope conto: i widget
+    // lifetime (Saldo, mini-calendario, calendario mensile) risolvono la
+    // valuta qui, mai sul periodo — altrimenti cambiando periodo il saldo
+    // "balla" di perimetro. Senza filtro periodo la prima chiamata coincide.
+    hasPeriod
+      ? getCurrencyBreakdown({ userId, accountId: activeAccountId })
+      : null,
     activeAccountId === ALL_ACCOUNTS
       ? null
       : prisma.tradingAccount.findFirst({
@@ -119,9 +127,19 @@ export default async function DashboardPage({
           select: { currency: true },
         }),
   ]);
-  const scope = resolveCurrencyScope(currencyTotals, params.cur);
+  const lifetimeTotals = lifetimeTotalsRaw ?? currencyTotals;
+  // B-02 — periodo senza trade: lo scope di periodo ricade sulle valute
+  // lifetime invece che su `undefined` — MAI una query di denaro senza
+  // vincolo di valuta (sommerebbe valute diverse, il caso eliminato da F6).
+  const scope = resolveCurrencyScope(
+    currencyTotals.length > 0 ? currencyTotals : lifetimeTotals,
+    params.cur,
+  );
+  const lifetimeScope = resolveCurrencyScope(lifetimeTotals, params.cur);
   const filter: StatsFilter = { ...baseFilter, currency: scope.active };
   const currency = scope.active ?? activeAccount?.currency ?? user.baseCurrency;
+  const lifetimeCurrency =
+    lifetimeScope.active ?? activeAccount?.currency ?? user.baseCurrency;
 
   // Filtro conto + valuta attiva per le query Prisma non-SQL (aperti, recenti).
   const accountWhere = tradeAccountWhere(userId, activeAccountId, scope.active);
@@ -141,13 +159,13 @@ export default async function DashboardPage({
       : accountWhere;
 
   // F26 — mini-calendario del mese CORRENTE (fuso utente), indipendente dal
-  // filtro periodo come il Saldo conto; stesso scope conto/valuta.
+  // filtro periodo come il Saldo conto; scope conto + valuta LIFETIME (B-02).
   const todayKey = todayKeyInZone(user.timezone);
   const currentMonth = todayKey.slice(0, 7);
   const monthFilter: StatsFilter = {
     userId,
     accountId: activeAccountId,
-    currency: scope.active,
+    currency: lifetimeScope.active,
     from: zonedInputToUtc(`${currentMonth}-01T00:00`, user.timezone),
     to: zonedInputToUtc(`${addMonths(currentMonth, 1)}-01T00:00`, user.timezone),
   };
@@ -158,12 +176,14 @@ export default async function DashboardPage({
     monthDaily,
     outcomes,
     baseBalance,
+    lifetimeBaseBalance,
     pnlBeforePeriod,
     lifetimeNetPnl,
     sequence,
     sessionRows,
     rDistributionRows,
     openTradeRows,
+    openTradeCount,
     recentTrades,
     lifetimeTradeCount,
     monthlyRows,
@@ -173,6 +193,13 @@ export default async function DashboardPage({
       getDailyPnl(monthFilter, user.timezone),
       getRecentTradeOutcomes(filter),
       getStartingBalance(filter),
+      // B-02 — base del Saldo conto e del calendario mensile: saldi iniziali
+      // dei conti nella valuta LIFETIME (indipendente dal periodo).
+      getStartingBalance({
+        userId,
+        accountId: activeAccountId,
+        currency: lifetimeScope.active,
+      }),
       // Q-01 — equity a INIZIO periodo: il P&L chiuso prima di `from` va
       // sommato al saldo iniziale, altrimenti la curva del periodo riparte
       // dal saldo di apertura del conto e DD%/Ulcer/Calmar/underwater/Score
@@ -181,7 +208,12 @@ export default async function DashboardPage({
         { userId, accountId: activeAccountId, currency: scope.active },
         period.from,
       ),
-      getLifetimeNetPnl(filter),
+      // B-02 — P&L storico del Saldo conto: stessa valuta lifetime della base.
+      getLifetimeNetPnl({
+        userId,
+        accountId: activeAccountId,
+        currency: lifetimeScope.active,
+      }),
       getTradeSequence(filter),
       getSessionBreakdown(filter),
       getRDistribution(filter),
@@ -202,6 +234,9 @@ export default async function DashboardPage({
           account: { select: { name: true, currency: true } },
         },
       }),
+      // B-05 — CONTEGGIO delle posizioni aperte da una count dedicata: la
+      // lista sopra è troncata a 12 e non può fare da numero.
+      prisma.trade.count({ where: { ...accountWhere, status: "OPEN" } }),
       prisma.trade.findMany({
         where: recentWhere,
         orderBy: { openedAt: "desc" },
@@ -223,7 +258,8 @@ export default async function DashboardPage({
       // calendario mensile ha la sua navigazione per anno e, come saldo e
       // mini-calendario, non segue il filtro periodo della dashboard.
       getPeriodPnl(
-        { userId, accountId: activeAccountId, currency: scope.active },
+        // B-02 — valuta lifetime: il calendario mensile è un widget storico.
+        { userId, accountId: activeAccountId, currency: lifetimeScope.active },
         user.timezone,
         "month",
       ),
@@ -267,14 +303,21 @@ export default async function DashboardPage({
   const layout = parseDashboardLayout(user.dashboardLayout);
   const data: DashboardData = {
     currency,
+    // B-02 — valuta dei widget lifetime, risolta su tutto lo storico.
+    lifetimeCurrency,
     // F6 — totali per valuta presenti nel periodo (per i totali affiancati) e
     // flag multi-valuta (mostra selettore + nota). Mai una somma cross-valuta.
     currencyTotals,
     multiCurrency: scope.multi,
     baseBalance,
+    lifetimeBaseBalance,
     // Saldo REALE del conto: iniziale + P&L di tutto lo storico chiuso,
     // mai filtrato dal periodo (il P&L di periodo è un widget a parte).
-    accountBalance: new Decimal(baseBalance).plus(lifetimeNetPnl).toFixed(2),
+    // B-02 — entrambi i termini nella valuta LIFETIME, mai in quella del
+    // periodo: il saldo non cambia perimetro cambiando periodo.
+    accountBalance: new Decimal(lifetimeBaseBalance)
+      .plus(lifetimeNetPnl)
+      .toFixed(2),
     lifetimeNetPnl,
     period: {
       key: period.key,
@@ -288,7 +331,8 @@ export default async function DashboardPage({
     wins: agg.wins,
     losses: agg.losses,
     breakevens: agg.breakevens,
-    openTrades: openTradeRows.length,
+    // B-05 — numero VERO di posizioni aperte (count SQL), non la lista ≤12.
+    openTrades: openTradeCount,
     // F33 — dettaglio posizioni aperte: durata "finora" calcolata sul server
     // (display only, il Number è tempo, non denaro).
     openPositions: openTradeRows.map((t) => ({
@@ -391,7 +435,9 @@ export default async function DashboardPage({
     },
     // Fase 27 — griglie annuali del calendario mensile (convenzione del
     // rolling: ritorno = P&L del mese / equity a inizio mese).
-    monthlyGrids: monthlyReturnGrids(monthlyRows, baseBalance),
+    // B-02 — base dell'equity che scorre nella valuta lifetime, coerente
+    // con le righe mensili qui sopra.
+    monthlyGrids: monthlyReturnGrids(monthlyRows, lifetimeBaseBalance),
   };
 
   return <DashboardView data={data} />;

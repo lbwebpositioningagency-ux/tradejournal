@@ -902,6 +902,19 @@ Prime correzioni dall'audit del 31/07 (`docs/audit/`), implementate come propost
 
 **Verificato:** typecheck ✅ · lint ✅ · **1061/1061 test** ✅ (5 nuovi; nessun golden RITOCCATO: i valori attesi esistenti sono rimasti tutti identici, sono cambiate solo le firme nei test del ciclo) · build ✅.
 
+## ✅ FASE 45 «Audit: scope valuta dei widget lifetime (B-02), confronto settimanale (B-03), count posizioni aperte (B-05)» (31/07/2026)
+Secondo blocco di correzioni dall'audit funzionale (`docs/audit/02-bug.md`), diagnosi ri-verificate nel codice prima di scrivere (tutte e tre esatte).
+
+**B-02 — lo scope valuta dei widget lifetime non dipende più dal periodo.** La dashboard risolveva la valuta attiva SOLO sulle valute presenti nel periodo: con periodo senza trade lo scope era `undefined` e Saldo/calendari sommavano valute diverse (il caso eliminato da F6); con periodo mono-valuta il Saldo cambiava perimetro in silenzio. Ora: (a) seconda `getCurrencyBreakdown` SENZA periodo (riusa la prima quando il periodo è "tutto") → `lifetimeScope`; i widget lifetime — Saldo conto (base + P&L storico + valuta), mini-calendario, calendario mensile (righe E base delle % `monthlyReturnGrids`) — girano tutti su quella; (b) con periodo senza trade lo scope di periodo RICADE sulle valute lifetime invece che su `undefined`: nessuna query di denaro gira mai senza vincolo di valuta. `DashboardData` ha ora `lifetimeCurrency` e `lifetimeBaseBalance` accanto a quelli di periodo; `baseBalance` di periodo resta la base della vista % (convenzione S-04, invariata di proposito). Caso mono-valuta (la maggioranza): tutto identico per costruzione.
+
+**B-03 — report settimanale: scope risolto sull'UNIONE delle due settimane.** Prima ereditava la valuta della sola settimana corrente: settimana precedente operata in altra valuta = "0 trade" nei delta; settimana corrente vuota = somme cross-valuta. Ora `getCurrencyBreakdown` gira sull'intervallo lunedì-precedente → domenica-corrente e la nota in pagina dichiara «Scope valuta: X su ENTRAMBE le settimane (confronto a parità di valuta)». Unione vuota = due settimane senza trade: aggregati a zero, niente da sommare.
+
+**B-05 — conteggio posizioni aperte da `count` SQL.** `openTrades` veniva da `openTradeRows.length` con `take: 12`: oltre 12 aperture il numero (testata e titolo card) mentiva. Ora `prisma.trade.count` dedicato nella stessa `Promise.all`; la lista resta ≤12 con nota «Prime 12 per data di apertura» quando il conteggio la supera.
+
+**Test**: nuovo test di integrazione «utente bi-valuta, periodo vuoto, il saldo non somma» (quello indicato nella sezione copertura del report): USD prevalente + EUR, periodo custom senza trade → breakdown di periodo vuoto, fallback su lifetime (USD), saldo `1000.00` e P&L `150.00` nella sola valuta attiva, con l'asserzione esplicita che la query senza vincolo darebbe i numeri fasulli (3000/350) che non devono mai arrivare alla UI.
+
+**Verificato:** typecheck ✅ · lint ✅ · **1062/1062 test** ✅ · build ✅.
+
 ### ▶ Prossimi passi
 
 **Il piano premium è completo** (§1 equity simulator — ex Monte Carlo, §2 rolling metrics, §3 metriche pro).

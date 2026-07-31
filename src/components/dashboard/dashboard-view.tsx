@@ -110,11 +110,18 @@ import { MonthlyCalendar } from "./monthly-calendar";
 
 export interface DashboardData {
   currency: string;
+  /**
+   * B-02 — valuta dei widget LIFETIME (Saldo, calendario mensile), risolta
+   * su tutto lo storico dello scope conto: non balla col filtro periodo.
+   */
+  lifetimeCurrency: string;
   /** F6 — totali per valuta presenti nel periodo (mai sommati tra loro). */
   currencyTotals: CurrencyTotal[];
   /** F6 — true se lo scope contiene più valute: selettore + nota. */
   multiCurrency: boolean;
   baseBalance: string;
+  /** B-02 — saldi iniziali nella valuta lifetime (base del Saldo conto). */
+  lifetimeBaseBalance: string;
   /** Saldo reale: iniziale + P&L di tutto lo storico (mai filtrato dal periodo). */
   accountBalance: string;
   /** P&L netto di tutto lo storico chiuso (base del saldo conto). */
@@ -498,7 +505,7 @@ export function DashboardView({ data }: { data: DashboardData }) {
           </p>
         </div>
         <OnboardingHero
-          accountBalanceLabel={formatMoney(data.accountBalance, data.currency)}
+          accountBalanceLabel={formatMoney(data.accountBalance, data.lifetimeCurrency)}
         />
       </div>
     );
@@ -799,8 +806,14 @@ export function DashboardView({ data }: { data: DashboardData }) {
         <Card className="max-lg:order-6">
           <CardHeader>
             <CardTitle className="stat-label">
-              Posizioni aperte ({data.openPositions.length})
+              Posizioni aperte ({data.openTrades})
             </CardTitle>
+            {/* B-05 — il conteggio viene dalla count SQL; la lista è ≤12. */}
+            {data.openTrades > data.openPositions.length ? (
+              <p className="text-xs text-muted-foreground">
+                Prime {data.openPositions.length} per data di apertura
+              </p>
+            ) : null}
           </CardHeader>
           <CardContent>
             <ul className="grid gap-2 sm:grid-cols-2 xl:grid-cols-3">
@@ -1315,13 +1328,16 @@ export function DashboardView({ data }: { data: DashboardData }) {
                 masked
                   ? MASK
                   : view === "percent"
-                    ? formatPercentOfBase(data.lifetimeNetPnl, data.baseBalance)
-                    : formatMoney(data.accountBalance, data.currency)
+                    ? formatPercentOfBase(
+                        data.lifetimeNetPnl,
+                        data.lifetimeBaseBalance,
+                      )
+                    : formatMoney(data.accountBalance, data.lifetimeCurrency)
               }
               sub={
                 masked
                   ? MASK
-                  : `Iniziale ${formatMoney(data.baseBalance, data.currency)} · P&L storico ${formatSignedMoney(data.lifetimeNetPnl, data.currency)}`
+                  : `Iniziale ${formatMoney(data.lifetimeBaseBalance, data.lifetimeCurrency)} · P&L storico ${formatSignedMoney(data.lifetimeNetPnl, data.lifetimeCurrency)}`
               }
             />
           ) : null}
@@ -1386,7 +1402,7 @@ export function DashboardView({ data }: { data: DashboardData }) {
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <MonthlyCalendar grids={data.monthlyGrids} currency={data.currency} />
+            <MonthlyCalendar grids={data.monthlyGrids} currency={data.lifetimeCurrency} />
           </CardContent>
         </Card>
       ) : null}

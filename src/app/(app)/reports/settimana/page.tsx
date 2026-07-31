@@ -108,7 +108,16 @@ export default async function WeeklyReportPage({
   };
 
   // F6 — stesso scope valuta dei Reports: mai sommare valute diverse.
-  const currencyTotals = await getCurrencyBreakdown(baseFilter);
+  // B-03 — lo scope si risolve sull'UNIONE delle due settimane confrontate:
+  // con la valuta della sola settimana corrente, una settimana precedente
+  // operata in un'altra valuta risulterebbe "0 trade" (delta bugiardi), e
+  // con settimana corrente vuota il confronto sommerebbe valute diverse.
+  const currencyTotals = await getCurrencyBreakdown({
+    userId,
+    accountId: activeAccountId,
+    from: bounds(prevMonday).from,
+    to: bounds(monday).to,
+  });
   const scope = resolveCurrencyScope(currencyTotals, params.cur);
   const filter: StatsFilter = { ...baseFilter, currency: scope.active };
   const prevFilter: StatsFilter = { ...filter, ...bounds(prevMonday) };
@@ -332,7 +341,8 @@ export default async function WeeklyReportPage({
                 Generato dalle stesse formule testate dell&apos;app (niente
                 stime, niente AI): ogni numero è riconciliabile coi Reports.
                 {scope.multi
-                  ? " Scope valuta: " + currency + " (mai somme cross-valuta)."
+                  ? " Scope valuta: " + currency + " su ENTRAMBE le settimane " +
+                    "(confronto a parità di valuta, mai somme cross-valuta)."
                   : ""}
               </p>
             </>

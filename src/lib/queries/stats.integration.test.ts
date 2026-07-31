@@ -226,6 +226,99 @@ describe.skipIf(!hasDb)("bucketing timezone su Postgres", () => {
     }
   });
 
+  it("B-02: utente bi-valuta con periodo senza trade — il saldo non somma mai valute diverse", async () => {
+    // Convenzione fissata dal fix B-02: i widget lifetime risolvono la
+    // valuta sulle valute di TUTTO lo storico (getCurrencyBreakdown senza
+    // periodo), e con periodo vuoto lo scope ricade su quelle — mai una
+    // query di denaro senza vincolo di valuta.
+    const { resolveCurrencyScope } = await import("@/lib/currency-scope");
+    const { prisma: db } = await import("@/lib/db");
+    const {
+      getCurrencyBreakdown,
+      getStartingBalance,
+      getLifetimeNetPnl,
+    } = await import("./stats");
+
+    const email = "it-bicurrency-empty-period@test.local";
+    await db.user.deleteMany({ where: { email } });
+    const user = await db.user.create({
+      data: {
+        email,
+        timezone: ROME,
+        tradingAccounts: {
+          create: [
+            { name: "Conto USD", currency: "USD", initialBalance: "1000" },
+            { name: "Conto EUR", currency: "EUR", initialBalance: "2000" },
+          ],
+        },
+      },
+      include: { tradingAccounts: true },
+    });
+    const usd = user.tradingAccounts.find((a: { currency: string }) => a.currency === "USD")!.id;
+    const eur = user.tradingAccounts.find((a: { currency: string }) => a.currency === "EUR")!.id;
+    const mk = (acc: string, closedAtUtc: string, netPnl: string) => ({
+      tradingAccountId: acc,
+      symbol: "CURTEST",
+      assetClass: "FUTURES" as const,
+      direction: "LONG" as const,
+      status: "CLOSED" as const,
+      openedAt: new Date(closedAtUtc),
+      closedAt: new Date(closedAtUtc),
+      quantity: "1",
+      avgEntryPrice: "100",
+      avgExitPrice: "101",
+      grossPnl: netPnl,
+      fees: "0",
+      netPnl,
+    });
+    try {
+      await db.trade.createMany({
+        data: [
+          // USD prevalente (2 trade), EUR minoritaria (1 trade).
+          mk(usd, "2026-05-04T12:00:00Z", "100.00"),
+          mk(usd, "2026-05-05T12:00:00Z", "50.00"),
+          mk(eur, "2026-05-06T12:00:00Z", "200.00"),
+        ],
+      });
+
+      // Periodo custom SENZA trade (una settimana di ferie a giugno).
+      const from = new Date("2026-06-08T00:00:00Z");
+      const to = new Date("2026-06-15T00:00:00Z");
+      const { ALL_ACCOUNTS } = await import("@/lib/constants");
+      const scopeFilter = { userId: user.id, accountId: ALL_ACCOUNTS };
+      const [periodTotals, lifetimeTotals] = await Promise.all([
+        getCurrencyBreakdown({ ...scopeFilter, from, to }),
+        getCurrencyBreakdown(scopeFilter),
+      ]);
+
+      // Il periodo vuoto non produce valute; lo storico sì, prevalente prima.
+      expect(periodTotals).toEqual([]);
+      expect(lifetimeTotals.map((t) => t.currency)).toEqual(["USD", "EUR"]);
+
+      // Composizione della dashboard: fallback sullo scope lifetime.
+      const scope = resolveCurrencyScope(
+        periodTotals.length > 0 ? periodTotals : lifetimeTotals,
+      );
+      const lifetimeScope = resolveCurrencyScope(lifetimeTotals);
+      expect(scope.active).toBe("USD");
+      expect(lifetimeScope.active).toBe("USD");
+
+      // Il saldo resta nella sola valuta attiva…
+      const [balance, lifetimePnl] = await Promise.all([
+        getStartingBalance({ ...scopeFilter, currency: lifetimeScope.active }),
+        getLifetimeNetPnl({ ...scopeFilter, currency: lifetimeScope.active }),
+      ]);
+      expect(balance).toBe("1000.00");
+      expect(lifetimePnl).toBe("150.00");
+      // …mentre la query SENZA vincolo di valuta sommerebbe USD+EUR: è il
+      // numero "fasullo" (3000 / 350) che non deve mai arrivare alla UI.
+      expect(await getStartingBalance(scopeFilter)).toBe("3000.00");
+      expect(await getLifetimeNetPnl(scopeFilter)).toBe("350.00");
+    } finally {
+      await db.user.deleteMany({ where: { email } });
+    }
+  });
+
   it("la domenica sera UTC (lunedì a Roma) apre la settimana del lunedì", async () => {
     const weeks = await getPeriodPnl({ userId, accountId }, ROME, "week");
     const byWeek = Object.fromEntries(
