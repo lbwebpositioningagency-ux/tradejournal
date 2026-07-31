@@ -158,12 +158,16 @@ export function ScoreRadar({ result }: { result: RadarScore | null }) {
       {/* Etichetta "Score" + numero grande + barra a gradiente */}
       <div className="flex w-full items-center gap-4">
         <div className="flex shrink-0 items-baseline gap-2">
-          <span className="text-sm text-muted-foreground">Score</span>
+          {/* Coppia etichetta/valore del design system invece di due taglie
+              ad hoc: `stat-value` (text-xl) è la misura dei numeri delle KPI
+              card, `stat-label` (text-2xs maiuscoletto grigio) la loro
+              etichetta. Il numero cala da text-3xl a text-xl ma resta
+              nettamente l'elemento dominante della riga — il salto di scala
+              sale a ~2,4× (era 1,7× su text-sm) e il peso/colore lo
+              staccano ancora di più. */}
+          <span className="stat-label">Score</span>
           <span
-            className={cn(
-              "text-3xl font-bold tabular-nums",
-              lowSample && "opacity-70",
-            )}
+            className={cn("stat-value", lowSample && "opacity-70")}
           >
             {score === null
               ? "—"
