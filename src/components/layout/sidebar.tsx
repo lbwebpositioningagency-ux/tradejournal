@@ -24,14 +24,19 @@ import {
   SheetTrigger,
 } from "@/components/ui/sheet";
 
+/* D-02 — patto voce ↔ titolo: ogni label DEVE coincidere col titolo (h1 e
+   metadata) della pagina di destinazione. Lingua della nav: italiano; i nomi
+   inglesi restanti (Dashboard, Trade View, Reports, Analytics, Macro Desk)
+   sono nomi canonici di prodotto, identici nel titolo pagina — mai ibridi
+   voce/titolo in lingue diverse. */
 const NAV_ITEMS = [
   { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
-  { href: "/day", label: "Day View", icon: CalendarDays },
+  { href: "/day", label: "Calendario", icon: CalendarDays },
   { href: "/trades", label: "Trade View", icon: Table2 },
   { href: "/reports", label: "Reports", icon: BarChart3 },
   { href: "/analytics", label: "Analytics", icon: ChartScatter },
   { href: "/macro-desk", label: "Macro Desk", icon: Globe },
-  { href: "/strategies", label: "Strategies", icon: Target },
+  { href: "/strategies", label: "Strategie", icon: Target },
   { href: "/settings", label: "Impostazioni", icon: Settings },
 ] as const;
 

@@ -56,6 +56,7 @@ export default async function AccountsPage() {
                     broker: account.broker ?? "",
                     currency: account.currency,
                     initialBalance: account.initialBalance.toString(),
+                    tradeCount: account._count.trades,
                   }}
                 />
                 <AccountRowActions

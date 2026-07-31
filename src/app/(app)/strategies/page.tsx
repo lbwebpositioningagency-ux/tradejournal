@@ -4,10 +4,11 @@ import { Target } from "lucide-react";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { Card, CardContent } from "@/components/ui/card";
+import { EmptyState } from "@/components/empty-state";
 import { StrategyFormDialog } from "./strategy-form-dialog";
 import { StrategyRowActions } from "./strategy-row-actions";
 
-export const metadata: Metadata = { title: "Strategies" };
+export const metadata: Metadata = { title: "Strategie" };
 
 export default async function StrategiesPage() {
   const session = await auth();
@@ -23,7 +24,7 @@ export default async function StrategiesPage() {
     <div className="mx-auto flex w-full max-w-3xl flex-col gap-6">
       <div className="flex items-center justify-between gap-4">
         <div>
-          <h1 className="page-title">Strategies</h1>
+          <h1 className="page-title">Strategie</h1>
           <p className="text-sm text-muted-foreground">
             I tuoi setup: collegali ai trade per analizzarne la performance
           </p>
@@ -32,12 +33,13 @@ export default async function StrategiesPage() {
       </div>
 
       {strategies.length === 0 ? (
-        <div className="flex min-h-[40vh] flex-col items-center justify-center gap-3 rounded-lg border border-dashed p-8 text-center">
-          <Target className="size-8 text-muted-foreground" />
-          <p className="text-sm text-muted-foreground">
-            Nessuna strategia ancora. Creane una e collegala ai trade dal form.
-          </p>
-        </div>
+        <EmptyState
+          icon={Target}
+          title="Nessuna strategia ancora"
+          description="Crea il tuo primo setup e collegalo ai trade dal form: le performance per strategia compaiono nei Reports."
+        >
+          <StrategyFormDialog mode="create" />
+        </EmptyState>
       ) : (
         <div className="flex flex-col gap-3">
           {strategies.map((strategy) => (

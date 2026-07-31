@@ -63,7 +63,9 @@ export async function uploadAttachmentAction(
 
   let tradeId: string | null = null;
   let dayDate: Date | null = null;
-  let noteId: string | null = null;
+  /** kind=phase: la Note contenitore si crea solo a upload VALIDO (B-07). */
+  let phaseTarget: { day: Date; phase: "PREMARKET" | "INMARKET" | "POSTMARKET" } | null =
+    null;
   /** Path da rigenerare (per kind=phase non deriva da tradeId/dayDate). */
   let revalidate: string | null = null;
   if (target.kind === "trade") {
@@ -79,36 +81,25 @@ export async function uploadAttachmentAction(
   } else {
     // FASE del journal: l'allegato si aggancia alla Note DAILY di
     // giorno+fase. Se non esiste ancora (si allega il grafico prima di
-    // scrivere il testo) la si crea vuota: è il contenitore della fase,
-    // non un testo fantasma — l'editor la mostra semplicemente vuota.
-    const noteDay = new Date(`${target.date}T00:00:00.000Z`);
-    const note = await prisma.note.upsert({
-      where: {
-        userId_dayDate_dayPhase: {
-          userId,
-          dayDate: noteDay,
-          dayPhase: target.phase,
-        },
-      },
-      update: {},
-      create: {
-        userId,
-        type: "DAILY",
-        dayDate: noteDay,
-        dayPhase: target.phase,
-        content: "",
-      },
-      select: { id: true },
-    });
-    noteId = note.id;
+    // scrivere il testo) verrà creata vuota come contenitore — ma SOLO
+    // dopo il ricontrollo dei byte, nella stessa transazione della create
+    // (B-07: prima l'upsert precedeva la validazione e un upload respinto
+    // lasciava una nota vuota orfana, con l'icona journal sul calendario).
+    phaseTarget = {
+      day: new Date(`${target.date}T00:00:00.000Z`),
+      phase: target.phase,
+    };
     revalidate = `/day/${target.date}`;
   }
 
   const existing = await prisma.attachment.count({
     where: tradeId
       ? { userId, tradeId }
-      : noteId
-        ? { userId, noteId }
+      : phaseTarget
+        ? {
+            userId,
+            note: { dayDate: phaseTarget.day, dayPhase: phaseTarget.phase },
+          }
         : { userId, dayDate },
   });
   if (existing >= MAX_ATTACHMENTS_PER_TARGET) {
@@ -124,19 +115,42 @@ export async function uploadAttachmentAction(
     return { error: checked.error.issues[0]?.message ?? "File non valido" };
   }
 
-  await prisma.attachment.create({
-    data: {
-      userId,
-      tradeId,
-      noteId,
-      dayDate,
-      fileName: parsedFile.data.fileName,
-      filePath: "db", // locator: byte nella colonna `data`
-      mimeType: parsedFile.data.mimeType,
-      size: data.byteLength,
-      data,
-    },
-  });
+  const attachmentData = {
+    userId,
+    tradeId,
+    dayDate,
+    fileName: parsedFile.data.fileName,
+    filePath: "db", // locator: byte nella colonna `data`
+    mimeType: parsedFile.data.mimeType,
+    size: data.byteLength,
+    data,
+  };
+  if (phaseTarget) {
+    // Contenitore di fase + allegato nella STESSA transazione: o esistono
+    // entrambi o nessuno dei due.
+    const { day, phase } = phaseTarget;
+    await prisma.$transaction(async (tx) => {
+      const note = await tx.note.upsert({
+        where: {
+          userId_dayDate_dayPhase: { userId, dayDate: day, dayPhase: phase },
+        },
+        update: {},
+        create: {
+          userId,
+          type: "DAILY",
+          dayDate: day,
+          dayPhase: phase,
+          content: "",
+        },
+        select: { id: true },
+      });
+      await tx.attachment.create({
+        data: { ...attachmentData, noteId: note.id },
+      });
+    });
+  } else {
+    await prisma.attachment.create({ data: { ...attachmentData, noteId: null } });
+  }
 
   const path = revalidate ?? targetPath(tradeId, dayDate);
   if (path) revalidatePath(path);

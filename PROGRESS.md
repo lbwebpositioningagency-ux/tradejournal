@@ -987,6 +987,29 @@ Rilievi C-02…C-07 dell'audit cromatico (`docs/audit/04-colori-personalizzazion
 
 **Verificato:** typecheck ✅ · lint ✅ · **1103/1103 test** ✅ (98 nel solo theme-contrast) · build ✅ · E2E dev server: swatch = token, override Macro Desk per data-pnl, `text-warning` generata, zero errori console. (Nota: servita CSS stantia dalla cache Turbopack al primo giro — risolto con `.next` pulita.)
 
+## ✅ FASE 50 «Coerenza dagli audit design/funzionale: nav allineata (D-02), skeleton Analytics (D-04), empty state (D-11/D-16), Trends chip+date (D-13/D-14), conteggio sequenza (D-19), note trade preservate (B-06), nota orfana allegati (B-07), avviso cambio valuta (B-08)» (31/07/2026)
+Rilievi di coerenza da `docs/audit/03-design.md` e `02-bug.md`, come proposti nei report.
+
+**D-02 — patto voce ↔ titolo.** Nav in italiano come da proposta del report: «Day View» → **«Calendario»** (titolo già "Calendario") e «Strategies» → **«Strategie»** (metadata + h1 della pagina allineati). I nomi inglesi restanti (Dashboard, Trade View, Reports, Analytics, Macro Desk) sono nomi canonici di prodotto IDENTICI nel titolo pagina — la regola, documentata sopra NAV_ITEMS, è che ogni label coincida col titolo della destinazione: niente ibridi voce/titolo. Il metadata "Day View" di `/day/[date]` resta: è il nome della feature (sottopagina senza voce nav, come "Report settimanale").
+
+**D-04 — `analytics/loading.tsx`**: PageHeaderSkeleton + 4 ChartCardSkeleton al posto del fallback generico a tabella del gruppo (app), che su una pagina di soli grafici produceva il flash di layout che gli skeleton della FASE 10 volevano evitare.
+
+**D-11 / D-16 — empty state a standard.** Strategies usa `EmptyState` (icona, doppio livello, e CTA: il trigger di StrategyFormDialog come children — prima l'azione mancava); il widget "Ultimi trade" passa da «Nessun trade.» secco a `EmptyState compact` come gli altri 6 widget.
+
+**D-13 — chip percentili spiegato**: `MonoChip` accetta `title` e il chip `pct 1A 78° · …` di Trends ha il tooltip che spiega notazione, finestre e trattini.
+
+**D-14 — un formato breve unico in Trends**: `shortDate` passa a gg/mm/**aaaa** (via l'anno a 2 cifre) e la riga hero della SeriesCard usa lo stesso formato della tabella comparazione ("al 18/07/2026"); il formato esteso resta solo nel copy discorsivo (card errore).
+
+**D-19 — numerosità della sequenza sempre in vista**: la nota sotto la card "Sequenza trade" della dashboard non compare più solo quando la serie è troncata — «N trade chiusi nel periodo» sempre, «Ultimi N trade del periodo» quando tronca.
+
+**B-06 — note del trade preservate al salvataggio neutro** (fix "robusto" del rilievo): `updateTradeAction` confronta il testo inviato col merge "\n\n" delle note TRADE esistenti (stesso ordine createdAt del form di edit): se coincide, le note NON vengono cancellate/ricreate — la revisione guidata non perde più struttura e date a ogni salvataggio che non tocca le note. Solo un testo modificato le sostituisce (comportamento storico del campo unico).
+
+**B-07 — niente più note orfane dagli allegati di fase**: l'upsert della Note contenitore si sposta DOPO il ricontrollo dei byte, nella stessa transazione della `attachment.create`: o esistono entrambi o nessuno. Prima un upload respinto al ricontrollo lasciava una Note DAILY vuota e l'icona journal su un giorno senza contenuto. Il conteggio del limite per fase ora passa dalla relazione `note: { dayDate, dayPhase }`.
+
+**B-08 — cambio valuta dichiarato**: nel dialog di modifica conto, selezionando una valuta diversa su un conto con trade compare l'avviso (in `text-warning`, il token della Fase 49): «i N trade esistenti verranno mostrati in X senza conversione degli importi. I totali storici cambiano etichetta, non valore.» Select controllata, conteggio trade passato dalla pagina.
+
+**Verificato:** typecheck ✅ · lint ✅ · **1103/1103 test** ✅ · build ✅ · E2E dev server: nav e titoli coincidono su tutte le voci, nota sequenza "120 trade chiusi nel periodo" visibile senza troncamento, titolo/h1 "Strategie"; dialog conto guidato in Chrome headless (`measure.mjs`): EUR→USD sul conto da 92 trade → avviso esatto col colore `--warning` computato, nessun alert prima del cambio. Zero errori console.
+
 ### ▶ Prossimi passi
 
 **Il piano premium è completo** (§1 equity simulator — ex Monte Carlo, §2 rolling metrics, §3 metriche pro).

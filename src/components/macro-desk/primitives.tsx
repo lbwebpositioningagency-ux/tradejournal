@@ -41,12 +41,16 @@ export function PanelLabel({ children }: { children: ReactNode }) {
 export function MonoChip({
   children,
   color,
+  title,
 }: {
   children: ReactNode;
   color?: string;
+  /** Spiegazione della notazione compatta (tooltip nativo). */
+  title?: string;
 }) {
   return (
     <span
+      title={title}
       className="md-mono inline-flex items-center rounded-[var(--md-r-sm)] border px-1.5 py-0.5 text-2xs leading-none"
       style={{
         color: color ?? "var(--md-text-2)",

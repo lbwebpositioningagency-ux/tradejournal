@@ -174,7 +174,24 @@ export async function updateTradeAction(
   await prisma.$transaction(async (tx) => {
     await tx.execution.deleteMany({ where: { tradeId } });
     await tx.tradeTag.deleteMany({ where: { tradeId } });
-    await tx.note.deleteMany({ where: { tradeId, type: "TRADE" } });
+
+    /* B-06 — il form ha UN campo note ma il modello ne ammette N per trade
+       (la revisione guidata ne aggiunge una seconda). Il form mostra il merge
+       "\n\n" delle note esistenti (stesso ordine createdAt di edit/page.tsx):
+       se il valore inviato coincide con quel merge, le note NON vengono
+       toccate — struttura e date sopravvivono a un salvataggio che non le
+       riguardava. Solo un testo davvero modificato le sostituisce (fuse in
+       una, com'è sempre stato per il campo unico). */
+    const currentNotes = await tx.note.findMany({
+      where: { tradeId, type: "TRADE" },
+      orderBy: { createdAt: "asc" },
+      select: { content: true },
+    });
+    const mergedNotes = currentNotes.map((note) => note.content).join("\n\n");
+    const notesUnchanged = (data.notes ?? "") === mergedNotes;
+    if (!notesUnchanged) {
+      await tx.note.deleteMany({ where: { tradeId, type: "TRADE" } });
+    }
 
     await tx.trade.update({
       where: { id: tradeId },
@@ -202,7 +219,7 @@ export async function updateTradeAction(
         rating: data.rating ?? null,
         executions: { create: executions },
         tags: { create: tagIds.map((tagId) => ({ tagId })) },
-        ...(data.notes
+        ...(data.notes && !notesUnchanged
           ? {
               notes: {
                 create: { userId, type: "TRADE" as const, content: data.notes },

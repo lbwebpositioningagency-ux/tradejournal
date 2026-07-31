@@ -67,8 +67,11 @@ function obsDateLabel(dateKey: string): string {
   }).format(date);
 }
 
+/* D-14 — UNICO formato breve per i contesti mono (tessere, tabelle, riga
+   hero): gg/mm/aaaa, anno sempre a 4 cifre. Il formato esteso (obsDateLabel)
+   resta solo nel copy discorsivo (card errore). */
 function shortDate(dateKey: string): string {
-  return `${dateKey.slice(8, 10)}/${dateKey.slice(5, 7)}/${dateKey.slice(2, 4)}`;
+  return `${dateKey.slice(8, 10)}/${dateKey.slice(5, 7)}/${dateKey.slice(0, 4)}`;
 }
 
 /** Colore del delta secondo la direzione economicamente positiva. */
@@ -490,7 +493,9 @@ function SeriesCard({
         <div className="flex flex-wrap items-center gap-1.5">
           {view.stale ? <StaleChip /> : null}
           {view.percentiles ? (
-            <MonoChip>
+            <MonoChip
+              title="Percentile storico dell'ultimo valore sulla finestra di 1, 3 e 5 anni: 78° = più alto del 78% delle osservazioni di quella finestra. «—» = storico insufficiente per la finestra."
+            >
               pct{" "}
               {view.percentiles.y1 !== null ? `1A ${view.percentiles.y1}°` : "1A —"}
               {" · "}
@@ -509,7 +514,7 @@ function SeriesCard({
         <DeltaBadge delta={view.delta} def={def} />
         {view.latestDate ? (
           <span className="md-mono text-2xs" style={{ color: "var(--md-muted)" }}>
-            al {obsDateLabel(view.latestDate)}
+            al {shortDate(view.latestDate)}
           </span>
         ) : null}
       </div>

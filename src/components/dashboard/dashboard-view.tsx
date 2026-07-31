@@ -921,11 +921,14 @@ export function DashboardView({ data }: { data: DashboardData }) {
                     suffix={sequenceSuffix}
                     masked={masked}
                   />
-                  {data.sequenceTruncated ? (
-                    <p className="stat-sub mt-1">
-                      Ultimi {data.sequence.length} trade del periodo
-                    </p>
-                  ) : null}
+                  {/* D-19 — numerosità SEMPRE in vista: senza tick sull'asse,
+                      due periodi diversi producono grafici simili con n molto
+                      diversi. La nota non è più solo per la serie troncata. */}
+                  <p className="stat-sub mt-1">
+                    {data.sequenceTruncated
+                      ? `Ultimi ${data.sequence.length} trade del periodo`
+                      : `${data.sequence.length} trade ${pluralize(data.sequence.length, "chiuso", "chiusi")} nel periodo`}
+                  </p>
                 </>
               ) : (
                 <EmptyState
@@ -1348,7 +1351,12 @@ export function DashboardView({ data }: { data: DashboardData }) {
               </CardHeader>
               <CardContent className="flex flex-col gap-2 px-4">
                 {data.recent.length === 0 ? (
-                  <p className="text-sm text-muted-foreground">Nessun trade.</p>
+                  <EmptyState
+                    compact
+                    icon={LineChartIcon}
+                    title="Nessun trade ancora"
+                    description="Gli ultimi trade inseriti o importati compaiono qui."
+                  />
                 ) : (
                   data.recent.map((trade) => (
                     <Link

@@ -35,6 +35,8 @@ type AccountData = {
   broker: string;
   currency: string;
   initialBalance: string;
+  /** Per l'avviso cambio valuta (B-08): i trade non vengono convertiti. */
+  tradeCount: number;
 };
 
 type Props =
@@ -44,6 +46,13 @@ type Props =
 export function AccountFormDialog({ mode, account }: Props) {
   const [open, setOpen] = useState(false);
   const [balance, setBalance] = useState(account?.initialBalance ?? "");
+  const [currency, setCurrency] = useState(account?.currency ?? "USD");
+  /* B-08 — cambiare valuta a un conto con storico rietichetta TUTTI i P&L
+     esistenti senza conversione: va detto PRIMA del salvataggio. */
+  const currencyChanged =
+    mode === "edit" &&
+    account.tradeCount > 0 &&
+    currency !== account.currency;
 
   const action =
     mode === "edit"
@@ -107,14 +116,14 @@ export function AccountFormDialog({ mode, account }: Props) {
           <div className="grid gap-4 sm:grid-cols-2">
             <div className="grid gap-2">
               <Label htmlFor="account-currency">Valuta</Label>
-              <Select name="currency" defaultValue={account?.currency ?? "USD"}>
+              <Select name="currency" value={currency} onValueChange={setCurrency}>
                 <SelectTrigger id="account-currency" className="w-full">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  {CURRENCIES.map((currency) => (
-                    <SelectItem key={currency} value={currency}>
-                      {currency}
+                  {CURRENCIES.map((code) => (
+                    <SelectItem key={code} value={code}>
+                      {code}
                     </SelectItem>
                   ))}
                 </SelectContent>
@@ -132,6 +141,13 @@ export function AccountFormDialog({ mode, account }: Props) {
               />
             </div>
           </div>
+          {currencyChanged ? (
+            <p role="alert" className="text-sm text-warning">
+              Attenzione: {account.tradeCount === 1 ? "il trade esistente verrà mostrato" : `i ${account.tradeCount} trade esistenti verranno mostrati`}{" "}
+              in {currency} senza conversione degli importi. I totali storici
+              cambiano etichetta, non valore.
+            </p>
+          ) : null}
           {state?.error ? (
             <p role="alert" className="text-sm text-destructive">
               {state.error}
