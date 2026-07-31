@@ -16,9 +16,9 @@ import { cn } from "@/lib/utils";
  * trade non deve sembrare netto quanto uno su centinaia.
  */
 
-const CX = 130;
-const CY = 110;
-const RADIUS = 78;
+const CX = 160;
+const CY = 104;
+const RADIUS = 70;
 /** Anelli della griglia esagonale, come frazioni del raggio (25/50/75/100). */
 const GRID_LEVELS = [0.25, 0.5, 0.75, 1];
 
@@ -50,7 +50,7 @@ export function ScoreRadar({ result }: { result: RadarScore | null }) {
   return (
     <div className="flex w-full flex-col items-center gap-3">
       <svg
-        viewBox="0 0 260 210"
+        viewBox="0 0 320 200"
         className="w-full max-w-72"
         role="img"
         aria-label={
