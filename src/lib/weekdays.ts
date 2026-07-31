@@ -4,22 +4,34 @@ import type { WeekdayBreakdownRow } from "@/lib/queries/reports";
  * Performance per giorno della settimana in dashboard: stessa forma dei
  * punti-sessione (src/lib/sessions.ts), alimentata dal breakdown ISO
  * `getWeekdayBreakdown` già usato dai Reports (giorno di APERTURA nel fuso
- * utente). Lun-ven sono sempre presenti (zeri dove mancano); sabato e
- * domenica compaiono SOLO se contengono trade nello scope attivo — il
- * weekend vuoto non merita due righe fisse, ma i trade weekend esistenti
- * (es. crypto, o il seed demo) non vengono nascosti.
+ * utente).
+ *
+ * SEMPRE E SOLO LUN-VEN, cinque righe fisse con gli zeri dove mancano.
+ * Prima sabato e domenica comparivano se contenevano trade: decisione
+ * provvisoria, ora chiusa in senso opposto. Il weekend è escluso ANCHE
+ * quando lo scope attivo ha trade weekend (oggi succede sul conto demo
+ * SIM1, 7 trade di sabato nel seed): quei trade continuano a contare in
+ * tutte le altre metriche del conto — P&L, win rate, equity, calendario —
+ * semplicemente non hanno una riga qui. La tabella misura la settimana
+ * operativa, e cinque righe stabili si confrontano fra conti e periodi
+ * mentre una tabella che cambia numero di righe no.
  */
 
-/** ISO: 1 = lunedì … 7 = domenica. */
+/**
+ * ISO: 1 = lunedì … 5 = venerdì. Sabato (6) e domenica (7) non hanno
+ * un'etichetta perché non sono rappresentabili in questo widget: chi
+ * aggiunge una chiave qui sta cambiando la decisione di cui sopra.
+ */
 export const WEEKDAY_LABELS: Record<number, string> = {
   1: "Lunedì",
   2: "Martedì",
   3: "Mercoledì",
   4: "Giovedì",
   5: "Venerdì",
-  6: "Sabato",
-  7: "Domenica",
 };
+
+/** Giorni mostrati, in ordine ISO: la settimana operativa e basta. */
+const WEEKDAYS = [1, 2, 3, 4, 5];
 
 export interface WeekdayPoint {
   weekday: number;
@@ -32,11 +44,11 @@ export interface WeekdayPoint {
 }
 
 export function fillWeekdaySeries(rows: WeekdayBreakdownRow[]): WeekdayPoint[] {
+  // Le righe di sabato/domenica in ingresso vengono semplicemente ignorate:
+  // la query resta quella dei Reports (bucket ISO 1-7), è la vista che si
+  // ferma al venerdì.
   const byDay = new Map(rows.map((r) => [r.weekday, r]));
-  const days = [1, 2, 3, 4, 5, 6, 7].filter(
-    (d) => d <= 5 || (byDay.get(d)?.total ?? 0) > 0,
-  );
-  return days.map((weekday) => {
+  return WEEKDAYS.map((weekday) => {
     const row = byDay.get(weekday);
     return {
       weekday,
@@ -54,7 +66,7 @@ export function fillWeekdaySeries(rows: WeekdayBreakdownRow[]): WeekdayPoint[] {
 export const weekdaysInfo = {
   label: "Performance per giorno della settimana",
   description:
-    "Trade, win rate, R medio e profitto per giorno della settimana, classificati sul giorno di APERTURA nel tuo fuso orario. Sabato e domenica compaiono solo se contengono trade.",
+    "Trade, win rate, R medio e profitto per giorno della settimana, classificati sul giorno di APERTURA nel tuo fuso orario. Solo lunedì-venerdì: eventuali trade del weekend restano nelle altre metriche del conto ma non compaiono in questa tabella.",
   formula:
-    "Bucket ISO sul giorno di apertura (lun-ven; weekend solo se operato), stessi aggregati del report per sessione",
+    "Bucket ISO sul giorno di apertura, lun-ven (weekend escluso), stessi aggregati del report per sessione",
 };

@@ -1258,7 +1258,8 @@ export function DashboardView({ data }: { data: DashboardData }) {
 
       {/* Performance per giorno della settimana: stessa tabella con barre
           delle sessioni, bucket ISO sul giorno di apertura (fuso utente).
-          Weekend solo se operato (vedi lib/weekdays.ts). */}
+          SEMPRE e SOLO lun-ven, anche con trade nel weekend (v.
+          lib/weekdays.ts). */}
       {show("weekdays") && !hideAnalytics ? (
         <Card className={cn("max-lg:order-10", analyticsCls)}>
           <CardHeader>

@@ -40,14 +40,35 @@ describe("fillWeekdaySeries", () => {
     expect(series.some((p) => p.weekday >= 6)).toBe(false);
   });
 
-  it("sabato/domenica compaiono SOLO se contengono trade", () => {
-    const series = fillWeekdaySeries([row(6, { total: 7 })]);
-    expect(series.map((p) => p.weekday)).toEqual([1, 2, 3, 4, 5, 6]);
-    expect(series.at(-1)?.label).toBe(WEEKDAY_LABELS[6]);
-    expect(series.at(-1)?.total).toBe(7);
+  it("sabato/domenica esclusi ANCHE con trade nello scope (caso SIM1)", () => {
+    // Il conto demo SIM1 ha 7 trade di sabato nel seed: contano in tutte le
+    // altre metriche del conto, ma qui non devono produrre una riga.
+    const conSabato = fillWeekdaySeries([row(6, { total: 7 })]);
+    expect(conSabato.map((p) => p.weekday)).toEqual([1, 2, 3, 4, 5]);
+    expect(conSabato).toHaveLength(5);
+    expect(conSabato.some((p) => /Sabato|Domenica/.test(p.label))).toBe(false);
 
     const conDomenica = fillWeekdaySeries([row(7, { total: 1 })]);
-    expect(conDomenica.map((p) => p.weekday)).toEqual([1, 2, 3, 4, 5, 7]);
+    expect(conDomenica.map((p) => p.weekday)).toEqual([1, 2, 3, 4, 5]);
+
+    // Nemmeno mescolati ai feriali, e il P&L del weekend non finisce
+    // spalmato su un altro giorno: i feriali restano quelli che sono.
+    const misto = fillWeekdaySeries([
+      row(3, { total: 4, netPnl: "220.00" }),
+      row(6, { total: 7, netPnl: "999.00" }),
+      row(7, { total: 2, netPnl: "-40.00" }),
+    ]);
+    expect(misto).toHaveLength(5);
+    expect(misto.map((p) => p.netPnl)).toEqual(["0", "0", "220.00", "0", "0"]);
+    expect(misto.reduce((n, p) => n + p.total, 0)).toBe(4);
+  });
+
+  it("nessuna etichetta per sabato e domenica", () => {
+    // Se qualcuno rimette le chiavi 6/7 sta cambiando la decisione, non
+    // sistemando un dettaglio: il test lo dichiara.
+    expect(WEEKDAY_LABELS[6]).toBeUndefined();
+    expect(WEEKDAY_LABELS[7]).toBeUndefined();
+    expect(Object.keys(WEEKDAY_LABELS)).toEqual(["1", "2", "3", "4", "5"]);
   });
 
   it("zero righe: settimana operativa vuota, mai il weekend", () => {
