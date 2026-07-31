@@ -1,6 +1,6 @@
 import Decimal from "decimal.js";
 import type { TradeInput } from "@/lib/validations/trade";
-import { ASSET_CLASSES } from "@/lib/validations/trade";
+import { ASSET_CLASSES } from "@/lib/constants";
 import { isValidCalendarDate } from "@/lib/dates";
 import { suggestPointValue } from "@/lib/instruments";
 

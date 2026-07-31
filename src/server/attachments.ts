@@ -7,8 +7,8 @@ import { prisma } from "@/lib/db";
 import {
   attachmentFileSchema,
   attachmentTargetSchema,
-  MAX_ATTACHMENTS_PER_TARGET,
 } from "@/lib/validations/attachment";
+import { MAX_ATTACHMENTS_PER_TARGET } from "@/lib/constants";
 
 export type AttachmentActionResult = { error?: string; success?: boolean };
 

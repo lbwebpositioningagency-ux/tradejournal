@@ -1010,6 +1010,35 @@ Rilievi di coerenza da `docs/audit/03-design.md` e `02-bug.md`, come proposti ne
 
 **Verificato:** typecheck ✅ · lint ✅ · **1103/1103 test** ✅ · build ✅ · E2E dev server: nav e titoli coincidono su tutte le voci, nota sequenza "120 trade chiusi nel periodo" visibile senza troncamento, titolo/h1 "Strategie"; dialog conto guidato in Chrome headless (`measure.mjs`): EUR→USD sul conto da 92 trade → avviso esatto col colore `--warning` computato, nessun alert prima del cambio. Zero errori console.
 
+## ✅ FASE 51 «Performance: zod fuori dal bundle client (P-02), calendario on-demand (P-03), indice closedAt (P-09), watcher MT5 con backoff (P-10), sync MT5 dichiarato locale (S-01)» (31/07/2026)
+Rilievi dall'audit performance (`docs/audit/05-performance.md`) + sospetto S-01 del funzionale.
+
+**P-02 — costanti condivise fuori dai moduli Zod.** `ASSET_CLASSES` (+ tipo `AssetClass`) e i vincoli allegati (`MAX_ATTACHMENT_BYTES`, `MAX_ATTACHMENTS_PER_TARGET`, `ALLOWED_ATTACHMENT_TYPES`) vivono in `lib/constants.ts` (la casa delle costanti da AGENTS.md); gli schemi li importano da lì. `lib/dashboard.ts` è ora SENZA zod (id, etichette e tipi plain `MobileLayout`/`DashboardLayout`); schemi e `parseDashboardLayout` sono nel nuovo `lib/validations/dashboard.ts` (solo server: page.tsx e server action — il client riceve il layout già validato). I client importano le costanti da constants e i tipi degli schemi con `import type` (spariscono a build): zod resta lato client SOLO su `/import`, dove il wizard valida davvero le righe.
+
+**P-03 — calendario del filtro periodo on-demand.** Il contenuto del popover "Intervallo personalizzato" è estratto in `period-range-calendar.tsx` — l'unico modulo che importa react-day-picker come valore — caricato con `next/dynamic` (`ssr:false`, placeholder "Caricamento calendario…"): il download parte alla prima apertura del popover (contenuto Radix montato solo con open=true). Verificato su build di produzione in Chrome headless: **1 solo chunk nuovo richiesto al click**, calendario a 2 mesi renderizzato e funzionante.
+
+**P-09 — indice `[tradingAccountId, closedAt]`** su Trade (migrazione additiva `20260731170640_trade_closed_at_index`, una CREATE INDEX): copre i range e gli ORDER BY su closedAt di `whereClosedTrades`/`getRecentTradeOutcomes`/`getTradeSequence`. Oggi ininfluente (~1k righe), evita i seq scan ripetuti a decine di migliaia di trade. Applicata in locale; su Vercel arriva col `prisma migrate deploy` già nel build.
+
+**P-10 + S-01 — watcher MT5.** Il loop passa da `setInterval` a catena di `setTimeout` (re-entrancy impossibile per costruzione): dopo un tick con **zero sorgenti** il prossimo giro aspetta 120s invece di 10s (−~8.000 query/giorno per istanza a vuoto), e torna a 10s appena una sorgente compare. `MT5_WATCHER_DISABLED=1` documentata in `.env.example` come kill-switch da impostare su Vercel (il watcher legge file locali dell'EA, irraggiungibili dal serverless). La card Impostazioni → Sync MT5 ora dichiara che il sync richiede l'app **locale o self-hosted** sulla macchina di MetaTrader (S-01) — verificato a schermo su build di produzione.
+
+**Bundle misurati col metodo del report** (chunk dei `page_client-reference-manifest.js` + gzip -9, chunk condivisi inclusi; baseline = build della Fase 50, identica ai numeri dell'audit):
+
+| Route | Prima (gz) | Dopo (gz) | Δ |
+|---|---|---|---|
+| /dashboard | 330 kB | **246 kB** | −84 |
+| /trades | 307 kB | **222 kB** | −85 |
+| /day/[date] | 292 kB | **216 kB** | −76 |
+| /analytics | 274 kB | **253 kB** | −21 |
+| /reports | 241 kB | **220 kB** | −21 |
+| /trades/[id] | 173 kB | **97 kB** | −76 |
+| /trades/new · /edit | 172 kB | **109 kB** | −63 |
+| /import | 184 kB | 184 kB | 0 (zod legittimo nel wizard) |
+| /login (baseline) | 40 kB | 40 kB | 0 |
+
+Il guadagno supera la stima dell'audit (−15–20 zod, −23 calendario): togliere zod dal grafo client ha permesso a Turbopack di rispezzare il chunk condiviso da 63 kB gz, che è uscito per intero dalle route che lo importavano solo per le costanti (es. /trades/[id]: −76).
+
+**Verificato:** typecheck ✅ · lint ✅ · **1103/1103 test** ✅ · build ✅ · migrazione applicata al DB locale · E2E su build di produzione (Chrome headless): calendario on-demand, nota MT5 in pagina, log watcher «polling 10s · 120s senza sorgenti».
+
 ### ▶ Prossimi passi
 
 **Il piano premium è completo** (§1 equity simulator — ex Monte Carlo, §2 rolling metrics, §3 metriche pro).

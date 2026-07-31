@@ -1,4 +1,9 @@
-import { z } from "zod";
+/*
+ * Id, etichette e TIPI della dashboard — modulo SENZA zod (P-02): è importato
+ * dal client component dashboard-view, e lo schema del layout qui dentro
+ * trascinava zod nel chunk condiviso di 11 route. Gli schemi e il parse
+ * vivono in lib/validations/dashboard.ts (solo server).
+ */
 
 /** Modalità di visualizzazione dei valori nella dashboard. */
 export const VIEW_MODES = ["dollars", "percent", "r", "privacy"] as const;
@@ -75,41 +80,18 @@ export const WIDGET_LABELS: Record<WidgetId, string> = {
  * F26 — stato dei toggle del layout MOBILE (metriche secondarie e analytics
  * collassate sotto lg), persistito con chiave separata: il desktop non li usa.
  */
-export const mobileLayoutSchema = z.object({
-  showAllMetrics: z.boolean().default(false),
-  showAnalytics: z.boolean().default(false),
-});
-export type MobileLayout = z.infer<typeof mobileLayoutSchema>;
+export interface MobileLayout {
+  showAllMetrics: boolean;
+  showAnalytics: boolean;
+}
 
-const MOBILE_DEFAULTS: MobileLayout = {
+export const MOBILE_LAYOUT_DEFAULTS: MobileLayout = {
   showAllMetrics: false,
   showAnalytics: false,
 };
 
-/**
- * Contenuto di `User.dashboardLayout` (Json).
- *
- * `hidden` accetta stringhe qualsiasi e FILTRA le sconosciute invece di
- * rifiutare il documento (Fase 26): quando un widget viene rimosso dal
- * codice (Monte Carlo → solo Analytics), i layout salvati che lo
- * nascondevano devono restare validi — con l'enum stretto il parse intero
- * falliva e l'utente perdeva TUTTE le sue preferenze, non solo quella
- * ormai irrilevante.
- */
-export const dashboardLayoutSchema = z.object({
-  hidden: z
-    .array(z.string())
-    .default([])
-    .transform((ids) =>
-      ids.filter((id): id is WidgetId =>
-        (WIDGET_IDS as readonly string[]).includes(id),
-      ),
-    ),
-  mobile: mobileLayoutSchema.default(MOBILE_DEFAULTS),
-});
-export type DashboardLayout = z.infer<typeof dashboardLayoutSchema>;
-
-export function parseDashboardLayout(raw: unknown): DashboardLayout {
-  const parsed = dashboardLayoutSchema.safeParse(raw);
-  return parsed.success ? parsed.data : { hidden: [], mobile: MOBILE_DEFAULTS };
+/** Contenuto di `User.dashboardLayout` (Json), già validato dal server. */
+export interface DashboardLayout {
+  hidden: WidgetId[];
+  mobile: MobileLayout;
 }

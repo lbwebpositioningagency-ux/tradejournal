@@ -1,24 +1,15 @@
 import { z } from "zod";
 import { isValidDateKey } from "@/lib/calendar";
+import {
+  ALLOWED_ATTACHMENT_TYPES,
+  MAX_ATTACHMENT_BYTES,
+} from "@/lib/constants";
 
-/**
- * Vincoli upload allegati (F16b).
- *
- * I byte vivono in Postgres (vedi schema, campo `data`): il limite per file
- * resta prudente sia per il body delle server action (bodySizeLimit in
- * next.config.ts) sia per il limite request di Vercel (~4,5 MB).
+/*
+ * Vincoli upload allegati (F16b): i valori vivono in lib/constants.ts (P-02,
+ * i client li usano senza trascinare zod); qui restano solo gli schemi.
+ * I byte vivono in Postgres (vedi schema, campo `data`).
  */
-export const MAX_ATTACHMENT_BYTES = 4 * 1024 * 1024; // 4 MB
-export const MAX_ATTACHMENTS_PER_TARGET = 12;
-
-/** MIME ammessi: screenshot e documenti di analisi, niente eseguibili. */
-export const ALLOWED_ATTACHMENT_TYPES: Record<string, string> = {
-  "image/png": "png",
-  "image/jpeg": "jpg",
-  "image/webp": "webp",
-  "image/gif": "gif",
-  "application/pdf": "pdf",
-};
 
 /** Metadati del file (il contenuto arriva via FormData, validato a parte). */
 export const attachmentFileSchema = z.object({

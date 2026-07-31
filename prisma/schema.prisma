@@ -191,6 +191,11 @@ model Trade {
 
   @@unique([tradingAccountId, brokerTicketId])
   @@index([tradingAccountId, openedAt])
+  // P-09: il 90% delle query analitiche filtra il range e ordina su closedAt
+  // (whereClosedTrades, getRecentTradeOutcomes, getTradeSequence) — copre i
+  // range e gli ORDER BY per conto; oggi ininfluente (~1k righe), evita i
+  // seq scan ripetuti quando i trade saranno decine di migliaia.
+  @@index([tradingAccountId, closedAt])
   @@index([tradingAccountId, symbol])
   @@index([tradingAccountId, status])
   @@index([strategyId])

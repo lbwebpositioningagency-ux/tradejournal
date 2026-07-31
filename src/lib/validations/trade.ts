@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { hasValidCalendarDate } from "@/lib/dates";
+import { ASSET_CLASSES } from "@/lib/constants";
 
 /**
  * Gli importi arrivano dai form come stringhe e RESTANO stringhe fino a
@@ -20,14 +21,6 @@ const qtyString = decimalString(8, "Quantità non valida (max 8 decimali)");
 const moneyString = decimalString(2, "Importo non valido (max 2 decimali)");
 
 const DATETIME_LOCAL_RE = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}(:\d{2})?$/;
-
-export const ASSET_CLASSES = [
-  "STOCK",
-  "FUTURES",
-  "FOREX",
-  "CRYPTO",
-  "OPTION",
-] as const;
 
 export const executionInputSchema = z.object({
   side: z.enum(["BUY", "SELL"]),

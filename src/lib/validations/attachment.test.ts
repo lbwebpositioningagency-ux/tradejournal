@@ -2,8 +2,8 @@ import { describe, expect, it } from "vitest";
 import {
   attachmentFileSchema,
   attachmentTargetSchema,
-  MAX_ATTACHMENT_BYTES,
 } from "./attachment";
+import { MAX_ATTACHMENT_BYTES } from "@/lib/constants";
 
 describe("attachmentFileSchema", () => {
   it("accetta un PNG entro il limite", () => {

@@ -5,7 +5,7 @@ import { Plug, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { deleteMt5SourceAction, saveMt5SourceAction } from "@/server/mt5";
 import type { Mt5LastResult } from "@/lib/validations/mt5";
-import { ASSET_CLASSES } from "@/lib/validations/trade";
+import { ASSET_CLASSES } from "@/lib/constants";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -112,6 +112,14 @@ export function Mt5SyncSettings({
           L&apos;Expert Advisor (cartella <code className="font-mono text-xs">mt5/</code> del
           progetto) scrive un file per conto; l&apos;app lo osserva e importa da sola
           i trade chiusi nuovi. Ticket già importati non vengono mai duplicati.
+          {/* S-01: il watcher legge percorsi del filesystem locale — dal
+              cloud quei file non esistono e il sync non può funzionare. */}
+          <span className="mt-1 block">
+            Il sync richiede l&apos;app in esecuzione <strong>locale o self-hosted</strong>{" "}
+            sulla stessa macchina di MetaTrader: sull&apos;istanza cloud i file
+            dell&apos;EA non sono raggiungibili e le sorgenti restano su &laquo;file
+            non trovato&raquo;.
+          </span>
         </CardDescription>
       </CardHeader>
       <CardContent className="flex flex-col gap-5">

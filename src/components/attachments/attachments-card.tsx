@@ -11,7 +11,7 @@ import {
 import {
   ALLOWED_ATTACHMENT_TYPES,
   MAX_ATTACHMENT_BYTES,
-} from "@/lib/validations/attachment";
+} from "@/lib/constants";
 import { Button } from "@/components/ui/button";
 import {
   Card,

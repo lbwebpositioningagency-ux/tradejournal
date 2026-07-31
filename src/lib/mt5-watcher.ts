@@ -17,6 +17,16 @@ import { mt5RecordToImportRow, parseMt5File } from "@/lib/mt5-import";
  */
 
 const POLL_INTERVAL_MS = 10_000;
+/**
+ * P-10 — con ZERO sorgenti configurate (il caso tipico in produzione Vercel,
+ * dove peraltro il sync non può funzionare: vedi nota sotto) il polling a
+ * 10s erano ~8.600 query/giorno per istanza senza alcun lavoro possibile:
+ * a vuoto si rallenta, e si torna a 10s appena una sorgente compare.
+ * In produzione serverless conviene comunque spegnere tutto con
+ * MT5_WATCHER_DISABLED=1 (documentata in .env.example): il watcher legge
+ * file locali della macchina dell'utente, irraggiungibili da Vercel.
+ */
+const IDLE_INTERVAL_MS = 120_000;
 /** Esiti/righe salvati in lastResult: troncati per non gonfiare il Json. */
 const MAX_REPORTED_ITEMS = 20;
 
@@ -58,20 +68,28 @@ export function startMt5Watcher(): void {
   if (state.running) return;
   state.running = true;
 
-  console.log(`[mt5-sync] watcher attivo (polling ${POLL_INTERVAL_MS / 1000}s)`);
-  setInterval(() => {
-    // Re-entrancy guard: se il tick precedente è ancora in corso, salta.
-    if (state.ticking) return;
+  console.log(
+    `[mt5-sync] watcher attivo (polling ${POLL_INTERVAL_MS / 1000}s · ${IDLE_INTERVAL_MS / 1000}s senza sorgenti)`,
+  );
+  // Catena di setTimeout invece di setInterval: il prossimo giro parte solo
+  // a tick concluso (niente re-entrancy possibile) e con l'intervallo scelto
+  // dall'esito — lento a zero sorgenti, pieno appena ne compare una.
+  const run = () => {
     state.ticking = true;
     void tick(state)
+      .then((sourceCount) => {
+        setTimeout(run, sourceCount === 0 ? IDLE_INTERVAL_MS : POLL_INTERVAL_MS);
+      })
       .catch((error) => {
         // Mai far morire il loop: DB giù o altro → si riprova al prossimo giro.
         logOnce(state, "__tick__", `tick fallito: ${describe(error)}`);
+        setTimeout(run, POLL_INTERVAL_MS);
       })
       .finally(() => {
         state.ticking = false;
       });
-  }, POLL_INTERVAL_MS);
+  };
+  setTimeout(run, POLL_INTERVAL_MS);
 }
 
 function describe(error: unknown): string {
@@ -85,7 +103,8 @@ function logOnce(state: WatcherState, key: string, message: string): void {
   console.warn(`[mt5-sync] ${message}`);
 }
 
-async function tick(state: WatcherState): Promise<void> {
+/** @returns il numero di sorgenti abilitate (per il backoff a zero). */
+async function tick(state: WatcherState): Promise<number> {
   const sources = await prisma.mt5SyncSource.findMany({
     where: { enabled: true },
     include: { user: { select: { timezone: true } } },
@@ -98,6 +117,7 @@ async function tick(state: WatcherState): Promise<void> {
       logOnce(state, source.id, `sorgente ${source.filePath}: ${describe(error)}`);
     }
   }
+  return sources.length;
 }
 
 type SourceWithUser = Awaited<

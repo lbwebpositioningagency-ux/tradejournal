@@ -1,6 +1,6 @@
 import { z } from "zod";
 import { CSV_DATE_FORMATS, IMPORT_TARGET_FIELDS } from "@/lib/csv-import";
-import { ASSET_CLASSES } from "@/lib/validations/trade";
+import { ASSET_CLASSES } from "@/lib/constants";
 
 /** Contenuto del campo Json `ImportProfile.mapping`. */
 export const importProfileMappingSchema = z.object({

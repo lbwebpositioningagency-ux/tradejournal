@@ -13,6 +13,39 @@ export const DEMO_ACCOUNT_NAME = "SIM1";
 export const DEMO_READONLY_MESSAGE =
   "Il conto demo SIM1 è in sola lettura: crea un tuo conto per inserire trade.";
 
+/**
+ * Asset class dei trade (P-02): vive qui — non nel modulo Zod — perché i
+ * client component ne usano solo il valore per le Select; importarla da
+ * validations/trade trascinava zod nel bundle client di 11 route. Lo schema
+ * (`z.enum(ASSET_CLASSES)`) la importa da qui.
+ */
+export const ASSET_CLASSES = [
+  "STOCK",
+  "FUTURES",
+  "FOREX",
+  "CRYPTO",
+  "OPTION",
+] as const;
+export type AssetClass = (typeof ASSET_CLASSES)[number];
+
+/**
+ * Vincoli upload allegati (F16b) — stessi motivi di ASSET_CLASSES: il client
+ * li usa per accept/validazione preliminare, lo schema Zod li importa da qui.
+ * Il limite per file resta prudente sia per il body delle server action
+ * (bodySizeLimit in next.config.ts) sia per il limite request di Vercel.
+ */
+export const MAX_ATTACHMENT_BYTES = 4 * 1024 * 1024; // 4 MB
+export const MAX_ATTACHMENTS_PER_TARGET = 12;
+
+/** MIME ammessi: screenshot e documenti di analisi, niente eseguibili. */
+export const ALLOWED_ATTACHMENT_TYPES: Record<string, string> = {
+  "image/png": "png",
+  "image/jpeg": "jpg",
+  "image/webp": "webp",
+  "image/gif": "gif",
+  "application/pdf": "pdf",
+};
+
 /** Cookie del colore di accento (FASE 10): data-accent su <html>. */
 export const ACCENT_COOKIE = "tj-accent";
 

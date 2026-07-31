@@ -8,7 +8,7 @@ import {
   NO_STRATEGY_FILTER,
   type TradeFilters,
 } from "@/lib/trade-filters";
-import { ASSET_CLASSES } from "@/lib/validations/trade";
+import { ASSET_CLASSES } from "@/lib/constants";
 import { PeriodFilter } from "@/components/filters/period-filter";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";

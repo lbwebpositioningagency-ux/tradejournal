@@ -1,9 +1,9 @@
 "use client";
 
 import { useState } from "react";
+import dynamic from "next/dynamic";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { CalendarRange } from "lucide-react";
-import { it } from "react-day-picker/locale";
 import type { DateRange } from "react-day-picker";
 import {
   PERIOD_LABELS,
@@ -11,7 +11,6 @@ import {
   type PeriodKey,
 } from "@/lib/period";
 import { Button } from "@/components/ui/button";
-import { Calendar } from "@/components/ui/calendar";
 import {
   Popover,
   PopoverContent,
@@ -30,7 +29,23 @@ import {
  * intervallo personalizzato da calendario. Scrive `period` (+ `from`/`to`
  * per il custom) nei searchParams, preservando gli altri filtri e
  * azzerando la paginazione.
+ *
+ * P-03 — il calendario (react-day-picker + date-fns, 23 kB gz) è caricato
+ * on-demand alla prima apertura del popover: il contenuto del popover monta
+ * solo con open=true, quindi il download parte al click sul trigger.
  */
+const PeriodRangeCalendar = dynamic(
+  () =>
+    import("./period-range-calendar").then((m) => m.PeriodRangeCalendar),
+  {
+    ssr: false,
+    loading: () => (
+      <div className="flex h-72 w-72 items-center justify-center text-xs text-muted-foreground">
+        Caricamento calendario…
+      </div>
+    ),
+  },
+);
 
 /** Chiave giorno locale del calendario (il picker sceglie giorni, non istanti). */
 function toDateKey(date: Date): string {
@@ -126,15 +141,7 @@ export function PeriodFilter({
           </Button>
         </PopoverTrigger>
         <PopoverContent align="end" className="w-auto p-2">
-          <Calendar
-            mode="range"
-            locale={it}
-            numberOfMonths={2}
-            defaultMonth={range?.from ?? new Date()}
-            selected={range}
-            onSelect={setRange}
-            autoFocus
-          />
+          <PeriodRangeCalendar range={range} onSelect={setRange} />
           <div className="flex items-center justify-between gap-2 border-t pt-2">
             <p className="text-xs text-muted-foreground">
               {range?.from

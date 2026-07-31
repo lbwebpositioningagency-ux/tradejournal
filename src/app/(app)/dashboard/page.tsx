@@ -56,7 +56,7 @@ import { fillRDistribution } from "@/lib/reports";
 import { resolveCurrencyScope } from "@/lib/currency-scope";
 import { getSessionBreakdown } from "@/lib/queries/reports";
 import { fillSessionSeries } from "@/lib/sessions";
-import { parseDashboardLayout } from "@/lib/dashboard";
+import { parseDashboardLayout } from "@/lib/validations/dashboard";
 import {
   DashboardView,
   type DashboardData,

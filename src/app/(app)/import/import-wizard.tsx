@@ -26,7 +26,8 @@ import {
   importProfileMappingSchema,
   type ImportProfileMapping,
 } from "@/lib/validations/import";
-import { ASSET_CLASSES, tradeInputSchema, type TradeInput } from "@/lib/validations/trade";
+import { tradeInputSchema, type TradeInput } from "@/lib/validations/trade";
+import { ASSET_CLASSES } from "@/lib/constants";
 import {
   checkImportDuplicatesAction,
   deleteImportProfileAction,

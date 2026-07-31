@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { ASSET_CLASSES } from "@/lib/validations/trade";
+import { ASSET_CLASSES } from "@/lib/constants";
 
 /** Sorgente di sync MT5: un file NDJSON per conto di trading. */
 export const mt5SourceSchema = z.object({

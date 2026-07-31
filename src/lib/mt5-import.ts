@@ -1,7 +1,7 @@
 import { z } from "zod";
 import Decimal from "decimal.js";
 import { isValidCalendarDate, utcToZonedInput } from "@/lib/dates";
-import type { ASSET_CLASSES } from "@/lib/validations/trade";
+import type { ASSET_CLASSES } from "@/lib/constants";
 import type { ImportRow } from "@/lib/import-core";
 
 /**

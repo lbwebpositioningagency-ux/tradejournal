@@ -1,4 +1,4 @@
-import { ASSET_CLASSES } from "@/lib/validations/trade";
+import { ASSET_CLASSES } from "@/lib/constants";
 
 /**
  * Filtri della Trade View (FASE 7). Vivono nei searchParams (condivisibili,

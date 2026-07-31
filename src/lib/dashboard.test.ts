@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { parseDashboardLayout, WIDGET_IDS } from "./dashboard";
+import { WIDGET_IDS } from "./dashboard";
+import { parseDashboardLayout } from "./validations/dashboard";
 
 /**
  * Fase 26 — il parse del layout salvato deve sopravvivere alla rimozione di
