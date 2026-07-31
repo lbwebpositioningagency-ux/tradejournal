@@ -813,6 +813,13 @@ Due aggiunte all'equity curve simulator della Fase 34: la tabella di statistiche
 
 **Verificato:** typecheck ✅ · lint ✅ · **874/874 test** ✅ (unit sessioni riscritti sulle nuove fasce + 2 di integrazione SQL) · build ✅ · verifica visiva su build di produzione con SIM1: tabella sessioni coi nuovi conteggi, riquadri con «Median» e tooltip aperto in foto, intestazione tabella percentili con info.
 
+## ✅ FASE 36 «Testo esplicito del tooltip Scenari per percentile» (31/07/2026)
+Solo testo, zero calcoli toccati (i percentili erano già corretti: i valori crescono in modo coerente dal 5° al 95°). La spiegazione delle fasce «buone» diceva che «Favorevole (75%)» e «Migliore (95%)» sono «la lettura speculare, dal lato dei risultati migliori»: formula vaga, leggibile a rovescio («il 75% dei casi fa meglio», che è falso). Ora ogni fascia è esplicitata con la stessa struttura delle altre — 5%: il 95% fa meglio · 25%: il 75% fa meglio · **75%: il 75% fa PEGGIO, solo il 25% fa meglio** · 95%: il 95% fa peggio, solo il 5% fa meglio · Median: 50/50.
+
+**Audit dell'ambiguità altrove:** `grep` su tutto `src/` — la stringa esisteva in un punto solo (`percentileTableInfo` in `equity-simulator.ts`), nessuna didascalia o tooltip duplicava la formula. I chip «1A/3A/5A pct» del Macro Desk sono un'altra feature (percentile rank di una serie storica, non scenari simulati) e non sono stati toccati.
+
+**Verificato:** typecheck ✅ · lint ✅ · **874/874 test** ✅ (nessun test nuovo: è una stringa) · build ✅ · tooltip aperto e letto NEL DOM sulla build di produzione con SIM1 — il testo reso coincide carattere per carattere con quello richiesto.
+
 ### ▶ Prossimi passi
 
 **Il piano premium è completo** (§1 equity simulator — ex Monte Carlo, §2 rolling metrics, §3 metriche pro).

@@ -266,7 +266,7 @@ export const simulatorRuinInfo: MetricInfoData = {
 export const percentileTableInfo: MetricInfoData = {
   label: "Scenari per percentile",
   description:
-    "Come leggere le fasce: «Peggiore (5%)» = solo il 5% dei percorsi simulati va peggio di questo scenario. «Sfavorevole (25%)» = il 25% fa peggio, il 75% fa meglio. «Favorevole (75%)» e «Migliore (95%)» sono la lettura speculare, dal lato dei risultati migliori. «Median» è il percorso di mezzo.",
+    "Come leggere le fasce: «Peggiore (5%)» = solo il 5% dei percorsi simulati va peggio di questo scenario, il 95% fa meglio. «Sfavorevole (25%)» = il 25% fa peggio, il 75% fa meglio. «Favorevole (75%)» = il 75% dei percorsi fa peggio di questo scenario, solo il 25% fa meglio. «Migliore (95%)» = il 95% fa peggio, solo il 5% fa meglio. «Median» è il percorso di mezzo (50% peggio, 50% meglio).",
   formula: "percentili 5/25/50/75/95 su equity finale, ritorno e max drawdown delle linee simulate",
 };
 
