@@ -47,6 +47,20 @@ export const WIDGET_IDS = [
 ] as const;
 export type WidgetId = (typeof WIDGET_IDS)[number];
 
+/**
+ * D-07 — densità di default per i SOLI utenti nuovi (nessun layout
+ * salvato): metriche avanzate e underwater partono nascosti — la prima
+ * impressione è 6-8 widget con gerarchia, non ~18 blocchi alla pari. La
+ * voce di menu esistente li riattiva (e da lì in poi vale il salvato).
+ */
+export const DEFAULT_HIDDEN_WIDGETS: WidgetId[] = [
+  "sortino",
+  "calmar",
+  "sqn",
+  "ulcer",
+  "underwater",
+];
+
 export const WIDGET_LABELS: Record<WidgetId, string> = {
   "net-pnl": "Net P&L",
   "win-rate": "Trade Win %",

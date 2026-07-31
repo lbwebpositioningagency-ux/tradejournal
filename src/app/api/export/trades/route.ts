@@ -5,6 +5,7 @@ import { tradeAccountWhere } from "@/lib/active-account";
 import { resolveTradeScope } from "@/lib/demo-account";
 import { toCsv } from "@/lib/csv";
 import { resolvePeriod } from "@/lib/period";
+import { periodCookieFallback } from "@/lib/period-cookie";
 import {
   buildTradeFilterWhere,
   buildTradeOrderBy,
@@ -70,7 +71,8 @@ export async function GET(request: NextRequest) {
   const activeAccountId = tradeScope.accountId;
 
   const filters = parseTradeFilters(params);
-  const period = resolvePeriod(params, user.timezone);
+  // B3-4 — periodo ricordato dal cookie quando l'URL non ne porta uno esplicito.
+  const period = resolvePeriod(params, user.timezone, undefined, await periodCookieFallback());
   const sort = parseTradeSort(params);
   const where = {
     ...tradeAccountWhere(userId, activeAccountId),

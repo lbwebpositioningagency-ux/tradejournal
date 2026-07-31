@@ -1,5 +1,6 @@
 import { z } from "zod";
 import {
+  DEFAULT_HIDDEN_WIDGETS,
   MOBILE_LAYOUT_DEFAULTS,
   WIDGET_IDS,
   type DashboardLayout,
@@ -42,6 +43,14 @@ export const dashboardLayoutSchema = z.object({
 });
 
 export function parseDashboardLayout(raw: unknown): DashboardLayout {
+  // D-07 — SOLO l'utente senza layout salvato (colonna Json null) riceve il
+  // default curato (metriche avanzate + underwater nascosti). Qualsiasi
+  // layout salvato — compreso `hidden: []`, cioè "tutto visibile" scelto
+  // dall'utente — resta esattamente com'è; un documento malformato degrada
+  // a "tutto visibile" come prima, mai al default dei nuovi.
+  if (raw === null || raw === undefined) {
+    return { hidden: [...DEFAULT_HIDDEN_WIDGETS], mobile: MOBILE_LAYOUT_DEFAULTS };
+  }
   const parsed = dashboardLayoutSchema.safeParse(raw);
   return parsed.success
     ? parsed.data

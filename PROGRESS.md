@@ -1086,6 +1086,21 @@ Rilievo P-05 dell'audit performance, in 3 commit verificabili.
 
 **Verificato** (build di produzione + mock FRED locale su :4381 con serie *GDP* ritardate di 6 s — la rete di sviluppo blocca stlouisfed, documentato in Fase 51 dell'audit): a cache FREDDA dopo 2,5 s la shell è viva (10 tab, sezione Inflazione con card e callout) e l'aggregato mostra il fallback; a cache CALDA zero fallback, badge «Ciclo generale: Misto (4 sezioni a testa su 8 con voto)» calcolato, 20 grafici, cambio tab su Crescita con valori/QoQ/YoY renderizzati; **zero errori console** (hook `console.error` pre-navigazione: il pattern promise→`use()` non produce mismatch). typecheck ✅ · lint ✅ · **1115/1115 test** ✅ · build ✅.
 
+## ✅ FASE 55 «Personalizzazione e navigazione: timezone IANA complete (B3-1), preset Mese scorso/Trimestre (B3-2), periodo persistente in cookie (B3-4), ancore Analytics (D-03), default dashboard per utenti nuovi (D-07)» (31/07/2026)
+Rilievi da `docs/audit/04-colori-personalizzazione.md` e `03-design.md`.
+
+**B3-1 — timezone IANA complete.** Il select del profilo passa da 10 voci fisse alla lista completa del runtime (`Intl.supportedValuesOf("timeZone")`, ~420 voci) raggruppata per continente (SelectGroup, ordine di rilevanza Europe→America→Asia→…), con le 10 storiche in cima come «Frequenti». Il server validava già con `isValidTimezone` generico: nessun enum da allineare. Un fuso salvato fuori lista resta selezionabile.
+
+**B3-2 — preset «Mese scorso» e «Trimestre corrente».** `prev-month` è l'unico preset chiuso su entrambi i lati (dal 1° del mese precedente, `to` esclusivo al 1° del corrente — stessa convenzione del custom); `quarter` parte da gen/apr/lug/ott. 5 test nuovi in `period.test.ts` (cavallo d'anno, quattro trimestri, fuso a mezzanotte).
+
+**B3-4 — periodo persistente.** Cookie `tj-period` scritto dal PeriodFilter a ogni scelta (preset o `custom:<from>:<to>`), letto dalle 4 pagine col filtro + export CSV via `periodCookieFallback()` (modulo separato: `next/headers` non può entrare nel grafo client di period.ts) e passato a `resolvePeriod` come `fallback`. **Il searchParam esplicito vince SEMPRE** — anche `all`, anche un valore invalido: i link condivisi non cambiano comportamento — con test dedicati (precedenza, encode/decode simmetrici, valori corrotti → undefined). L'export CSV segue lo stesso fallback: esporta ciò che la tabella mostra.
+
+**D-03 — Analytics navigabile.** Sottotitolo aggiornato («Distribuzioni, rolling, rischio e concentrazione · periodo») e riga di chip-ancora sotto i filtri (Distribuzioni · Simulatore · Rolling · Rischio · Timing → `id` sulle card con `scroll-mt-20` per l'header sticky) — stesso pattern delle pillole di Trends, zero redesign; nascosti con zero trade (le card non ci sono).
+
+**D-07 — default di densità per i SOLI utenti nuovi.** `parseDashboardLayout(null)` (nessun layout mai salvato) → `DEFAULT_HIDDEN_WIDGETS` (sortino, calmar, sqn, ulcer, underwater): prima impressione a ~13 blocchi con gerarchia, non ~18 alla pari; la voce di menu esistente li riattiva. Ogni layout salvato resta ESATTAMENTE com'è — compreso `hidden: []` («tutto visibile» scelto) e il documento malformato (degrada a tutto visibile, mai al default dei nuovi) — con test dedicati.
+
+**Verificato:** typecheck ✅ · lint ✅ · **1130/1130 test** ✅ · build ✅ · E2E su build di produzione (Chrome headless): `?period=prev-month` → «67 trade · Mese scorso»; cookie `tj-period=month` → /trades senza param mostra «Questo mese», con `?period=7d` vince il param; `?period=quarter` ok in dashboard; chip e 5 ancore presenti su Analytics col sottotitolo nuovo; select timezone con 419 voci, gruppi Frequenti/Europe/America/… e Berlin/Paris/Madrid presenti; dashboard dell'utente demo (layout salvato) INVARIATA; zero errori console.
+
 ### ▶ Prossimi passi
 
 **Il piano premium è completo** (§1 equity simulator — ex Monte Carlo, §2 rolling metrics, §3 metriche pro).

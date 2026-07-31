@@ -27,6 +27,7 @@ import {
   pnlColorClass,
 } from "@/lib/money";
 import { resolvePeriod } from "@/lib/period";
+import { periodCookieFallback } from "@/lib/period-cookie";
 import {
   bestAndWorstBucket,
   fillHourSeries,
@@ -344,7 +345,8 @@ export default async function ReportsPage({
   const userId = tradeScope.userId;
   const activeAccountId = tradeScope.accountId;
 
-  const period = resolvePeriod(params, user.timezone);
+  // B3-4 — periodo ricordato dal cookie quando l'URL non ne porta uno esplicito.
+  const period = resolvePeriod(params, user.timezone, undefined, await periodCookieFallback());
   const baseFilter: StatsFilter = {
     userId,
     accountId: activeAccountId,

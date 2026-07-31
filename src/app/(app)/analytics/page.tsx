@@ -7,6 +7,7 @@ import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { resolveTradeScope } from "@/lib/demo-account";
 import { resolvePeriod } from "@/lib/period";
+import { periodCookieFallback } from "@/lib/period-cookie";
 import { resolveCurrencyScope } from "@/lib/currency-scope";
 import { getCurrencyBreakdown } from "@/lib/queries/stats";
 // TODO(P-04): import TEMPORANEO della misura stadi — rimuovere dopo la misura.
@@ -260,7 +261,8 @@ export default async function AnalyticsPage({
   const userId = tradeScope.userId;
   const accountId = tradeScope.accountId;
 
-  const period = resolvePeriod(params, user.timezone);
+  // B3-4 — periodo ricordato dal cookie quando l'URL non ne porta uno esplicito.
+  const period = resolvePeriod(params, user.timezone, undefined, await periodCookieFallback());
   const base = { userId, accountId, from: period.from, to: period.to };
 
   // Stessa regola del resto dell'app: mai sommare valute diverse.
@@ -527,8 +529,9 @@ export default async function AnalyticsPage({
         <div className="flex flex-wrap items-end justify-between gap-3">
           <div>
             <h1 className="page-title">Analytics</h1>
+            {/* D-03 — il vecchio sottotitolo descriveva solo le prime due card. */}
             <p className="page-subtitle">
-              Distribuzione dei ritorni per target R · {period.label}
+              Distribuzioni, rolling, rischio e concentrazione · {period.label}
             </p>
           </div>
           <div className="flex flex-wrap items-center gap-2">
@@ -553,6 +556,33 @@ export default async function AnalyticsPage({
             direction={direction}
           />
         </Suspense>
+        {/* D-03 — ancore di navigazione interna: la pagina è ~10 card
+            full-width, senza mappa chi cerca "risk of ruin" scorre tutto.
+            Stesso pattern delle pillole di Trends, zero redesign. */}
+        {coverage.total > 0 ? (
+          <nav
+            aria-label="Sezioni della pagina"
+            className="flex flex-wrap gap-1.5"
+          >
+            {(
+              [
+                ["Distribuzioni", "#distribuzioni"],
+                ["Simulatore", "#simulatore"],
+                ["Rolling", "#rolling"],
+                ["Rischio", "#rischio"],
+                ["Timing", "#timing"],
+              ] as const
+            ).map(([label, anchor]) => (
+              <a
+                key={anchor}
+                href={anchor}
+                className="rounded-full border px-3 py-1 text-xs font-medium text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+              >
+                {label}
+              </a>
+            ))}
+          </nav>
+        ) : null}
       </div>
 
       {coverage.total === 0 ? (
@@ -575,7 +605,8 @@ export default async function AnalyticsPage({
           </p>
 
           {/* ① Istogramma dell'R realizzato su TUTTI i trade con rischio. */}
-          <Card>
+          {/* D-03 — id ancora + scroll-mt per l'header sticky (h-14). */}
+          <Card id="distribuzioni" className="scroll-mt-20">
             <CardHeader>
               <CardTitle className="flex items-center gap-2 text-base">
                 Distribuzione dell&apos;R realizzato
@@ -639,7 +670,7 @@ export default async function AnalyticsPage({
 
           {/* §1 — equity curve simulator (Fase 34, sostituisce il Monte
               Carlo a bande percentili). */}
-          <Card>
+          <Card id="simulatore" className="scroll-mt-20">
             <CardHeader>
               <CardTitle className="flex items-center gap-2 text-base">
                 Equity curve simulator
@@ -695,7 +726,7 @@ export default async function AnalyticsPage({
           </Card>
 
           {/* §2 — rolling Sharpe/Sortino sui RITORNI giornalieri. */}
-          <Card>
+          <Card id="rolling" className="scroll-mt-20">
             <CardHeader>
               <CardTitle className="flex items-center gap-2 text-base">
                 Sharpe e Sortino rolling
@@ -802,7 +833,7 @@ export default async function AnalyticsPage({
 
           {/* §3 — metriche pro: quattro numeri che rispondono a domande
               diverse da quelle della dashboard. */}
-          <Card>
+          <Card id="rischio" className="scroll-mt-20">
             <CardHeader>
               <CardTitle className="text-base">Metriche pro</CardTitle>
               <CardDescription>
@@ -985,7 +1016,7 @@ export default async function AnalyticsPage({
           </Card>
 
           {/* §2 — performance per fascia oraria (ora di APERTURA). */}
-          <Card>
+          <Card id="timing" className="scroll-mt-20">
             <CardHeader>
               <CardTitle className="flex items-center gap-2 text-base">
                 Performance per fascia oraria

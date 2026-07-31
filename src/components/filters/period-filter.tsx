@@ -6,6 +6,7 @@ import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { CalendarRange } from "lucide-react";
 import type { DateRange } from "react-day-picker";
 import {
+  PERIOD_COOKIE,
   PERIOD_LABELS,
   PERIOD_PRESETS,
   type PeriodKey,
@@ -82,6 +83,16 @@ export function PeriodFilter({
     to: fromDateKey(toKey),
   });
 
+  /**
+   * B3-4 — la scelta viene RICORDATA: le pagine la leggono come default
+   * quando l'URL non porta un `period` esplicito (che vince sempre —
+   * i link condivisi non cambiano). Cookie non-httpOnly: contiene solo
+   * la preferenza di visualizzazione.
+   */
+  function remember(value: string) {
+    document.cookie = `${PERIOD_COOKIE}=${encodeURIComponent(value)}; path=/; max-age=31536000; samesite=lax`;
+  }
+
   function push(update: (params: URLSearchParams) => void) {
     const params = new URLSearchParams(searchParams.toString());
     update(params);
@@ -95,6 +106,7 @@ export function PeriodFilter({
       setOpen(true);
       return;
     }
+    remember(value);
     push((params) => {
       params.set("period", value);
       params.delete("from");
@@ -107,6 +119,7 @@ export function PeriodFilter({
     const from = toDateKey(range.from);
     const to = toDateKey(range.to ?? range.from);
     setOpen(false);
+    remember(`custom:${from}:${to}`);
     push((params) => {
       params.set("period", "custom");
       params.set("from", from);

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { WIDGET_IDS } from "./dashboard";
+import { DEFAULT_HIDDEN_WIDGETS, WIDGET_IDS } from "./dashboard";
 import { parseDashboardLayout } from "./validations/dashboard";
 
 /**
@@ -20,15 +20,57 @@ describe("parseDashboardLayout", () => {
     expect(layout.mobile.showAllMetrics).toBe(true);
   });
 
-  it("documento malformato → default, mai un crash", () => {
-    expect(parseDashboardLayout(null)).toEqual({
+  it("documento malformato → tutto visibile, mai un crash né il default dei nuovi", () => {
+    expect(parseDashboardLayout({ hidden: "non-un-array" })).toEqual({
       hidden: [],
       mobile: { showAllMetrics: false, showAnalytics: false },
     });
-    expect(parseDashboardLayout({ hidden: "non-un-array" }).hidden).toEqual([]);
   });
 
   it("monte-carlo non è più un widget della dashboard", () => {
     expect(WIDGET_IDS).not.toContain("monte-carlo");
+  });
+});
+
+/**
+ * D-07 — densità di default: SOLO chi non ha mai salvato un layout
+ * (colonna null) riceve metriche avanzate + underwater nascosti. Ogni
+ * layout salvato resta com'è — compreso `hidden: []`, che è la scelta
+ * esplicita "tutto visibile" e NON va confusa col default dei nuovi.
+ */
+describe("parseDashboardLayout — default per utenti nuovi (D-07)", () => {
+  it("nessun layout salvato (null/undefined) → default curato", () => {
+    for (const raw of [null, undefined]) {
+      const layout = parseDashboardLayout(raw);
+      expect(layout.hidden).toEqual(DEFAULT_HIDDEN_WIDGETS);
+      expect(layout.mobile).toEqual({
+        showAllMetrics: false,
+        showAnalytics: false,
+      });
+    }
+    expect(DEFAULT_HIDDEN_WIDGETS).toEqual([
+      "sortino",
+      "calmar",
+      "sqn",
+      "ulcer",
+      "underwater",
+    ]);
+  });
+
+  it("layout salvato con hidden vuoto (tutto visibile) NON viene toccato", () => {
+    const layout = parseDashboardLayout({
+      hidden: [],
+      mobile: { showAllMetrics: false, showAnalytics: false },
+    });
+    expect(layout.hidden).toEqual([]);
+  });
+
+  it("layout salvato con scelte proprie NON viene toccato", () => {
+    const layout = parseDashboardLayout({
+      hidden: ["balance"],
+      mobile: { showAllMetrics: true, showAnalytics: true },
+    });
+    expect(layout.hidden).toEqual(["balance"]);
+    expect(layout.mobile.showAnalytics).toBe(true);
   });
 });
