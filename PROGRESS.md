@@ -1075,6 +1075,17 @@ Rilievo P-04 dell'audit performance. **Nessuna query è cambiata: cambia solo qu
 
 **Verificato:** typecheck ✅ · lint ✅ · **1108/1108 test** ✅ · build ✅ · E2E su build di produzione (Chrome headless): /analytics con tutte le 11 sezioni e 8 grafici, rolling con `?rt=50` funzionante, /dashboard e /reports integri, **zero errori console** sulle tre pagine; log locali `[server-timing]` presenti — su /analytics lo stadio unico «queries» chiude le 18 query in ~11–14 ms in locale (il guadagno vero, i 4 round-trip evitati, si leggerà in produzione con la latenza Neon reale).
 
+## ✅ FASE 54 «Performance: pagina Trends a caricamento progressivo (P-05)» (31/07/2026)
+Rilievo P-05 dell'audit performance, in 3 commit verificabili.
+
+**① Revalidate scaglionato per serie** (`fred.ts`): jitter DETERMINISTICO sull'ID, ±3 h attorno alle 24 h (`revalidateSecondsFor`, 3 unit test su determinismo/banda/distribuzione) — le ~50 scadenze della data cache non cadono più in blocco sul primo visitatore del giorno; la cadenza giornaliera non cambia.
+
+**② Orchestratore per-sezione** (`macro-trends.ts`): `getTrendsSection(defs)` e `getTrendsRecessions()` col contratto «mai un reject» (serie fallita → card in errore, USREC fallito → zero bande): alimentano `use()` nel client, un reject bucherebbe la pagina. 4 unit test con rete mockata. `getMacroTrendsData`/`TrendsData` rimossi al passo ③ (zero consumatori).
+
+**③ Streaming con Suspense**: la pagina server avvia TUTTE le promise (una per sezione + recessioni + insieme) e NON le attende — prima il TTFB era il massimo delle ~50 latenze FRED (timeout 15 s/serie a cache fredda). `TrendsView` resta il client component coi tab: il pannello della sezione attiva sospende sulla SUA promise (`<Suspense key={section}>`, md-fade conservata; sezione già risolta = rientro senza fallback), il riepilogo aggregato (badge Ciclo generale + tessere + pillole) somma tutte le serie e vive nell'**ultima Suspense** con fallback dichiarato «In attesa di tutte le serie…» — la degradazione a conteggio parziale non serve: l'aggregato arriva, solo dopo le sezioni. **A cache calda nulla cambia**: le promise risolvono subito, pagina completa alla prima risposta, stesse richieste totali e stessa cache.
+
+**Verificato** (build di produzione + mock FRED locale su :4381 con serie *GDP* ritardate di 6 s — la rete di sviluppo blocca stlouisfed, documentato in Fase 51 dell'audit): a cache FREDDA dopo 2,5 s la shell è viva (10 tab, sezione Inflazione con card e callout) e l'aggregato mostra il fallback; a cache CALDA zero fallback, badge «Ciclo generale: Misto (4 sezioni a testa su 8 con voto)» calcolato, 20 grafici, cambio tab su Crescita con valori/QoQ/YoY renderizzati; **zero errori console** (hook `console.error` pre-navigazione: il pattern promise→`use()` non produce mismatch). typecheck ✅ · lint ✅ · **1115/1115 test** ✅ · build ✅.
+
 ### ▶ Prossimi passi
 
 **Il piano premium è completo** (§1 equity simulator — ex Monte Carlo, §2 rolling metrics, §3 metriche pro).
