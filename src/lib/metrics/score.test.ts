@@ -1,5 +1,13 @@
 import { describe, expect, it } from "vitest";
-import { maxDrawdown, radarScore, SCORE_MIN_TRADES } from "./index";
+import {
+  maxDrawdown,
+  radarScore,
+  scoreFactorInfo,
+  scoreInfo,
+  SCORE_FACTOR_INFO,
+  SCORE_FACTOR_KEYS,
+  SCORE_MIN_TRADES,
+} from "./index";
 import type { RadarScoreInput } from "./index";
 
 /**
@@ -200,5 +208,44 @@ describe("radarScore — normalizzazione dei singoli fattori", () => {
     expect(spread.factors.consistency).toBe(90); // 1 − 500/5000
     expect(concentrated.factors.consistency).toBe(0); // tutto in un giorno
     expect(Number(spread.score)).toBeGreaterThan(Number(concentrated.score));
+  });
+});
+
+describe("SCORE_FACTOR_INFO / scoreFactorInfo — spiegazione del singolo asse", () => {
+  it("ogni asse del radar ha la sua voce, distinta da quella dello Score", () => {
+    for (const key of SCORE_FACTOR_KEYS) {
+      const info = SCORE_FACTOR_INFO[key];
+      expect(info.description.length).toBeGreaterThan(0);
+      expect(info.formula.length).toBeGreaterThan(0);
+      // Il testo del fattore non è quello del punteggio complessivo.
+      expect(info.label).not.toBe(scoreInfo.label);
+      expect(info.formula).not.toBe(scoreInfo.formula);
+    }
+    expect(Object.keys(SCORE_FACTOR_INFO)).toHaveLength(SCORE_FACTOR_KEYS.length);
+  });
+
+  it("la formula di ogni fattore dichiara il tetto usato per la normalizzazione", () => {
+    expect(SCORE_FACTOR_INFO.winRate.formula).toContain("60%");
+    expect(SCORE_FACTOR_INFO.profitFactor.formula).toContain("2,5");
+    expect(SCORE_FACTOR_INFO.avgWinLoss.formula).toContain("2,0");
+    expect(SCORE_FACTOR_INFO.recoveryFactor.formula).toContain("3,0");
+    expect(SCORE_FACTOR_INFO.maxDrawdown.formula).toContain("20%");
+    // La consistency non ha un tetto: è già una frazione 0-1 per costruzione.
+    expect(SCORE_FACTOR_INFO.consistency.formula).toContain("giornate positive");
+  });
+
+  it("sotto la soglia aggiunge la nota col numero di trade; sopra no", () => {
+    const low = radarScore({ ...base, total: 12, wins: 7, losses: 5 })!;
+    expect(low.lowSample).toBe(true);
+    const info = scoreFactorInfo("winRate", low);
+    expect(info.note).toContain("Indicativo: 12 trade chiusi");
+    expect(info.note).toContain(String(SCORE_MIN_TRADES));
+    // Il resto del testo resta quello statico.
+    expect(info.formula).toBe(SCORE_FACTOR_INFO.winRate.formula);
+
+    const full = radarScore(base)!;
+    expect(full.lowSample).toBe(false);
+    expect(scoreFactorInfo("winRate", full).note).toBeUndefined();
+    expect(scoreFactorInfo("winRate", null).note).toBeUndefined();
   });
 });

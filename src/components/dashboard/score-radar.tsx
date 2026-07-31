@@ -1,9 +1,11 @@
 import {
+  scoreFactorInfo,
   SCORE_FACTOR_KEYS,
   SCORE_FACTOR_LABELS,
   SCORE_MIN_TRADES,
   type RadarScore,
 } from "@/lib/metrics";
+import { MetricInfo } from "@/components/metric-info";
 import { cn } from "@/lib/utils";
 
 /**
@@ -14,11 +16,26 @@ import { cn } from "@/lib/utils";
  * Cautela statistica: sotto SCORE_MIN_TRADES l'area del radar è più tenue
  * e sotto il numero compare la nota "indicativo" — il punteggio su pochi
  * trade non deve sembrare netto quanto uno su centinaia.
+ *
+ * ETICHETTE FUORI DALL'SVG. Ognuna delle sei porta la sua icona (i) con la
+ * formula del SINGOLO fattore (quella nel titolo della card spiega invece
+ * il punteggio complessivo). Un bottone vero serve perché il popover si
+ * apra anche al TOCCO: dentro l'SVG servirebbe un <foreignObject>, e un
+ * <title> SVG risponde solo all'hover. Quindi il grafico resta SVG (griglia,
+ * assi, area) e le etichette sono HTML in overlay assoluto, ancorate agli
+ * stessi vertici del disegno convertiti in percentuali del viewBox: il
+ * riquadro dell'overlay coincide con quello dell'SVG a qualsiasi larghezza.
+ *
+ * Il badge sta SEMPRE dal lato esterno del testo (a destra per gli assi di
+ * destra, a sinistra per quelli di sinistra): non si infila mai fra
+ * l'etichetta e il poligono.
  */
 
 const CX = 160;
 const CY = 104;
 const RADIUS = 70;
+const VIEW_W = 320;
+const VIEW_H = 200;
 /** Anelli della griglia esagonale, come frazioni del raggio (25/50/75/100). */
 const GRID_LEVELS = [0.25, 0.5, 0.75, 1];
 
@@ -34,10 +51,23 @@ function polygonPoints(fractions: number[]): string {
     .join(" ");
 }
 
-/** Ancoraggio del testo dell'etichetta in base alla posizione sull'esagono. */
-function labelAnchor(index: number): "start" | "middle" | "end" {
-  if (index === 0 || index === 3) return "middle";
-  return index < 3 ? "start" : "end";
+/**
+ * Lato dell'esagono su cui cade l'etichetta: i vertici 1-2 sono a destra,
+ * 4-5 a sinistra, 0 e 3 in cima e in fondo (centrati).
+ */
+function labelSide(index: number): "left" | "center" | "right" {
+  if (index === 0 || index === 3) return "center";
+  return index < 3 ? "right" : "left";
+}
+
+/**
+ * L'etichetta è ancorata al vertice: cresce verso l'esterno (a destra dal
+ * punto per gli assi di destra, a sinistra per quelli di sinistra) così non
+ * invade mai il poligono.
+ */
+function labelTransform(side: "left" | "center" | "right"): string {
+  if (side === "center") return "translate(-50%, -50%)";
+  return side === "right" ? "translate(0, -50%)" : "translate(-100%, -50%)";
 }
 
 export function ScoreRadar({ result }: { result: RadarScore | null }) {
@@ -49,72 +79,81 @@ export function ScoreRadar({ result }: { result: RadarScore | null }) {
 
   return (
     <div className="flex w-full flex-col items-center gap-3">
-      <svg
-        viewBox="0 0 320 200"
-        className="w-full max-w-72"
-        role="img"
-        aria-label={
-          result === null
-            ? "Radar dello score: nessun dato"
-            : `Radar dello score: ${SCORE_FACTOR_KEYS.map(
-                (key) => `${SCORE_FACTOR_LABELS[key]} ${result.factors[key]}`,
-              ).join(", ")}`
-        }
-      >
-        {/* Griglia esagonale di riferimento, grigio chiaro */}
-        {GRID_LEVELS.map((level) => (
-          <polygon
-            key={level}
-            points={polygonPoints(SCORE_FACTOR_KEYS.map(() => level))}
-            fill="none"
-            stroke="var(--border)"
-            strokeWidth={1}
-          />
-        ))}
-        {/* Assi dal centro ai vertici */}
-        {SCORE_FACTOR_KEYS.map((key, i) => {
-          const [x, y] = vertex(i, 1);
-          return (
-            <line
-              key={key}
-              x1={CX}
-              y1={CY}
-              x2={x}
-              y2={y}
+      <div className="relative w-full max-w-72">
+        <svg
+          viewBox={`0 0 ${VIEW_W} ${VIEW_H}`}
+          className="w-full"
+          role="img"
+          aria-label={
+            result === null
+              ? "Radar dello score: nessun dato"
+              : `Radar dello score: ${SCORE_FACTOR_KEYS.map(
+                  (key) => `${SCORE_FACTOR_LABELS[key]} ${result.factors[key]}`,
+                ).join(", ")}`
+          }
+        >
+          {/* Griglia esagonale di riferimento, grigio chiaro */}
+          {GRID_LEVELS.map((level) => (
+            <polygon
+              key={level}
+              points={polygonPoints(SCORE_FACTOR_KEYS.map(() => level))}
+              fill="none"
               stroke="var(--border)"
               strokeWidth={1}
             />
-          );
-        })}
-        {/* Area dei fattori: accento primario, contorno netto */}
-        {result !== null ? (
-          <polygon
-            points={polygonPoints(fractions)}
-            fill="var(--primary)"
-            fillOpacity={lowSample ? 0.14 : 0.28}
-            stroke="var(--primary)"
-            strokeWidth={2}
-            strokeOpacity={lowSample ? 0.55 : 1}
-            strokeLinejoin="round"
-          />
-        ) : null}
-        {/* Etichette degli assi */}
+          ))}
+          {/* Assi dal centro ai vertici */}
+          {SCORE_FACTOR_KEYS.map((key, i) => {
+            const [x, y] = vertex(i, 1);
+            return (
+              <line
+                key={key}
+                x1={CX}
+                y1={CY}
+                x2={x}
+                y2={y}
+                stroke="var(--border)"
+                strokeWidth={1}
+              />
+            );
+          })}
+          {/* Area dei fattori: accento primario, contorno netto */}
+          {result !== null ? (
+            <polygon
+              points={polygonPoints(fractions)}
+              fill="var(--primary)"
+              fillOpacity={lowSample ? 0.14 : 0.28}
+              stroke="var(--primary)"
+              strokeWidth={2}
+              strokeOpacity={lowSample ? 0.55 : 1}
+              strokeLinejoin="round"
+            />
+          ) : null}
+        </svg>
+
+        {/* Etichette degli assi + icona (i) per fattore, in overlay sull'SVG */}
         {SCORE_FACTOR_KEYS.map((key, i) => {
           const [x, y] = vertex(i, 1.16);
+          const side = labelSide(i);
           return (
-            <text
+            <div
               key={key}
-              x={x}
-              y={y + (i === 0 ? -2 : i === 3 ? 8 : 3)}
-              textAnchor={labelAnchor(i)}
-              className="fill-muted-foreground"
-              fontSize={10}
+              className={cn(
+                "absolute flex items-center gap-px whitespace-nowrap text-[10px] leading-none text-muted-foreground",
+                side === "left" && "flex-row-reverse",
+              )}
+              style={{
+                left: `${(x / VIEW_W) * 100}%`,
+                top: `${(y / VIEW_H) * 100}%`,
+                transform: labelTransform(side),
+              }}
             >
-              {SCORE_FACTOR_LABELS[key]}
-            </text>
+              <span>{SCORE_FACTOR_LABELS[key]}</span>
+              <MetricInfo info={scoreFactorInfo(key, result)} size="sm" />
+            </div>
           );
         })}
-      </svg>
+      </div>
 
       {/* Etichetta "Score" + numero grande + barra a gradiente */}
       <div className="flex w-full items-center gap-4">

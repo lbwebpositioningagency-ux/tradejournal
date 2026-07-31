@@ -27,6 +27,13 @@ export interface MetricInfoData {
   description: string;
   /** Formula usata dal modulo di calcolo. */
   formula: string;
+  /**
+   * Avvertenza che dipende dai DATI del periodo (non dalla definizione della
+   * metrica): es. "Indicativo: 12 trade chiusi" sotto la soglia di
+   * significatività. Chi renderizza la compone e la passa; il testo statico
+   * resta in description/formula.
+   */
+  note?: string;
 }
 
 /** Metriche che sono puri aggregati SQL (nessun modulo di formula proprio). */

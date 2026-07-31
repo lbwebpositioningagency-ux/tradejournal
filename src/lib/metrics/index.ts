@@ -26,6 +26,8 @@ export {
   scoreInfo,
   SCORE_FACTOR_KEYS,
   SCORE_FACTOR_LABELS,
+  SCORE_FACTOR_INFO,
+  scoreFactorInfo,
   SCORE_MIN_TRADES,
   type RadarScore,
   type RadarScoreFactors,

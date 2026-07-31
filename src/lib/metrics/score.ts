@@ -200,6 +200,78 @@ export function radarScore(input: RadarScoreInput): RadarScore | null {
   };
 }
 
+/**
+ * Testo per l'icona (i) accanto a OGNI etichetta del radar — una per asse,
+ * distinta da `scoreInfo` che spiega il punteggio nel suo complesso.
+ *
+ * REGOLA DI MANUTENZIONE (come per ogni MetricInfoData): il testo vive
+ * accanto alla formula. Le stringhe `formula` qui sotto sono la
+ * trascrizione LETTERALE delle normalizzazioni di `radarScore`, tetti
+ * inclusi: se una costante cambia (WIN_RATE_CEILING, PF_CEILING, …) va
+ * cambiata anche la riga corrispondente.
+ */
+export const SCORE_FACTOR_INFO: Record<ScoreFactorKey, MetricInfoData> = {
+  winRate: {
+    label: "Win % (fattore dello Score)",
+    description:
+      "Quota di trade chiusi in profitto. Vale il massimo dal 60% in su: oltre quella soglia un win rate più alto non rende il sistema più sano in proporzione — dipende da quanto guadagnano le vincite rispetto alle perdite.",
+    formula: "clamp 0-1 di ((vincenti / totale) ÷ 60%) × 100 — tetto 60%",
+  },
+  profitFactor: {
+    label: "Profit factor (fattore dello Score)",
+    description:
+      "Quanti euro guadagnati per ogni euro perso. Vale il massimo da 2,5 in su. Se nel periodo non ci sono perdite: 100 quando c'è almeno una vincita, 0 se sono tutti breakeven.",
+    formula:
+      "clamp 0-1 di ((Σ vincite / |Σ perdite|) ÷ 2,5) × 100 — tetto 2,5 · nessuna perdita → 100 (0 senza vincite)",
+  },
+  avgWinLoss: {
+    label: "Avg win/loss (fattore dello Score)",
+    description:
+      "Payoff ratio: quanto vale in media una vincita rispetto a una perdita. Vale il massimo da 2,0 in su (vincita media doppia della perdita media). Nessuna perdita → 100; nessuna vincita → 0.",
+    formula:
+      "clamp 0-1 di ((vincita media / |perdita media|) ÷ 2,0) × 100 — tetto 2,0",
+  },
+  recoveryFactor: {
+    label: "Recovery factor (fattore dello Score)",
+    description:
+      "Quante volte il profitto netto copre la buca peggiore: misura la capacità di recuperare dal drawdown. Vale il massimo da 3 in su. Profitto netto ≤ 0 → 0; drawdown nullo → 100 se sei in profitto.",
+    formula:
+      "clamp 0-1 di ((P&L netto / max drawdown in valuta) ÷ 3,0) × 100 — tetto 3,0",
+  },
+  maxDrawdown: {
+    label: "Max drawdown (fattore dello Score)",
+    description:
+      "Il calo massimo dal picco di equity, in percentuale: qui più è basso più il punteggio è alto. Un drawdown del 20% o peggio vale 0. Se la percentuale non è definibile (picco di equity ≤ 0) il fattore resta a 50, neutro.",
+    formula:
+      "clamp 0-1 di (1 − maxDD% ÷ 20%) × 100 — tetto 20% · percentuale non definibile → 50",
+  },
+  consistency: {
+    label: "Consistency (fattore dello Score)",
+    description:
+      "Quanto il profitto è distribuito nel tempo invece che concentrato in una sola giornata: tutto il guadagno in un giorno solo vale 0, profitto spalmato su molte giornate tende a 100. Stessa domanda della «Concentrazione top-N» di Analytics, ma sulle giornate.",
+    formula:
+      "(1 − miglior giornata / Σ giornate positive) × 100 · nessuna giornata positiva → 0",
+  },
+};
+
+/**
+ * Info di un fattore per la sua icona (i), con la nota sul campione corto
+ * aggiunta quando si applica: chi apre la spiegazione di un asse deve
+ * leggere LÌ che il punteggio è indicativo, senza cercare la riga sotto la
+ * barra. Sopra la soglia (o senza risultato) torna il testo statico.
+ */
+export function scoreFactorInfo(
+  key: ScoreFactorKey,
+  result: RadarScore | null,
+): MetricInfoData {
+  const info = SCORE_FACTOR_INFO[key];
+  if (result === null || !result.lowSample) return info;
+  return {
+    ...info,
+    note: `Indicativo: ${result.total} trade chiusi (sotto i ${SCORE_MIN_TRADES} della soglia di significatività).`,
+  };
+}
+
 /** Testo per l'icona (i) accanto al titolo del widget. */
 export const scoreInfo: MetricInfoData = {
   label: "Score",
