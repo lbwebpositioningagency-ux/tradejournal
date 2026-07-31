@@ -6,7 +6,6 @@ import {
   coveredDays,
   CALMAR_MIN_DAYS,
   classifyOutcome,
-  compositeScore,
   currentDayStreak,
   currentStreak,
   dayStats,
@@ -204,124 +203,6 @@ describe("currentStreak", () => {
   it("streak di giornate dal P&L", () => {
     const days = [{ netPnl: "120.00" }, { netPnl: "35.00" }, { netPnl: "-80.00" }];
     expect(currentDayStreak(days)).toEqual({ direction: "WIN", length: 2 });
-  });
-});
-
-describe("compositeScore", () => {
-  it("trader solido: PF 2, dd 5%, 60% giorni verdi → 85", () => {
-    // prof = 2/2.5 = 0.8 → 0.32 · risk = 1−0.05/0.20 = 0.75 → 0.225
-    // cons = 0.6/0.6 = 1 → 0.30 · totale 0.845 → 85 (arrotondato)
-    const score = compositeScore({
-      total: 100,
-      wins: 55,
-      losses: 45,
-      winSum: "9000",
-      lossSum: "-4500",
-      maxDrawdownPct: "0.0500",
-      dayWinRate: "0.6000",
-    });
-    expect(score).toBe(85);
-  });
-
-  it("nessuna perdita e almeno un profitto → profittabilità al massimo", () => {
-    const score = compositeScore({
-      total: 10,
-      wins: 10,
-      losses: 0,
-      winSum: "1000",
-      lossSum: "0",
-      maxDrawdownPct: "0.0000",
-      dayWinRate: "1.0000",
-    });
-    expect(score).toBe(100);
-  });
-
-  it("tutti loss → punteggio minimo di profittabilità e consistenza", () => {
-    // prof 0 · risk 1−0.25/0.2 → clamp 0 · cons 0 → score 0
-    const score = compositeScore({
-      total: 10,
-      wins: 0,
-      losses: 10,
-      winSum: "0",
-      lossSum: "-1000",
-      maxDrawdownPct: "0.2500",
-      dayWinRate: "0.0000",
-    });
-    expect(score).toBe(0);
-  });
-
-  it("zero trade → null", () => {
-    expect(
-      compositeScore({
-        total: 0,
-        wins: 0,
-        losses: 0,
-        winSum: "0",
-        lossSum: "0",
-        maxDrawdownPct: null,
-        dayWinRate: null,
-      }),
-    ).toBeNull();
-  });
-
-  it("drawdown % indefinibile → componente risk neutra (0.5)", () => {
-    // prof: PF 1 → 0.4 → 0.16 · risk 0.5 → 0.15 · cons 0.5/0.6 → 0.25
-    const score = compositeScore({
-      total: 10,
-      wins: 5,
-      losses: 5,
-      winSum: "500",
-      lossSum: "-500",
-      maxDrawdownPct: null,
-      dayWinRate: "0.5000",
-    });
-    expect(score).toBe(56); // 0.16+0.15+0.25 = 0.56
-  });
-
-  it("composizione maxDrawdown → score: sole giornate positive = risk pieno", () => {
-    // Regressione: il pct null di "nessun drawdown" veniva trattato come
-    // "indefinibile" (risk 0.5) e un conto perfetto non superava 85.
-    const dd = maxDrawdown(
-      [
-        { day: "2026-07-01", netPnl: "200", trades: 2 },
-        { day: "2026-07-02", netPnl: "100", trades: 1 },
-      ],
-      "10000",
-    );
-    expect(dd.maxDrawdownPct).toBe("0.0000");
-
-    const score = compositeScore({
-      total: 3,
-      wins: 3,
-      losses: 0,
-      winSum: "300",
-      lossSum: "0",
-      maxDrawdownPct: dd.maxDrawdownPct,
-      dayWinRate: "1.0000",
-    });
-    expect(score).toBe(100);
-  });
-
-  it("drawdown reale con picco ≤ 0 → pct null → risk neutro, non pieno", () => {
-    const dd = maxDrawdown([
-      { day: "2026-07-01", netPnl: "-100", trades: 1 },
-      { day: "2026-07-02", netPnl: "-200", trades: 1 },
-    ]);
-    expect(dd.maxDrawdown).toBe("300.00");
-    expect(dd.maxDrawdownPct).toBeNull(); // esiste un drawdown ma il picco è 0
-  });
-
-  it("il clamp impedisce score > 100 anche con PF estremo", () => {
-    const score = compositeScore({
-      total: 50,
-      wins: 40,
-      losses: 10,
-      winSum: "50000",
-      lossSum: "-100",
-      maxDrawdownPct: "0.0010",
-      dayWinRate: "0.9000",
-    });
-    expect(score).toBeLessThanOrEqual(100);
   });
 });
 

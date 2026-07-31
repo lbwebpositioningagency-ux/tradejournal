@@ -22,11 +22,15 @@ export {
   type DayStats,
 } from "./day-stats";
 export {
-  compositeScore,
-  compositeScoreParts,
+  radarScore,
   scoreInfo,
-  type ScoreInput,
-  type ScoreParts,
+  SCORE_FACTOR_KEYS,
+  SCORE_FACTOR_LABELS,
+  SCORE_MIN_TRADES,
+  type RadarScore,
+  type RadarScoreFactors,
+  type RadarScoreInput,
+  type ScoreFactorKey,
 } from "./score";
 export { sortinoRatio, sortinoInfo } from "./sortino";
 export { sharpeRatio, sharpeInfo } from "./sharpe";

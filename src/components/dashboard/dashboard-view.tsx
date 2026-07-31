@@ -61,6 +61,7 @@ import {
   underwaterInfo,
   type DayStats,
   type DrawdownResult,
+  type RadarScore,
   type MetricInfoData,
   monthlyCalendarInfo,
   type StreakResult,
@@ -108,7 +109,7 @@ import {
   Sparkline,
   type ChartPoint,
 } from "./pnl-charts";
-import { ScoreGauge } from "./score-gauge";
+import { ScoreRadar } from "./score-radar";
 import { OnboardingHero } from "./onboarding-hero";
 import { MiniCalendar, type MiniCalendarDay } from "./mini-calendar";
 
@@ -223,13 +224,8 @@ export interface DashboardData {
   weekdays: WeekdayPoint[];
   tradeStreak: StreakResult;
   dayStreak: StreakResult;
-  score: number | null;
-  /** F35 — componenti dello Score come frazioni 0-1 (barre sotto il gauge). */
-  scoreParts: {
-    profitability: string;
-    risk: string;
-    consistency: string;
-  } | null;
+  /** Score a 6 fattori per il radar (null con zero trade chiusi). */
+  score: RadarScore | null;
   /** F32 — istogramma R (bin 0,5R + colonna BE), da aggregato SQL completo. */
   rDistribution: RDistPoint[];
   /** W4 — drawdown % dal picco, stessa serie del cumulativo. */
@@ -1303,41 +1299,9 @@ export function DashboardView({ data }: { data: DashboardData }) {
               </CardTitle>
             </CardHeader>
             <CardContent className="flex flex-col items-center gap-2">
-              <ScoreGauge score={data.score} />
-              {/* F35 — i 3 sub-score come barre con valore, non solo i pesi */}
-              {data.scoreParts ? (
-                <div className="flex w-full flex-col gap-1.5">
-                  {(
-                    [
-                      ["Profittabilità", "40%", data.scoreParts.profitability],
-                      ["Rischio", "30%", data.scoreParts.risk],
-                      ["Consistenza", "30%", data.scoreParts.consistency],
-                    ] as const
-                  ).map(([label, weight, value]) => (
-                    <div key={label} className="flex items-center gap-2">
-                      <span className="w-24 shrink-0 text-xs text-muted-foreground">
-                        {label}{" "}
-                        <span className="text-2xs opacity-70">{weight}</span>
-                      </span>
-                      <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-muted">
-                        <div
-                          className="h-full rounded-full bg-primary"
-                          style={{
-                            width: `${Math.round(Number(value) * 100)}%`,
-                          }}
-                        />
-                      </div>
-                      <span className="w-10 shrink-0 text-right text-xs tabular-nums">
-                        {formatPercent(value, 0)}
-                      </span>
-                    </div>
-                  ))}
-                </div>
-              ) : (
-                <p className="text-center text-xs text-muted-foreground">
-                  Profittabilità 40% · Rischio 30% · Consistenza 30%
-                </p>
-              )}
+              {/* Radar a 6 fattori + numero 0-100 (2 decimali) e barra a
+                  gradiente; peso uguale 100/6, v. lib/metrics/score.ts. */}
+              <ScoreRadar result={data.score} />
             </CardContent>
           </Card>
         ) : null}

@@ -23,7 +23,7 @@ import {
   calmarRatio,
   coveredDays,
   classifyOutcome,
-  compositeScoreParts,
+  radarScore,
   underwaterSeries,
   currentDayStreak,
   currentStreak,
@@ -299,14 +299,16 @@ export default async function DashboardPage({
   const aLoss = avgLoss(agg.lossSum, agg.losses);
 
   const rTotal = new Decimal(agg.rSum);
-  const scoreParts = compositeScoreParts({
+  const score = radarScore({
     total: agg.total,
     wins: agg.wins,
     losses: agg.losses,
     winSum: agg.winSum,
     lossSum: agg.lossSum,
+    netPnl: agg.netPnl,
+    maxDrawdown: dd.maxDrawdown,
     maxDrawdownPct: dd.maxDrawdownPct,
-    dayWinRate,
+    daily,
   });
   const expectancyR =
     agg.rCount === 0 ? null : rTotal.div(agg.rCount).toFixed(4);
@@ -414,15 +416,8 @@ export default async function DashboardPage({
     ulcer: ulcerIndex(daily, equityStart),
     tradeStreak: currentStreak(outcomes),
     dayStreak: currentDayStreak([...daily].reverse()),
-    score: scoreParts?.score ?? null,
-    // F35 — le tre componenti dello Score, mostrate come barre con valore.
-    scoreParts: scoreParts
-      ? {
-          profitability: scoreParts.profitability,
-          risk: scoreParts.risk,
-          consistency: scoreParts.consistency,
-        }
-      : null,
+    // Score a 6 fattori per il radar (peso uguale 100/6, v. lib/metrics/score.ts).
+    score,
     // F32 — istogramma R (bin 0,5R + colonna BE) da aggregato SQL completo.
     rDistribution: fillRDistribution(rDistributionRows, BE_BIN),
     // W4 — underwater sulla stessa serie del cumulativo.
