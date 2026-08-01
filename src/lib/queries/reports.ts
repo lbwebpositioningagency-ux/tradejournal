@@ -6,6 +6,7 @@ import {
   type StatsFilter,
 } from "@/lib/queries/stats";
 import { SESSION_TIMEZONE, SESSION_WINDOWS, type SessionRow } from "@/lib/sessions";
+import type { RSplitAggregates } from "@/lib/metrics";
 import { MACRO_ASSET_SYMBOLS, type MacroAsset } from "@/lib/macro-desk";
 
 /**
@@ -21,7 +22,7 @@ import { MACRO_ASSET_SYMBOLS, type MacroAsset } from "@/lib/macro-desk";
  */
 
 /** Aggregati comuni a ogni riga di breakdown. */
-export interface BreakdownAggregates {
+export interface BreakdownAggregates extends RSplitAggregates {
   total: number;
   wins: number;
   losses: number;
@@ -43,7 +44,14 @@ const AGGREGATE_COLUMNS = Prisma.sql`
   COALESCE(SUM(t."netPnl") FILTER (WHERE t."netPnl" > 0), 0)::text AS "winSum",
   COALESCE(SUM(t."netPnl") FILTER (WHERE t."netPnl" < 0), 0)::text AS "lossSum",
   COALESCE(SUM(t."rMultiple"), 0)::text                    AS "rSum",
-  (COUNT(*) FILTER (WHERE t."rMultiple" IS NOT NULL))::int AS "rCount"
+  (COUNT(*) FILTER (WHERE t."rMultiple" IS NOT NULL))::int AS "rCount",
+  -- Split R vincenti/perdenti per l'Avg Win/Loss (Fase 60): il segno è quello
+  -- dell'R, non del netPnl — un trade con rMultiple NULL resta fuori da
+  -- entrambi i lati, come già per rCount.
+  COALESCE(SUM(t."rMultiple") FILTER (WHERE t."rMultiple" > 0), 0)::text AS "rWinSum",
+  (COUNT(*) FILTER (WHERE t."rMultiple" > 0))::int         AS "rWinCount",
+  COALESCE(SUM(t."rMultiple") FILTER (WHERE t."rMultiple" < 0), 0)::text AS "rLossSum",
+  (COUNT(*) FILTER (WHERE t."rMultiple" < 0))::int         AS "rLossCount"
 `;
 
 export interface StrategyBreakdownRow extends BreakdownAggregates {

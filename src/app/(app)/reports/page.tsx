@@ -1,16 +1,17 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import Decimal from "decimal.js";
 import { BarChart3, CalendarCheck } from "lucide-react";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { resolveTradeScope } from "@/lib/demo-account";
 import { ALL_ACCOUNTS } from "@/lib/constants";
 import {
+  avgR,
+  avgRInfo,
+  avgWinLossR,
+  avgWinLossRInfo,
   currentStreak,
-  expectancy,
-  expectancyInfo,
   netPnlInfo,
   profitFactor,
   profitFactorInfo,
@@ -22,7 +23,9 @@ import { MetricInfo } from "@/components/metric-info";
 import { EmptyState } from "@/components/empty-state";
 import {
   formatPercent,
+  formatProfitFactor,
   formatRMultiple,
+  formatRatio,
   formatSignedMoney,
   pnlColorClass,
 } from "@/lib/money";
@@ -74,32 +77,27 @@ import {
 export const metadata: Metadata = { title: "Reports" };
 
 /**
- * Testo per <MetricInfo> dell'R medio: tenuto accanto a rowMetrics, che è
- * il punto in cui il numero viene calcolato (regola di FASE 10).
+ * Metriche di riga derivate dagli aggregati SQL (tutte Decimal-safe).
+ *
+ * Fase 60 — set di colonne standard delle tabelle di breakdown:
+ * Trade · Win % · Avg Win/Loss · PF · Expectancy · Net P&L. L'"Attesa/trade"
+ * in valuta è stata rimossa: diceva la stessa cosa dell'Expectancy con
+ * un'unità che non regge il confronto fra conti in valute diverse.
+ * Nessuna formula vive qui: winRate/avgWinLossR/profitFactor/avgR stanno in
+ * src/lib/metrics e sono le stesse di ogni altra tabella.
  */
-const avgRInfo = {
-  label: "R medio",
-  description:
-    "Media degli R-multiple dei trade con rischio definito: quante volte il rischio iniziale hai incassato in media per trade, indipendente dalla size.",
-  formula: "R medio = Σ R-multiple / n° trade con rischio · R = netPnl / rischio iniziale",
-};
-
-/** Metriche di riga derivate dagli aggregati SQL (tutte Decimal-safe). */
 function rowMetrics(row: BreakdownAggregates) {
-  const pf = profitFactor(row.winSum, row.lossSum);
   return {
     winRate: formatPercent(winRate(row.wins, row.total)),
-    profitFactor:
-      pf !== null
-        ? formatRMultiple(pf).slice(0, -1)
-        : row.wins > 0
-          ? "∞"
-          : "—",
-    expectancy: expectancy(row),
-    avgR:
-      row.rCount > 0
-        ? formatRMultiple(new Decimal(row.rSum).div(row.rCount).toFixed(4))
-        : "—",
+    avgWinLoss: formatRatio(avgWinLossR(row)),
+    profitFactor: formatProfitFactor(
+      profitFactor(row.winSum, row.lossSum),
+      row.wins,
+    ),
+    expectancyR: (() => {
+      const value = avgR(row.rSum, row.rCount);
+      return value !== null ? formatRMultiple(value) : "—";
+    })(),
   };
 }
 
@@ -149,25 +147,11 @@ function BreakdownTable({
                   )
                 </span>
                 <span>Win {m.winRate}</span>
-                <span>PF {m.profitFactor}</span>
+                <span>Avg W/L {m.avgWinLoss}</span>
               </span>
               <span className="flex flex-wrap items-center gap-x-3 gap-y-0.5 text-xs tabular-nums text-muted-foreground">
-                <span>
-                  Attesa/trade{" "}
-                  <span
-                    className={cn(
-                      "font-medium",
-                      m.expectancy !== null
-                        ? pnlColorClass(m.expectancy)
-                        : undefined,
-                    )}
-                  >
-                    {m.expectancy !== null
-                      ? formatSignedMoney(m.expectancy, currency)
-                      : "—"}
-                  </span>
-                </span>
-                <span>R medio {m.avgR}</span>
+                <span>PF {m.profitFactor}</span>
+                <span>Expectancy {m.expectancyR}</span>
               </span>
             </>
           );
@@ -204,17 +188,17 @@ function BreakdownTable({
             </TableHead>
             <TableHead className="text-right">
               <span className="inline-flex items-center gap-1">
+                Avg Win/Loss <MetricInfo info={avgWinLossRInfo} />
+              </span>
+            </TableHead>
+            <TableHead className="text-right">
+              <span className="inline-flex items-center gap-1">
                 PF <MetricInfo info={profitFactorInfo} />
               </span>
             </TableHead>
             <TableHead className="text-right">
               <span className="inline-flex items-center gap-1">
-                Attesa/trade <MetricInfo info={expectancyInfo} />
-              </span>
-            </TableHead>
-            <TableHead className="text-right">
-              <span className="inline-flex items-center gap-1">
-                R medio <MetricInfo info={avgRInfo} />
+                Expectancy <MetricInfo info={avgRInfo} />
               </span>
             </TableHead>
             <TableHead className="text-right">
@@ -254,19 +238,14 @@ function BreakdownTable({
                 </TableCell>
                 <TableCell className="text-right tabular-nums">{m.winRate}</TableCell>
                 <TableCell className="text-right tabular-nums">
+                  {m.avgWinLoss}
+                </TableCell>
+                <TableCell className="text-right tabular-nums">
                   {m.profitFactor}
                 </TableCell>
-                <TableCell
-                  className={cn(
-                    "text-right tabular-nums",
-                    m.expectancy !== null ? pnlColorClass(m.expectancy) : undefined,
-                  )}
-                >
-                  {m.expectancy !== null
-                    ? formatSignedMoney(m.expectancy, currency)
-                    : "—"}
+                <TableCell className="text-right tabular-nums">
+                  {m.expectancyR}
                 </TableCell>
-                <TableCell className="text-right tabular-nums">{m.avgR}</TableCell>
                 <TableCell
                   className={cn(
                     "text-right font-medium tabular-nums",

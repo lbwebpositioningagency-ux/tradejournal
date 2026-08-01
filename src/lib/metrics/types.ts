@@ -95,6 +95,26 @@ export interface TradeAggregates {
   fees: string;
 }
 
+/**
+ * Split degli R-multiple fra vincenti e perdenti, calcolato in SQL.
+ *
+ * Serve all'`Avg Win/Loss` delle tabelle di breakdown, che sta in unità R e
+ * non in valuta: un rapporto fra medie in valuta non è sommabile fra conti
+ * in valute diverse (v. Blocco 1 dell'audit), mentre l'R è adimensionale.
+ * I trade senza rischio iniziale definito (rMultiple NULL) restano fuori da
+ * entrambi i lati: sono esclusi dal numeratore come dal denominatore.
+ */
+export interface RSplitAggregates {
+  /** Somma degli R-multiple positivi (≥ 0). */
+  rWinSum: string;
+  /** Trade con R > 0. */
+  rWinCount: number;
+  /** Somma degli R-multiple negativi (≤ 0, col segno). */
+  rLossSum: string;
+  /** Trade con R < 0. */
+  rLossCount: number;
+}
+
 /** P&L netto di una giornata (bucketing nel fuso utente, fatto in SQL). */
 export interface DailyPnl {
   /** "YYYY-MM-DD" nel fuso dell'utente */

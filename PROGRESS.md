@@ -1153,6 +1153,26 @@ Chiude la decisione lasciata provvisoria dalla Fase 56, in senso opposto a quell
 
 **Verificato:** typecheck ✅ · lint ✅ · **1155/1155 test** ✅ (i tre casi che asserivano il vecchio comportamento riscritti: weekend escluso *anche* con trade, mescolato ai feriali senza spalmare il P&L su altri giorni, e nessuna etichetta 6/7) · build ✅ · E2E su build di produzione in Chrome headless: su **SIM1** la tabella ha 5 righe (118/116/131/130/121 trade, somma **616**) mentre l'intestazione del periodo dice **623 trade** — i 7 di sabato sono nello scope e fuori dalla tabella, che è esattamente il comportamento chiesto; su «Tutti i conti» 5 righe come prima; zero errori console.
 
+## ✅ FASE 60 «Standardizzazione delle metriche nelle tabelle di breakdown» (01/08/2026)
+Ogni tabella per categoria mostra ora **lo stesso set di colonne, nello stesso ordine**: `Trade · Win % · Avg Win/Loss · PF · Expectancy · P&L`. La colonna **«Attesa/trade» (in valuta) è stata rimossa ovunque**: diceva la stessa cosa dell'Expectancy con un'unità che non regge il confronto fra conti in valute diverse.
+
+**Tre componenti di rendering, non uno.** Nessun mega-componente unificato: i tre restano separati e sono le **funzioni di calcolo** a essere centralizzate.
+- `BreakdownTable` in `app/(app)/reports/page.tsx` → **Per simbolo · Per strategia · Per tag · Per direzione e asset class · Per mese · Bias × esecuzione**. Le ultime tre non erano nell'incarico ma usano lo stesso componente: incluse su decisione esplicita, l'alternativa era forkarlo in due varianti.
+- `PerformanceBarTable` (dashboard) → **Performance per sessione · per giorno della settimana**. Da 4 a 6 colonne più la barra P&L, che resta.
+- `SegmentTable` (analytics) → **fascia oraria · durata del trade**. «Win rate» rinominata «Win %» per allinearsi alle altre due.
+
+**Formule — dove vivono adesso.** `metrics/averages.ts`: `avgWinLossR(agg)` (nuova) e `avgR(rSum, rCount)` (ex «R medio», prima **copiata in tre punti**: `rowMetrics` dei Reports, `PerformanceBarTable` e `segmentMetrics`). `profitFactor` era già unica e non è stata toccata; il suo **rendering** («∞» senza perdite, «—» senza trade) era duplicato ed è ora `formatProfitFactor` in `lib/money.ts`, accanto al nuovo `formatRatio` (2 decimali fissi, virgola italiana). **La logica di Win % non è stata toccata in nessuna tabella.**
+
+**Avg Win/Loss è in R, non in valuta**, come l'Expectancy: `(Σ R>0 / n° R>0) / (|Σ R<0| / n° R<0)`. In valuta un rapporto fra medie non ha significato quando la riga mette insieme conti in valute diverse — è lo stesso problema chiuso nel Blocco 1 dell'audit (A1-A3). Senza vincenti **o** senza perdenti il valore non è definito → **«—», mai 0 né ∞**. Lo split R vincenti/perdenti arriva dal SQL (`rWinSum`/`rWinCount`/`rLossSum`/`rLossCount` aggiunti a `AGGREGATE_COLUMNS` e `SEGMENT_COLUMNS`, identici nelle due query): niente trade caricati in memoria. Le **serie rolling** estendono gli aggregati *senza* lo split — non mostrano questa colonna e quattro window function in più non le servono.
+
+**File toccati:** `metrics/types.ts` (`RSplitAggregates`), `metrics/averages.ts`, `metrics/index.ts`, `metrics/segment-performance.ts`, `lib/money.ts`, `queries/reports.ts`, `queries/analytics.ts`, `lib/sessions.ts`, `lib/weekdays.ts`, `components/dashboard/performance-bar-table.tsx`, `components/analytics/segment-table.tsx`, `app/(app)/reports/page.tsx` + i rispettivi test.
+
+**Fuori ambito, non toccati:** equity simulator, Macro Desk, Score radar, Target R vs R realizzato, concentrazione del profitto, distribuzione dei ritorni, e la sottoriga «Attesa/trade» della KPI Profit Factor nel **report settimanale** — è una scheda numerica, non una colonna di tabella.
+
+**Tooltip.** Icona «i» su Win %, Avg Win/Loss, PF ed Expectancy in tutte e tre le tabelle (prima solo nei Reports). Il testo dell'Expectancy è quello chiesto: «Media del multiplo R realizzato su tutti i trade chiusi.»
+
+**Verificato:** typecheck ✅ · lint ✅ · **1160/1160 test** ✅ (5 nuovi su `avgWinLossR` e `avgR`: rapporto fra medie e non fra somme, zero vincenti/zero perdenti/entrambi → null, somma perdente nulla con conteggio > 0 → null) · build ✅ · **numeri riconciliati col SQL grezzo**: su **SIM1**, Reports → Per simbolo, tutte e 4 le righe combaciano (GC 1,67 / PF 2,06 / 0,41R / +30.000,00 · NQ 1,67 / 1,91 / 0,36R · CL 1,44 / 1,24 / 0,13R · ES 1,66 / 1,14 / 0,07R) e **Win % e P&L sono identici a prima**; sul conto futures demo combaciano anche le sessioni (Londra 2,44 / 3,16 / 0,69R · New York 2,47 / 4,97 / 0,75R) e i bucket di durata (1-2h 2,92 / 9,92 / 0,94R). Riga senza perdenti («Fuori sessione», 2 trade, 100% win): **Avg Win/Loss «—» e PF «∞»**, come previsto. **Mobile 375px:** Reports e Analytics restano card impilate (le due nuove metriche stanno nella riga secondaria); la tabella della dashboard va in **scroll orizzontale interno** (`min-w-[46rem]` dentro `overflow-x-auto`: 765px di tabella in 295px di card) e il **documento resta a 375px, nessun overflow di pagina**.
+
 ### ▶ Prossimi passi
 
 - **Pesi dello Score:** 100/6 uguali è il default documentato; tarare dopo lettura dei punteggi reali.

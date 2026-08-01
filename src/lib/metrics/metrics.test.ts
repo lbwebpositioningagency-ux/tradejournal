@@ -1,7 +1,9 @@
 import { describe, expect, it } from "vitest";
 import {
   avgLoss,
+  avgR,
   avgWin,
+  avgWinLossR,
   calmarRatio,
   coveredDays,
   CALMAR_MIN_DAYS,
@@ -88,6 +90,60 @@ describe("avgWin / avgLoss / payoffRatio", () => {
     expect(payoffRatio(null, "150.00")).toBeNull();
     expect(payoffRatio("300.00", null)).toBeNull();
     expect(payoffRatio("300.00", "0.00")).toBeNull();
+  });
+});
+
+describe("avgWinLossR (colonna Avg Win/Loss delle tabelle di breakdown)", () => {
+  it("rapporto fra media degli R vincenti e media degli |R| perdenti", () => {
+    // AvgWinR = 5,46/3 = 1,82 · AvgLossR = 3,00/3 = 1,00 → 1,82
+    expect(
+      avgWinLossR({
+        rWinSum: "5.46",
+        rWinCount: 3,
+        rLossSum: "-3.00",
+        rLossCount: 3,
+      }),
+    ).toBe("1.8200");
+    // Numeri di conteggio diversi fra i due lati: le medie, non le somme.
+    // AvgWinR = 8/2 = 4 · AvgLossR = 4/4 = 1 → 4
+    expect(
+      avgWinLossR({
+        rWinSum: "8",
+        rWinCount: 2,
+        rLossSum: "-4",
+        rLossCount: 4,
+      }),
+    ).toBe("4.0000");
+  });
+
+  it("nessun perdente o nessun vincente → null, mai 0 né Infinity", () => {
+    expect(
+      avgWinLossR({ rWinSum: "6", rWinCount: 3, rLossSum: "0", rLossCount: 0 }),
+    ).toBeNull();
+    expect(
+      avgWinLossR({ rWinSum: "0", rWinCount: 0, rLossSum: "-6", rLossCount: 3 }),
+    ).toBeNull();
+    expect(
+      avgWinLossR({ rWinSum: "0", rWinCount: 0, rLossSum: "0", rLossCount: 0 }),
+    ).toBeNull();
+  });
+
+  it("difensivo: somma perdente nulla con conteggio > 0 → null (no /0)", () => {
+    expect(
+      avgWinLossR({ rWinSum: "3", rWinCount: 1, rLossSum: "0", rLossCount: 2 }),
+    ).toBeNull();
+  });
+});
+
+describe("avgR (Expectancy in R, ex «R medio»)", () => {
+  it("media dell'R su tutti i trade con rischio definito, vincite e perdite insieme", () => {
+    // (2 + 1 − 1,5) / 3 = 0,5
+    expect(avgR("1.5", 3)).toBe("0.5000");
+    expect(avgR("-3", 4)).toBe("-0.7500");
+  });
+
+  it("nessun trade con rischio definito → null", () => {
+    expect(avgR("0", 0)).toBeNull();
   });
 });
 

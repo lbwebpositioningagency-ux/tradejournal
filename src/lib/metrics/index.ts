@@ -2,7 +2,16 @@ export * from "./types";
 export { classifyOutcome } from "./outcome";
 export { winRate, winRateInfo, dayWinRateInfo } from "./win-rate";
 export { profitFactor, profitFactorInfo } from "./profit-factor";
-export { avgWin, avgLoss, payoffRatio, avgWinLossInfo } from "./averages";
+export {
+  avgWin,
+  avgLoss,
+  payoffRatio,
+  avgWinLossInfo,
+  avgWinLossR,
+  avgWinLossRInfo,
+  avgR,
+  avgRInfo,
+} from "./averages";
 export { expectancy, expectancyInfo } from "./expectancy";
 export { maxDrawdown, maxDrawdownInfo } from "./drawdown";
 export {

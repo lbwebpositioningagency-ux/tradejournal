@@ -1,8 +1,9 @@
 import Decimal from "decimal.js";
+import { avgR, avgWinLossR } from "./averages";
 import { expectancy } from "./expectancy";
 import { profitFactor } from "./profit-factor";
 import { winRate } from "./win-rate";
-import type { MetricInfoData } from "./types";
+import type { MetricInfoData, RSplitAggregates } from "./types";
 
 /**
  * §2/§3 — performance per SEGMENTO (fascia oraria, durata del trade).
@@ -17,7 +18,7 @@ import type { MetricInfoData } from "./types";
  * sta in UI), "nessun dato" → null, mai uno 0 che sembra un risultato.
  */
 
-export interface SegmentAggregates {
+export interface SegmentAggregates extends Partial<RSplitAggregates> {
   total: number;
   wins: number;
   losses: number;
@@ -43,8 +44,17 @@ export interface SegmentMetrics {
   losses: number;
   /** Frazione 0-1; null senza trade. */
   winRate: string | null;
-  /** R medio realizzato = expectancy in R; null senza trade con rischio. */
+  /**
+   * Expectancy in R (l'ex "R medio"): media dell'R realizzato su tutti i
+   * trade con rischio definito; null senza. Il nome del campo resta `avgR`
+   * per non toccare i grafici che ci si appoggiano — è cambiata l'etichetta.
+   */
   avgR: string | null;
+  /**
+   * Avg Win/Loss in R; null se manca del tutto un lato (o se lo split R non
+   * arriva dalla query, come per le finestre rolling).
+   */
+  avgWinLoss: string | null;
   /** Attesa per trade in VALUTA; null senza trade. */
   expectancy: string | null;
   profitFactor: string | null;
@@ -64,9 +74,18 @@ export function segmentMetrics(row: SegmentAggregates): SegmentMetrics {
     wins: row.wins,
     losses: row.losses,
     winRate: empty ? null : winRate(row.wins, row.total),
-    avgR:
-      row.rCount > 0
-        ? new Decimal(row.rSum).div(row.rCount).toFixed(4)
+    avgR: avgR(row.rSum, row.rCount),
+    avgWinLoss:
+      row.rWinSum !== undefined &&
+      row.rWinCount !== undefined &&
+      row.rLossSum !== undefined &&
+      row.rLossCount !== undefined
+        ? avgWinLossR({
+            rWinSum: row.rWinSum,
+            rWinCount: row.rWinCount,
+            rLossSum: row.rLossSum,
+            rLossCount: row.rLossCount,
+          })
         : null,
     expectancy: empty ? null : expectancy(row),
     profitFactor: profitFactor(row.winSum, row.lossSum),
@@ -118,6 +137,10 @@ function emptyAggregates(): SegmentAggregates {
     lossSum: "0",
     rSum: "0",
     rCount: 0,
+    rWinSum: "0",
+    rWinCount: 0,
+    rLossSum: "0",
+    rLossCount: 0,
   };
 }
 
@@ -196,7 +219,7 @@ export const hourPerformanceInfo: MetricInfoData = {
   label: "Performance per fascia oraria",
   description:
     "Come rende ogni ora della giornata, sull'orario di APERTURA del trade nel tuo fuso. Le fasce con pochi trade sono marcate: tre operazioni non fanno una statistica, e il modo più facile per peggiorare è cambiare le proprie abitudini inseguendo il rumore.",
-  formula: "Ora di apertura (fuso utente) · R medio = Σ R / trade con rischio",
+  formula: "Ora di apertura (fuso utente) · Expectancy = Σ R / trade con rischio",
 };
 
 export const durationPerformanceInfo: MetricInfoData = {

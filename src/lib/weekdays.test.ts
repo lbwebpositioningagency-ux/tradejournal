@@ -14,6 +14,10 @@ function row(weekday: number, over: Partial<WeekdayBreakdownRow> = {}): WeekdayB
     lossSum: "-50.00",
     rSum: "1.5000",
     rCount: 3,
+    rWinSum: "3.0000",
+    rWinCount: 2,
+    rLossSum: "-1.5000",
+    rLossCount: 1,
     ...over,
   };
 }

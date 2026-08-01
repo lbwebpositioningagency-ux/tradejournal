@@ -40,6 +40,10 @@ describe("sessioni di mercato", () => {
         lossSum: "-79.50",
         rSum: "2.5",
         rCount: 4,
+        rWinSum: "4.5",
+        rWinCount: 3,
+        rLossSum: "-2.0",
+        rLossCount: 1,
       },
     ]);
     expect(series.map((s) => s.session)).toEqual([
@@ -71,6 +75,10 @@ describe("sessioni di mercato", () => {
         lossSum: "0",
         rSum: "0",
         rCount: 0,
+        rWinSum: "0",
+        rWinCount: 0,
+        rLossSum: "0",
+        rLossCount: 0,
       },
     ]);
     expect(series.every((s) => s.total === 0)).toBe(true);

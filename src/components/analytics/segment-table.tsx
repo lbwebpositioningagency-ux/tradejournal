@@ -1,11 +1,20 @@
 import { cn } from "@/lib/utils";
 import {
   formatPercent,
+  formatProfitFactor,
   formatRMultiple,
+  formatRatio,
   formatSignedMoney,
   pnlColorClass,
 } from "@/lib/money";
-import type { SegmentMetrics } from "@/lib/metrics";
+import {
+  avgRInfo,
+  avgWinLossRInfo,
+  profitFactorInfo,
+  winRateInfo,
+  type SegmentMetrics,
+} from "@/lib/metrics";
+import { MetricInfo } from "@/components/metric-info";
 
 /**
  * Tabella di dettaglio di un segmento (fascia oraria o durata).
@@ -31,6 +40,12 @@ function Cells({ row, currency }: { row: Row; currency: string }) {
       <td className="py-2 pr-3 text-right tabular-nums">
         {row.winRate !== null ? formatPercent(row.winRate) : dash}
       </td>
+      <td className="py-2 pr-3 text-right tabular-nums">
+        {row.avgWinLoss !== null ? formatRatio(row.avgWinLoss) : dash}
+      </td>
+      <td className="py-2 pr-3 text-right tabular-nums">
+        {row.empty ? dash : formatProfitFactor(row.profitFactor, row.wins)}
+      </td>
       <td
         className={cn(
           "py-2 pr-3 text-right font-medium tabular-nums",
@@ -38,16 +53,6 @@ function Cells({ row, currency }: { row: Row; currency: string }) {
         )}
       >
         {row.avgR !== null ? formatRMultiple(row.avgR) : dash}
-      </td>
-      <td
-        className={cn(
-          "py-2 pr-3 text-right tabular-nums",
-          row.expectancy !== null && pnlColorClass(row.expectancy),
-        )}
-      >
-        {row.expectancy !== null
-          ? formatSignedMoney(row.expectancy, currency)
-          : dash}
       </td>
       <td
         className={cn(
@@ -78,9 +83,26 @@ export function SegmentTable({
             <tr className="border-b text-left text-xs text-muted-foreground">
               <th className="py-2 pr-3 font-medium">{segmentLabel}</th>
               <th className="py-2 pr-3 text-right font-medium">Trade</th>
-              <th className="py-2 pr-3 text-right font-medium">Win rate</th>
-              <th className="py-2 pr-3 text-right font-medium">R medio</th>
-              <th className="py-2 pr-3 text-right font-medium">Attesa/trade</th>
+              <th className="py-2 pr-3 text-right font-medium">
+                <span className="inline-flex items-center gap-1">
+                  Win % <MetricInfo info={winRateInfo} />
+                </span>
+              </th>
+              <th className="py-2 pr-3 text-right font-medium">
+                <span className="inline-flex items-center gap-1">
+                  Avg Win/Loss <MetricInfo info={avgWinLossRInfo} />
+                </span>
+              </th>
+              <th className="py-2 pr-3 text-right font-medium">
+                <span className="inline-flex items-center gap-1">
+                  PF <MetricInfo info={profitFactorInfo} />
+                </span>
+              </th>
+              <th className="py-2 pr-3 text-right font-medium">
+                <span className="inline-flex items-center gap-1">
+                  Expectancy <MetricInfo info={avgRInfo} />
+                </span>
+              </th>
               <th className="py-2 text-right font-medium">P&amp;L totale</th>
             </tr>
           </thead>
@@ -134,7 +156,13 @@ export function SegmentTable({
                   Win {row.winRate !== null ? formatPercent(row.winRate) : "—"}
                 </span>
                 <span>
-                  R medio {row.avgR !== null ? formatRMultiple(row.avgR) : "—"}
+                  Avg W/L{" "}
+                  {row.avgWinLoss !== null ? formatRatio(row.avgWinLoss) : "—"}
+                </span>
+                <span>PF {formatProfitFactor(row.profitFactor, row.wins)}</span>
+                <span>
+                  Expectancy{" "}
+                  {row.avgR !== null ? formatRMultiple(row.avgR) : "—"}
                 </span>
                 {row.smallSample && (
                   <span className="text-2xs">campione ridotto</span>

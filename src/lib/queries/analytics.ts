@@ -1,6 +1,7 @@
 import { Prisma } from "@/generated/prisma/client";
 import { prisma } from "@/lib/db";
 import { TRADE_WINDOWS } from "@/lib/metrics/rolling";
+import type { RSplitAggregates } from "@/lib/metrics/types";
 import {
   FROM_TRADES,
   whereClosedTrades,
@@ -236,7 +237,13 @@ const SEGMENT_COLUMNS = Prisma.sql`
   COALESCE(SUM(t."netPnl") FILTER (WHERE t."netPnl" > 0), 0)::text AS "winSum",
   COALESCE(SUM(t."netPnl") FILTER (WHERE t."netPnl" < 0), 0)::text AS "lossSum",
   COALESCE(SUM(t."rMultiple"), 0)::text                    AS "rSum",
-  (COUNT(*) FILTER (WHERE t."rMultiple" IS NOT NULL))::int AS "rCount"
+  (COUNT(*) FILTER (WHERE t."rMultiple" IS NOT NULL))::int AS "rCount",
+  -- Split R vincenti/perdenti per l'Avg Win/Loss (Fase 60), identico a
+  -- AGGREGATE_COLUMNS dei Reports: le due viste non possono divergere.
+  COALESCE(SUM(t."rMultiple") FILTER (WHERE t."rMultiple" > 0), 0)::text AS "rWinSum",
+  (COUNT(*) FILTER (WHERE t."rMultiple" > 0))::int         AS "rWinCount",
+  COALESCE(SUM(t."rMultiple") FILTER (WHERE t."rMultiple" < 0), 0)::text AS "rLossSum",
+  (COUNT(*) FILTER (WHERE t."rMultiple" < 0))::int         AS "rLossCount"
 `;
 
 export interface SegmentAggregates {
@@ -251,7 +258,17 @@ export interface SegmentAggregates {
   rCount: number;
 }
 
-export interface HourPerformanceRow extends SegmentAggregates {
+/**
+ * Aggregati di segmento COMPLETI dello split R (le colonne di
+ * `SEGMENT_COLUMNS`). Le serie rolling estendono `SegmentAggregates` senza lo
+ * split — la loro finestra non mostra l'Avg Win/Loss — e la separazione
+ * evita di aggiungere quattro window function per colonne che nessuno legge.
+ */
+export interface SegmentAggregatesR
+  extends SegmentAggregates,
+    RSplitAggregates {}
+
+export interface HourPerformanceRow extends SegmentAggregatesR {
   /** 0-23, ora di APERTURA del trade nel fuso dell'utente. */
   hour: number;
 }
@@ -281,7 +298,7 @@ export async function getHourPerformance(
   `);
 }
 
-export interface DurationPerformanceRow extends SegmentAggregates {
+export interface DurationPerformanceRow extends SegmentAggregatesR {
   /** Chiave del bucket di durata (vedi DURATION_BUCKETS). */
   bucket: string;
 }

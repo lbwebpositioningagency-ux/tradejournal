@@ -67,6 +67,42 @@ export function formatRMultiple(value: string): string {
 }
 
 /**
+ * Rapporto puro senza unità (Profit Factor, Avg Win/Loss): 2 decimali fissi,
+ * notazione italiana ("1,82"). `null` = non definito → "—", mai 0.
+ *
+ * Decimali FISSI e non "massimo 2": in colonna, con tabular-nums, "1,50" e
+ * "1,82" si confrontano a colpo d'occhio mentre "1,5" e "1,82" no.
+ */
+export function formatRatio(value: string | null, decimals = 2): string {
+  if (value === null) return "—";
+  let dec: Decimal;
+  try {
+    dec = new Decimal(value);
+  } catch {
+    return "—";
+  }
+  if (!dec.isFinite()) return "—";
+  return new Intl.NumberFormat("it-IT", {
+    minimumFractionDigits: decimals,
+    maximumFractionDigits: decimals,
+  }).format(dec.toDecimalPlaces(decimals, Decimal.ROUND_HALF_UP).toNumber());
+}
+
+/**
+ * Profit Factor per il display, con la distinzione che conta: `null` dal
+ * modulo di calcolo significa "nessuna perdita", che è "∞" se ci sono
+ * profitti e "—" se non c'è nessun trade. Unica implementazione: prima era
+ * copiata in reports/page.tsx e reports/settimana/page.tsx.
+ */
+export function formatProfitFactor(
+  pf: string | null,
+  wins: number,
+): string {
+  if (pf !== null) return formatRatio(pf);
+  return wins > 0 ? "∞" : "—";
+}
+
+/**
  * Importo compatto con segno per spazi stretti (celle del calendario):
  * niente simbolo valuta (indicata una volta nella testata) e SEMPRE zero
  * decimali (F43: "+1581" e "+640,86" nella stessa griglia erano precisioni

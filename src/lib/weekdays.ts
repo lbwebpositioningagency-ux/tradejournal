@@ -1,4 +1,5 @@
 import type { WeekdayBreakdownRow } from "@/lib/queries/reports";
+import type { RSplitAggregates } from "@/lib/metrics/types";
 
 /**
  * Performance per giorno della settimana in dashboard: stessa forma dei
@@ -33,11 +34,15 @@ export const WEEKDAY_LABELS: Record<number, string> = {
 /** Giorni mostrati, in ordine ISO: la settimana operativa e basta. */
 const WEEKDAYS = [1, 2, 3, 4, 5];
 
-export interface WeekdayPoint {
+export interface WeekdayPoint extends RSplitAggregates {
   weekday: number;
   label: string;
   total: number;
   wins: number;
+  /** Serve al Profit Factor della riga (Fase 60). */
+  winSum: string;
+  /** ≤ 0, col segno. */
+  lossSum: string;
   netPnl: string;
   rSum: string;
   rCount: number;
@@ -55,9 +60,15 @@ export function fillWeekdaySeries(rows: WeekdayBreakdownRow[]): WeekdayPoint[] {
       label: WEEKDAY_LABELS[weekday],
       total: row?.total ?? 0,
       wins: row?.wins ?? 0,
+      winSum: row?.winSum ?? "0",
+      lossSum: row?.lossSum ?? "0",
       netPnl: row?.netPnl ?? "0",
       rSum: row?.rSum ?? "0",
       rCount: row?.rCount ?? 0,
+      rWinSum: row?.rWinSum ?? "0",
+      rWinCount: row?.rWinCount ?? 0,
+      rLossSum: row?.rLossSum ?? "0",
+      rLossCount: row?.rLossCount ?? 0,
     };
   });
 }
@@ -66,7 +77,7 @@ export function fillWeekdaySeries(rows: WeekdayBreakdownRow[]): WeekdayPoint[] {
 export const weekdaysInfo = {
   label: "Performance per giorno della settimana",
   description:
-    "Trade, win rate, R medio e profitto per giorno della settimana, classificati sul giorno di APERTURA nel tuo fuso orario. Solo lunedì-venerdì: eventuali trade del weekend restano nelle altre metriche del conto ma non compaiono in questa tabella.",
+    "Trade, win rate, Avg Win/Loss, profit factor, expectancy in R e profitto per giorno della settimana, classificati sul giorno di APERTURA nel tuo fuso orario. Solo lunedì-venerdì: eventuali trade del weekend restano nelle altre metriche del conto ma non compaiono in questa tabella.",
   formula:
     "Bucket ISO sul giorno di apertura, lun-ven (weekend escluso), stessi aggregati del report per sessione",
 };
