@@ -7,6 +7,7 @@ import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { parseMacroPayload } from "@/lib/macro-desk-payload";
 import { caricaPannelloCot } from "@/lib/queries/cot-panel";
+import { getDriverDeskData } from "@/lib/queries/driver-desk";
 import { cn } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
 import { MacroReportDetail } from "@/components/macro-desk/report-detail";
@@ -46,9 +47,10 @@ export default async function MacroReportPage({
   if (!session?.user?.id) redirect("/login");
 
   const { id } = await params;
-  const [report, cotPanel] = await Promise.all([
+  const [report, cotPanel, driverDesk] = await Promise.all([
     prisma.macroDeskReport.findUnique({ where: { id } }),
     caricaPannelloCot(),
+    getDriverDeskData(),
   ]);
   if (!report) notFound();
 
@@ -95,6 +97,7 @@ export default async function MacroReportPage({
           payload={payload}
           biasRecord={report.biasRecord}
           cotPanel={cotPanel}
+          driverDesk={driverDesk}
         />
       </div>
     </div>
