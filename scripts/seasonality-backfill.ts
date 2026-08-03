@@ -5,6 +5,9 @@
  *   npx tsx scripts/seasonality-backfill.ts XAUUSD VIX    # solo alcuni
  *   npx tsx scripts/seasonality-backfill.ts --no-intraday # solo giornaliero
  *   npx tsx scripts/seasonality-backfill.ts --rescan      # ripassa tutte le ore
+ *   npx tsx scripts/seasonality-backfill.ts --budget 20000 # SIMULA il limite
+ *       di produzione: budget di 20s per esecuzione, e rilancia fino a
+ *       convergenza. Serve a dimostrare che il cold-start converge davvero.
  *
  * Gira in LOCALE contro il database indicato da DATABASE_URL. Non è il cron:
  * il cron notturno fa lo stesso lavoro ma su una serie già presente, e ci sta
@@ -24,7 +27,22 @@ import { PrismaPg } from "@prisma/adapter-pg";
 import { runSeasonalityDailyJob } from "../src/lib/seasonality/job";
 
 async function main() {
-  const only = process.argv.slice(2).filter((a) => !a.startsWith("-"));
+  const argv = process.argv.slice(2);
+
+  /* In locale non c'è limite di funzione: budget largo. Il flag --budget
+     serve a SIMULARE il vincolo di produzione e verificare che più
+     esecuzioni convergano davvero. */
+  const iBudget = argv.indexOf("--budget");
+  const budgetMs = iBudget >= 0 ? Number(argv[iBudget + 1]) : 30 * 60_000;
+  const maxGiri = iBudget >= 0 ? 40 : 1;
+
+  /* Gli strumenti sono gli argomenti liberi: vanno tolti i flag E il valore
+     che segue --budget, altrimenti "20000" viene preso per un ticker e il
+     job non trova niente da fare. */
+  const only = argv.filter(
+    (a, i) => !a.startsWith("-") && !(iBudget >= 0 && i === iBudget + 1),
+  );
+
   const adapter = new PrismaPg({ connectionString: process.env.DATABASE_URL });
   const prisma = new PrismaClient({ adapter });
 
@@ -33,35 +51,49 @@ async function main() {
       ? `Stagionalità — backfill di: ${only.join(", ")}`
       : "Stagionalità — backfill di tutti gli strumenti",
   );
+  console.log(`budget per esecuzione: ${Math.round(budgetMs / 1000)}s · giri max: ${maxGiri}
+`);
 
   try {
-    const esito = await runSeasonalityDailyJob(prisma, {
-      only: only.length > 0 ? only : undefined,
-      intraday: !process.argv.includes("--no-intraday"),
-      fullRescan: process.argv.includes("--rescan"),
-      onProgress: (msg) => console.log(msg),
-    });
+    let giro = 0;
+    let esito;
+    do {
+      giro += 1;
+      if (maxGiri > 1) console.log(`── giro ${giro} ──`);
+      esito = await runSeasonalityDailyJob(prisma, {
+        only: only.length > 0 ? only : undefined,
+        intraday: !argv.includes("--no-intraday"),
+        fullRescan: argv.includes("--rescan") && giro === 1,
+        /* Solo al primo giro: forzare il giornaliero a OGNI giro
+           impedirebbe per costruzione la convergenza, perché il budget
+           verrebbe consumato ogni volta dalla stessa fase. */
+        forceDaily: argv.includes("--force-daily") && giro === 1,
+        budgetMs,
+        onProgress: (msg) => console.log(msg),
+      });
+      if (maxGiri > 1) {
+        console.log(
+          `   fase ${esito.fase} · ${Math.round(esito.durataMs / 1000)}s · ${esito.completo ? "COMPLETO" : `prossimo: ${esito.prossimo}`}
+`,
+        );
+      }
+    } while (!esito.completo && giro < maxGiri);
 
     console.log("");
     for (const s of esito.strumenti) {
-      const testa = `${s.strumento.padEnd(7)} ${s.esito.padEnd(12)}`;
-      if (s.esito === "aggiornato") {
+      const testa = `${s.strumento.padEnd(7)} ${s.esito.padEnd(14)}`;
+      if (s.esito === "aggiornato" || s.esito === "gia_aggiornato") {
         console.log(
           `${testa} ${String(s.barre).padStart(6)} barre  ` +
             `${String(s.statistiche).padStart(5)} stat  ` +
-            `${String(s.puntiPercorso).padStart(5)} punti  ` +
-            `${s.primaData} → ${s.ultimaData}  (${s.anniCompleti} anni completi)  ` +
-            `[${s.fonte}]`,
+            `${s.primaData} → ${s.ultimaData}  [${s.fonte}]`,
         );
         if (s.intraday) {
           console.log(
             `        intraday: ${String(s.intraday.totali).padStart(7)} ore  ` +
-              `${String(s.intraday.statistiche).padStart(4)} stat  ` +
-              `${s.intraday.anniCompleti} anni completi  ` +
-              `${s.intraday.saltiCopertura} salti di copertura` +
-              (s.intraday.buchi.length > 0
-                ? `  · buchi: ${s.intraday.buchi.join(", ")}`
-                : ""),
+              `ingest ${s.intraday.ingestCompleto ? "completo" : `fino al ${s.intraday.prossimoAnno}`}  ` +
+              `precalcolo ${s.intraday.precalcolato ? "aggiornato" : "da fare"}` +
+              (s.intraday.buchi.length > 0 ? `  · buchi: ${s.intraday.buchi.join(", ")}` : ""),
           );
         }
       } else {
@@ -70,7 +102,7 @@ async function main() {
     }
     console.log("");
     console.log(
-      `Esito complessivo: ${esito.ok ? "OK" : "CON ERRORI"} · ${Math.round(esito.durataMs / 1000)}s · run ${esito.runId}`,
+      `Esito: ${esito.ok ? "OK" : "CON ERRORI"} · ${esito.completo ? "COMPLETO" : `INCOMPLETO → ${esito.prossimo}`} · ${giro} giri · run ${esito.runId}`,
     );
     process.exitCode = esito.ok ? 0 : 1;
   } finally {

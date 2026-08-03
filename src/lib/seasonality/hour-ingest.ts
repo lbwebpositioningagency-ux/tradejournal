@@ -1,19 +1,29 @@
 /**
  * Ingest delle barre ORARIE — SOLO server-side.
  *
- * A differenza delle chiusure giornaliere, che vengono riscritte per intero a
- * ogni esecuzione, le barre orarie sono **incrementali**: sono centinaia di
- * migliaia di righe per strumento, e riscaricarle ogni notte non avrebbe
- * senso né starebbe nei 300 secondi di una funzione.
+ * ── Perché è a blocchi con cursore ────────────────────────────────────────
  *
- * Il job notturno parte dall'ULTIMA ora salvata e scarica solo da lì in poi.
- * Il primo popolamento — vent'anni di storia — gira a mano in locale con
- * `scripts/seasonality-backfill.ts`, che usa esattamente questa funzione con
- * una finestra più larga.
+ * Il primo caricamento scarica centinaia di file mensili per strumento e non
+ * entra in una funzione con un limite di tempo. Prima veniva fatto tutto in
+ * un'invocazione: la funzione veniva uccisa a metà, e la notte dopo il job
+ * ricominciava senza sapere dove si era fermato.
  *
- * Le scritture sono idempotenti: `skipDuplicates` sulla chiave
- * (instrument, ts). Rilanciare due volte non duplica niente e non richiede di
- * sapere dove ci si era fermati.
+ * Ora l'ingest procede a **blocchi annuali**, ognuno scritto e confermato
+ * subito, e dopo ogni blocco chiama `onChunkDone` perché il chiamante
+ * persista il cursore. Un'invocazione interrotta lascia sul disco tutto ciò
+ * che aveva già scritto, e la successiva riparte dall'anno dopo.
+ *
+ * **Nessuna transazione avvolge il backfill**: le `createMany` sono
+ * indipendenti e idempotenti (`skipDuplicates` sulla chiave `instrument, ts`).
+ * Avvolgerle avrebbe significato perdere ore di lavoro a ogni kill — che è
+ * esattamente il difetto P0-1 dell'audit.
+ *
+ * ── Perché il cursore è un ANNO e non l'ultima barra ──────────────────────
+ *
+ * Un cursore basato su `max(ts)` non avanzerebbe mai attraverso un anno
+ * interamente vuoto — e ce ne sono, all'inizio di ogni storico e nei buchi
+ * d'archivio. Il job resterebbe a rileggere il vuoto per sempre. L'anno
+ * avanza comunque.
  */
 
 import type { PrismaClient } from "@/generated/prisma/client";
@@ -22,6 +32,9 @@ import { fetchDukascopyHourly } from "@/lib/seasonality/sources/dukascopy";
 import type { HourBar } from "@/lib/seasonality/intraday";
 
 const CHUNK = 2000;
+
+/** Pausa fra un file e l'altro: cortesia verso un archivio pubblico gratuito. */
+const PAUSA_FRA_BLOCCHI_MS = 250;
 
 /**
  * Inizio storico H1 REALE per strumento, verificato dai metadati del
@@ -37,28 +50,24 @@ export const HOURLY_START: Record<string, string> = {
 
 export interface HourIngestResult {
   symbol: string;
-  /** Righe effettivamente inserite in questa esecuzione. */
+  /** Righe effettivamente inserite in questa invocazione. */
   inserted: number;
   /** Righe totali in tabella dopo l'ingest. */
   total: number;
   first: Date | null;
   last: Date | null;
-  /** Blocchi annuali che non hanno restituito nulla: buchi d'archivio. */
+  /** Mesi che l'archivio non ha restituito. */
   emptyChunks: string[];
+  /** L'ingest ha raggiunto il presente: da qui in poi basta il delta. */
+  complete: boolean;
+  /** Anno da cui ripartire alla prossima invocazione (`null` se completo). */
+  nextYear: number | null;
+  /** Interrotto dal budget di tempo, non da un errore. */
+  stoppedByBudget: boolean;
 }
 
-/** Estremi di un blocco annuale, ritagliati sulla finestra richiesta. */
-function yearChunks(from: Date, to: Date): { from: Date; to: Date }[] {
-  const out: { from: Date; to: Date }[] = [];
-  let cursor = new Date(
-    Date.UTC(from.getUTCFullYear(), from.getUTCMonth(), from.getUTCDate()),
-  );
-  while (cursor < to) {
-    const next = new Date(Date.UTC(cursor.getUTCFullYear() + 1, 0, 1));
-    out.push({ from: cursor, to: next > to ? to : next });
-    cursor = next;
-  }
-  return out;
+function attesa(ms: number): Promise<void> {
+  return new Promise((r) => setTimeout(r, ms));
 }
 
 /** I dodici mesi (o meno) dentro un blocco annuale. */
@@ -78,29 +87,29 @@ function monthChunks(from: Date, to: Date): { from: Date; to: Date }[] {
 }
 
 /**
- * Scarica un blocco annuale, ripiegando sui MESI quando l'anno intero
+ * Scarica un intervallo, ripiegando sui MESI quando la richiesta intera
  * fallisce.
  *
  * `dukascopy-node` non restituisce un elenco vuoto quando l'archivio non ha
  * un pezzo del periodo richiesto: lancia. Chiedendo un anno alla volta,
- * bastava quindi un solo mese mancante — l'inizio dello storico di uno
- * strumento, o il buco accertato del WTI a marzo 2024 — per perdere gli altri
- * undici mesi buoni. Il ripiego mensile isola il buco vero e salva il resto.
+ * bastava quindi un solo mese mancante per perdere gli altri undici. Il
+ * ripiego mensile isola il buco vero e salva il resto.
  */
-async function fetchYearTolerant(
+async function fetchTolerant(
   symbol: string,
-  chunk: { from: Date; to: Date },
+  from: Date,
+  to: Date,
   onEmptyMonth: (label: string) => void,
 ): Promise<HourBar[]> {
   try {
-    const bars = await fetchDukascopyHourly(symbol, chunk.from, chunk.to);
+    const bars = await fetchDukascopyHourly(symbol, from, to);
     if (bars.length > 0) return bars;
   } catch {
     // Si riprova mese per mese: sotto, non si propaga.
   }
 
   const out: HourBar[] = [];
-  for (const m of monthChunks(chunk.from, chunk.to)) {
+  for (const m of monthChunks(from, to)) {
     const label = `${m.from.getUTCFullYear()}-${String(m.from.getUTCMonth() + 1).padStart(2, "0")}`;
     try {
       const bars = await fetchDukascopyHourly(symbol, m.from, m.to);
@@ -109,69 +118,119 @@ async function fetchYearTolerant(
     } catch {
       onEmptyMonth(label);
     }
+    await attesa(PAUSA_FRA_BLOCCHI_MS);
   }
   return out;
 }
 
-export async function ingestHourly(
+async function scrivi(
+  prisma: PrismaClient,
+  instrument: SeasonalityInstrument,
+  bars: HourBar[],
+): Promise<number> {
+  let inserted = 0;
+  for (let i = 0; i < bars.length; i += CHUNK) {
+    const slice = bars.slice(i, i + CHUNK);
+    const res = await prisma.seasonalityHourBar.createMany({
+      data: slice.map((b) => ({
+        instrument,
+        ts: b.ts,
+        close: b.close.toFixed(8),
+      })),
+      skipDuplicates: true,
+    });
+    inserted += res.count;
+  }
+  return inserted;
+}
+
+/**
+ * Un passo di ingest orario, limitato dal budget di tempo.
+ *
+ * Due modalità:
+ * - **backfill** (`ingestComplete` falso): procede a blocchi annuali dal
+ *   cursore, uno alla volta, fermandosi quando il budget non basta più per
+ *   un altro blocco;
+ * - **delta** (`ingestComplete` vero): una sola richiesta dall'ultima barra
+ *   salvata a ora — poche righe, è il caso di tutte le notti a regime.
+ */
+export async function ingestHourlyStep(
   prisma: PrismaClient,
   instrument: SeasonalityInstrument,
   symbol: string,
   opts: {
     now?: Date;
+    /** Istante oltre il quale non si comincia un altro blocco. */
+    deadline: number;
+    /** Costo stimato di un blocco annuale: sotto questo margine ci si ferma. */
+    marginePerBloccoMs?: number;
+    /** Stato del cursore, letto dal chiamante. */
+    nextYear: number | null;
+    ingestComplete: boolean;
     onProgress?: (msg: string) => void;
-    /**
-     * Ignora l'ultima ora salvata e ripassa TUTTO lo storico. Serve al
-     * backfill dopo un cambio di logica di scarico: l'ingest incrementale
-     * parte dall'ultima riga e non tornerebbe mai a colmare un buco lasciato
-     * indietro da un'esecuzione precedente.
-     */
-    fullRescan?: boolean;
-  } = {},
+    /** Persistenza del cursore DOPO ogni blocco scritto. */
+    onChunkDone?: (nextYear: number) => Promise<void>;
+  },
 ): Promise<HourIngestResult> {
   const now = opts.now ?? new Date();
   const log = opts.onProgress ?? (() => {});
-
-  const latest = await prisma.seasonalityHourBar.findFirst({
-    where: { instrument },
-    orderBy: { ts: "desc" },
-    select: { ts: true },
-  });
-
-  /* Si riparte dall'ultima ora salvata, non dal giorno dopo: l'ultima ora
-     potrebbe essere stata scaricata a mercato ancora aperto, e riscaricarla
-     costa una riga scartata da skipDuplicates. */
-  const from =
-    latest && !opts.fullRescan
-      ? new Date(latest.ts.getTime())
-      : new Date(`${HOURLY_START[symbol] ?? "2000-01-01"}T00:00:00Z`);
-
-  let inserted = 0;
+  const margine = opts.marginePerBloccoMs ?? 12_000;
   const emptyChunks: string[] = [];
+  let inserted = 0;
+  let stoppedByBudget = false;
 
-  for (const chunk of yearChunks(from, now)) {
-    const anno = chunk.from.getUTCFullYear();
-    const bars = await fetchYearTolerant(symbol, chunk, (mese) => {
-      emptyChunks.push(mese);
+  const primoAnno = new Date(
+    `${HOURLY_START[symbol] ?? "2000-01-01"}T00:00:00Z`,
+  ).getUTCFullYear();
+  const annoCorrente = now.getUTCFullYear();
+  /** Dove riprenderà la prossima invocazione: aggiornato dopo ogni blocco. */
+  let cursore = opts.nextYear ?? primoAnno;
+
+  if (opts.ingestComplete) {
+    // ── Delta: dall'ultima barra a ora. Poche righe, un solo giro.
+    const latest = await prisma.seasonalityHourBar.findFirst({
+      where: { instrument },
+      orderBy: { ts: "desc" },
+      select: { ts: true },
     });
-    if (bars.length === 0) {
-      log(`  ${symbol} ${anno}: nessuna barra`);
-      continue;
+    const from = latest?.ts ?? new Date(`${primoAnno}-01-01T00:00:00Z`);
+    if (now.getTime() - from.getTime() > 3_600_000) {
+      const bars = await fetchTolerant(symbol, from, now, (m) =>
+        emptyChunks.push(m),
+      );
+      inserted += await scrivi(prisma, instrument, bars);
+      log(`  ${symbol} delta: ${bars.length} barre, ${inserted} nuove`);
     }
+  } else {
+    // ── Backfill: un anno per volta, cursore persistito dopo ognuno.
+    while (cursore <= annoCorrente) {
+      if (Date.now() + margine >= opts.deadline) {
+        stoppedByBudget = true;
+        log(`  ${symbol}: budget esaurito, riprendo dal ${cursore}`);
+        break;
+      }
+      const anno = cursore;
+      const from = new Date(
+        anno === primoAnno
+          ? `${HOURLY_START[symbol] ?? "2000-01-01"}T00:00:00Z`
+          : `${anno}-01-01T00:00:00Z`,
+      );
+      const to =
+        anno === annoCorrente ? now : new Date(`${anno + 1}-01-01T00:00:00Z`);
 
-    for (let i = 0; i < bars.length; i += CHUNK) {
-      const slice = bars.slice(i, i + CHUNK);
-      const res = await prisma.seasonalityHourBar.createMany({
-        data: slice.map((b) => ({
-          instrument,
-          ts: b.ts,
-          close: b.close.toFixed(8),
-        })),
-        skipDuplicates: true,
-      });
-      inserted += res.count;
+      const bars = await fetchTolerant(symbol, from, to, (m) =>
+        emptyChunks.push(m),
+      );
+      // Scrittura e conferma SUBITO: un kill dopo questo punto non perde
+      // niente di quanto è già stato scaricato.
+      const nuove = await scrivi(prisma, instrument, bars);
+      inserted += nuove;
+      cursore = anno + 1;
+      await opts.onChunkDone?.(cursore);
+      log(
+        `  ${symbol} ${anno}: ${bars.length} barre (${nuove} nuove, ${inserted} in questa esecuzione)`,
+      );
     }
-    log(`  ${symbol} ${anno}: ${bars.length} barre (${inserted} nuove finora)`);
   }
 
   const [total, firstRow, lastRow] = await Promise.all([
@@ -188,6 +247,10 @@ export async function ingestHourly(
     }),
   ]);
 
+  /* Completo quando il backfill ha superato l'anno corrente senza essere
+     fermato dal budget — oppure quando lo era già e si è fatto solo il delta. */
+  const complete = opts.ingestComplete || !stoppedByBudget;
+
   return {
     symbol,
     inserted,
@@ -195,6 +258,9 @@ export async function ingestHourly(
     first: firstRow?.ts ?? null,
     last: lastRow?.ts ?? null,
     emptyChunks,
+    complete,
+    nextYear: complete ? null : cursore,
+    stoppedByBudget,
   };
 }
 

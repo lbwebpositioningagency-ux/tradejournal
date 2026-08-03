@@ -593,8 +593,12 @@ model SeasonalityCoverage {
 
   /** Ultimo precalcolo andato a buon fine per questo strumento. */
   computedAt DateTime?
-  /** Motivo dichiarato quando il dato manca o è parziale (mai un silenzio). */
+  /** Motivo dichiarato quando il dato GIORNALIERO manca o è parziale. */
   note String?
+  /** Copertura dell'archivio ORARIO (mesi assenti). Campo separato da `note`:
+   * un errore sul giornaliero e un buco nell'intraday sono due notizie
+   * diverse, e prima si sovrascrivevano a vicenda. */
+  hourNote String?
 
   updatedAt DateTime @updatedAt
 }
@@ -643,4 +647,36 @@ model SeasonalityYearBucketObs {
   days Int
 
   @@id([instrument, granularity, clock, year, bucket])
+}
+
+// Stato di avanzamento del job, per strumento: è il CURSORE che rende il
+// primo caricamento ripartibile.
+//
+// Senza, il job ricomincia da capo a ogni invocazione e su una funzione con
+// un limite di tempo non arriva mai in fondo: scarica, viene ucciso, e la
+// notte dopo riscarica le stesse cose. Con il cursore ogni invocazione fa un
+// pezzo e lo dichiara, e più esecuzioni convergono.
+model SeasonalityJobState {
+  instrument SeasonalityInstrument @id
+
+  /** Ultimo giornaliero portato a termine: sotto le 20 ore non si rifà. */
+  dailyDoneAt DateTime?
+
+  /** Prossimo anno da scaricare per l'intraday. `null` = mai iniziato.
+   * È un anno e non un timestamp perché l'ingest procede a blocchi annuali:
+   * un anno interamente vuoto (l'inizio di uno storico) non farebbe avanzare
+   * un cursore basato sull'ultima barra salvata, e il job resterebbe fermo
+   * a rileggere il vuoto per sempre. */
+  hourNextYear Int?
+
+  /** L'ingest orario ha raggiunto il presente: da qui in poi solo il delta. */
+  hourIngestComplete Boolean @default(false)
+
+  /** Righe orarie al momento dell'ultimo precalcolo. Se non sono cambiate il
+   * precalcolo non si rifà: a regime è il risparmio che tiene il job dentro
+   * il budget. */
+  hourRowsAtCompute Int       @default(0)
+  hourComputedAt    DateTime?
+
+  updatedAt DateTime @updatedAt
 }
