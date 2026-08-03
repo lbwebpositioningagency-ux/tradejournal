@@ -11,6 +11,7 @@ import {
   medianaInfo,
   posInfo,
   posizioneInfo,
+  quartiliInfo,
   stdevInfo,
 } from "@/lib/seasonality/metric-info";
 import {
@@ -174,7 +175,7 @@ export function BucketWindowTable({
               className="border-b text-2xs uppercase tracking-[0.1em] text-[var(--md-muted)]"
               style={{ borderColor: "var(--md-border)" }}
             >
-              <th scope="col" className="py-2 pr-2 text-left font-semibold">
+              <th scope="col" className="py-2 pl-2 pr-2 text-left font-semibold">
                 {axis.columnName}
               </th>
               {windows.map((w) => {
@@ -212,6 +213,12 @@ export function BucketWindowTable({
                 <span className="inline-flex items-center justify-end gap-1">
                   StDev
                   <MetricInfo info={stdevInfo(kind)} size="sm" />
+                </span>
+              </th>
+              <th scope="col" className="px-2 py-2 text-right font-semibold">
+                <span className="inline-flex items-center justify-end gap-1">
+                  Range tipico p25–p75
+                  <MetricInfo info={quartiliInfo(kind)} size="sm" />
                 </span>
               </th>
               <th scope="col" className="px-2 py-2 text-right font-semibold">
@@ -264,9 +271,9 @@ export function BucketWindowTable({
                 >
                   <th
                     scope="row"
-                    className="py-2 pr-2 text-left font-medium text-[var(--md-text)]"
+                    className="py-2 pl-2 pr-2 text-left font-medium text-[var(--md-text)]"
                   >
-                    <span className="inline-flex items-center gap-1.5">
+                    <span className="inline-flex items-center gap-1.5 whitespace-nowrap">
                       {label}
                       {adesso ? (
                         <span

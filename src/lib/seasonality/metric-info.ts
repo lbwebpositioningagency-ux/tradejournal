@@ -70,6 +70,17 @@ export function posInfo(kind: SeasonalityKind): MetricInfoData {
   };
 }
 
+export function quartiliInfo(kind: SeasonalityKind): MetricInfoData {
+  return {
+    label: "Range tipico p25 – p75",
+    description:
+      kind === "LEVEL"
+        ? "Fra questi due livelli è caduta la metà centrale delle osservazioni. Quanto sono distanti dice se il livello tipico è stabile o se il periodo alterna calma e tensione."
+        : "Fra questi due valori è caduta la metà centrale delle osservazioni. È la dispersione detta senza assumere una distribuzione: quando media e mediana divergono, i quartili sono ciò che spiega la differenza.",
+    formula: "quantili 0,25 e 0,75 con interpolazione lineare",
+  };
+}
+
 export const numerositaInfo: MetricInfoData = {
   label: "n — numerosità del campione",
   description: `Quante osservazioni compongono il valore. È il metro dell'affidabilità e non viene mai nascosto: sotto ${LOW_SAMPLE_WARN} osservazioni la riga è marcata, sotto ${LOW_SAMPLE_CRITICAL} è marcata in modo evidente. Un mese su una finestra di 2 anni vale 2 osservazioni: non è una stagionalità, sono due osservazioni.`,
@@ -94,7 +105,7 @@ export const detrendInfo: MetricInfoData = {
 export const percorsoInfo: MetricInfoData = {
   label: "Percorso stagionale",
   description:
-    "Rendimento cumulato dal 1° gennaio, mediato sugli anni della finestra. La banda p25-p75 mostra dove è caduta la metà centrale degli anni: se è larga, la forma media esiste ma il singolo anno può fare tutt'altro.",
+    "Rendimento cumulato dal 1° gennaio, mediato sugli anni della finestra. Ogni linea è una media: la dispersione attorno (StDev e range tipico p25-p75) sta nelle tabelle, non sul grafico.",
   formula: "media fra gli anni di Σ ln(P_t / P_{t-1}) dal 1° gennaio",
   note: "L'anno in corso è escluso: un anno incompleto trascinerebbe la curva verso il basso da metà grafico in poi.",
 };
