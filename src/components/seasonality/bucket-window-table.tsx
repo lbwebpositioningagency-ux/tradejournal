@@ -1,5 +1,8 @@
 import type { SeasonalityKind } from "@/generated/prisma/client";
-import { MONTH_LABELS } from "@/lib/seasonality/buckets";
+import {
+  BUCKET_AXIS,
+  type CalendarGranularity,
+} from "@/components/seasonality/bucket-labels";
 import type { BucketView, WindowCoverage } from "@/lib/seasonality/query";
 import { RangeBar } from "@/components/macro-desk/primitives";
 import { MetricInfo } from "@/components/metric-info";
@@ -22,10 +25,10 @@ import {
 import { LowSampleMark } from "@/components/seasonality/low-sample";
 
 /**
- * TABELLA VARIAZIONI PER MESE sulle diverse finestre: righe = i 12 mesi,
- * colonne = 20/15/10/5/2 anni. Ogni cella porta il suo `n` — due finestre
- * della stessa riga hanno basi diverse, e senza `n` accanto sembrerebbero
- * confrontabili alla pari.
+ * TABELLA PER BUCKET sulle diverse finestre: righe = i mesi, le settimane ISO
+ * o i giorni della settimana; colonne = 20/15/10/5/2 anni. Ogni cella porta il
+ * suo `n` — due finestre della stessa riga hanno basi diverse, e senza `n`
+ * accanto sembrerebbero confrontabili alla pari.
  *
  * La finestra SELEZIONATA ha in più il blocco di statistiche complete
  * (mediana, StDev, Pos%) e la barra di posizione nel range dei dodici mesi:
@@ -36,15 +39,17 @@ import { LowSampleMark } from "@/components/seasonality/low-sample";
  * `md`, tabella da `md` in su, `tabular-nums`, icona «i» sulle metriche non
  * ovvie.
  */
-export function MonthWindowTable({
+export function BucketWindowTable({
   kind,
+  granularity,
   byWindow,
   selectedWindow,
   coverage,
   reference = 0,
 }: {
   kind: SeasonalityKind;
-  /** Statistiche mensili per finestra, chiave = anni di lookback. */
+  granularity: CalendarGranularity;
+  /** Statistiche per finestra, chiave = anni di lookback. */
   byWindow: Map<number, BucketView[]>;
   selectedWindow: number;
   coverage: WindowCoverage[];
@@ -55,9 +60,10 @@ export function MonthWindowTable({
    */
   reference?: number;
 }) {
+  const axis = BUCKET_AXIS[granularity];
   const windows = [...byWindow.keys()].sort((a, b) => b - a);
   const selected = byWindow.get(selectedWindow) ?? [];
-  const selectedByMonth = new Map(selected.map((s) => [s.bucket, s]));
+  const selectedByBucket = new Map(selected.map((s) => [s.bucket, s]));
   const coverageByWindow = new Map(coverage.map((c) => [c.lookbackYears, c]));
 
   // Range dei valori medi della finestra selezionata: è la scala della
@@ -70,7 +76,7 @@ export function MonthWindowTable({
   if (windows.length === 0) {
     return (
       <p className="text-sm text-[var(--md-muted)]">
-        Nessuna statistica mensile disponibile.
+        Nessuna statistica disponibile per questa granularità.
       </p>
     );
   }
@@ -80,12 +86,14 @@ export function MonthWindowTable({
       {/* Mobile: card impilate, il valore della finestra selezionata sempre
           in vista (stesso trattamento delle tabelle di breakdown). */}
       <ul className="flex flex-col gap-2 md:hidden">
-        {MONTH_LABELS.map((label, i) => {
-          const month = i + 1;
-          const sel = selectedByMonth.get(month);
+        {axis.buckets.map((bucket) => {
+          const label = axis.label(bucket);
+          const sel = selectedByBucket.get(bucket);
+          if (!sel && !windows.some((w) => byWindow.get(w)?.some((r) => r.bucket === bucket)))
+            return null;
           return (
             <li
-              key={label}
+              key={bucket}
               className="md-panel flex flex-col gap-1.5 p-3"
             >
               <div className="flex items-center justify-between gap-2">
@@ -118,7 +126,7 @@ export function MonthWindowTable({
               ) : null}
               <div className="md-mono flex flex-wrap gap-x-3 text-2xs tabular-nums text-[var(--md-muted)]">
                 {windows.map((w) => {
-                  const row = byWindow.get(w)?.find((r) => r.bucket === month);
+                  const row = byWindow.get(w)?.find((r) => r.bucket === bucket);
                   return (
                     <span key={w}>
                       {w}a {row ? formatBucketValue(row.mean, kind, 1) : "—"}
@@ -134,7 +142,8 @@ export function MonthWindowTable({
       <div className="hidden overflow-x-auto md:block">
         <table className="w-full text-sm tabular-nums">
           <caption className="sr-only">
-            Statistica mensile per finestra di analisi.
+            Statistica per {axis.columnName.toLowerCase()} e per finestra di
+            analisi.
           </caption>
           <thead>
             <tr
@@ -142,7 +151,7 @@ export function MonthWindowTable({
               style={{ borderColor: "var(--md-border)" }}
             >
               <th scope="col" className="py-2 pr-2 text-left font-semibold">
-                Mese
+                {axis.columnName}
               </th>
               {windows.map((w) => {
                 const cov = coverageByWindow.get(w);
@@ -202,12 +211,20 @@ export function MonthWindowTable({
             </tr>
           </thead>
           <tbody>
-            {MONTH_LABELS.map((label, i) => {
-              const month = i + 1;
-              const sel = selectedByMonth.get(month);
+            {axis.buckets.map((bucket) => {
+              const label = axis.label(bucket);
+              const sel = selectedByBucket.get(bucket);
+              const presente =
+                sel !== undefined ||
+                windows.some((w) =>
+                  byWindow.get(w)?.some((r) => r.bucket === bucket),
+                );
+              // Nessuna riga inventata: la settimana 53 non esiste in tutti
+              // gli strumenti, e una riga di trattini non aggiunge niente.
+              if (!presente) return null;
               return (
                 <tr
-                  key={label}
+                  key={bucket}
                   className="border-b last:border-0"
                   style={{ borderColor: "var(--md-border)" }}
                 >
@@ -220,7 +237,7 @@ export function MonthWindowTable({
                   {windows.map((w) => {
                     const row = byWindow
                       .get(w)
-                      ?.find((r) => r.bucket === month);
+                      ?.find((r) => r.bucket === bucket);
                     const isSelected = w === selectedWindow;
                     return (
                       <td
@@ -261,7 +278,7 @@ export function MonthWindowTable({
                       <RangeBar
                         position={((sel.mean - min) / span) * 100}
                         color={valueColor(sel.mean, kind, reference)}
-                        ariaLabel={`${label}: posizione nell'intervallo dei dodici mesi`}
+                        ariaLabel={`${label}: posizione nell\u2019intervallo della granularità`}
                         title={`Da ${formatBucketValue(min, kind)} a ${formatBucketValue(max, kind)}`}
                       />
                     ) : null}

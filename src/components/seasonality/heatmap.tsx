@@ -1,5 +1,8 @@
 import type { SeasonalityKind } from "@/generated/prisma/client";
-import { MONTH_LABELS_SHORT } from "@/lib/seasonality/buckets";
+import {
+  BUCKET_AXIS,
+  type CalendarGranularity,
+} from "@/components/seasonality/bucket-labels";
 import type { BucketView, HeatmapData } from "@/lib/seasonality/query";
 import {
   cellBackground,
@@ -11,10 +14,12 @@ import {
   robustScale,
 } from "@/components/seasonality/format";
 import { PanelLabel } from "@/components/macro-desk/primitives";
+import { cn } from "@/lib/utils";
 
 /**
- * HEATMAP anni × mesi — righe = anni (dal più recente), colonne = mesi,
- * e in fondo le tre righe di sintesi: Media, StDev, Pos%.
+ * HEATMAP anni × bucket — righe = anni (dal più recente), colonne = mesi,
+ * settimane ISO o giorni della settimana, e in fondo le righe di sintesi:
+ * Media, StDev, Pos%, n.
  *
  * Le righe di sintesi NON sono ricalcolate qui: arrivano dalle stesse
  * statistiche precalcolate del resto della pagina, sulla stessa finestra.
@@ -32,32 +37,35 @@ import { PanelLabel } from "@/components/macro-desk/primitives";
 export function SeasonalityHeatmap({
   data,
   kind,
+  granularity,
   summary,
   windowMedian,
   lookbackYears,
 }: {
   data: HeatmapData;
   kind: SeasonalityKind;
-  /** Statistiche mensili della stessa finestra: le righe in fondo. */
+  granularity: CalendarGranularity;
+  /** Statistiche della stessa finestra e granularità: le righe in fondo. */
   summary: BucketView[];
   /** Riferimento per il colore dei LIVELLI (mediana della finestra). */
   windowMedian: number;
   lookbackYears: number;
 }) {
-  const byYearMonth = new Map<string, (typeof data.cells)[number]>();
-  for (const c of data.cells) byYearMonth.set(`${c.year}-${c.month}`, c);
+  const axis = BUCKET_AXIS[granularity];
+  const byYearBucket = new Map<string, (typeof data.cells)[number]>();
+  for (const c of data.cells) byYearBucket.set(`${c.year}-${c.bucket}`, c);
 
   const reference = kind === "LEVEL" ? windowMedian : 0;
   const scale = robustScale(
     data.cells.map((c) => (kind === "LEVEL" ? c.value - reference : c.value)),
   );
 
-  const summaryByMonth = new Map(summary.map((s) => [s.bucket, s]));
+  const summaryByBucket = new Map(summary.map((s) => [s.bucket, s]));
 
   if (data.cells.length === 0) {
     return (
       <p className="text-sm text-[var(--md-muted)]">
-        Nessuna osservazione mensile per questa finestra.
+        Nessuna osservazione per questa finestra.
       </p>
     );
   }
@@ -65,21 +73,41 @@ export function SeasonalityHeatmap({
   return (
     <div className="flex flex-col gap-2">
       <div className="flex flex-wrap items-baseline justify-between gap-2">
-        <PanelLabel>Anni × mesi — ultimi {lookbackYears} anni</PanelLabel>
+        <PanelLabel>
+          Anni ×{" "}
+          {granularity === "MONTH"
+            ? "mesi"
+            : granularity === "WEEK"
+              ? "settimane ISO"
+              : "giorni"}{" "}
+          — ultimi {lookbackYears} anni
+        </PanelLabel>
         <span className="text-2xs text-[var(--md-muted)]">
-          {kind === "LEVEL"
-            ? "livello medio del mese"
-            : "variazione % del mese"}
+          {kind === "LEVEL" ? "livello medio" : "variazione %"}{" "}
+          {granularity === "WEEKDAY"
+            ? "medio dei giorni di quell\u2019anno"
+            : granularity === "WEEK"
+              ? "della settimana"
+              : "del mese"}
         </span>
       </div>
 
       {/* La griglia è larga per costruzione: scorre DENTRO il suo contenitore,
           il documento non scorre mai in orizzontale (regola F27). */}
       <div className="-mx-1 overflow-x-auto px-1">
-        <table className="md-mono w-full min-w-[46rem] border-separate border-spacing-0.5 text-right text-2xs tabular-nums">
+        {/* `w-full` solo quando le colonne sono tante: con i cinque giorni
+            della settimana stirare la griglia a tutta larghezza produce
+            caselle enormi e vuote. */}
+        <table
+          className={cn(
+            "md-mono border-separate border-spacing-0.5 text-right text-2xs tabular-nums",
+            granularity === "WEEKDAY" ? "w-auto" : "w-full",
+          )}
+          style={{ minWidth: `${axis.minWidthRem}rem` }}
+        >
           <caption className="sr-only">
-            Rendimento per mese e per anno, con media, deviazione standard e
-            quota di casi positivi in fondo.
+            Valore per periodo e per anno, con media, deviazione standard,
+            quota di casi favorevoli e numerosità in fondo.
           </caption>
           <thead>
             <tr>
@@ -89,13 +117,13 @@ export function SeasonalityHeatmap({
               >
                 Anno
               </th>
-              {MONTH_LABELS_SHORT.map((m) => (
+              {axis.buckets.map((b) => (
                 <th
-                  key={m}
+                  key={b}
                   scope="col"
                   className="px-1.5 py-1 font-semibold text-[var(--md-muted)]"
                 >
-                  {m}
+                  {axis.short(b)}
                 </th>
               ))}
             </tr>
@@ -119,12 +147,12 @@ export function SeasonalityHeatmap({
                       </span>
                     ) : null}
                   </th>
-                  {MONTH_LABELS_SHORT.map((_, i) => {
-                    const cell = byYearMonth.get(`${year}-${i + 1}`);
+                  {axis.buckets.map((b) => {
+                    const cell = byYearBucket.get(`${year}-${b}`);
                     if (!cell) {
                       return (
                         <td
-                          key={i}
+                          key={b}
                           className="px-1.5 py-1 text-[var(--md-muted)]"
                         >
                           —
@@ -133,7 +161,7 @@ export function SeasonalityHeatmap({
                     }
                     return (
                       <td
-                        key={i}
+                        key={b}
                         className="rounded-[var(--md-r-sm)] px-1.5 py-1 text-[var(--md-text)]"
                         style={{
                           backgroundColor: cellBackground(
@@ -146,7 +174,7 @@ export function SeasonalityHeatmap({
                         }}
                         title={
                           cell.partial
-                            ? `${cell.days} giorni di quotazione: mese incompleto`
+                            ? `${cell.days} giorni di quotazione: periodo incompleto`
                             : `${cell.days} giorni di quotazione`
                         }
                       >
@@ -161,23 +189,27 @@ export function SeasonalityHeatmap({
           <tfoot>
             <SummaryRow
               label={meanLabel(kind)}
-              months={summaryByMonth}
+              buckets={axis.buckets}
+              values={summaryByBucket}
               render={(s) => formatBucketValue(s.mean, kind, 2)}
               emphasis
             />
             <SummaryRow
               label="StDev"
-              months={summaryByMonth}
+              buckets={axis.buckets}
+              values={summaryByBucket}
               render={(s) => formatStdev(s.stdev, kind)}
             />
             <SummaryRow
               label={positiveLabel(kind)}
-              months={summaryByMonth}
+              buckets={axis.buckets}
+              values={summaryByBucket}
               render={(s) => formatShare(s.positiveShare)}
             />
             <SummaryRow
               label="n"
-              months={summaryByMonth}
+              buckets={axis.buckets}
+              values={summaryByBucket}
               render={(s) => String(s.n)}
             />
           </tfoot>
@@ -187,8 +219,14 @@ export function SeasonalityHeatmap({
       <p className="text-2xs leading-relaxed text-[var(--md-muted)]">
         <span className="text-[var(--md-warn)]">*</span> anno in corso: in
         griglia ma fuori da ogni media — le finestre usano solo anni solari
-        completi. Le celle sbiadite sono mesi con meno di 5 giorni di
-        quotazione.
+        completi. Le celle sbiadite hanno troppo pochi giorni di quotazione
+        per essere un periodo pieno.
+        {granularity === "WEEK"
+          ? " Le settimane sono ISO: quella a cavallo di capodanno appartiene per intero a uno solo dei due anni."
+          : ""}
+        {granularity === "WEEKDAY"
+          ? " Ogni casella è la media dei giorni di quel tipo in quell\u2019anno."
+          : ""}
       </p>
     </div>
   );
@@ -196,12 +234,14 @@ export function SeasonalityHeatmap({
 
 function SummaryRow({
   label,
-  months,
+  buckets,
+  values,
   render,
   emphasis,
 }: {
   label: string;
-  months: Map<number, BucketView>;
+  buckets: number[];
+  values: Map<number, BucketView>;
   render: (s: BucketView) => string;
   emphasis?: boolean;
 }) {
@@ -214,11 +254,11 @@ function SummaryRow({
       >
         {label}
       </th>
-      {Array.from({ length: 12 }, (_, i) => {
-        const s = months.get(i + 1);
+      {buckets.map((b) => {
+        const s = values.get(b);
         return (
           <td
-            key={i}
+            key={b}
             className="border-t px-1.5 py-1"
             style={{
               borderColor: "var(--md-border)",

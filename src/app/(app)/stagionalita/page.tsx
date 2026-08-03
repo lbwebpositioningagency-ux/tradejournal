@@ -28,12 +28,11 @@ import {
 } from "@/lib/seasonality/instruments";
 import { detrendInfo, percorsoInfo } from "@/lib/seasonality/metric-info";
 import {
-  getBucketStats,
   getCoverage,
   getHeatmap,
   getLastRun,
-  getMonthStatsByWindow,
   getPaths,
+  getStatsByWindow,
   windowCoverage,
   type BucketView,
   type HeatmapData,
@@ -42,9 +41,9 @@ import {
 import { todayDayOfYear } from "@/lib/seasonality/precompute";
 import type { SeasonalityInstrument } from "@/generated/prisma/client";
 import { SeasonalityHeatmap } from "@/components/seasonality/heatmap";
-import { MonthWindowTable } from "@/components/seasonality/month-window-table";
-import { WeekdayTable } from "@/components/seasonality/weekday-table";
+import { BucketWindowTable } from "@/components/seasonality/bucket-window-table";
 import { WindowTruncatedNote } from "@/components/seasonality/low-sample";
+import type { CalendarGranularity } from "@/components/seasonality/bucket-labels";
 import {
   Chip,
   ChipGroup,
@@ -66,14 +65,24 @@ const fontMono = JetBrains_Mono({
   variable: "--md-font-mono",
 });
 
-/** Tab della profondità. Oltre il giorno è materia della prossima fase. */
+/**
+ * Tab di profondità. Mese, settimana e giorno si ricavano tutti e tre dalle
+ * chiusure GIORNALIERE già caricate — la settimana non è più profonda del
+ * giorno, è solo un altro modo di raggrupparlo. Sessione e ora sono le uniche
+ * che richiedono davvero le barre intraday.
+ */
 const TABS = [
-  { id: "mese", label: "Mese", enabled: true },
-  { id: "giorno", label: "Giorno", enabled: true },
-  { id: "settimana", label: "Settimana", enabled: false },
-  { id: "sessione", label: "Sessione", enabled: false },
-  { id: "ora", label: "Ora", enabled: false },
+  { id: "mese", label: "Mese", granularity: "MONTH" as const },
+  { id: "settimana", label: "Settimana", granularity: "WEEK" as const },
+  { id: "giorno", label: "Giorno", granularity: "WEEKDAY" as const },
 ] as const;
+
+const TABS_INTRADAY = [
+  { id: "sessione", label: "Sessione" },
+  { id: "ora", label: "Ora" },
+] as const;
+
+type TabId = (typeof TABS)[number]["id"];
 
 function parseInstrument(raw: string | undefined): SeasonalityInstrument {
   if (raw && SEASONALITY_BY_CODE.has(raw as SeasonalityInstrument)) {
@@ -88,6 +97,13 @@ function parseLookback(raw: string | undefined): number {
   return (LOOKBACK_YEARS as readonly number[]).includes(n)
     ? n
     : DEFAULT_LOOKBACK;
+}
+
+/** Mediana dei valori medi: riferimento del colore per i LIVELLI. */
+function medianOfMeans(rows: BucketView[]): number {
+  if (rows.length === 0) return 0;
+  const sorted = [...rows.map((r) => r.mean)].sort((a, b) => a - b);
+  return sorted[Math.floor(sorted.length / 2)];
 }
 
 export default async function StagionalitaPage({
@@ -105,10 +121,16 @@ export default async function StagionalitaPage({
   // Vista GREZZA di default: il numero mostrato è quello realmente accaduto.
   // Il detrend è una lente, e per i livelli di volatilità non esiste proprio.
   const detrended = params.d === "1" && def.kind === "RETURN";
-  const tab = TABS.find((t) => t.id === params.t && t.enabled)?.id ?? "mese";
+  const tab: TabId = TABS.find((t) => t.id === params.t)?.id ?? "mese";
+  const granularity: CalendarGranularity =
+    TABS.find((t) => t.id === tab)!.granularity;
+
+  /* Il drill dentro un mese ha senso solo per il GIORNO della settimana: una
+     settimana ISO sta dentro un mese per costruzione, e un mese dentro sé
+     stesso non vuol dire niente. */
   const scopeMonthNum = Number(params.m);
   const scope =
-    scopeMonthNum >= 1 && scopeMonthNum <= 12
+    granularity === "WEEKDAY" && scopeMonthNum >= 1 && scopeMonthNum <= 12
       ? monthScope(scopeMonthNum)
       : SCOPE_ALL;
 
@@ -128,22 +150,16 @@ export default async function StagionalitaPage({
      allarga il tipo a Map<any, any> e le righe perdono il loro tipo. */
   let heatmap: HeatmapData | null = null;
   let byWindow: Map<number, BucketView[]> = new Map();
-  let weekday: BucketView[] = [];
   let paths: Map<number, PathPointView[]> = new Map();
 
   if (popolato) {
-    [heatmap, byWindow, weekday, paths] = await Promise.all([
-      getHeatmap({ instrument, lookbackYears: lookback }),
-      getMonthStatsByWindow({
+    [heatmap, byWindow, paths] = await Promise.all([
+      getHeatmap({ instrument, granularity, lookbackYears: lookback }),
+      getStatsByWindow({
         instrument,
-        lookbacks: LOOKBACK_YEARS,
-        detrended,
-      }),
-      getBucketStats({
-        instrument,
-        granularity: "WEEKDAY",
+        granularity,
         scope,
-        lookbackYears: lookback,
+        lookbacks: LOOKBACK_YEARS,
         detrended,
       }),
       getPaths({ instrument, lookbacks: LOOKBACK_YEARS, detrended }),
@@ -153,29 +169,18 @@ export default async function StagionalitaPage({
   const windows = windowCoverage(LOOKBACK_YEARS, cov?.completeYears ?? null);
   const selectedCoverage = windows.find((w) => w.lookbackYears === lookback);
 
-  const monthStats = byWindow.get(lookback) ?? [];
-  /* Riferimento del colore per i LIVELLI: la mediana dei mesi della finestra.
-     Per i rendimenti il riferimento è lo zero, che ha già significato suo. */
-  const windowMedian =
-    def.kind === "LEVEL" && monthStats.length > 0
-      ? [...monthStats.map((s) => s.mean)].sort((a, b) => a - b)[
-          Math.floor(monthStats.length / 2)
-        ]
-      : 0;
-
-  /* Riferimento del colore per la tabella dei GIORNI: la mediana dei cinque
-     giorni, non quella dei mesi — le due scale sono diverse e usare la
-     seconda colorerebbe tutta la settimana dallo stesso lato. */
-  const weekdayReference =
-    def.kind === "LEVEL" && weekday.length > 0
-      ? [...weekday.map((s) => s.mean)].sort((a, b) => a - b)[
-          Math.floor(weekday.length / 2)
-        ]
-      : 0;
+  const selectedStats = byWindow.get(lookback) ?? [];
+  /* Riferimento del colore per i LIVELLI: la mediana della granularità e
+     della finestra correnti. Con lo zero un indice sempre positivo sarebbe
+     verde ovunque; con la mediana dei mesi su una tabella di giorni le scale
+     non tornerebbero, quindi si ricalcola per ogni vista. */
+  const reference = def.kind === "LEVEL" ? medianOfMeans(selectedStats) : 0;
 
   const pathSeries = [...paths.entries()]
     .map(([lookbackYears, points]) => ({ lookbackYears, points }))
     .sort((a, b) => b.lookbackYears - a.lookbackYears);
+
+  const oggi = todayDayOfYear();
 
   return (
     <div className="flex flex-col gap-4">
@@ -193,11 +198,11 @@ export default async function StagionalitaPage({
         </h1>
         <p className="page-subtitle">
           Il comportamento storico degli strumenti: come si è mosso l&apos;oro a
-          settembre, quali giorni hanno prodotto il movimento dell&apos;S&amp;P,
-          dove sta il VIX a gennaio. Ogni numero porta con sé media, mediana,
-          deviazione standard, quota di casi favorevoli e numerosità del
-          campione — perché una media da sola non dice se quella regolarità
-          esiste davvero.
+          settembre, quali settimane dell&apos;anno hanno prodotto il movimento
+          dell&apos;S&amp;P, dove sta il VIX a gennaio. Ogni numero porta con sé
+          media, mediana, deviazione standard, quota di casi favorevoli e
+          numerosità del campione — perché una media da sola non dice se quella
+          regolarità esiste davvero.
         </p>
       </div>
 
@@ -217,7 +222,9 @@ export default async function StagionalitaPage({
                 <Chip
                   key={i.code}
                   href={
-                    i.unavailable ? undefined : hrefWith(base, { s: i.code, m: undefined })
+                    i.unavailable
+                      ? undefined
+                      : hrefWith(base, { s: i.code, m: undefined })
                   }
                   active={i.code === instrument}
                   disabled={Boolean(i.unavailable)}
@@ -313,7 +320,7 @@ export default async function StagionalitaPage({
             </Callout>
           ) : (
             <>
-              {/* ── Vista 3: percorso stagionale ─────────────────────── */}
+              {/* ── Percorso stagionale annuale ──────────────────────── */}
               <div className="md-card flex flex-col gap-3 p-4">
                 <div className="flex flex-wrap items-baseline justify-between gap-2">
                   <span className="inline-flex items-center gap-1">
@@ -333,19 +340,20 @@ export default async function StagionalitaPage({
                     series={pathSeries}
                     selectedWindow={lookback}
                     kind={def.kind}
-                    todayDoy={todayDayOfYear()}
+                    todayDoy={oggi}
                   />
                 ) : (
                   <SectionEmpty what="Il percorso stagionale" />
                 )}
+
                 {/* n e Pos% per finestra: senza, la linea sarebbe una media
                     nuda — e una media nuda su 2 anni sembra uguale a una su
                     20. Pos% è misurata al giorno di OGGI, cioè al punto in
                     cui la linea è utile adesso. */}
                 <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-2xs text-[var(--md-muted)]">
                   {pathSeries.map((s) => {
-                    const oggi =
-                      s.points.find((p) => p.dayOfYear === todayDayOfYear()) ??
+                    const punto =
+                      s.points.find((p) => p.dayOfYear === oggi) ??
                       s.points[s.points.length - 1];
                     const selezionata = s.lookbackYears === lookback;
                     return (
@@ -359,13 +367,13 @@ export default async function StagionalitaPage({
                           fontWeight: selezionata ? 700 : 500,
                         }}
                       >
-                        {s.lookbackYears}a · n={oggi?.n ?? 0} ·{" "}
+                        {s.lookbackYears}a · n={punto?.n ?? 0} ·{" "}
                         {def.kind === "LEVEL" ? "sopra mediana" : "pos"}{" "}
-                        {oggi ? Math.round(oggi.positiveShare * 100) : 0}%
+                        {punto ? Math.round(punto.positiveShare * 100) : 0}%
                       </span>
                     );
                   })}
-                  <span>(a oggi, giorno {todayDayOfYear()} dell&apos;anno)</span>
+                  <span>(a oggi, giorno {oggi} dell&apos;anno)</span>
                 </div>
 
                 <p className="text-2xs leading-relaxed text-[var(--md-muted)]">
@@ -378,100 +386,102 @@ export default async function StagionalitaPage({
                 </p>
               </div>
 
-              {/* ── Tab di profondità ────────────────────────────────── */}
+              {/* ── Profondità del calendario ────────────────────────── */}
               <ChipGroup label="Profondità">
                 {TABS.map((t) => (
                   <Chip
                     key={t.id}
-                    href={
-                      t.enabled
-                        ? hrefWith(base, {
-                            t: t.id === "mese" ? undefined : t.id,
-                          })
-                        : undefined
-                    }
+                    href={hrefWith(base, {
+                      t: t.id === "mese" ? undefined : t.id,
+                      // Il drill per mese vale solo sul giorno: cambiando tab
+                      // si azzera, altrimenti resterebbe uno scope invisibile.
+                      m: t.id === "giorno" ? base.m : undefined,
+                    })}
                     active={t.id === tab}
-                    disabled={!t.enabled}
-                    title={
-                      t.enabled
-                        ? undefined
-                        : "Prossima fase: richiede i dati intraday, non ancora caricati."
-                    }
+                  >
+                    {t.label}
+                  </Chip>
+                ))}
+                {TABS_INTRADAY.map((t) => (
+                  <Chip
+                    key={t.id}
+                    disabled
+                    title="Richiede i dati intraday, non ancora caricati: prossima fase."
                   >
                     {t.label}
                   </Chip>
                 ))}
               </ChipGroup>
 
-              {tab === "mese" ? (
-                <>
-                  {/* ── Vista 1: heatmap anni × mesi ──────────────────── */}
-                  <div className="md-card flex flex-col gap-3 p-4">
-                    {heatmap ? (
-                      <SeasonalityHeatmap
-                        data={heatmap}
-                        kind={def.kind}
-                        summary={monthStats}
-                        windowMedian={windowMedian}
-                        lookbackYears={lookback}
-                      />
-                    ) : (
-                      <SectionEmpty what="La heatmap" />
-                    )}
-                  </div>
-
-                  {/* ── Vista 2: variazioni per mese sulle finestre ───── */}
-                  <div className="md-card flex flex-col gap-3 p-4">
-                    <PanelLabel>
-                      Per mese, su tutte le finestre
-                      {detrended ? " (detrend)" : ""}
-                    </PanelLabel>
-                    <MonthWindowTable
-                      kind={def.kind}
-                      byWindow={byWindow}
-                      selectedWindow={lookback}
-                      coverage={windows}
-                      reference={windowMedian}
-                    />
-                  </div>
-                </>
-              ) : (
-                <div className="md-card flex flex-col gap-3 p-4">
-                  <div className="flex flex-wrap items-baseline justify-between gap-2">
-                    <PanelLabel>
-                      Per giorno della settimana
-                      {detrended ? " (detrend)" : ""}
-                    </PanelLabel>
-                  </div>
-                  <ChipGroup label="Dentro il mese">
+              {granularity === "WEEKDAY" ? (
+                <ChipGroup label="Dentro il mese">
+                  <Chip
+                    href={hrefWith(base, { m: undefined })}
+                    active={scope === SCOPE_ALL}
+                  >
+                    tutto l&apos;anno
+                  </Chip>
+                  {MONTH_LABELS_SHORT.map((m, i) => (
                     <Chip
-                      href={hrefWith(base, { m: undefined })}
-                      active={scope === SCOPE_ALL}
+                      key={m}
+                      href={hrefWith(base, { m: String(i + 1) })}
+                      active={scope === monthScope(i + 1)}
+                      title={`Solo i giorni di ${MONTH_LABELS[i]}`}
                     >
-                      tutto l&apos;anno
+                      {m}
                     </Chip>
-                    {MONTH_LABELS_SHORT.map((m, i) => (
-                      <Chip
-                        key={m}
-                        href={hrefWith(base, { m: String(i + 1) })}
-                        active={scope === monthScope(i + 1)}
-                      >
-                        {m}
-                      </Chip>
-                    ))}
-                  </ChipGroup>
-                  <WeekdayTable
-                    rows={weekday}
+                  ))}
+                </ChipGroup>
+              ) : null}
+
+              {/* ── Vista 1: heatmap anni × bucket ───────────────────── */}
+              <div className="md-card flex flex-col gap-3 p-4">
+                {heatmap ? (
+                  <SeasonalityHeatmap
+                    data={heatmap}
                     kind={def.kind}
-                    reference={weekdayReference}
-                    scopeLabel={
-                      scope === SCOPE_ALL
-                        ? "tutto l'anno"
-                        : MONTH_LABELS[scopeMonthNum - 1]
+                    granularity={granularity}
+                    summary={
+                      // La heatmap è sempre su tutto l'anno: le sue righe di
+                      // sintesi devono venire dallo scope ALL, e con un filtro
+                      // di mese attivo si tolgono invece di accostare numeri
+                      // calcolati su periodi diversi.
+                      scope === SCOPE_ALL ? selectedStats : []
                     }
+                    windowMedian={reference}
+                    lookbackYears={lookback}
                   />
-                </div>
-              )}
+                ) : (
+                  <SectionEmpty what="La heatmap" />
+                )}
+                {scope !== SCOPE_ALL ? (
+                  <p className="text-2xs text-[var(--md-muted)]">
+                    La griglia resta su tutto l&apos;anno: il filtro «
+                    {MONTH_LABELS[scopeMonthNum - 1]}» agisce sulla tabella qui
+                    sotto. Le righe di sintesi sono nascoste per non accostare
+                    numeri calcolati su periodi diversi.
+                  </p>
+                ) : null}
+              </div>
+
+              {/* ── Vista 2: tabella per bucket su tutte le finestre ─── */}
+              <div className="md-card flex flex-col gap-3 p-4">
+                <PanelLabel>
+                  Per {tab}, su tutte le finestre
+                  {scope === SCOPE_ALL
+                    ? ""
+                    : ` — solo ${MONTH_LABELS[scopeMonthNum - 1]}`}
+                  {detrended ? " (detrend)" : ""}
+                </PanelLabel>
+                <BucketWindowTable
+                  kind={def.kind}
+                  granularity={granularity}
+                  byWindow={byWindow}
+                  selectedWindow={lookback}
+                  coverage={windows}
+                  reference={reference}
+                />
+              </div>
             </>
           )}
         </div>
