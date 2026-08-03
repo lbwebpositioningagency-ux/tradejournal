@@ -105,7 +105,7 @@ export const detrendInfo: MetricInfoData = {
 export const percorsoInfo: MetricInfoData = {
   label: "Percorso stagionale",
   description:
-    "Rendimento cumulato dal 1° gennaio, mediato sugli anni della finestra. Ogni linea è una media: la dispersione attorno (StDev e range tipico p25-p75) sta nelle tabelle, non sul grafico.",
+    "Rendimento cumulato dal 1° gennaio, mediato sugli anni della finestra. Ogni linea è una media: la dispersione attorno — la fascia Media±1σ e la sua copertura reale — sta nelle tabelle, non sul grafico.",
   formula: "media fra gli anni di Σ ln(P_t / P_{t-1}) dal 1° gennaio",
   note: "L'anno in corso è escluso: un anno incompleto trascinerebbe la curva verso il basso da metà grafico in poi.",
 };
