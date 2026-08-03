@@ -15,10 +15,18 @@ Le migrazioni del modulo sono **tre**:
 | `20260803120000_seasonality` | 4 `CREATE TYPE` + 6 `CREATE TABLE` + 1 indice |
 | `20260803160000_seasonality_monthly_obs` | 1 `CREATE TABLE` (osservazioni mensili per la heatmap) |
 | `20260803190000_seasonality_path_positive` | 1 `ALTER TABLE ... ADD COLUMN` su `SeasonalityPathPoint` |
+| `20260803210000_seasonality_year_bucket_obs` | 1 `CREATE TABLE` (osservazioni per le heatmap di tutte le granularità) |
 
 L'unico `ALTER` agisce su una tabella **creata dalla prima migrazione di
 questo stesso branch**: nessuna tabella preesistente dell'applicazione viene
-toccata da nessuna delle tre.
+toccata da nessuna delle quattro.
+
+**Residuo dichiarato:** `SeasonalityMonthlyObs` (creata dalla seconda
+migrazione) è stata superata in Fase 2 da `SeasonalityYearBucketObs`, che fa
+lo stesso lavoro per tutte le granularità. Non è più letta né scritta da
+nessuna parte, ma resta in piedi perché le migrazioni di questo branch sono
+additive per scelta. Si può eliminare quando vuoi, con una migrazione di una
+riga (`DROP TABLE "SeasonalityMonthlyObs";`): dimmelo e la aggiungo.
 
 ## Come è stata generata senza database
 

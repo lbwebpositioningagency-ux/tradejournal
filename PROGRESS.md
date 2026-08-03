@@ -1225,3 +1225,24 @@ Branch `feature/seasonality`, **non mergiato**. Storici giornalieri caricati, st
 **Verificato:** typecheck ✅ · lint ✅ · **1243/1243 test** ✅ (83 sul modulo Stagionalità; gli 11 file di integrazione ora passano, con Docker avviato) · build ✅. **Numeri riconciliati con la stagionalità nota di mercato** (finestra 20 anni): S&P settembre peggiore −0,61% e aprile/luglio/novembre migliori · oro gennaio +3,53% con giugno e settembre deboli · VIX ottobre al livello più alto (21,5) e luglio al più basso (17,5). Screenshot su build di produzione in `docs/stagionalita/shot/`.
 
 **Bloccante residuo:** la migrazione **NON è applicata a Neon**. `.env.production.local` contiene i placeholder `[SENSITIVE]` al posto della connection string (le variabili sono marcate sensibili sul progetto Vercel e `vercel env pull` non le esporta), e il connettore MCP Vercel non è autorizzato in questa sessione. Il caricamento su Neon resta da fare — o al primo deploy del branch, che esegue `prisma migrate deploy` da sé.
+
+## ✅ STAGIONALITÀ — Fase 2 «Strato calendario completo: settimana ISO» (03/08/2026)
+Correzione accolta: **la settimana dell'anno non richiede l'intraday**. Si ricava dalle chiusure giornaliere esattamente come il mese e il giorno della settimana — non è più profonda del giorno, è solo un altro modo di raggruppare le stesse barre. Solo **sessione** e **ora** hanno davvero bisogno delle barre orarie, e restano gli unici tab disabilitati.
+
+**WEEK implementata** con le stesse tre viste del mese: heatmap **anni × settimane ISO** (53 colonne, scorrimento interno al contenitore), tabella per settimana su tutte e cinque le finestre, percorso annuale già esistente. Statistiche identiche: n, media, mediana, StDev, Pos%, p25/p75.
+
+**Tre decisioni sulla settimana, tutte con una conseguenza visibile.** *L'anno di una settimana è l'anno **ISO**, non quello civile*: la settimana a cavallo di capodanno appartiene per intero a uno dei due anni, e spezzarla darebbe due mezze settimane invece di una. *La **settimana 53** esiste solo quando il 1° gennaio è giovedì (o mercoledì in un anno bisestile)*: il suo bucket ha `n` molto più basso ed è marcato come campione basso — sulle finestre 5 e 2 anni non esiste affatto e la cella è **«—», mai uno zero**. Verificato a schermo su S&P: settimana 53 con n=3 e marcatore, colonne 5a e 2a vuote. *La **guardia di adiacenza** vale anche qui e serve più che sui mesi*: Natale, Pasqua e Ferragosto producono settimane intere senza contrattazioni, e senza il controllo il salto verrebbe attribuito per intero a una casella della heatmap.
+
+**WEEKDAY completata** (lun-ven, mai sabato né domenica): ora ha anche la sua heatmap anni × giorni, dove ogni casella è la **media** dei giorni di quel tipo in quell'anno — non esiste «il lunedì del 2024», ne esistono cinquantadue — e `days` dichiara su quanti si regge.
+
+**Generalizzazione invece di duplicazione.** Heatmap e tabella non sono state clonate per granularità: un solo elenco di bucket ed etichette (`components/seasonality/bucket-labels.ts`) alimenta entrambe. La vecchia `WeekdayTable` è sparita, assorbita dalla tabella generica — che come effetto collaterale mostra ora anche il giorno su tutte e cinque le finestre, cosa che prima non faceva.
+
+**Righe di sintesi nascoste col filtro di mese attivo.** Nel tab Giorno il drill «dentro il mese» filtra la tabella ma non la griglia: accostare una heatmap su tutto l'anno a medie calcolate su un mese solo sarebbe una lettura sbagliata invitata dalla grafica. La nota lo dice esplicitamente.
+
+**Volatilità:** WEEK e WEEKDAY come livello medio, colore confrontato con la mediana della finestra **ricalcolata per granularità** (la mediana dei mesi su una tabella di giorni darebbe scale diverse), nessun detrend — come già per il mese.
+
+**Migrazione:** una sola `CREATE TABLE` (`SeasonalityYearBucketObs`, generica su granularità/anno/bucket). Zero `ALTER`, zero `DROP`. `SeasonalityMonthlyObs` è superata e **resta in schema inutilizzata**, perché le migrazioni di questo branch sono additive per scelta: si elimina quando si vuole con un `DROP TABLE` di una riga.
+
+**Verificato:** typecheck ✅ · lint ✅ · **1266/1266 test** ✅ (23 nuovi: anno ISO, settimane 52/53, adiacenza a cavallo di capodanno, medie settimanali, caselle per giorno) · build ✅. Numeri riconciliati: su S&P a 20 anni la **settimana 48 — quella del Ringraziamento — segna +1,95% con Pos% 85%**, e le settimane 29 e 42 arrivano all'85%. **Mobile 375px:** `document.scrollWidth` = 375 = `window.innerWidth`, cioè la griglia da 53 colonne scorre dentro il suo contenitore e il documento non scorre in orizzontale.
+
+**Nota operativa:** durante il commit è finita per errore nell'indice la directory `macro-desk-bridge` (un repository git annidato, estraneo a questo lavoro, comparso nella cartella di progetto). Rimossa dal commit; resta non tracciata sul disco.

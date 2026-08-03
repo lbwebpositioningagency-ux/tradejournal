@@ -1,6 +1,6 @@
 # SPEC — Stagionalità di mercato
 
-Specifica congelata al termine della Fase 0 e **aggiornata a fine Fase 1** (03/08/2026).
+Specifica congelata al termine della Fase 0 e **aggiornata a fine Fase 2** (03/08/2026).
 Documenti collegati: [RECON.md](RECON.md) · [DATA-SOURCES.md](DATA-SOURCES.md) ·
 [SCHEDULING.md](SCHEDULING.md).
 
@@ -26,6 +26,11 @@ La pagina vive **accanto al Macro Desk**, con la sua identità di terminale.
 Oro (XAU/USD) · Petrolio WTI · GER40 (DAX) · S&P 500.
 
 Drill completo: **mese → settimana → giorno → sessione → ora**.
+
+Le prime tre — mese, settimana, giorno — si ricavano tutte e tre dalle
+chiusure **giornaliere**: la settimana non è più profonda del giorno, è solo
+un altro modo di raggruppare le stesse barre. Solo **sessione** e **ora**
+richiedono davvero le barre intraday.
 
 ### 2.2 Indici di volatilità — analisi sul LIVELLO
 
@@ -258,6 +263,19 @@ d'anno una data di gennaio può appartenere alla settimana 52/53 dell'anno
 precedente: è corretto, ed è il comportamento standard con cui i dati si
 confrontano con qualunque altra fonte.
 
+Tre conseguenze operative, decise in Fase 2:
+
+1. **L'anno di una settimana è l'anno ISO**, non quello civile. La settimana
+   a cavallo di capodanno appartiene per intero a uno solo dei due anni;
+   spezzarla darebbe due mezze settimane invece di una.
+2. **La settimana 53 esiste solo in alcuni anni** (quando il 1° gennaio è
+   giovedì, o mercoledì in un anno bisestile). Il suo bucket ha quindi `n`
+   molto più basso e viene marcato come campione basso; sulle finestre corte
+   può non esistere affatto, e in quel caso la cella è «—», mai uno zero.
+3. **La guardia di adiacenza** vale anche qui, e serve più che sui mesi: le
+   festività lunghe producono settimane intere senza contrattazioni, e senza
+   il controllo il salto verrebbe attribuito a una sola casella.
+
 ## 6. Architettura
 
 ```
@@ -295,7 +313,8 @@ su tabelle esistenti. SQL integrale in [MIGRATION.md](MIGRATION.md).
 | `SeasonalityDailyBar` | chiusure giornaliere grezze | `(instrument, date)` |
 | `SeasonalityHourBar` | chiusure orarie grezze, UTC | `(instrument, ts)` |
 | `SeasonalityStat` | **le statistiche che la UI legge** | `(instrument, granularity, clock, scope, lookbackYears, detrended, bucket)` |
-| `SeasonalityMonthlyObs` | una riga per (strumento, anno, mese): alimenta la heatmap | `(instrument, year, month)` |
+| `SeasonalityYearBucketObs` | una riga per (strumento, granularità, anno, bucket): alimenta le heatmap | `(instrument, granularity, year, bucket)` |
+| ~~`SeasonalityMonthlyObs`~~ | superata dalla precedente in Fase 2; resta in schema, inutilizzata | `(instrument, year, month)` |
 | `SeasonalityPathPoint` | punti del percorso annuale + bande | `(instrument, lookbackYears, detrended, dayOfYear)` |
 | `SeasonalityCoverage` | fonte, estremi, freschezza per strumento | `instrument` |
 | `SeasonalityRun` | diario delle esecuzioni del job | `id` |
@@ -349,12 +368,12 @@ regime. Restano lato server e non vengono mai lette dalla pagina.
 | Fase | Contenuto | Stato |
 |---|---|---|
 | **0** | Ricognizione, verifica fonti, spec congelata, impalcatura | ✅ **questa** |
-| **1** | **Daily/calendario: ingest, precalcolo, job, tre viste (heatmap · tabella finestre · percorso)** | ✅ **fatta** |
-| 2 | Intraday: ingest orario Dukascopy, bucket sessione e ora nei due orologi | da fare |
-| 3 | Tab Settimana (ISO) — dai dati giornalieri già presenti | da fare |
-| 4 | Rifiniture: drill di sessione/ora dentro il mese, mobile, verifica finale | da fare |
+| **1** | **Daily: ingest, precalcolo, job, tre viste (heatmap · tabella finestre · percorso) su mese e giorno** | ✅ **fatta** |
+| **2** | **Strato calendario completo: settimana ISO, heatmap e tabella generalizzate su tutte e tre le granularità** | ✅ **fatta** |
+| 3 | Intraday: ingest orario Dukascopy, bucket sessione e ora nei due orologi | da fare |
+| 4 | Rifiniture: drill di sessione/ora dentro il mese, verifica finale | da fare |
 
-## 10. Stato a fine Fase 1
+## 10. Stato a fine Fase 2
 
 **Dati caricati** (tutti tranne VDAX, che non ha fonte):
 
@@ -369,17 +388,19 @@ regime. Restano lato server e non vengono mai lette dalla pagina.
 | OVX | FRED `OVXCLS` | 4.838 | 2007-05-10 → oggi | 19 |
 | VDAX | — | 0 | — | mostrato disabilitato col motivo |
 
-770 righe di statistica e 3.660 punti di percorso per strumento di prezzo;
-385 e 1.825 per gli indici di volatilità (niente detrend). Il job completo
-gira in **~13 secondi**.
+**1.296** righe di statistica e 3.660 punti di percorso per strumento di
+prezzo; **648** e 1.825 per gli indici di volatilità (niente detrend). Il job
+completo gira in **~19 secondi**.
 
 **In pagina:** selettore strumento, finestra e vista; provenienza, intervallo
 e data dell'ultimo calcolo dichiarati; percorso stagionale multi-finestra con
-bande, `n` e Pos%; tab **Mese** (heatmap + tabella su tutte le finestre) e
-**Giorno** (per giorno della settimana, con drill dentro un singolo mese);
-tab Settimana/Sessione/Ora presenti e disabilitati.
+bande, `n` e Pos%; tab **Mese**, **Settimana** e **Giorno** tutti attivi, con
+heatmap anni × bucket e tabella su tutte e cinque le finestre; drill dentro un
+singolo mese sul solo giorno della settimana; tab Sessione e Ora disabilitati
+in attesa dell'intraday.
 
-**Verifica incrociata coi fatti di mercato noti** (finestra 20 anni): S&P con
-settembre peggiore (−0,61%) e aprile/luglio/novembre migliori; oro con
-gennaio più forte (+3,53%) e giugno/settembre deboli; VIX con ottobre al
-livello più alto (21,5) e luglio al più basso (17,5).
+**Verifica incrociata coi fatti di mercato noti** (S&P 500, finestra 20 anni):
+settembre peggiore mese (−0,61%), aprile/luglio/novembre migliori; **settimana
+48 — quella del Ringraziamento — +1,95% con Pos% 85%**; oro con gennaio più
+forte (+3,53%) e giugno/settembre deboli; VIX con ottobre al livello più alto
+(21,5) e luglio al più basso (17,5).
