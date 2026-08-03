@@ -13,24 +13,29 @@ import {
 } from "recharts";
 import type { SeasonalityKind } from "@/generated/prisma/client";
 import { CHART } from "@/components/charts/chart-spec";
-import { logToPercent } from "@/lib/seasonality/series";
 import { windowColor } from "@/components/seasonality/window-colors";
-import type { PathPointView } from "@/lib/seasonality/query";
+import {
+  ChartToggles,
+  type ToggleItem,
+} from "@/components/seasonality/chart-toggles";
 
 /**
- * PERCORSO STAGIONALE — multilinea con selettore di finestre.
+ * PERCORSO STAGIONALE ANNUALE — multilinea a piena risoluzione.
  *
- * Ogni finestra ha una CHECKBOX colorata (la checkbox È la legenda): tutte
- * accese per default, e spegnendole il grafico ri-zooma sulle sole linee
- * visibili. L'asse Y è stretto sui dati reali — niente zero forzato: un
- * percorso che oscilla fra +2% e +9% schiacciato su un asse 0-60% era una
- * riga piatta, e la pendenza è esattamente la cosa da leggere.
+ * Le serie arrivano già COMPATTE dal server: un array di numeri arrotondati
+ * indicizzato sul giorno dell'anno, non un array di oggetti. È questo che
+ * permette la piena risoluzione giornaliera su TUTTE le finestre (~5 KB a
+ * finestra invece di ~40): la decimazione che c'era prima era la causa delle
+ * linee «troppo rette» — più anni deve voler dire più liscia perché la media
+ * smussa, non perché i punti mancano.
  *
- * La banda p25-p75 NON sta più sul grafico (decisione esplicita): la
- * dispersione resta nei numeri — StDev e «Range tipico p25-p75» in tabella.
+ * Linguaggio condiviso col grafico orario: checkbox-legenda per finestra,
+ * divisori verticali dei periodi, marcatore ambra «adesso», crosshair al
+ * passaggio del mouse con il valore di ogni linea visibile.
  *
- * La finestra selezionata (quella dei chip in alto, a cui appartengono le
- * statistiche) resta la linea più spessa.
+ * L'asse Y si adatta alle sole linee VISIBILI e non forza lo zero: tutte le
+ * linee restano nel dominio (niente clipping), e spegnendo la finestra
+ * estrema le altre si ri-zoomano.
  */
 
 const MONTH_TICKS = [1, 32, 60, 91, 121, 152, 182, 213, 244, 274, 305, 335];
@@ -49,52 +54,80 @@ const MONTH_NAMES = [
   "Dic",
 ];
 
-export interface PathSeries {
+/** «15 Apr» da un giorno dell'anno, sulla mappa non bisestile dei tick. */
+function doyLabel(doy: number): string {
+  let i = MONTH_TICKS.length - 1;
+  while (i > 0 && MONTH_TICKS[i] > doy) i -= 1;
+  return `${doy - MONTH_TICKS[i] + 1} ${MONTH_NAMES[i]}`;
+}
+
+/** Serie compatta: `values[doy]` è il valore in unità di display, o null. */
+export interface CompactPathSeries {
   lookbackYears: number;
-  points: PathPointView[];
+  values: (number | null)[];
 }
 
 interface Row {
   doy: number;
   [key: `w${number}`]: number | undefined;
+  cur?: number;
 }
 
 export function SeasonalPathChart({
   series,
+  currentYear,
   selectedWindow,
   kind,
   todayDoy,
+  currentMonthDoy,
 }: {
-  series: PathSeries[];
+  series: CompactPathSeries[];
+  /** Percorso parziale dell'anno in corso; null = toggle non disponibile. */
+  currentYear: CompactPathSeries | null;
   selectedWindow: number;
   kind: SeasonalityKind;
-  /** Giorno dell'anno di oggi: la linea «siamo qui». */
+  /** Giorno dell'anno di oggi: la linea «oggi». */
   todayDoy: number;
+  /** Primo giorno del mese corrente: il divisore «mese corrente». */
+  currentMonthDoy: number;
 }) {
-  const [spente, setSpente] = useState<ReadonlySet<number>>(new Set());
+  const [spente, setSpente] = useState<ReadonlySet<number>>(
+    // L'anno in corso (chiave 0) parte spento: è un'opzione, non il default.
+    () => new Set(currentYear ? [0] : []),
+  );
 
-  const toDisplay = (v: number) => (kind === "LEVEL" ? v : logToPercent(v));
+  const windows = useMemo(
+    () => series.map((s) => s.lookbackYears).sort((a, b) => b - a),
+    [series],
+  );
 
-  const { data, windows } = useMemo(() => {
-    const rows = new Map<number, Row>();
-    for (const s of series) {
-      for (const p of s.points) {
-        const row = rows.get(p.dayOfYear) ?? { doy: p.dayOfYear };
-        row[`w${s.lookbackYears}`] = toDisplay(p.mean);
-        rows.set(p.dayOfYear, row);
+  const data = useMemo(() => {
+    const rows: Row[] = [];
+    for (let doy = 1; doy <= 366; doy += 1) {
+      const row: Row = { doy };
+      let some = false;
+      for (const s of series) {
+        const v = s.values[doy];
+        if (v !== null && v !== undefined) {
+          row[`w${s.lookbackYears}`] = v;
+          some = true;
+        }
       }
+      const cv = currentYear?.values[doy];
+      if (cv !== null && cv !== undefined) {
+        row.cur = cv;
+        some = true;
+      }
+      if (some) rows.push(row);
     }
-    return {
-      data: [...rows.values()].sort((a, b) => a.doy - b.doy),
-      windows: series.map((s) => s.lookbackYears).sort((a, b) => b - a),
-    };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [series, kind]);
+    return rows;
+  }, [series, currentYear]);
 
   const visibili = windows.filter((w) => !spente.has(w));
+  const overlayAccesa = currentYear !== null && !spente.has(0);
 
-  /* Dominio Y stretto sulle SOLE linee visibili, con un piccolo respiro:
-     spegnere la finestra corta e volatile fa ri-zoomare le altre. */
+  /* Dominio stretto sulle sole linee visibili, con respiro: nessuna linea
+     visibile esce dal dominio (niente clipping), nessuno zero forzato. */
   const [yMin, yMax] = useMemo(() => {
     let min = Number.POSITIVE_INFINITY;
     let max = Number.NEGATIVE_INFINITY;
@@ -105,70 +138,50 @@ export function SeasonalPathChart({
         if (v < min) min = v;
         if (v > max) max = v;
       }
+      if (overlayAccesa && row.cur !== undefined) {
+        if (row.cur < min) min = row.cur;
+        if (row.cur > max) max = row.cur;
+      }
     }
     if (!Number.isFinite(min) || !Number.isFinite(max)) return [0, 1];
     const pad = Math.max((max - min) * 0.06, 0.1);
     return [min - pad, max + pad];
-  }, [data, visibili]);
+  }, [data, visibili, overlayAccesa]);
 
   const unit = kind === "LEVEL" ? "" : "%";
 
-  const toggle = (w: number) => {
+  const toggle = (key: number) => {
     setSpente((prev) => {
       const next = new Set(prev);
-      if (next.has(w)) next.delete(w);
-      else next.add(w);
+      if (next.has(key)) next.delete(key);
+      else next.add(key);
       return next;
     });
   };
 
+  const toggles: ToggleItem[] = [
+    ...windows.map((w) => ({
+      key: w,
+      label: `${w} anni`,
+      selected: w === selectedWindow,
+    })),
+    ...(currentYear
+      ? [{ key: 0, label: "anno in corso", color: "var(--md-text)" }]
+      : []),
+  ];
+
   return (
     <div className="flex h-full flex-col gap-2">
-      {/* La checkbox È la legenda: campione colorato + etichetta. */}
-      <div className="flex flex-wrap items-center gap-x-4 gap-y-1.5">
-        {windows.map((w) => {
-          const accesa = !spente.has(w);
-          const sel = w === selectedWindow;
-          return (
-            <label
-              key={w}
-              className="md-mono inline-flex cursor-pointer select-none items-center gap-1.5 text-2xs"
-              style={{
-                color: accesa ? "var(--md-text-2)" : "var(--md-muted)",
-                fontWeight: sel ? 700 : 500,
-                opacity: accesa ? 1 : 0.6,
-              }}
-            >
-              <input
-                type="checkbox"
-                checked={accesa}
-                onChange={() => toggle(w)}
-                className="size-3.5 cursor-pointer"
-                style={{ accentColor: windowColor(w) }}
-                aria-label={`Mostra la finestra da ${w} anni`}
-              />
-              <span
-                aria-hidden
-                className="inline-block w-4 rounded-full"
-                style={{
-                  height: sel ? 3 : 2,
-                  backgroundColor: windowColor(w),
-                  opacity: accesa ? 1 : 0.35,
-                }}
-              />
-              {w} anni
-            </label>
-          );
-        })}
-      </div>
+      <ChartToggles items={toggles} hidden={spente} onToggle={toggle} />
 
       <div className="min-h-0 flex-1">
         <ResponsiveContainer width="100%" height="100%">
           <ComposedChart data={data} margin={{ ...CHART.margin, left: 4 }}>
+            {/* Divisori VERTICALI dei mesi: la griglia segue i tick. */}
             <CartesianGrid
               strokeDasharray="3 3"
               stroke="var(--md-border)"
-              vertical={false}
+              vertical
             />
             <XAxis
               dataKey="doy"
@@ -185,6 +198,7 @@ export function SeasonalPathChart({
             <YAxis
               width={CHART.yAxisWidth}
               domain={[yMin, yMax]}
+              tickCount={9}
               tick={CHART.axisTick}
               axisLine={false}
               tickLine={false}
@@ -193,10 +207,6 @@ export function SeasonalPathChart({
               }
             />
 
-            {/* `connectNulls` NON è opzionale: le finestre non selezionate
-                arrivano DECIMATE (un punto ogni sette giorni), quindi nel
-                dataset unito hanno buchi su sei righe su sette. Senza,
-                Recharts spezza la curva in segmenti isolati invisibili. */}
             {visibili
               .filter((w) => w !== selectedWindow)
               .map((w) => (
@@ -212,12 +222,25 @@ export function SeasonalPathChart({
                 />
               ))}
 
-            {!spente.has(selectedWindow) ? (
+            {visibili.includes(selectedWindow) ? (
               <Line
                 dataKey={`w${selectedWindow}`}
                 stroke={windowColor(selectedWindow)}
                 strokeWidth={2.5}
                 dot={false}
+                connectNulls
+                isAnimationActive={false}
+              />
+            ) : null}
+
+            {overlayAccesa ? (
+              <Line
+                dataKey="cur"
+                stroke="var(--md-text)"
+                strokeWidth={1.75}
+                strokeDasharray="5 3"
+                dot={false}
+                connectNulls
                 isAnimationActive={false}
               />
             ) : null}
@@ -225,6 +248,20 @@ export function SeasonalPathChart({
             {kind === "RETURN" && yMin < 0 && yMax > 0 ? (
               <ReferenceLine y={0} stroke="var(--md-border)" />
             ) : null}
+            {/* Mese corrente e oggi: stesso ambra «adesso» del resto della
+                pagina, il mese più tenue del giorno. */}
+            <ReferenceLine
+              x={currentMonthDoy}
+              stroke="var(--md-warn)"
+              strokeOpacity={0.45}
+              label={{
+                value: "mese corrente",
+                position: "insideBottomLeft",
+                fill: "var(--md-warn)",
+                opacity: 0.7,
+                fontSize: 10,
+              }}
+            />
             <ReferenceLine
               x={todayDoy}
               stroke="var(--md-warn)"
@@ -237,17 +274,23 @@ export function SeasonalPathChart({
               }}
             />
 
+            {/* Crosshair: linea verticale al giorno e valore di ogni linea. */}
             <Tooltip
+              cursor={{ stroke: "var(--md-muted)", strokeDasharray: "2 2" }}
               contentStyle={CHART.tooltipStyle}
               itemStyle={CHART.tooltipItemStyle}
               labelStyle={CHART.tooltipLabelStyle}
-              labelFormatter={(label) => `Giorno ${String(label)} dell'anno`}
+              labelFormatter={(label) => doyLabel(Number(label))}
               formatter={(value, name) => {
                 const num = Number(value);
                 const fmt = Number.isFinite(num)
                   ? `${num.toLocaleString("it-IT", { maximumFractionDigits: 2 })}${unit}`
                   : "—";
-                return [fmt, `media ${String(name).replace("w", "")} anni`];
+                const key = String(name);
+                return [
+                  fmt,
+                  key === "cur" ? "anno in corso" : `${key.replace("w", "")} anni`,
+                ];
               }}
             />
           </ComposedChart>
