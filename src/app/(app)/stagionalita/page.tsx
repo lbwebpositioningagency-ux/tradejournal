@@ -39,8 +39,19 @@ import {
   type HeatmapData,
   type PathPointView,
 } from "@/lib/seasonality/query";
-import { sessionBoundaries } from "@/lib/seasonality/market-sessions";
-import { CLOCKS, CLOCK_LABEL, CLOCK_TIMEZONE } from "@/lib/seasonality/buckets";
+import {
+  marketSessionBucket,
+  sessionBoundaries,
+} from "@/lib/seasonality/market-sessions";
+import {
+  CLOCKS,
+  CLOCK_LABEL,
+  CLOCK_TIMEZONE,
+  isoWeek,
+  isoWeekday,
+  zonedParts,
+} from "@/lib/seasonality/buckets";
+import { windowColor } from "@/components/seasonality/window-colors";
 import type { SeasonalityClock } from "@/generated/prisma/client";
 import { todayDayOfYear } from "@/lib/seasonality/precompute";
 import type { SeasonalityInstrument } from "@/generated/prisma/client";
@@ -242,6 +253,33 @@ export default async function StagionalitaPage({
 
   const oggi = todayDayOfYear();
 
+  /* ── Il bucket «adesso», nel fuso giusto per ogni granularità ────────────
+     Mese/settimana/giorno si valutano sulla data civile ITALIANA (le
+     granularità di calendario del modulo vivono lì); l'ora sul fuso
+     dell'orologio selezionato, così il marcatore segue il toggle UTC/Roma; la
+     sessione con gli stessi confini ancorati ai centri finanziari usati dal
+     precalcolo. Di sabato e domenica il giorno corrente non esiste fra i
+     bucket lun-ven: nessun marcatore, che è la risposta giusta. */
+  const adessoTs = new Date();
+  const adessoRoma = zonedParts(adessoTs, CLOCK_TIMEZONE.ROME);
+  const bucketCorrente: number | null =
+    granularity === "MONTH"
+      ? adessoRoma.month
+      : granularity === "WEEK"
+        ? isoWeek(adessoRoma.year, adessoRoma.month, adessoRoma.day)
+        : granularity === "WEEKDAY"
+          ? (() => {
+              const wd = isoWeekday(
+                adessoRoma.year,
+                adessoRoma.month,
+                adessoRoma.day,
+              );
+              return wd <= 5 ? wd : null;
+            })()
+          : granularity === "SESSION"
+            ? marketSessionBucket(adessoTs)
+            : zonedParts(adessoTs, CLOCK_TIMEZONE[clock]).hour;
+
   return (
     <div className="flex flex-col gap-4">
       <div>
@@ -354,11 +392,16 @@ export default async function StagionalitaPage({
                 <Chip
                   href={hrefWith(base, { d: undefined })}
                   active={!detrended}
+                  title="Il percorso realmente accaduto, tendenza di fondo pluriennale inclusa."
                 >
-                  grezza
+                  Percorso medio
                 </Chip>
-                <Chip href={hrefWith(base, { d: "1" })} active={detrended}>
-                  detrend
+                <Chip
+                  href={hrefWith(base, { d: "1" })}
+                  active={detrended}
+                  title="Tolta la deriva pluriennale: resta solo quali periodi fanno meglio o peggio della media dell'anno."
+                >
+                  Solo stagionalità
                 </Chip>
                 <MetricInfo info={detrendInfo} size="sm" />
               </ChipGroup>
@@ -447,22 +490,54 @@ export default async function StagionalitaPage({
                   <span className="inline-flex items-center gap-1">
                     <PanelLabel>
                       Percorso stagionale — {def.label}
-                      {detrended ? " (detrend)" : ""}
+                      {detrended ? " — solo stagionalità" : ""}
                     </PanelLabel>
                     <MetricInfo info={percorsoInfo} size="sm" />
                   </span>
-                  <span className="text-2xs text-[var(--md-muted)]">
-                    linea piena: {lookback} anni · banda p25-p75 · linee tenui:
-                    le altre finestre
+                  {/* Legenda vera: un campione di linea per finestra, nel suo
+                      colore. Sostituisce il testo «linee tenui: le altre
+                      finestre», che non permetteva di capire quale fosse
+                      quale. */}
+                  <span className="flex flex-wrap items-center gap-x-3 gap-y-1 text-2xs text-[var(--md-muted)]">
+                    {pathSeries.map((ser) => {
+                      const sel = ser.lookbackYears === lookbackEffettivo;
+                      return (
+                        <span
+                          key={ser.lookbackYears}
+                          className="inline-flex items-center gap-1.5"
+                          style={{
+                            color: sel ? "var(--md-text)" : "var(--md-text-2)",
+                            fontWeight: sel ? 700 : 500,
+                          }}
+                        >
+                          <span
+                            aria-hidden
+                            className="inline-block w-4 rounded-full"
+                            style={{
+                              height: sel ? 3 : 2,
+                              backgroundColor: windowColor(ser.lookbackYears),
+                              opacity: sel ? 1 : 0.8,
+                            }}
+                          />
+                          {ser.lookbackYears} anni
+                        </span>
+                      );
+                    })}
+                    <span>· banda p25-p75 sulla finestra selezionata</span>
                   </span>
                 </div>
                 {pathSeries.length > 0 ? (
-                  <SeasonalPathChart
-                    series={pathSeries}
-                    selectedWindow={lookbackEffettivo}
-                    kind={def.kind}
-                    todayDoy={oggi}
-                  />
+                  /* Più ALTO che largo di proporzione: le pendenze sono la
+                     cosa da leggere, e in 300px si appiattivano. 340px su
+                     mobile (senza obbligare a scroll infinito), 460px da md. */
+                  <div className="h-[340px] w-full md:h-[460px]">
+                    <SeasonalPathChart
+                      series={pathSeries}
+                      selectedWindow={lookbackEffettivo}
+                      kind={def.kind}
+                      todayDoy={oggi}
+                    />
+                  </div>
                 ) : (
                   <SectionEmpty what="Il percorso stagionale" />
                 )}
@@ -476,16 +551,17 @@ export default async function StagionalitaPage({
                     const punto =
                       s.points.find((p) => p.dayOfYear === oggi) ??
                       s.points[s.points.length - 1];
-                    const selezionata = s.lookbackYears === lookback;
+                    const selezionata = s.lookbackYears === lookbackEffettivo;
                     return (
                       <span
                         key={s.lookbackYears}
                         className="md-mono"
                         style={{
-                          color: selezionata
-                            ? "var(--md-info)"
-                            : "var(--md-muted)",
+                          // Stesso colore della linea: la striscia È la
+                          // legenda numerica del grafico.
+                          color: windowColor(s.lookbackYears),
                           fontWeight: selezionata ? 700 : 500,
+                          opacity: selezionata ? 1 : 0.85,
                         }}
                       >
                         {s.lookbackYears}a · n={punto?.n ?? 0} ·{" "}
@@ -627,6 +703,7 @@ export default async function StagionalitaPage({
                     data={heatmap}
                     kind={def.kind}
                     granularity={granularity}
+                    currentBucket={bucketCorrente}
                     summary={
                       // La heatmap è sempre su tutto l'anno: le sue righe di
                       // sintesi devono venire dallo scope ALL, e con un filtro
@@ -659,11 +736,12 @@ export default async function StagionalitaPage({
                   {scope === SCOPE_ALL
                     ? ""
                     : ` — solo ${MONTH_LABELS[scopeMonthNum - 1]}`}
-                  {detrended ? " (detrend)" : ""}
+                  {detrended ? " — solo stagionalità" : ""}
                 </PanelLabel>
                 <BucketWindowTable
                   kind={def.kind}
                   granularity={granularity}
+                  currentBucket={bucketCorrente}
                   byWindow={byWindow}
                   selectedWindow={lookbackEffettivo}
                   coverage={windows}
