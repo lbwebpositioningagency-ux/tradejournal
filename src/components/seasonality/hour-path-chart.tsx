@@ -20,43 +20,57 @@ import {
 } from "@/components/seasonality/chart-toggles";
 
 /**
- * RITORNO ORARIO CUMULATO — il fratello intraday del percorso annuale.
+ * RITORNO INTRADAY CUMULATO — il fratello a giornata del percorso annuale.
  *
- * Asse X: la giornata, 00:00 → 24:00 nell'orologio scelto. Ogni linea è il
- * rendimento medio orario della finestra CUMULATO lungo la giornata: dove la
- * pendenza sale, quelle ore hanno storicamente spinto; dove scende, hanno
- * pesato. I punti sono le 24 statistiche orarie già precalcolate — questo
- * grafico non introduce nessun numero nuovo, li mette in fila.
+ * Asse X: la giornata nell'orologio scelto, un punto ogni QUARTO D'ORA. I 96
+ * punti sono tutti osservazioni reali — medie stagionali dei quarti d'ora
+ * calcolate dalle barre M15 — e la curva `monotone` cambia solo il modo di
+ * congiungerli: fra un punto e l'altro non viene inventato niente, e
+ * l'interpolazione monotona in particolare non crea massimi o minimi che i
+ * dati non hanno.
+ *
+ * Le tabelle e la heatmap della vista Ora restano sulle barre orarie, con
+ * Media/StDev/Pos%/campione: questo grafico è l'unico consumatore degli M15,
+ * e non pretende di essere una statistica completa — è una forma.
  *
  * Stesso linguaggio del grafico annuale, per costruzione: stessi colori per
- * finestra, stessa checkbox-legenda, stessi divisori verticali, stessa
- * FASCIA grigia tenue sul periodo corrente (lì il mese, qui l'ora, secondo
- * l'orologio scelto), stesso crosshair. Compare SOLO sulla vista Ora.
+ * finestra, stessa checkbox-legenda, divisori verticali, stessa fascia grigia
+ * tenue sul periodo corrente (lì il mese, qui il quarto d'ora), stesso
+ * crosshair.
  */
 
-const HOUR_TICKS = [0, 2, 4, 6, 8, 10, 12, 14, 16, 18, 20, 22, 24];
+const HOUR_TICKS = [0, 8, 16, 24, 32, 40, 48, 56, 64, 72, 80, 88, 96];
 
-/** Serie: `values[h]` = cumulato in punti base FINO ALLA FINE dell'ora h. */
+/** Serie: `values[q]` = cumulato in punti base a fine quarto d'ora `q`. */
 export interface HourPathSeries {
   lookbackYears: number;
   values: number[];
+  /** Anni davvero presenti in archivio per questa finestra. */
+  years: number;
 }
 
 interface Row {
-  h: number;
+  q: number;
   [key: `w${number}`]: number | undefined;
+}
+
+/** «14:45» dall'indice del quarto d'ora. */
+function quarterLabel(q: number): string {
+  const h = Math.floor(q / 4) % 24;
+  const m = (q % 4) * 15;
+  return `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}`;
 }
 
 export function HourPathChart({
   series,
   selectedWindow,
-  currentHour,
+  currentQuarter,
   clockLabel,
 }: {
   series: HourPathSeries[];
   selectedWindow: number;
-  /** Ora corrente nell'orologio del grafico: il marcatore «adesso». */
-  currentHour: number;
+  /** Quarto d'ora corrente (0..95) nell'orologio del grafico. */
+  currentQuarter: number;
   clockLabel: string;
 }) {
   const [spente, setSpente] = useState<ReadonlySet<number>>(new Set());
@@ -69,10 +83,10 @@ export function HourPathChart({
   const data = useMemo(() => {
     const rows: Row[] = [];
     // Punto 0 = mezzanotte, valore 0 per tutte: il cumulato parte da lì.
-    for (let h = 0; h <= 24; h += 1) {
-      const row: Row = { h };
+    for (let q = 0; q <= 96; q += 1) {
+      const row: Row = { q };
       for (const s of series) {
-        row[`w${s.lookbackYears}`] = h === 0 ? 0 : s.values[h - 1];
+        row[`w${s.lookbackYears}`] = q === 0 ? 0 : s.values[q - 1];
       }
       rows.push(row);
     }
@@ -125,13 +139,11 @@ export function HourPathChart({
               vertical
             />
             <XAxis
-              dataKey="h"
+              dataKey="q"
               type="number"
-              domain={[0, 24]}
+              domain={[0, 96]}
               ticks={HOUR_TICKS}
-              tickFormatter={(v: number) =>
-                `${String(v % 24).padStart(2, "0")}:00`
-              }
+              tickFormatter={(v: number) => quarterLabel(v)}
               tick={CHART.axisTick}
               axisLine={false}
               tickLine={false}
@@ -148,21 +160,16 @@ export function HourPathChart({
               }
             />
 
-            {/* FASCIA dell'ora corrente, coerente con la fascia del mese
-                sul grafico annuale: area grigia tenue dietro le linee,
-                nell'orologio scelto col toggle UTC/Roma. */}
+            {/* Fascia del quarto d'ora corrente, coerente con la fascia del
+                mese sul grafico annuale. */}
             <ReferenceArea
-              x1={currentHour}
-              x2={currentHour + 1}
+              x1={currentQuarter}
+              x2={currentQuarter + 1}
               fill="var(--md-text)"
-              fillOpacity={0.09}
+              fillOpacity={0.12}
               stroke="none"
             />
 
-            {/* `monotone`: i 24 punti sono le sole osservazioni reali — la
-                curva cambia solo il modo di CONGIUNGERLI, non i valori, e
-                l'interpolazione monotona non inventa massimi o minimi fra
-                due punti come farebbe una spline cardinale. */}
             {visibili
               .filter((w) => w !== selectedWindow)
               .map((w) => (
@@ -197,7 +204,7 @@ export function HourPathChart({
               itemStyle={CHART.tooltipItemStyle}
               labelStyle={CHART.tooltipLabelStyle}
               labelFormatter={(label) =>
-                `fino alle ${String(Number(label) % 24).padStart(2, "0")}:00 (${clockLabel})`
+                `fino alle ${quarterLabel(Number(label))} (${clockLabel})`
               }
               formatter={(value, name) => {
                 const num = Number(value);

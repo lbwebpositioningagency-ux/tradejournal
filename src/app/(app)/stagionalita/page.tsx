@@ -38,6 +38,7 @@ import {
   getHeatmap,
   getLastRun,
   getPaths,
+  getQuarterPaths,
   getStatsByWindow,
   intradayLookbacks,
   windowCoverage,
@@ -195,9 +196,13 @@ export default async function StagionalitaPage({
   let heatmap: HeatmapData | null = null;
   let byWindow: Map<number, BucketView[]> = new Map();
   let paths: Map<number, PathPointView[]> = new Map();
+  let quarterPaths: Map<
+    number,
+    { values: number[]; years: number; emptyBuckets: number }
+  > = new Map();
 
   if (popolato) {
-    [heatmap, byWindow, paths] = await Promise.all([
+    [heatmap, byWindow, paths, quarterPaths] = await Promise.all([
       getHeatmap({
         instrument,
         granularity,
@@ -219,6 +224,24 @@ export default async function StagionalitaPage({
         lookbacks: detrended ? LOOKBACK_YEARS : [...LOOKBACK_YEARS, 0],
         detrended,
       }),
+      /* I 96 punti del grafico intraday: solo sulla vista Ora, e solo per le
+         finestre che l'archivio intraday copre davvero. */
+      granularity === "HOUR"
+        ? getQuarterPaths({
+            instrument,
+            clock,
+            lookbacks: intradayLookbacks(
+              LOOKBACK_YEARS,
+              cov?.hourCompleteYears ?? null,
+            ),
+            detrended,
+          })
+        : Promise.resolve(
+            new Map<
+              number,
+              { values: number[]; years: number; emptyBuckets: number }
+            >(),
+          ),
     ]);
   }
 
@@ -260,24 +283,15 @@ export default async function StagionalitaPage({
     ? { lookbackYears: 0, values: compact(paths.get(0)!) }
     : null;
 
-  /* Ritorno orario cumulato per finestra: somma dei log orari (additivi),
-     convertita in punti base solo alla fine. SOLO sulla vista Ora, dove
-     byWindow contiene già le 24 statistiche orarie nell'orologio scelto:
-     nessuna query in più. */
-  const hourPathSeries: HourPathSeries[] = (granularity === "HOUR"
-    ? [...byWindow.entries()]
-    : []
-  )
-    .map(([lookbackYears, rows]) => {
-      const byBucket = new Map(rows.map((r) => [r.bucket, r.mean]));
-      const values: number[] = [];
-      let cum = 0;
-      for (let h = 0; h < 24; h += 1) {
-        cum += byBucket.get(h) ?? 0;
-        values.push(Number((logToPercent(cum) * 100).toFixed(2)));
-      }
-      return { lookbackYears, values };
-    })
+  /* Ritorno intraday cumulato: 96 punti a quarto d'ora, precalcolati dalle
+     barre M15 e già in punti base. Solo la vista Ora lo mostra. */
+  const quartiVuoti = quarterPaths.get(lookbackEffettivo)?.emptyBuckets ?? 0;
+  const hourPathSeries: HourPathSeries[] = [...quarterPaths.entries()]
+    .map(([lookbackYears, v]) => ({
+      lookbackYears,
+      values: v.values,
+      years: v.years,
+    }))
     .sort((a, b) => b.lookbackYears - a.lookbackYears);
 
   const oggi = todayDayOfYear();
@@ -565,31 +579,52 @@ export default async function StagionalitaPage({
                 <div className="md-card flex flex-col gap-3 p-4">
                   <div className="flex flex-wrap items-baseline justify-between gap-2">
                     <PanelLabel>
-                      Ritorno orario cumulato — {def.label} (
+                      Ritorno intraday cumulato — {def.label} (
                       {CLOCK_LABEL[clock]})
                       {detrended ? " — solo stagionalità" : ""}
                     </PanelLabel>
                     <span className="text-2xs text-[var(--md-muted)]">
-                      la pendenza dice quali ore hanno storicamente spinto
+                      96 punti a quarto d&apos;ora · la pendenza dice quali
+                      momenti hanno storicamente spinto
                     </span>
                   </div>
                   <div className="h-[420px] w-full md:h-[560px]">
                     <HourPathChart
                       series={hourPathSeries}
                       selectedWindow={lookbackEffettivo}
-                      currentHour={
+                      currentQuarter={
                         clock === "UTC"
-                          ? zonedParts(adessoTs, CLOCK_TIMEZONE.UTC).hour
-                          : adessoRoma.hour
+                          ? (() => {
+                              const p = zonedParts(
+                                adessoTs,
+                                CLOCK_TIMEZONE.UTC,
+                              );
+                              return p.hour * 4 + Math.floor(p.minute / 15);
+                            })()
+                          : adessoRoma.hour * 4 +
+                            Math.floor(adessoRoma.minute / 15)
                       }
                       clockLabel={CLOCK_LABEL[clock]}
                     />
                   </div>
                   <p className="text-2xs leading-relaxed text-[var(--md-muted)]">
-                    Somma progressiva, ora dopo ora, del rendimento medio
-                    orario della finestra: sono le stesse 24 statistiche della
-                    vista Ora, messe in fila. A mezzanotte vale zero per
-                    costruzione.
+                    Somma progressiva, quarto d&apos;ora dopo quarto
+                    d&apos;ora, del rendimento medio della finestra: 96 punti
+                    reali calcolati dalle barre a 15 minuti, congiunti da una
+                    curva che non aggiunge niente fra un punto e l&apos;altro.
+                    A mezzanotte vale zero per costruzione. Le tabelle qui
+                    sotto restano sulle barre orarie, con le loro statistiche
+                    complete.
+                    {quartiVuoti > 0 ? (
+                      <>
+                        {" "}
+                        <strong>{quartiVuoti} quarti d&apos;ora</strong>{" "}
+                        su 96 non hanno quotazioni sulla finestra selezionata — è la
+                        pausa serale del mercato, non un buco d&apos;archivio:
+                        lì la curva resta piatta perché non è successo niente,
+                        non perché il valore sia stimato.
+                      </>
+                    ) : null}
                   </p>
                 </div>
               ) : null}

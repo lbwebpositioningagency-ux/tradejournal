@@ -664,6 +664,33 @@ model SeasonalityYearBucketObs {
 // un limite di tempo non arriva mai in fondo: scarica, viene ucciso, e la
 // notte dopo riscarica le stesse cose. Con il cursore ogni invocazione fa un
 // pezzo e lo dichiara, e più esecuzioni convergono.
+/**
+ * Media stagionale di un QUARTO D'ORA per (strumento, orologio, anno).
+ *
+ * È l'unica traccia che resta delle barre M15: il grezzo — milioni di righe
+ * per strumento — viene scaricato, aggregato e BUTTATO nella stessa
+ * invocazione. Qui restano 96 bucket × ~23 anni × 2 orologi per strumento,
+ * cioè qualche migliaio di righe in tutto, da cui qualunque finestra di
+ * lookback si ricava con una media.
+ *
+ * Serve SOLO al grafico del ritorno intraday: le tabelle e la heatmap della
+ * vista Ora restano sulle barre H1, con le loro statistiche complete.
+ */
+model SeasonalityQuarterYear {
+  instrument SeasonalityInstrument
+  clock      SeasonalityClock
+  year       Int
+  /** Quarto d'ora dalla mezzanotte dell'orologio scelto: 0..95. */
+  bucket     Int
+
+  /** Media dei rendimenti log di quel quarto d'ora in quell'anno. */
+  mean Decimal @db.Decimal(18, 12)
+  /** Barre M15 che la compongono: il campione grezzo, dichiarato. */
+  bars Int
+
+  @@id([instrument, clock, year, bucket])
+}
+
 model SeasonalityJobState {
   instrument SeasonalityInstrument @id
 
@@ -679,6 +706,17 @@ model SeasonalityJobState {
 
   /** L'ingest orario ha raggiunto il presente: da qui in poi solo il delta. */
   hourIngestComplete Boolean @default(false)
+
+  /** Prossimo anno da scaricare per i quarti d'ora (M15). Stesso schema del
+   * cursore orario, tabella diversa: il grezzo M15 non si conserva, quindi
+   * l'unico stato che avanza è questo. */
+  quarterNextYear Int?
+
+  /** L'ingest M15 ha raggiunto il presente. */
+  quarterIngestComplete Boolean @default(false)
+
+  /** Ultimo anno ricalcolato dai quarti d'ora: l'anno in corso si rifà. */
+  quarterDoneAt DateTime?
 
   /** Righe orarie al momento dell'ultimo precalcolo. Se non sono cambiate il
    * precalcolo non si rifà: a regime è il risparmio che tiene il job dentro
