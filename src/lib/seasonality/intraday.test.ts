@@ -157,6 +157,47 @@ describe("precomputeIntraday", () => {
     ]);
   });
 
+  it("Media/StDev/Pos%/n sono al livello della GRIGLIA: n = anni, non ore", () => {
+    // Il difetto che questo test blocca: statistiche sul pool delle
+    // osservazioni individuali (n≈17.000, StDev del singolo giorno, Pos%
+    // da lancio di moneta) sotto una griglia che mostra medie PER ANNO.
+    const out = precomputeIntraday({
+      instrument: "XAUUSD",
+      bars: serie(2020, 2025, 13),
+      now: NOW,
+    });
+    const anniInGriglia = new Set(
+      out.observations
+        .filter((o) => o.granularity === "HOUR" && o.clock === "UTC")
+        .map((o) => o.year),
+    ).size;
+    expect(anniInGriglia).toBe(6); // 2020-2025
+
+    for (const s of out.stats.filter(
+      (x) => x.granularity === "HOUR" && x.lookbackYears === 20,
+    )) {
+      // n è il numero di anni della griglia, mai il numero di ore.
+      expect(s.n).toBe(anniInGriglia);
+    }
+    const sessioni = out.stats.filter(
+      (x) => x.granularity === "SESSION" && x.lookbackYears === 20,
+    );
+    for (const s of sessioni) expect(s.n).toBe(anniInGriglia);
+
+    // Serie deterministica: ogni anno identico → la dispersione FRA GLI
+    // ANNI è ~0, non la dispersione oraria dentro l'anno.
+    const forte = out.stats.find(
+      (x) =>
+        x.granularity === "HOUR" &&
+        x.clock === "UTC" &&
+        x.bucket === 13 &&
+        x.lookbackYears === 20 &&
+        !x.detrended,
+    )!;
+    expect(forte.stdev ?? 0).toBeLessThan(1e-6);
+    expect(forte.positiveShare).toBe(1); // tutti gli anni positivi
+  });
+
   it("produce le quattro sessioni, in una sola versione", () => {
     const out = precomputeIntraday({
       instrument: "XAUUSD",
@@ -171,8 +212,8 @@ describe("precomputeIntraday", () => {
   });
 
   it("attribuisce l'ora forte alla sessione giusta", () => {
-    // Le 14:00 UTC sono sessione di New York d'inverno (apre alle 13:00 UTC)
-    // e d'estate (apre alle 12:00 UTC): sempre NEWYORK, bucket 2.
+    // Sessioni sull'ora ITALIANA: le 14:00 UTC sono le 15 (inverno) o le 16
+    // (estate) a Roma — in entrambi i casi dentro New York 14-22, bucket 2.
     const out = precomputeIntraday({
       instrument: "XAUUSD",
       bars: serie(2024, 2025, 14),

@@ -7,7 +7,7 @@ import {
   hourLabel,
   weekLabel,
 } from "@/lib/seasonality/buckets";
-import { SESSIONS, SESSION_LABELS } from "@/lib/seasonality/market-sessions";
+import { SESSIONS, SESSION_LABELS } from "@/lib/sessions";
 
 /**
  * L'UNICA definizione di «quali bucket esistono e come si chiamano» per ogni
@@ -47,7 +47,7 @@ export const BUCKET_AXIS: Record<
     label: (b) => MONTH_LABELS[b - 1] ?? String(b),
     short: (b) => MONTH_LABELS_SHORT[b - 1] ?? String(b),
     columnName: "Mese",
-    minWidthRem: 46,
+    minWidthRem: 58,
     stretch: true,
   },
   WEEK: {
@@ -56,7 +56,7 @@ export const BUCKET_AXIS: Record<
     short: weekLabel,
     columnName: "Settimana ISO",
     // 53 colonne: la griglia scorre dentro il suo contenitore, il documento no.
-    minWidthRem: 118,
+    minWidthRem: 150,
     stretch: true,
   },
   WEEKDAY: {
@@ -64,7 +64,7 @@ export const BUCKET_AXIS: Record<
     label: (b) => WEEKDAY_LABELS[b] ?? String(b),
     short: (b) => (WEEKDAY_LABELS[b] ?? String(b)).slice(0, 3),
     columnName: "Giorno",
-    minWidthRem: 30,
+    minWidthRem: 36,
     stretch: false,
   },
   SESSION: {
@@ -72,7 +72,7 @@ export const BUCKET_AXIS: Record<
     label: (b) => SESSION_LABELS[SESSIONS[b]] ?? String(b),
     short: (b) => (SESSION_LABELS[SESSIONS[b]] ?? String(b)).split(" ")[0],
     columnName: "Sessione",
-    minWidthRem: 30,
+    minWidthRem: 36,
     stretch: false,
   },
   HOUR: {
@@ -80,7 +80,7 @@ export const BUCKET_AXIS: Record<
     label: (b) => hourLabel(b),
     short: (b) => String(b).padStart(2, "0"),
     columnName: "Ora",
-    minWidthRem: 60,
+    minWidthRem: 88,
     stretch: true,
   },
 };
