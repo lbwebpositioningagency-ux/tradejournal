@@ -84,10 +84,10 @@ export const posizioneInfo: MetricInfoData = {
 };
 
 export const detrendInfo: MetricInfoData = {
-  label: "Detrend",
+  label: "Percorso medio · Solo stagionalità",
   description:
-    "Toglie a ogni osservazione la media generale della finestra, per separare l'effetto stagionale dalla tendenza di fondo. Un ventennio di rialzo rende «positivi» dieci mesi su dodici: il detrend toglie la marea e lascia l'onda. Non è la vista di default proprio perché non è quello che è successo: è una lente.",
-  formula: "x − media(tutte le osservazioni della finestra)",
+    "«Percorso medio» è quello realmente accaduto, tendenza di fondo inclusa: vent'anni di rialzo dell'oro stanno dentro la curva. «Solo stagionalità» toglie quella deriva pluriennale e lascia il confronto con la media dell'anno: mostra quali periodi tendono a fare meglio o peggio del resto, non quanto lo strumento è salito.",
+  formula: "solo stagionalità = x − media(tutte le osservazioni della finestra)",
   note: "Non si applica agli indici di volatilità: un indice che oscilla attorno alla sua media non ha un drift da togliere.",
 };
 
