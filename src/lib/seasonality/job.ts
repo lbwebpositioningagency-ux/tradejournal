@@ -25,6 +25,8 @@ import {
   SEASONALITY_INSTRUMENTS,
 } from "@/lib/seasonality/instruments";
 import { precomputeDaily } from "@/lib/seasonality/precompute";
+import { precomputeIntraday } from "@/lib/seasonality/intraday";
+import { ingestHourly, readHourBars } from "@/lib/seasonality/hour-ingest";
 import { resolveDailySeries } from "@/lib/seasonality/sources";
 
 /** Postgres accetta al massimo 65535 parametri per statement: le righe di
@@ -46,6 +48,20 @@ async function insertInChunks<T>(
   }
 }
 
+export interface EsitoIntraday {
+  /** Righe orarie inserite in questa esecuzione (il delta della notte). */
+  inserite: number;
+  totali: number;
+  prima: string | null;
+  ultima: string | null;
+  anniCompleti: number;
+  statistiche: number;
+  /** Blocchi annuali senza dati: buchi dichiarati, non nascosti. */
+  buchi: string[];
+  /** Salti di adiacenza nella serie oraria (weekend, festivi, buchi veri). */
+  saltiCopertura: number;
+}
+
 export interface EsitoStrumento {
   strumento: string;
   esito: "aggiornato" | "senza_fonte" | "errore";
@@ -58,6 +74,8 @@ export interface EsitoStrumento {
   /** Anni solari completi effettivamente disponibili. */
   anniCompleti: number | null;
   messaggio: string | null;
+  /** Presente solo per i quattro strumenti di prezzo. */
+  intraday: EsitoIntraday | null;
 }
 
 export interface EsitoJob {
@@ -74,7 +92,20 @@ export interface EsitoJob {
  */
 export async function runSeasonalityDailyJob(
   prisma: PrismaClient,
-  opts: { now?: Date; only?: string[] } = {},
+  opts: {
+    now?: Date;
+    only?: string[];
+    /**
+     * L'aggiornamento intraday gira DENTRO questo stesso job — il piano
+     * Vercel ammette due cron in tutto e sono già impegnati (COT +
+     * stagionalità). Si può spegnere solo per il backfill giornaliero, che
+     * non ha bisogno di ripassare le barre orarie.
+     */
+    intraday?: boolean;
+    /** Ripassa tutto lo storico orario invece del solo delta (backfill). */
+    fullRescan?: boolean;
+    onProgress?: (msg: string) => void;
+  } = {},
 ): Promise<EsitoJob> {
   const now = opts.now ?? new Date();
   const started = Date.now();
@@ -106,6 +137,7 @@ export async function runSeasonalityDailyJob(
       ultimaData: null,
       anniCompleti: null,
       messaggio: def.unavailable,
+      intraday: null,
     });
   }
 
@@ -144,14 +176,22 @@ export async function runSeasonalityDailyJob(
             }),
           );
 
+          /* SOLO le granularità del calendario: senza il filtro, questa
+             cancellazione porterebbe via anche sessione e ora, che vengono
+             ricalcolate più avanti e sparirebbero del tutto quando l'intraday
+             è spento. */
           await tx.seasonalityYearBucketObs.deleteMany({
-            where: { instrument: def.code },
+            where: {
+              instrument: def.code,
+              granularity: { in: ["MONTH", "WEEK", "WEEKDAY"] },
+            },
           });
           await insertInChunks(result.observations, (chunk) =>
             tx.seasonalityYearBucketObs.createMany({
               data: chunk.map((o) => ({
                 instrument: o.instrument,
                 granularity: o.granularity,
+                clock: o.clock,
                 year: o.year,
                 bucket: o.bucket,
                 value: dec(o.value),
@@ -161,7 +201,10 @@ export async function runSeasonalityDailyJob(
           );
 
           await tx.seasonalityStat.deleteMany({
-            where: { instrument: def.code },
+            where: {
+              instrument: def.code,
+              granularity: { in: ["MONTH", "WEEK", "WEEKDAY"] },
+            },
           });
           await insertInChunks(result.stats, (chunk) =>
             tx.seasonalityStat.createMany({
@@ -241,6 +284,108 @@ export async function runSeasonalityDailyJob(
         { timeout: 240_000, maxWait: 20_000 },
       );
 
+      /* ── Intraday: solo i quattro strumenti di PREZZO ────────────────
+         Gli indici di volatilità non hanno sessione né ora — di un indice
+         che misura la volatilità attesa a 30 giorni non esiste il
+         "rendimento delle 15:00" — e restano fermi al giornaliero. */
+      let intraday: EsitoIntraday | null = null;
+      if (opts.intraday !== false && def.hourly) {
+        const ingest = await ingestHourly(prisma, def.code, def.hourly, {
+          now,
+          onProgress: opts.onProgress,
+          fullRescan: opts.fullRescan,
+        });
+        const hourBars = await readHourBars(prisma, def.code);
+        const calcolo = precomputeIntraday({
+          instrument: def.code,
+          bars: hourBars,
+          now,
+        });
+
+        await prisma.$transaction(
+          async (tx) => {
+            // SESSION e HOUR sono ricalcolate per intero: le statistiche sono
+            // poche migliaia di righe e riscriverle evita ogni stato ibrido.
+            await tx.seasonalityStat.deleteMany({
+              where: {
+                instrument: def.code,
+                granularity: { in: ["SESSION", "HOUR"] },
+              },
+            });
+            await insertInChunks(calcolo.stats, (chunk) =>
+              tx.seasonalityStat.createMany({
+                data: chunk.map((s) => ({
+                  instrument: s.instrument,
+                  kind: s.kind,
+                  granularity: s.granularity,
+                  clock: s.clock,
+                  scope: s.scope,
+                  lookbackYears: s.lookbackYears,
+                  detrended: s.detrended,
+                  bucket: s.bucket,
+                  n: s.n,
+                  mean: dec(s.mean),
+                  median: dec(s.median),
+                  stdev: s.stdev === null ? null : dec(s.stdev),
+                  positiveShare: dec(s.positiveShare),
+                  p25: dec(s.p25),
+                  p75: dec(s.p75),
+                  firstDate: new Date(`${s.firstDate}T00:00:00Z`),
+                  lastDate: new Date(`${s.lastDate}T00:00:00Z`),
+                })),
+              }),
+            );
+            await tx.seasonalityYearBucketObs.deleteMany({
+              where: {
+                instrument: def.code,
+                granularity: { in: ["SESSION", "HOUR"] },
+              },
+            });
+            await insertInChunks(calcolo.observations, (chunk) =>
+              tx.seasonalityYearBucketObs.createMany({
+                data: chunk.map((o) => ({
+                  instrument: o.instrument,
+                  granularity: o.granularity,
+                  clock: o.clock,
+                  year: o.year,
+                  bucket: o.bucket,
+                  value: dec(o.value),
+                  days: o.days,
+                })),
+              }),
+            );
+            await tx.seasonalityCoverage.update({
+              where: { instrument: def.code },
+              data: {
+                hourSource: `Dukascopy ${def.hourly} H1`,
+                hourFirst: ingest.first,
+                hourLast: ingest.last,
+                hourRows: ingest.total,
+                /* La copertura reale dell'archivio orario finisce in `note`,
+                   che esiste apposta per dichiarare un dato parziale invece
+                   di lasciarlo scoprire da un `n` più basso del previsto. */
+                note:
+                  calcolo.missingMonths.length > 0
+                    ? `Archivio orario incompleto: ${calcolo.missingMonths.length} mesi assenti (${calcolo.missingMonths.join(", ")}). I rendimenti a cavallo di un buco non vengono calcolati, quindi il campione è più piccolo ma nessun valore è inventato.`
+                    : null,
+              },
+            });
+          },
+          { timeout: 240_000, maxWait: 20_000 },
+        );
+
+        intraday = {
+          inserite: ingest.inserted,
+          totali: ingest.total,
+          prima: ingest.first?.toISOString() ?? null,
+          ultima: ingest.last?.toISOString() ?? null,
+          anniCompleti: calcolo.completeYears,
+          statistiche: calcolo.stats.length,
+          buchi: ingest.emptyChunks,
+          saltiCopertura: calcolo.gaps.skipped,
+        };
+      }
+
       esiti.push({
         strumento: def.code,
         esito: "aggiornato",
@@ -252,6 +397,7 @@ export async function runSeasonalityDailyJob(
         ultimaData: result.lastDate,
         anniCompleti,
         messaggio: null,
+        intraday,
       });
     } catch (error) {
       const messaggio = String(error);
@@ -274,6 +420,7 @@ export async function runSeasonalityDailyJob(
         ultimaData: null,
         anniCompleti: null,
         messaggio,
+        intraday: null,
       });
     }
   }

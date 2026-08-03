@@ -12,6 +12,7 @@
 
 import { prisma } from "@/lib/db";
 import type {
+  SeasonalityClock,
   SeasonalityGranularity,
   SeasonalityInstrument,
   SeasonalityKind,
@@ -44,8 +45,15 @@ export interface CoverageView {
   rows: number;
   computedAt: Date | null;
   note: string | null;
-  /** Anni solari completi realmente disponibili. */
+  /** Anni solari completi realmente disponibili sul GIORNALIERO. */
   completeYears: number | null;
+  /** Sorgente e copertura delle barre ORARIE (null se lo strumento non ne ha). */
+  hourSource: string | null;
+  hourFirst: string | null;
+  hourLast: string | null;
+  hourRows: number;
+  /** Anni solari completi disponibili sull'INTRADAY: limita le finestre. */
+  hourCompleteYears: number | null;
 }
 
 export interface WindowCoverage {
@@ -77,6 +85,7 @@ export async function getCoverage(): Promise<CoverageView[]> {
   return [...SEASONALITY_BY_CODE.values()].map((def) => {
     const row = byCode.get(def.code);
     const first = row?.dailyFirst ? iso(row.dailyFirst) : null;
+    const hourFirst = row?.hourFirst ? iso(row.hourFirst) : null;
     return {
       instrument: def.code,
       kind: def.kind,
@@ -88,6 +97,14 @@ export async function getCoverage(): Promise<CoverageView[]> {
       note: row?.note ?? def.unavailable ?? null,
       completeYears:
         first === null ? null : Math.max(0, lcy - Number(first.slice(0, 4)) + 1),
+      hourSource: row?.hourSource ?? null,
+      hourFirst,
+      hourLast: row?.hourLast ? iso(row.hourLast) : null,
+      hourRows: row?.hourRows ?? 0,
+      hourCompleteYears:
+        hourFirst === null
+          ? null
+          : Math.max(0, lcy - Number(hourFirst.slice(0, 4)) + 1),
     };
   });
 }
@@ -145,6 +162,7 @@ export async function getBucketStats(opts: {
   scope?: string;
   lookbackYears: number;
   detrended: boolean;
+  clock?: SeasonalityClock;
 }): Promise<BucketView[]> {
   const rows = await prisma.seasonalityStat.findMany({
     where: {
@@ -153,7 +171,7 @@ export async function getBucketStats(opts: {
       scope: opts.scope ?? "ALL",
       lookbackYears: opts.lookbackYears,
       detrended: opts.detrended,
-      clock: "ROME",
+      clock: opts.clock ?? "ROME",
     },
     orderBy: { bucket: "asc" },
   });
@@ -170,6 +188,7 @@ export async function getStatsByWindow(opts: {
   scope?: string;
   lookbacks: readonly number[];
   detrended: boolean;
+  clock?: SeasonalityClock;
 }): Promise<Map<number, BucketView[]>> {
   const rows = await prisma.seasonalityStat.findMany({
     where: {
@@ -178,7 +197,7 @@ export async function getStatsByWindow(opts: {
       scope: opts.scope ?? "ALL",
       lookbackYears: { in: [...opts.lookbacks] },
       detrended: opts.detrended,
-      clock: "ROME",
+      clock: opts.clock ?? "ROME",
     },
     orderBy: [{ lookbackYears: "desc" }, { bucket: "asc" }],
   });
@@ -217,6 +236,7 @@ export async function getHeatmap(opts: {
   instrument: SeasonalityInstrument;
   granularity: SeasonalityGranularity;
   lookbackYears: number;
+  clock?: SeasonalityClock;
   now?: Date;
 }): Promise<HeatmapData> {
   const now = opts.now ?? new Date();
@@ -228,6 +248,7 @@ export async function getHeatmap(opts: {
     where: {
       instrument: opts.instrument,
       granularity: opts.granularity,
+      clock: opts.clock ?? "ROME",
       year: { gte: from, lte: currentYear },
     },
     orderBy: [{ year: "desc" }, { bucket: "asc" }],
@@ -239,7 +260,15 @@ export async function getHeatmap(opts: {
   /* Soglia di "periodo incompleto" proporzionata alla granularità: 5 giorni
      su un mese sono pochi, su una settimana sono la settimana intera. */
   const minDays =
-    opts.granularity === "MONTH" ? 5 : opts.granularity === "WEEK" ? 2 : 10;
+    opts.granularity === "MONTH"
+      ? 5
+      : opts.granularity === "WEEK"
+        ? 2
+        : opts.granularity === "WEEKDAY"
+          ? 10
+          : // SESSION e HOUR contano ORE, non giorni: una casella con meno di
+            // cento ore in un anno non è un anno di dati.
+            100;
 
   return {
     cells: rows.map((r) => ({
@@ -306,4 +335,25 @@ export async function getLastRun(): Promise<{
     select: { finishedAt: true, ok: true },
   });
   return run ?? null;
+}
+
+/**
+ * Finestre di lookback effettivamente sensate per una granularità.
+ *
+ * Sull'INTRADAY la storia è molto più corta che sul giornaliero — il CFD del
+ * DAX parte dal 2013 — e una finestra da 20 anni non esiste proprio. La spec
+ * vieta di fingere dati: le finestre oltre lo storico disponibile vengono
+ * **nascoste**, non mostrate vuote. Sul giornaliero restano invece tutte
+ * selezionabili e marcate, perché lì la storia c'è quasi sempre e il campione
+ * ridotto è un'informazione, non un'assenza.
+ */
+export function intradayLookbacks(
+  lookbacks: readonly number[],
+  hourCompleteYears: number | null,
+): number[] {
+  if (hourCompleteYears === null || hourCompleteYears <= 0) return [];
+  const usable = lookbacks.filter((lb) => lb <= hourCompleteYears);
+  // Se nemmeno la finestra più corta ci sta, si tiene comunque quella: meglio
+  // una riga con `n` basso e dichiarato che una pagina vuota senza spiegazione.
+  return usable.length > 0 ? usable : [Math.min(...lookbacks)];
 }

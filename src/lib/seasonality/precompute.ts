@@ -100,6 +100,8 @@ export interface PathRow {
 export interface YearBucketObsRow {
   instrument: SeasonalityInstrument;
   granularity: SeasonalityGranularity;
+  /** Rilevante solo per HOUR; ROME per tutte le altre granularità. */
+  clock: SeasonalityClock;
   year: number;
   bucket: number;
   value: number;
@@ -473,6 +475,7 @@ export function precomputeDaily(opts: {
     ...monthlyObs.map((m) => ({
       instrument,
       granularity: "MONTH" as const,
+      clock: "ROME" as const,
       year: m.year,
       bucket: m.month,
       value: m.value,
@@ -481,6 +484,7 @@ export function precomputeDaily(opts: {
     ...weeklyObs.map((w) => ({
       instrument,
       granularity: "WEEK" as const,
+      clock: "ROME" as const,
       year: w.isoYear,
       bucket: w.week,
       value: w.value,
@@ -493,6 +497,7 @@ export function precomputeDaily(opts: {
     ...aggregateByYearBucket(dailyObs, (o) => o.weekday ?? 0).map((a) => ({
       instrument,
       granularity: "WEEKDAY" as const,
+      clock: "ROME" as const,
       year: a.year,
       bucket: a.bucket,
       value: a.value,

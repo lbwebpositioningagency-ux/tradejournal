@@ -1,8 +1,10 @@
 /**
  * Primo popolamento della Stagionalità (barre giornaliere + statistiche).
  *
- *   npx tsx scripts/seasonality-backfill.ts            # tutti gli strumenti
- *   npx tsx scripts/seasonality-backfill.ts XAUUSD VIX # solo alcuni
+ *   npx tsx scripts/seasonality-backfill.ts               # tutto
+ *   npx tsx scripts/seasonality-backfill.ts XAUUSD VIX    # solo alcuni
+ *   npx tsx scripts/seasonality-backfill.ts --no-intraday # solo giornaliero
+ *   npx tsx scripts/seasonality-backfill.ts --rescan      # ripassa tutte le ore
  *
  * Gira in LOCALE contro il database indicato da DATABASE_URL. Non è il cron:
  * il cron notturno fa lo stesso lavoro ma su una serie già presente, e ci sta
@@ -35,6 +37,9 @@ async function main() {
   try {
     const esito = await runSeasonalityDailyJob(prisma, {
       only: only.length > 0 ? only : undefined,
+      intraday: !process.argv.includes("--no-intraday"),
+      fullRescan: process.argv.includes("--rescan"),
+      onProgress: (msg) => console.log(msg),
     });
 
     console.log("");
@@ -48,6 +53,17 @@ async function main() {
             `${s.primaData} → ${s.ultimaData}  (${s.anniCompleti} anni completi)  ` +
             `[${s.fonte}]`,
         );
+        if (s.intraday) {
+          console.log(
+            `        intraday: ${String(s.intraday.totali).padStart(7)} ore  ` +
+              `${String(s.intraday.statistiche).padStart(4)} stat  ` +
+              `${s.intraday.anniCompleti} anni completi  ` +
+              `${s.intraday.saltiCopertura} salti di copertura` +
+              (s.intraday.buchi.length > 0
+                ? `  · buchi: ${s.intraday.buchi.join(", ")}`
+                : ""),
+          );
+        }
       } else {
         console.log(`${testa} ${s.messaggio ?? ""}`);
       }
