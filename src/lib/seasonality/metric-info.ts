@@ -70,14 +70,14 @@ export function posInfo(kind: SeasonalityKind): MetricInfoData {
   };
 }
 
-export function quartiliInfo(kind: SeasonalityKind): MetricInfoData {
+export function sigmaInfo(kind: SeasonalityKind): MetricInfoData {
   return {
-    label: "Range tipico p25 – p75",
+    label: "Media \u00b1 1\u03c3 e copertura reale",
     description:
       kind === "LEVEL"
-        ? "Fra questi due livelli è caduta la metà centrale delle osservazioni. Quanto sono distanti dice se il livello tipico è stabile o se il periodo alterna calma e tensione."
-        : "Fra questi due valori è caduta la metà centrale delle osservazioni. È la dispersione detta senza assumere una distribuzione: quando media e mediana divergono, i quartili sono ciò che spiega la differenza.",
-    formula: "quantili 0,25 e 0,75 con interpolazione lineare",
+        ? "La banda fra media meno una deviazione standard e media pi\u00f9 una. Accanto, la quota di anni che ci sono caduti DAVVERO dentro: si mostra quella, mai il 68% teorico \u2014 vale solo per una distribuzione normale, e i mercati non lo sono."
+        : "La banda fra media meno una deviazione standard e media pi\u00f9 una, al livello degli anni. Accanto, la quota di anni che ci sono caduti DAVVERO dentro: si mostra quella, mai il 68% teorico \u2014 vale solo per una distribuzione normale, e i rendimenti non lo sono.",
+    formula: "[media \u2212 \u03c3, media + \u03c3] \u00b7 copertura = anni dentro la banda / n",
   };
 }
 

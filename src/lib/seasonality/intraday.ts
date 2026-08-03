@@ -269,6 +269,14 @@ function buildStats(opts: {
     if (!entry) continue; // nessuna riga finta a zero
     const described = describeSample(entry.values);
     if (!described) continue;
+    const withinSigma =
+      described.stdev === null
+        ? null
+        : entry.values.filter(
+            (v) =>
+              v >= described.mean - described.stdev! &&
+              v <= described.mean + described.stdev!,
+          ).length / described.n;
     rows.push({
       instrument: opts.instrument,
       kind: opts.kind,
@@ -285,6 +293,7 @@ function buildStats(opts: {
       positiveShare: described.positiveShare,
       p25: described.p25,
       p75: described.p75,
+      withinSigma,
       firstDate: isoDate(new Date(entry.minTs)),
       lastDate: isoDate(new Date(entry.maxTs)),
     });

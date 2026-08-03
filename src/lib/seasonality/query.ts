@@ -31,6 +31,8 @@ export interface BucketView {
   positiveShare: number;
   p25: number;
   p75: number;
+  /** Copertura empirica della banda media±1σ (null se σ non definita). */
+  withinSigma: number | null;
   firstDate: string;
   lastDate: string;
   quality: SampleQuality;
@@ -141,6 +143,7 @@ function toView(row: {
   positiveShare: unknown;
   p25: unknown;
   p75: unknown;
+  withinSigma?: unknown;
   firstDate: Date;
   lastDate: Date;
 }): BucketView {
@@ -153,6 +156,10 @@ function toView(row: {
     positiveShare: Number(row.positiveShare),
     p25: Number(row.p25),
     p75: Number(row.p75),
+    withinSigma:
+      row.withinSigma === null || row.withinSigma === undefined
+        ? null
+        : Number(row.withinSigma),
     firstDate: iso(row.firstDate),
     lastDate: iso(row.lastDate),
     quality: sampleQuality(row.n),

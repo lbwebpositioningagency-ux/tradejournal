@@ -75,6 +75,9 @@ export interface StatRow {
   positiveShare: number;
   p25: number;
   p75: number;
+  /** Quota di osservazioni davvero dentro [media−σ, media+σ]; null se σ non
+   * è definita. La UI mostra QUESTA, mai il 68% teorico. */
+  withinSigma: number | null;
   /** "YYYY-MM-DD" */
   firstDate: string;
   lastDate: string;
@@ -233,6 +236,14 @@ function statsForBuckets(opts: {
     if (!entry) continue; // bucket senza osservazioni: nessuna riga finta a zero
     const described = describeSample(entry.values, isPositive);
     if (!described) continue;
+    const withinSigma =
+      described.stdev === null
+        ? null
+        : entry.values.filter(
+            (v) =>
+              v >= described.mean - described.stdev! &&
+              v <= described.mean + described.stdev!,
+          ).length / described.n;
     const dates = [...entry.dates].sort();
     rows.push({
       instrument: opts.instrument,
@@ -251,6 +262,7 @@ function statsForBuckets(opts: {
       positiveShare: described.positiveShare,
       p25: described.p25,
       p75: described.p75,
+      withinSigma,
       firstDate: dates[0],
       lastDate: dates[dates.length - 1],
     });
@@ -617,6 +629,38 @@ export function precomputeDaily(opts: {
           years,
         }),
       );
+    }
+  }
+
+  /* ── Percorso dell'ANNO IN CORSO (lookbackYears = 0) ────────────────────
+     Serve al toggle di sovrapposizione sul grafico: il percorso parziale di
+     quest'anno sopra la media stagionale. n = 1 per costruzione, e le
+     colonne di dispersione ripetono il valore: un solo anno non ha banda.
+     Solo vista grezza — nella vista detrendizzata il confronto con un anno
+     non detrendizzabile (è incompleto) non avrebbe significato. */
+  const annoCorrente = now.getUTCFullYear();
+  const pathCorrente = rawPaths.get(annoCorrente);
+  if (pathCorrente) {
+    const oggiDoy = dayOfYear(
+      annoCorrente,
+      now.getUTCMonth() + 1,
+      now.getUTCDate(),
+    );
+    for (let doy = 1; doy <= Math.min(oggiDoy, 366); doy += 1) {
+      const v = pathCorrente[doy];
+      if (!Number.isFinite(v)) continue;
+      paths.push({
+        instrument,
+        lookbackYears: 0,
+        detrended: false,
+        dayOfYear: doy,
+        meanCum: v,
+        medianCum: v,
+        p25Cum: v,
+        p75Cum: v,
+        positiveShare: v > 0 ? 1 : 0,
+        n: 1,
+      });
     }
   }
 

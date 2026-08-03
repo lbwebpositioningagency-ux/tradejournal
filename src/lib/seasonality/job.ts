@@ -347,6 +347,7 @@ export async function runSeasonalityDailyJob(
                 positiveShare: dec(s.positiveShare),
                 p25: dec(s.p25),
                 p75: dec(s.p75),
+                withinSigma: s.withinSigma === null ? null : dec(s.withinSigma),
                 firstDate: new Date(`${s.firstDate}T00:00:00Z`),
                 lastDate: new Date(`${s.lastDate}T00:00:00Z`),
               })),
@@ -545,6 +546,8 @@ export async function runSeasonalityDailyJob(
                     positiveShare: dec(s.positiveShare),
                     p25: dec(s.p25),
                     p75: dec(s.p75),
+                    withinSigma:
+                      s.withinSigma === null ? null : dec(s.withinSigma),
                     firstDate: new Date(`${s.firstDate}T00:00:00Z`),
                     lastDate: new Date(`${s.lastDate}T00:00:00Z`),
                   })),

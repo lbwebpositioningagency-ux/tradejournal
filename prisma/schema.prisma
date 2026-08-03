@@ -544,6 +544,10 @@ model SeasonalityStat {
   positiveShare Decimal @db.Decimal(18, 8)
   p25           Decimal @db.Decimal(18, 8)
   p75           Decimal @db.Decimal(18, 8)
+  /** Copertura EMPIRICA della banda media±1σ: quota di osservazioni davvero
+   * dentro [media−σ, media+σ]. Si mostra questa, mai il 68% teorico — stessa
+   * scelta del simulatore di equity. Null quando σ non è definita (n < 2). */
+  withinSigma Decimal? @db.Decimal(18, 8)
 
   firstDate DateTime @db.Date
   lastDate  DateTime @db.Date
