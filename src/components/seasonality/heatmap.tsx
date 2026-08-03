@@ -16,6 +16,8 @@ import {
   unitFor,
 } from "@/components/seasonality/format";
 import { PanelLabel } from "@/components/macro-desk/primitives";
+import { LowSampleMark } from "@/components/seasonality/low-sample";
+import { sampleQuality } from "@/lib/seasonality/stats";
 import { cn } from "@/lib/utils";
 
 /**
@@ -206,11 +208,17 @@ export function SeasonalityHeatmap({
               values={summaryByBucket}
               render={(s) => formatShare(s.positiveShare)}
             />
+            {/* La riga `n` porta il marcatore di campione basso come la
+                tabella sotto: due viste dello stesso numero non possono
+                avvertire in modo diverso. */}
             <SummaryRow
               label="n"
               buckets={axis.buckets}
               values={summaryByBucket}
               render={(s) => String(s.n)}
+              mark={(s) => (
+                <LowSampleMark quality={sampleQuality(s.n)} n={s.n} />
+              )}
             />
           </tfoot>
         </table>
@@ -237,12 +245,14 @@ function SummaryRow({
   buckets,
   values,
   render,
+  mark,
   emphasis,
 }: {
   label: string;
   buckets: number[];
   values: Map<number, BucketView>;
   render: (s: BucketView) => string;
+  mark?: (s: BucketView) => React.ReactNode;
   emphasis?: boolean;
 }) {
   return (
@@ -266,7 +276,14 @@ function SummaryRow({
               fontWeight: emphasis ? 700 : 500,
             }}
           >
-            {s ? render(s) : "—"}
+            {s ? (
+              <span className="inline-flex items-center justify-end gap-0.5">
+                {render(s)}
+                {mark?.(s)}
+              </span>
+            ) : (
+              "—"
+            )}
           </td>
         );
       })}

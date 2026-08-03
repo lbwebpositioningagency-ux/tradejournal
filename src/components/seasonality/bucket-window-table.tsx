@@ -265,6 +265,15 @@ export function BucketWindowTable({
                   <td className="px-2 py-2 text-right md-mono text-[var(--md-text-2)]">
                     {sel ? formatStdev(sel.stdev, kind, unit) : "—"}
                   </td>
+                  {/* I quartili erano già calcolati e salvati, e nessuna
+                      tabella li mostrava: metà della dispersione veniva
+                      buttata via. Con media e mediana molto divergenti sono
+                      esattamente ciò che spiega la differenza. */}
+                  <td className="whitespace-nowrap px-2 py-2 text-right md-mono text-[var(--md-muted)]">
+                    {sel
+                      ? `${formatBucketValue(sel.p25, kind, 2, unit)} – ${formatBucketValue(sel.p75, kind, 2, unit)}`
+                      : "—"}
+                  </td>
                   <td className="px-2 py-2 text-right md-mono text-[var(--md-text-2)]">
                     {sel ? formatShare(sel.positiveShare) : "—"}
                   </td>
