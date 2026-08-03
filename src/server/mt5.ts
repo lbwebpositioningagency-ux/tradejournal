@@ -5,6 +5,7 @@ import { redirect } from "next/navigation";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { mt5SourceSchema, type Mt5SourceInput } from "@/lib/validations/mt5";
+import { MT5_PATH_FUORI_BASE, mt5BaseDir, resolveMt5Path } from "@/lib/mt5-path";
 
 export type Mt5ActionResult = { error?: string; success?: boolean };
 
@@ -25,6 +26,15 @@ export async function saveMt5SourceAction(
     return { error: parsed.error.issues[0]?.message ?? "Dati non validi" };
   }
   const data = parsed.data;
+
+  /*
+   * P2-9 — il percorso deve stare dentro MT5_WATCH_DIR. Il watcher ricontrolla
+   * comunque prima di leggere: questo serve a dirlo subito all'utente, invece
+   * di accettare una sorgente che poi non verrà mai letta in silenzio.
+   */
+  if (!resolveMt5Path(mt5BaseDir(), data.filePath)) {
+    return { error: MT5_PATH_FUORI_BASE };
+  }
 
   const account = await prisma.tradingAccount.findFirst({
     where: { id: data.tradingAccountId, userId, isDemo: false },
