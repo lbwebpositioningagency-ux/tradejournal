@@ -1,10 +1,11 @@
 "use client";
 
+import { useMemo, useState } from "react";
 import {
-  Area,
   CartesianGrid,
   ComposedChart,
   Line,
+  ReferenceArea,
   ReferenceLine,
   ResponsiveContainer,
   Tooltip,
@@ -13,22 +14,31 @@ import {
 } from "recharts";
 import type { SeasonalityKind } from "@/generated/prisma/client";
 import { CHART } from "@/components/charts/chart-spec";
-import { logToPercent } from "@/lib/seasonality/series";
-import type { PathPointView } from "@/lib/seasonality/query";
+import { windowColor } from "@/components/seasonality/window-colors";
+import {
+  ChartToggles,
+  type ToggleItem,
+} from "@/components/seasonality/chart-toggles";
 
 /**
- * PERCORSO STAGIONALE con bande di dispersione.
+ * PERCORSO STAGIONALE ANNUALE — multilinea a piena risoluzione.
  *
- * Tre strati, in quest'ordine di lettura:
- * 1. la BANDA p25-p75 della finestra selezionata — dove è caduta la metà
- *    centrale degli anni. Sta sotto tutto e non è un ornamento: è ciò che
- *    impedisce di leggere una linea media come una previsione;
- * 2. le linee delle altre finestre, tenui, per confronto;
- * 3. la linea della finestra selezionata, piena.
+ * Le serie arrivano già COMPATTE dal server: un array di numeri arrotondati
+ * indicizzato sul giorno dell'anno, non un array di oggetti. È questo che
+ * permette la piena risoluzione giornaliera su TUTTE le finestre (~5 KB a
+ * finestra invece di ~40): la decimazione che c'era prima era la causa delle
+ * linee «troppo rette» — più anni deve voler dire più liscia perché la media
+ * smussa, non perché i punti mancano.
  *
- * Disegnare la banda come Area impilata (base + spessore) è l'unico modo in
- * Recharts di ottenere una banda che non parta dall'asse: la prima area è
- * trasparente e serve solo a sollevare la seconda fino a p25.
+ * Linguaggio condiviso col grafico orario: checkbox-legenda per finestra,
+ * divisori verticali dei periodi, FASCIA grigia tenue sul periodo corrente
+ * (il mese qui, l'ora là) dietro le linee, crosshair al passaggio del mouse
+ * con il valore di ogni linea visibile. «Oggi» resta una linea: il giorno è
+ * un istante, il mese un'estensione.
+ *
+ * L'asse Y si adatta alle sole linee VISIBILI e non forza lo zero: tutte le
+ * linee restano nel dominio (niente clipping), e spegnendo la finestra
+ * estrema le altre si ri-zoomano.
  */
 
 const MONTH_TICKS = [1, 32, 60, 91, 121, 152, 182, 213, 244, 274, 305, 335];
@@ -47,170 +57,248 @@ const MONTH_NAMES = [
   "Dic",
 ];
 
-export interface PathSeries {
+/** «15 Apr» da un giorno dell'anno, sulla mappa non bisestile dei tick. */
+function doyLabel(doy: number): string {
+  let i = MONTH_TICKS.length - 1;
+  while (i > 0 && MONTH_TICKS[i] > doy) i -= 1;
+  return `${doy - MONTH_TICKS[i] + 1} ${MONTH_NAMES[i]}`;
+}
+
+/** Serie compatta: `values[doy]` è il valore in unità di display, o null. */
+export interface CompactPathSeries {
   lookbackYears: number;
-  points: PathPointView[];
+  values: (number | null)[];
 }
 
 interface Row {
   doy: number;
-  bandBase?: number;
-  bandSpan?: number;
-  p25?: number;
-  p75?: number;
-  n?: number;
   [key: `w${number}`]: number | undefined;
+  cur?: number;
 }
 
 export function SeasonalPathChart({
   series,
+  currentYear,
   selectedWindow,
   kind,
   todayDoy,
+  currentMonthDoy,
 }: {
-  series: PathSeries[];
+  series: CompactPathSeries[];
+  /** Percorso parziale dell'anno in corso; null = toggle non disponibile. */
+  currentYear: CompactPathSeries | null;
   selectedWindow: number;
   kind: SeasonalityKind;
-  /** Giorno dell'anno di oggi: la linea «siamo qui». */
+  /** Giorno dell'anno di oggi: la linea «oggi». */
   todayDoy: number;
+  /** Primo giorno del mese corrente: il divisore «mese corrente». */
+  currentMonthDoy: number;
 }) {
-  const toDisplay = (v: number) => (kind === "LEVEL" ? v : logToPercent(v));
+  const [spente, setSpente] = useState<ReadonlySet<number>>(
+    // L'anno in corso (chiave 0) parte spento: è un'opzione, non il default.
+    () => new Set(currentYear ? [0] : []),
+  );
 
-  const rows = new Map<number, Row>();
-  for (const s of series) {
-    for (const p of s.points) {
-      const row = rows.get(p.dayOfYear) ?? { doy: p.dayOfYear };
-      row[`w${s.lookbackYears}`] = toDisplay(p.mean);
-      if (s.lookbackYears === selectedWindow) {
-        const lo = toDisplay(p.p25);
-        const hi = toDisplay(p.p75);
-        row.bandBase = lo;
-        row.bandSpan = hi - lo;
-        row.p25 = lo;
-        row.p75 = hi;
-        row.n = p.n;
+  const windows = useMemo(
+    () => series.map((s) => s.lookbackYears).sort((a, b) => b - a),
+    [series],
+  );
+
+  const data = useMemo(() => {
+    const rows: Row[] = [];
+    for (let doy = 1; doy <= 366; doy += 1) {
+      const row: Row = { doy };
+      let some = false;
+      for (const s of series) {
+        const v = s.values[doy];
+        if (v !== null && v !== undefined) {
+          row[`w${s.lookbackYears}`] = v;
+          some = true;
+        }
       }
-      rows.set(p.dayOfYear, row);
+      const cv = currentYear?.values[doy];
+      if (cv !== null && cv !== undefined) {
+        row.cur = cv;
+        some = true;
+      }
+      if (some) rows.push(row);
     }
-  }
-  const data = [...rows.values()].sort((a, b) => a.doy - b.doy);
+    return rows;
+  }, [series, currentYear]);
 
-  const windows = series
-    .map((s) => s.lookbackYears)
-    .sort((a, b) => b - a);
+  const visibili = windows.filter((w) => !spente.has(w));
+  const overlayAccesa = currentYear !== null && !spente.has(0);
+
+  /* Dominio stretto sulle sole linee visibili, con respiro: nessuna linea
+     visibile esce dal dominio (niente clipping), nessuno zero forzato. */
+  const [yMin, yMax] = useMemo(() => {
+    let min = Number.POSITIVE_INFINITY;
+    let max = Number.NEGATIVE_INFINITY;
+    for (const row of data) {
+      for (const w of visibili) {
+        const v = row[`w${w}`];
+        if (v === undefined) continue;
+        if (v < min) min = v;
+        if (v > max) max = v;
+      }
+      if (overlayAccesa && row.cur !== undefined) {
+        if (row.cur < min) min = row.cur;
+        if (row.cur > max) max = row.cur;
+      }
+    }
+    if (!Number.isFinite(min) || !Number.isFinite(max)) return [0, 1];
+    const pad = Math.max((max - min) * 0.06, 0.1);
+    return [min - pad, max + pad];
+  }, [data, visibili, overlayAccesa]);
 
   const unit = kind === "LEVEL" ? "" : "%";
 
+  const toggle = (key: number) => {
+    setSpente((prev) => {
+      const next = new Set(prev);
+      if (next.has(key)) next.delete(key);
+      else next.add(key);
+      return next;
+    });
+  };
+
+  const toggles: ToggleItem[] = [
+    ...windows.map((w) => ({
+      key: w,
+      label: `${w} anni`,
+      selected: w === selectedWindow,
+    })),
+    ...(currentYear
+      ? [{ key: 0, label: "anno in corso", color: "var(--md-text)" }]
+      : []),
+  ];
+
   return (
-    <ResponsiveContainer width="100%" height={CHART.height + 80}>
-      <ComposedChart data={data} margin={{ ...CHART.margin, left: 4 }}>
-        <CartesianGrid
-          strokeDasharray="3 3"
-          stroke="var(--md-border)"
-          vertical={false}
-        />
-        <XAxis
-          dataKey="doy"
-          type="number"
-          domain={[1, 366]}
-          ticks={MONTH_TICKS}
-          tickFormatter={(v: number) => MONTH_NAMES[MONTH_TICKS.indexOf(v)] ?? ""}
-          tick={CHART.axisTick}
-          axisLine={false}
-          tickLine={false}
-        />
-        <YAxis
-          width={CHART.yAxisWidth}
-          tick={CHART.axisTick}
-          axisLine={false}
-          tickLine={false}
-          tickFormatter={(v: number) =>
-            `${v.toLocaleString("it-IT", { maximumFractionDigits: 1 })}${unit}`
-          }
-        />
+    <div className="flex h-full flex-col gap-2">
+      <ChartToggles items={toggles} hidden={spente} onToggle={toggle} />
 
-        {/* Banda p25-p75: base trasparente + spessore colorato. */}
-        <Area
-          dataKey="bandBase"
-          stackId="banda"
-          stroke="none"
-          fill="transparent"
-          isAnimationActive={false}
-          legendType="none"
-          activeDot={false}
-        />
-        <Area
-          dataKey="bandSpan"
-          stackId="banda"
-          stroke="none"
-          fill="var(--md-info)"
-          fillOpacity={0.14}
-          isAnimationActive={false}
-          legendType="none"
-          activeDot={false}
-        />
-
-        {/* `connectNulls` NON è opzionale qui: le finestre non selezionate
-            arrivano DECIMATE (un punto ogni sette giorni) per non spedire al
-            client 209 KB di punti che nessuno legge, quindi nel dataset unito
-            hanno buchi su sei righe su sette. Senza, Recharts spezza la curva
-            a ogni buco e ne disegna 53 segmenti isolati da un punto — cioè
-            niente di visibile. Misurato. */}
-        {windows
-          .filter((w) => w !== selectedWindow)
-          .map((w) => (
-            <Line
-              key={w}
-              dataKey={`w${w}`}
-              stroke="var(--md-muted)"
-              strokeWidth={1}
-              strokeOpacity={0.5}
-              dot={false}
-              connectNulls
-              isAnimationActive={false}
+      <div className="min-h-0 flex-1">
+        <ResponsiveContainer width="100%" height="100%">
+          <ComposedChart data={data} margin={{ ...CHART.margin, left: 4 }}>
+            {/* Divisori VERTICALI dei mesi: la griglia segue i tick. */}
+            <CartesianGrid
+              strokeDasharray="3 3"
+              stroke="var(--md-border)"
+              vertical
             />
-          ))}
+            <XAxis
+              dataKey="doy"
+              type="number"
+              domain={[1, 366]}
+              ticks={MONTH_TICKS}
+              tickFormatter={(v: number) =>
+                MONTH_NAMES[MONTH_TICKS.indexOf(v)] ?? ""
+              }
+              tick={CHART.axisTick}
+              axisLine={false}
+              tickLine={false}
+            />
+            <YAxis
+              width={CHART.yAxisWidth}
+              domain={[yMin, yMax]}
+              tickCount={9}
+              tick={CHART.axisTick}
+              axisLine={false}
+              tickLine={false}
+              tickFormatter={(v: number) =>
+                `${v.toLocaleString("it-IT", { maximumFractionDigits: 1 })}${unit}`
+              }
+            />
 
-        <Line
-          dataKey={`w${selectedWindow}`}
-          stroke="var(--md-info)"
-          strokeWidth={CHART.strokeWidth}
-          dot={false}
-          isAnimationActive={false}
-        />
+            {/* FASCIA del mese corrente: copre l'intero mese sull'asse X,
+                grigio chiaro a bassissima opacità, DIETRO le linee — si
+                riconosce a colpo d'occhio senza disturbare la lettura. Il
+                giorno resta una linea («oggi»), il mese è un'area. */}
+            <ReferenceArea
+              x1={currentMonthDoy}
+              x2={
+                MONTH_TICKS[MONTH_TICKS.indexOf(currentMonthDoy) + 1] ?? 366
+              }
+              fill="var(--md-text)"
+              fillOpacity={0.07}
+              stroke="none"
+            />
 
-        {kind === "RETURN" ? (
-          <ReferenceLine y={0} stroke="var(--md-border)" />
-        ) : null}
-        <ReferenceLine
-          x={todayDoy}
-          stroke="var(--md-warn)"
-          strokeDasharray="4 3"
-          label={{
-            value: "oggi",
-            position: "insideTopRight",
-            fill: "var(--md-warn)",
-            fontSize: 10,
-          }}
-        />
+            {visibili
+              .filter((w) => w !== selectedWindow)
+              .map((w) => (
+                <Line
+                  key={w}
+                  dataKey={`w${w}`}
+                  stroke={windowColor(w)}
+                  strokeWidth={1.5}
+                  strokeOpacity={0.85}
+                  dot={false}
+                  connectNulls
+                  isAnimationActive={false}
+                />
+              ))}
 
-        <Tooltip
-          contentStyle={CHART.tooltipStyle}
-          itemStyle={CHART.tooltipItemStyle}
-          labelStyle={CHART.tooltipLabelStyle}
-          labelFormatter={(label) => `Giorno ${String(label)} dell'anno`}
-          formatter={(value, name) => {
-            const num = Number(value);
-            const key = String(name);
-            const fmt = Number.isFinite(num)
-              ? `${num.toLocaleString("it-IT", { maximumFractionDigits: 2 })}${unit}`
-              : "—";
-            if (key === "bandSpan") return [fmt, "ampiezza banda p25-p75"];
-            if (key === "bandBase") return [fmt, "p25"];
-            return [fmt, `media ${key.replace("w", "")} anni`];
-          }}
-        />
-      </ComposedChart>
-    </ResponsiveContainer>
+            {visibili.includes(selectedWindow) ? (
+              <Line
+                dataKey={`w${selectedWindow}`}
+                stroke={windowColor(selectedWindow)}
+                strokeWidth={2.5}
+                dot={false}
+                connectNulls
+                isAnimationActive={false}
+              />
+            ) : null}
+
+            {overlayAccesa ? (
+              <Line
+                dataKey="cur"
+                stroke="var(--md-text)"
+                strokeWidth={1.75}
+                strokeDasharray="5 3"
+                dot={false}
+                connectNulls
+                isAnimationActive={false}
+              />
+            ) : null}
+
+            {kind === "RETURN" && yMin < 0 && yMax > 0 ? (
+              <ReferenceLine y={0} stroke="var(--md-border)" />
+            ) : null}
+            <ReferenceLine
+              x={todayDoy}
+              stroke="var(--md-warn)"
+              strokeDasharray="4 3"
+              label={{
+                value: "oggi",
+                position: "insideTopRight",
+                fill: "var(--md-warn)",
+                fontSize: 10,
+              }}
+            />
+
+            {/* Crosshair: linea verticale al giorno e valore di ogni linea. */}
+            <Tooltip
+              cursor={{ stroke: "var(--md-muted)", strokeDasharray: "2 2" }}
+              contentStyle={CHART.tooltipStyle}
+              itemStyle={CHART.tooltipItemStyle}
+              labelStyle={CHART.tooltipLabelStyle}
+              labelFormatter={(label) => doyLabel(Number(label))}
+              formatter={(value, name) => {
+                const num = Number(value);
+                const fmt = Number.isFinite(num)
+                  ? `${num.toLocaleString("it-IT", { maximumFractionDigits: 2 })}${unit}`
+                  : "—";
+                const key = String(name);
+                return [
+                  fmt,
+                  key === "cur" ? "anno in corso" : `${key.replace("w", "")} anni`,
+                ];
+              }}
+            />
+          </ComposedChart>
+        </ResponsiveContainer>
+      </div>
+    </div>
   );
 }

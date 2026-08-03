@@ -157,6 +157,47 @@ describe("precomputeIntraday", () => {
     ]);
   });
 
+  it("Media/StDev/Pos%/n sono al livello della GRIGLIA: n = anni, non ore", () => {
+    // Il difetto che questo test blocca: statistiche sul pool delle
+    // osservazioni individuali (n≈17.000, StDev del singolo giorno, Pos%
+    // da lancio di moneta) sotto una griglia che mostra medie PER ANNO.
+    const out = precomputeIntraday({
+      instrument: "XAUUSD",
+      bars: serie(2020, 2025, 13),
+      now: NOW,
+    });
+    const anniInGriglia = new Set(
+      out.observations
+        .filter((o) => o.granularity === "HOUR" && o.clock === "UTC")
+        .map((o) => o.year),
+    ).size;
+    expect(anniInGriglia).toBe(6); // 2020-2025
+
+    for (const s of out.stats.filter(
+      (x) => x.granularity === "HOUR" && x.lookbackYears === 20,
+    )) {
+      // n è il numero di anni della griglia, mai il numero di ore.
+      expect(s.n).toBe(anniInGriglia);
+    }
+    const sessioni = out.stats.filter(
+      (x) => x.granularity === "SESSION" && x.lookbackYears === 20,
+    );
+    for (const s of sessioni) expect(s.n).toBe(anniInGriglia);
+
+    // Serie deterministica: ogni anno identico → la dispersione FRA GLI
+    // ANNI è ~0, non la dispersione oraria dentro l'anno.
+    const forte = out.stats.find(
+      (x) =>
+        x.granularity === "HOUR" &&
+        x.clock === "UTC" &&
+        x.bucket === 13 &&
+        x.lookbackYears === 20 &&
+        !x.detrended,
+    )!;
+    expect(forte.stdev ?? 0).toBeLessThan(1e-6);
+    expect(forte.positiveShare).toBe(1); // tutti gli anni positivi
+  });
+
   it("produce le quattro sessioni, in una sola versione", () => {
     const out = precomputeIntraday({
       instrument: "XAUUSD",
@@ -171,8 +212,8 @@ describe("precomputeIntraday", () => {
   });
 
   it("attribuisce l'ora forte alla sessione giusta", () => {
-    // Le 14:00 UTC sono sessione di New York d'inverno (apre alle 13:00 UTC)
-    // e d'estate (apre alle 12:00 UTC): sempre NEWYORK, bucket 2.
+    // Sessioni sull'ora ITALIANA: le 14:00 UTC sono le 15 (inverno) o le 16
+    // (estate) a Roma — in entrambi i casi dentro New York 14-22, bucket 2.
     const out = precomputeIntraday({
       instrument: "XAUUSD",
       bars: serie(2024, 2025, 14),
@@ -237,5 +278,48 @@ describe("precomputeIntraday", () => {
     expect(out.stats).toEqual([]);
     expect(out.observations).toEqual([]);
     expect(out.completeYears).toBe(0);
+  });
+});
+
+describe("campione della sessione in GIORNI, non in ore", () => {
+  it("una sessione è un'occorrenza: le sue ore non si sommano", () => {
+    // Cinque giorni lavorativi pieni di barre orarie adiacenti.
+    const bars: HourBar[] = [];
+    let close = 100;
+    for (let d = 0; d < 5; d += 1) {
+      for (let h = 0; h < 24; h += 1) {
+        close *= 1.0001;
+        bars.push({
+          // lunedì 3 marzo 2025 + d giorni: niente weekend in mezzo
+          ts: new Date(Date.UTC(2025, 2, 3 + d, h)),
+          close,
+        });
+      }
+    }
+    const out = precomputeIntraday({
+      instrument: "XAUUSD",
+      bars,
+      now: new Date("2026-08-05T00:00:00Z"),
+    });
+    const asia = out.observations.find(
+      (o) => o.granularity === "SESSION" && o.year === 2025 && o.bucket === 1,
+    );
+    // Otto ore per giorno cadono in Asia (00-08 italiane), ma il campione
+    // dichiarato deve dire 5 sessioni — è il `days` della casella che resta
+    // in ore, perché è il divisore della media.
+    expect(asia).toBeDefined();
+    const hourObs = out.observations.filter(
+      (o) => o.granularity === "HOUR" && o.clock === "ROME" && o.year === 2025,
+    );
+    // ogni fascia oraria: al più un'occorrenza per giorno
+    for (const h of hourObs) expect(h.days).toBeLessThanOrEqual(5);
+    const sessStat = out.stats.find(
+      (s) =>
+        s.granularity === "SESSION" &&
+        s.bucket === 1 &&
+        s.lookbackYears === 20 &&
+        !s.detrended,
+    );
+    expect(sessStat?.rawCount).toBe(5);
   });
 });

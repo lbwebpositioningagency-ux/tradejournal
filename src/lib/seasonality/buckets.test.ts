@@ -15,12 +15,12 @@ import {
 describe("zonedParts", () => {
   it("converte in ora italiana d'INVERNO (CET, UTC+1)", () => {
     const p = zonedParts(new Date("2024-01-15T13:00:00Z"), "Europe/Rome");
-    expect(p).toEqual({ year: 2024, month: 1, day: 15, hour: 14 });
+    expect(p).toEqual({ year: 2024, month: 1, day: 15, hour: 14, minute: 0 });
   });
 
   it("converte in ora italiana d'ESTATE (CEST, UTC+2)", () => {
     const p = zonedParts(new Date("2024-07-15T13:00:00Z"), "Europe/Rome");
-    expect(p).toEqual({ year: 2024, month: 7, day: 15, hour: 15 });
+    expect(p).toEqual({ year: 2024, month: 7, day: 15, hour: 15, minute: 0 });
   });
 
   it("l'apertura di New York cade alla stessa ora italiana nelle due stagioni", () => {
@@ -40,12 +40,21 @@ describe("zonedParts", () => {
   it("attraversa il cambio di giorno nel fuso locale", () => {
     // 23:30 UTC del 31/12 è già l'1 gennaio a Roma.
     const p = zonedParts(new Date("2023-12-31T23:30:00Z"), "Europe/Rome");
-    expect(p).toEqual({ year: 2024, month: 1, day: 1, hour: 0 });
+    expect(p).toEqual({ year: 2024, month: 1, day: 1, hour: 0, minute: 30 });
+  });
+
+  it("porta il MINUTO, che i bucket a quarto d'ora usano", () => {
+    // I fusi a scarto di mezz'ora esistono: il minuto non si può dare per
+    // uguale a quello UTC, va letto dal formatter come tutto il resto.
+    const p = zonedParts(new Date("2024-07-15T13:45:00Z"), "Europe/Rome");
+    expect(p.hour).toBe(15);
+    expect(p.minute).toBe(45);
+    expect(zonedParts(new Date("2024-07-15T13:45:00Z"), "Asia/Kolkata").minute).toBe(15);
   });
 
   it("in UTC restituisce i componenti non convertiti", () => {
     const p = zonedParts(new Date("2024-07-15T13:00:00Z"), "UTC");
-    expect(p).toEqual({ year: 2024, month: 7, day: 15, hour: 13 });
+    expect(p).toEqual({ year: 2024, month: 7, day: 15, hour: 13, minute: 0 });
   });
 });
 

@@ -394,6 +394,17 @@
   --md-oil: #e0894a;
   --md-idx: #8b9ef7;
   --md-cross: #b18af7;
+  /* Finestre di lookback della Stagionalità (20/15/10/5/2 anni).
+     Palette CATEGORICA derivata da Okabe-Ito: distinguibile con deuteranopia
+     e protanopia, e senza verde né rosso — così non compete con la semantica
+     P&L delle heatmap. Contrasto su --md-surface verificato ≥4,5:1 per tutte
+     (il minimo è il blu a 6,52): reggono anche come testo, non solo come
+     linee. Nessun override nella palette daltonica: questa lo è già. */
+  --md-w20: #5b9dff;
+  --md-w15: #f2a03d;
+  --md-w10: #45d4e0;
+  --md-w5: #e07bd0;
+  --md-w2: #ece75f;
   /* Raggi */
   --md-r-lg: 18px;
   --md-r-md: 13px;

@@ -70,12 +70,30 @@ export function posInfo(kind: SeasonalityKind): MetricInfoData {
   };
 }
 
+export function sigmaInfo(kind: SeasonalityKind): MetricInfoData {
+  return {
+    label: "Media \u00b1 1\u03c3 e copertura reale",
+    description:
+      kind === "LEVEL"
+        ? "La banda fra media meno una deviazione standard e media pi\u00f9 una. Accanto, la quota di anni che ci sono caduti DAVVERO dentro: si mostra quella, mai il 68% teorico \u2014 vale solo per una distribuzione normale, e i mercati non lo sono."
+        : "La banda fra media meno una deviazione standard e media pi\u00f9 una, al livello degli anni. Accanto, la quota di anni che ci sono caduti DAVVERO dentro: si mostra quella, mai il 68% teorico \u2014 vale solo per una distribuzione normale, e i rendimenti non lo sono.",
+    formula: "[media \u2212 \u03c3, media + \u03c3] \u00b7 copertura = anni dentro la banda / n",
+  };
+}
+
 export const numerositaInfo: MetricInfoData = {
-  label: "n — numerosità del campione",
-  description: `Quante osservazioni compongono il valore. È il metro dell'affidabilità e non viene mai nascosto: sotto ${LOW_SAMPLE_WARN} osservazioni la riga è marcata, sotto ${LOW_SAMPLE_CRITICAL} è marcata in modo evidente. Un mese su una finestra di 2 anni vale 2 osservazioni: non è una stagionalità, sono due osservazioni.`,
-  formula: "conteggio delle osservazioni del bucket",
+  label: "n — su quanti ANNI",
+  description: `Quanti anni compongono il valore: l'unità statistica è la casella della griglia qui sopra, cioè la media di quell'anno, non la singola osservazione. È il metro dell'affidabilità e non viene mai nascosto: sotto ${LOW_SAMPLE_WARN} anni la riga è marcata, sotto ${LOW_SAMPLE_CRITICAL} in modo evidente. Un mese su una finestra di 2 anni vale 2 osservazioni: non è una stagionalità, sono due osservazioni.`,
+  formula: "conteggio degli anni con almeno un'osservazione nel bucket",
 };
 
+export function campioneInfo(rawUnit: string): MetricInfoData {
+  return {
+    label: "Campione — quante volte è stato osservato",
+    description: `Il numero di occorrenze REALI di questo periodo nella finestra, contate dai dati (buchi d'archivio esclusi) nella sua stessa unità: ${rawUnit}. Media, StDev e Pos% restano calcolate sugli N anni della colonna accanto — l'unità statistica è la casella della griglia — ma questo numero dice quanta storia c'è davvero dietro: venti gennai sono venti occorrenze, i lunedì di vent'anni un migliaio.`,
+    formula: `conteggio delle occorrenze del periodo nella finestra (${rawUnit})`,
+  };
+}
 export const posizioneInfo: MetricInfoData = {
   label: "Posizione nel range",
   description:
@@ -84,17 +102,17 @@ export const posizioneInfo: MetricInfoData = {
 };
 
 export const detrendInfo: MetricInfoData = {
-  label: "Detrend",
+  label: "Percorso medio · Solo stagionalità",
   description:
-    "Toglie a ogni osservazione la media generale della finestra, per separare l'effetto stagionale dalla tendenza di fondo. Un ventennio di rialzo rende «positivi» dieci mesi su dodici: il detrend toglie la marea e lascia l'onda. Non è la vista di default proprio perché non è quello che è successo: è una lente.",
-  formula: "x − media(tutte le osservazioni della finestra)",
+    "«Percorso medio» è quello realmente accaduto, tendenza di fondo inclusa: vent'anni di rialzo dell'oro stanno dentro la curva. «Solo stagionalità» toglie quella deriva pluriennale e lascia il confronto con la media dell'anno: mostra quali periodi tendono a fare meglio o peggio del resto, non quanto lo strumento è salito.",
+  formula: "solo stagionalità = x − media(tutte le osservazioni della finestra)",
   note: "Non si applica agli indici di volatilità: un indice che oscilla attorno alla sua media non ha un drift da togliere.",
 };
 
 export const percorsoInfo: MetricInfoData = {
   label: "Percorso stagionale",
   description:
-    "Rendimento cumulato dal 1° gennaio, mediato sugli anni della finestra. La banda p25-p75 mostra dove è caduta la metà centrale degli anni: se è larga, la forma media esiste ma il singolo anno può fare tutt'altro.",
+    "Rendimento cumulato dal 1° gennaio, mediato sugli anni della finestra. Ogni linea è una media: la dispersione attorno — la fascia Media±1σ e la sua copertura reale — sta nelle tabelle, non sul grafico.",
   formula: "media fra gli anni di Σ ln(P_t / P_{t-1}) dal 1° gennaio",
   note: "L'anno in corso è escluso: un anno incompleto trascinerebbe la curva verso il basso da metà grafico in poi.",
 };

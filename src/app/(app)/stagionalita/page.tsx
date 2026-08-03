@@ -13,7 +13,13 @@ import {
   PanelLabel,
   SectionEmpty,
 } from "@/components/macro-desk/primitives";
-import { SeasonalPathChart } from "@/components/charts/lazy-charts";
+import {
+  HourPathChart,
+  SeasonalPathChart,
+} from "@/components/charts/lazy-charts";
+import type { CompactPathSeries } from "@/components/seasonality/path-chart";
+import type { HourPathSeries } from "@/components/seasonality/hour-path-chart";
+import { logToPercent } from "@/lib/seasonality/series";
 import {
   MONTH_LABELS,
   MONTH_LABELS_SHORT,
@@ -32,6 +38,7 @@ import {
   getHeatmap,
   getLastRun,
   getPaths,
+  getQuarterPaths,
   getStatsByWindow,
   intradayLookbacks,
   windowCoverage,
@@ -39,18 +46,21 @@ import {
   type HeatmapData,
   type PathPointView,
 } from "@/lib/seasonality/query";
-import { sessionBoundaries } from "@/lib/seasonality/market-sessions";
-import { CLOCKS, CLOCK_LABEL, CLOCK_TIMEZONE } from "@/lib/seasonality/buckets";
+import {
+  CLOCKS,
+  CLOCK_LABEL,
+  CLOCK_TIMEZONE,
+  isoWeek,
+  isoWeekday,
+  sessionBucket,
+  zonedParts,
+} from "@/lib/seasonality/buckets";
 import type { SeasonalityClock } from "@/generated/prisma/client";
 import { todayDayOfYear } from "@/lib/seasonality/precompute";
 import type { SeasonalityInstrument } from "@/generated/prisma/client";
 import { SeasonalityHeatmap } from "@/components/seasonality/heatmap";
 import { BucketWindowTable } from "@/components/seasonality/bucket-window-table";
-import {
-  LowSampleMark,
-  WindowTruncatedNote,
-} from "@/components/seasonality/low-sample";
-import { sampleQuality } from "@/lib/seasonality/stats";
+import { WindowTruncatedNote } from "@/components/seasonality/low-sample";
 import {
   isIntradayGranularity,
   type SeasonalityGranularityUi,
@@ -186,9 +196,13 @@ export default async function StagionalitaPage({
   let heatmap: HeatmapData | null = null;
   let byWindow: Map<number, BucketView[]> = new Map();
   let paths: Map<number, PathPointView[]> = new Map();
+  let quarterPaths: Map<
+    number,
+    { values: number[]; years: number; emptyBuckets: number }
+  > = new Map();
 
   if (popolato) {
-    [heatmap, byWindow, paths] = await Promise.all([
+    [heatmap, byWindow, paths, quarterPaths] = await Promise.all([
       getHeatmap({
         instrument,
         granularity,
@@ -203,7 +217,31 @@ export default async function StagionalitaPage({
         lookbacks: lookbacksDisponibili,
         detrended,
       }),
-      getPaths({ instrument, lookbacks: LOOKBACK_YEARS, detrended }),
+      /* Il lookback 0 è il percorso PARZIALE dell'anno in corso, per il
+         toggle di sovrapposizione: esiste solo in vista grezza. */
+      getPaths({
+        instrument,
+        lookbacks: detrended ? LOOKBACK_YEARS : [...LOOKBACK_YEARS, 0],
+        detrended,
+      }),
+      /* I 96 punti del grafico intraday: solo sulla vista Ora, e solo per le
+         finestre che l'archivio intraday copre davvero. */
+      granularity === "HOUR"
+        ? getQuarterPaths({
+            instrument,
+            clock,
+            lookbacks: intradayLookbacks(
+              LOOKBACK_YEARS,
+              cov?.hourCompleteYears ?? null,
+            ),
+            detrended,
+          })
+        : Promise.resolve(
+            new Map<
+              number,
+              { values: number[]; years: number; emptyBuckets: number }
+            >(),
+          ),
     ]);
   }
 
@@ -222,25 +260,71 @@ export default async function StagionalitaPage({
      non tornerebbero, quindi si ricalcola per ogni vista. */
   const reference = def.kind === "LEVEL" ? medianOfMeans(selectedStats) : 0;
 
-  /* Le quattro finestre NON selezionate sono linee grigie sottili di sfondo:
-     mandarle a risoluzione giornaliera piena costava 167 KB dei 209 totali di
-     payload, cioè metà del peso della pagina per un dettaglio che nessuno
-     legge. Un punto ogni sette giorni disegna la stessa curva. La finestra
-     selezionata — quella che si legge davvero, e a cui appartiene la banda —
-     resta intera. */
-  const pathSeries = [...paths.entries()]
+  /* PIENA risoluzione giornaliera su TUTTE le finestre, in forma COMPATTA:
+     un array di numeri arrotondati indicizzato sul giorno dell'anno, non un
+     array di oggetti a sette campi. È ciò che rende la piena risoluzione
+     più leggera della vecchia decimazione (~5 KB a finestra contro ~40): la
+     decimazione era la causa delle linee «troppo rette». */
+  const toDisplay = (v: number) =>
+    def.kind === "LEVEL" ? Number(v.toFixed(3)) : Number(logToPercent(v).toFixed(3));
+  const compact = (points: PathPointView[]): (number | null)[] => {
+    const values: (number | null)[] = new Array(367).fill(null);
+    for (const pt of points) values[pt.dayOfYear] = toDisplay(pt.mean);
+    return values;
+  };
+  const pathSeries: CompactPathSeries[] = [...paths.entries()]
+    .filter(([w]) => w !== 0)
     .map(([lookbackYears, points]) => ({
       lookbackYears,
-      points:
-        lookbackYears === lookbackEffettivo
-          ? points
-          : points.filter(
-              (p, i) => i % 7 === 0 || i === points.length - 1,
-            ),
+      values: compact(points),
+    }))
+    .sort((a, b) => b.lookbackYears - a.lookbackYears);
+  const annoInCorsoSerie: CompactPathSeries | null = paths.has(0)
+    ? { lookbackYears: 0, values: compact(paths.get(0)!) }
+    : null;
+
+  /* Ritorno intraday cumulato: 96 punti a quarto d'ora, precalcolati dalle
+     barre M15 e già in percentuale. Solo la vista Ora lo mostra. */
+  const quartiVuoti = quarterPaths.get(lookbackEffettivo)?.emptyBuckets ?? 0;
+  const hourPathSeries: HourPathSeries[] = [...quarterPaths.entries()]
+    .map(([lookbackYears, v]) => ({
+      lookbackYears,
+      values: v.values,
+      years: v.years,
     }))
     .sort((a, b) => b.lookbackYears - a.lookbackYears);
 
   const oggi = todayDayOfYear();
+  /* Primo giorno del mese corrente sulla mappa non bisestile dei tick del
+     grafico: il divisore «mese corrente». */
+  const MONTH_START_DOY = [1, 32, 60, 91, 121, 152, 182, 213, 244, 274, 305, 335];
+
+  /* ── Il bucket «adesso», nel fuso giusto per ogni granularità ────────────
+     Mese/settimana/giorno si valutano sulla data civile ITALIANA (le
+     granularità di calendario del modulo vivono lì); l'ora sul fuso
+     dell'orologio selezionato, così il marcatore segue il toggle UTC/Roma; la
+     sessione con gli stessi confini ancorati ai centri finanziari usati dal
+     precalcolo. Di sabato e domenica il giorno corrente non esiste fra i
+     bucket lun-ven: nessun marcatore, che è la risposta giusta. */
+  const adessoTs = new Date();
+  const adessoRoma = zonedParts(adessoTs, CLOCK_TIMEZONE.ROME);
+  const bucketCorrente: number | null =
+    granularity === "MONTH"
+      ? adessoRoma.month
+      : granularity === "WEEK"
+        ? isoWeek(adessoRoma.year, adessoRoma.month, adessoRoma.day)
+        : granularity === "WEEKDAY"
+          ? (() => {
+              const wd = isoWeekday(
+                adessoRoma.year,
+                adessoRoma.month,
+                adessoRoma.day,
+              );
+              return wd <= 5 ? wd : null;
+            })()
+          : granularity === "SESSION"
+            ? sessionBucket(adessoRoma.hour)
+            : zonedParts(adessoTs, CLOCK_TIMEZONE[clock]).hour;
 
   return (
     <div className="flex flex-col gap-4">
@@ -354,11 +438,16 @@ export default async function StagionalitaPage({
                 <Chip
                   href={hrefWith(base, { d: undefined })}
                   active={!detrended}
+                  title="Il percorso realmente accaduto, tendenza di fondo pluriennale inclusa."
                 >
-                  grezza
+                  Percorso medio
                 </Chip>
-                <Chip href={hrefWith(base, { d: "1" })} active={detrended}>
-                  detrend
+                <Chip
+                  href={hrefWith(base, { d: "1" })}
+                  active={detrended}
+                  title="Tolta la deriva pluriennale: resta solo quali periodi fanno meglio o peggio della media dell'anno."
+                >
+                  Solo stagionalità
                 </Chip>
                 <MetricInfo info={detrendInfo} size="sm" />
               </ChipGroup>
@@ -447,71 +536,98 @@ export default async function StagionalitaPage({
                   <span className="inline-flex items-center gap-1">
                     <PanelLabel>
                       Percorso stagionale — {def.label}
-                      {detrended ? " (detrend)" : ""}
+                      {detrended ? " — solo stagionalità" : ""}
                     </PanelLabel>
                     <MetricInfo info={percorsoInfo} size="sm" />
                   </span>
                   <span className="text-2xs text-[var(--md-muted)]">
-                    linea piena: {lookback} anni · banda p25-p75 · linee tenui:
-                    le altre finestre
+                    spunta le finestre da confrontare · l’asse si adatta alle
+                    linee visibili
                   </span>
                 </div>
                 {pathSeries.length > 0 ? (
-                  <SeasonalPathChart
-                    series={pathSeries}
-                    selectedWindow={lookbackEffettivo}
-                    kind={def.kind}
-                    todayDoy={oggi}
-                  />
+                  /* Altezza generosa DI PROPOSITO: la pagina può scorrere,
+                     una pendenza schiacciata no. Stessa scala del grafico
+                     intraday più sotto. */
+                  <div className="h-[560px] w-full md:h-[780px]">
+                    <SeasonalPathChart
+                      series={pathSeries}
+                      currentYear={annoInCorsoSerie}
+                      selectedWindow={lookbackEffettivo}
+                      kind={def.kind}
+                      todayDoy={oggi}
+                      currentMonthDoy={MONTH_START_DOY[adessoRoma.month - 1]}
+                    />
+                  </div>
                 ) : (
                   <SectionEmpty what="Il percorso stagionale" />
                 )}
 
-                {/* n e Pos% per finestra: senza, la linea sarebbe una media
-                    nuda — e una media nuda su 2 anni sembra uguale a una su
-                    20. Pos% è misurata al giorno di OGGI, cioè al punto in
-                    cui la linea è utile adesso. */}
-                <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-2xs text-[var(--md-muted)]">
-                  {pathSeries.map((s) => {
-                    const punto =
-                      s.points.find((p) => p.dayOfYear === oggi) ??
-                      s.points[s.points.length - 1];
-                    const selezionata = s.lookbackYears === lookback;
-                    return (
-                      <span
-                        key={s.lookbackYears}
-                        className="md-mono"
-                        style={{
-                          color: selezionata
-                            ? "var(--md-info)"
-                            : "var(--md-muted)",
-                          fontWeight: selezionata ? 700 : 500,
-                        }}
-                      >
-                        {s.lookbackYears}a · n={punto?.n ?? 0} ·{" "}
-                        {def.kind === "LEVEL" ? "sopra mediana" : "pos"}{" "}
-                        {punto ? Math.round(punto.positiveShare * 100) : 0}%
-                        {punto ? (
-                          <LowSampleMark
-                            quality={sampleQuality(punto.n)}
-                            n={punto.n}
-                          />
-                        ) : null}
-                      </span>
-                    );
-                  })}
-                  <span>(a oggi, giorno {oggi} dell&apos;anno)</span>
-                </div>
+
 
                 <p className="text-2xs leading-relaxed text-[var(--md-muted)]">
                   {def.kind === "LEVEL"
                     ? "Livello medio dell'indice giorno per giorno dell'anno: non si cumula niente, un livello non compone."
                     : "Rendimento cumulato dal 1° gennaio, mediato sugli anni della finestra."}{" "}
-                  La banda mostra dove è caduta la <strong>metà centrale</strong>{" "}
-                  degli anni: se è larga, la forma media esiste ma il singolo
-                  anno può fare tutt&apos;altro. L&apos;anno in corso è escluso.
+                  Ogni linea è una media, non una promessa: la dispersione
+                  attorno — la fascia Media±1σ e la sua copertura reale — sta
+                  nelle tabelle qui sotto. L&apos;anno in corso è escluso.
                 </p>
               </div>
+
+              {granularity === "HOUR" && hourPathSeries.length > 0 ? (
+                <div className="md-card flex flex-col gap-3 p-4">
+                  <div className="flex flex-wrap items-baseline justify-between gap-2">
+                    <PanelLabel>
+                      Ritorno intraday cumulato — {def.label} (
+                      {CLOCK_LABEL[clock]})
+                      {detrended ? " — solo stagionalità" : ""}
+                    </PanelLabel>
+                    <span className="text-2xs text-[var(--md-muted)]">
+                      96 punti a quarto d&apos;ora · la pendenza dice quali
+                      momenti hanno storicamente spinto
+                    </span>
+                  </div>
+                  <div className="h-[560px] w-full md:h-[780px]">
+                    <HourPathChart
+                      series={hourPathSeries}
+                      selectedWindow={lookbackEffettivo}
+                      currentQuarter={
+                        clock === "UTC"
+                          ? (() => {
+                              const p = zonedParts(
+                                adessoTs,
+                                CLOCK_TIMEZONE.UTC,
+                              );
+                              return p.hour * 4 + Math.floor(p.minute / 15);
+                            })()
+                          : adessoRoma.hour * 4 +
+                            Math.floor(adessoRoma.minute / 15)
+                      }
+                      clockLabel={CLOCK_LABEL[clock]}
+                    />
+                  </div>
+                  <p className="text-2xs leading-relaxed text-[var(--md-muted)]">
+                    Somma progressiva, quarto d&apos;ora dopo quarto
+                    d&apos;ora, del rendimento medio della finestra: 96 punti
+                    reali calcolati dalle barre a 15 minuti, congiunti da una
+                    curva che non aggiunge niente fra un punto e l&apos;altro.
+                    A mezzanotte vale zero per costruzione. Le tabelle qui
+                    sotto restano sulle barre orarie, con le loro statistiche
+                    complete.
+                    {quartiVuoti > 0 ? (
+                      <>
+                        {" "}
+                        <strong>{quartiVuoti} quarti d&apos;ora</strong>{" "}
+                        su 96 non hanno quotazioni sulla finestra selezionata — è la
+                        pausa serale del mercato, non un buco d&apos;archivio:
+                        lì la curva resta piatta perché non è successo niente,
+                        non perché il valore sia stimato.
+                      </>
+                    ) : null}
+                  </p>
+                </div>
+              ) : null}
 
               {/* ── Profondità del calendario ────────────────────────── */}
               <ChipGroup label="Profondità">
@@ -566,35 +682,23 @@ export default async function StagionalitaPage({
               {granularity === "SESSION" ? (
                 <div className="md-panel flex flex-col gap-1.5 p-3">
                   <PanelLabel>
-                    Confini delle sessioni ({CLOCK_LABEL.ROME})
+                    Confini delle sessioni (ora italiana)
                   </PanelLabel>
                   <div className="md-mono flex flex-wrap gap-x-4 gap-y-1 text-2xs text-[var(--md-text-2)]">
-                    {sessionBoundaries(
-                      new Date(),
-                      CLOCK_TIMEZONE.ROME,
-                    ).map((b) => (
-                      <span key={b.session}>
-                        {b.session === "ASIA"
-                          ? "Asia"
-                          : b.session === "LONDON"
-                            ? "Londra"
-                            : b.session === "NEWYORK"
-                              ? "New York"
-                              : "Fuori"}{" "}
-                        {b.range}
-                      </span>
-                    ))}
+                    <span>Asia 00:00 → 08:00</span>
+                    <span>Londra 08:00 → 14:00</span>
+                    <span>New York 14:00 → 22:00</span>
+                    <span>Fuori 22:00 → 00:00</span>
                   </div>
                   <p className="text-2xs leading-relaxed text-[var(--md-muted)]">
-                    I confini sono ancorati agli orari dei <strong>centri
-                    finanziari</strong> — apertura di Tokyo, di Londra,
-                    apertura e chiusura di New York — ciascuno col proprio
-                    cambio d&apos;ora. Londra e New York non passano all&apos;ora
-                    legale negli stessi giorni: per due o tre settimane a marzo
-                    e una a fine ottobre lo scarto fra le due vale un&apos;ora in
-                    meno del solito, e con fasce fisse sull&apos;orologio italiano
-                    l&apos;apertura di New York finirebbe nel bucket sbagliato.
-                    Gli orari qui sopra sono quelli di oggi.
+                    Fasce sull&apos;<strong>orologio italiano</strong>{" "}
+                    (Europe/Rome, ora legale inclusa): le stesse con cui
+                    l&apos;app classifica i tuoi trade, così le due letture si
+                    confrontano direttamente. Il compromesso dichiarato: nelle
+                    due-tre settimane l&apos;anno in cui l&apos;Italia e Londra
+                    o New York cambiano ora in giorni diversi, il confine può
+                    scostarsi di un&apos;ora dall&apos;apertura reale di quel
+                    centro.
                   </p>
                 </div>
               ) : null}
@@ -627,6 +731,7 @@ export default async function StagionalitaPage({
                     data={heatmap}
                     kind={def.kind}
                     granularity={granularity}
+                    currentBucket={bucketCorrente}
                     summary={
                       // La heatmap è sempre su tutto l'anno: le sue righe di
                       // sintesi devono venire dallo scope ALL, e con un filtro
@@ -659,11 +764,12 @@ export default async function StagionalitaPage({
                   {scope === SCOPE_ALL
                     ? ""
                     : ` — solo ${MONTH_LABELS[scopeMonthNum - 1]}`}
-                  {detrended ? " (detrend)" : ""}
+                  {detrended ? " — solo stagionalità" : ""}
                 </PanelLabel>
                 <BucketWindowTable
                   kind={def.kind}
                   granularity={granularity}
+                  currentBucket={bucketCorrente}
                   byWindow={byWindow}
                   selectedWindow={lookbackEffettivo}
                   coverage={windows}

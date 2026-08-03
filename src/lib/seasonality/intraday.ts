@@ -27,9 +27,13 @@ import type {
   SeasonalityKind,
 } from "@/generated/prisma/client";
 import { describeSample } from "@/lib/seasonality/stats";
-import { CLOCKS, CLOCK_TIMEZONE, SCOPE_ALL, zonedParts } from "@/lib/seasonality/buckets";
-import { marketSessionBucket } from "@/lib/seasonality/market-sessions";
-import { detrend } from "@/lib/seasonality/series";
+import {
+  CLOCKS,
+  CLOCK_TIMEZONE,
+  SCOPE_ALL,
+  sessionBucket,
+  zonedParts,
+} from "@/lib/seasonality/buckets";
 import { LOOKBACK_YEARS } from "@/lib/seasonality/instruments";
 import type { StatRow, YearBucketObsRow } from "@/lib/seasonality/precompute";
 import { windowYears } from "@/lib/seasonality/precompute";
@@ -123,6 +127,22 @@ export function coverageGaps(bars: HourBar[]): {
   };
 }
 
+/**
+ * ── LE STATISTICHE VIVONO AL LIVELLO DELL'ANNO, come la griglia ──────────
+ *
+ * Prima Media/StDev/Pos%/n di sessione e ora erano calcolate sul pool delle
+ * osservazioni INDIVIDUALI: n≈38.000 su vent'anni, StDev ~0,17% (la
+ * dispersione del singolo giorno) e Pos% ~50% (il lancio di moneta del
+ * giorno per giorno). La griglia sopra, però, mostra medie PER ANNO: due
+ * livelli di aggregazione diversi nella stessa vista, e le righe di sintesi
+ * non descrivevano ciò che l'occhio stava guardando.
+ *
+ * Ora l'osservazione statistica È la media annua del bucket — la stessa
+ * casella della griglia: n = anni, Media = media delle medie annue, StDev =
+ * dispersione FRA GLI ANNI, Pos% = quota di anni positivi, p25/p75 =
+ * quartili delle medie annue. Identico al trattamento di mese, settimana e
+ * giorno, dove l'osservazione è già il periodo e non il tick.
+ */
 interface IntradayObservation {
   value: number;
   ts: Date;
@@ -144,7 +164,13 @@ function toObservations(returns: HourReturn[]): IntradayObservation[] {
       ts: r.ts,
       year: r.ts.getUTCFullYear(),
       hour,
-      session: marketSessionBucket(r.ts),
+      /* Sessioni sull'OROLOGIO ITALIANO (decisione esplicita: Asia 00-08,
+         Londra 08-14, New York 14-22, Fuori 22-24, Europe/Rome DST-aware),
+         come le sessioni dei trade dell'utente in lib/sessions.ts. Il
+         tradeoff è dichiarato in pagina: nelle 2-3 settimane l'anno in cui
+         l'Italia e Londra/New York cambiano ora in giorni diversi, il
+         confine può scostarsi di un'ora dall'apertura reale del centro. */
+      session: sessionBucket(hour.ROME),
     };
   });
 }
@@ -153,6 +179,89 @@ function isoDate(ts: Date): string {
   return ts.toISOString().slice(0, 10);
 }
 
+/** Una casella della griglia: la media annua del bucket, coi suoi estremi. */
+interface YearBucketAgg {
+  year: number;
+  bucket: number;
+  /** Media dei rendimenti orari di quel bucket in quell'anno. */
+  value: number;
+  /** Ore che la compongono (il divisore della media). */
+  days: number;
+  /** Campione nell'UNITÀ del bucket: per l'ORA coincide con le ore (quella
+   * fascia occorre una volta per giorno di quotazione), per la SESSIONE è il
+   * numero di GIORNI con almeno un'ora in sessione — una sessione Asia è
+   * un'occorrenza, non le sue otto ore. */
+  raw: number;
+  minTs: number;
+  maxTs: number;
+}
+
+/**
+ * Media dei rendimenti orari per (anno, bucket): una casella di heatmap.
+ *
+ * `dayKeyOf` cambia SOLO il campione dichiarato (`raw`), mai la media: quando
+ * è passato, `raw` conta i giorni DISTINTI invece delle osservazioni. Serve
+ * alla sessione, la cui unità naturale è «una sessione» (un giorno) e non le
+ * sue sei-otto ore.
+ */
+function aggregateByYear(
+  observations: IntradayObservation[],
+  bucketOf: (o: IntradayObservation) => number,
+  dayKeyOf?: (o: IntradayObservation) => string,
+): YearBucketAgg[] {
+  const acc = new Map<
+    string,
+    {
+      year: number;
+      bucket: number;
+      sum: number;
+      days: number;
+      dayKeys: Set<string> | null;
+      minTs: number;
+      maxTs: number;
+    }
+  >();
+  for (const o of observations) {
+    const bucket = bucketOf(o);
+    const key = `${o.year}-${bucket}`;
+    const t = o.ts.getTime();
+    const cur = acc.get(key);
+    if (cur) {
+      cur.sum += o.value;
+      cur.days += 1;
+      cur.dayKeys?.add(dayKeyOf!(o));
+      if (t < cur.minTs) cur.minTs = t;
+      if (t > cur.maxTs) cur.maxTs = t;
+    } else {
+      acc.set(key, {
+        year: o.year,
+        bucket,
+        sum: o.value,
+        days: 1,
+        dayKeys: dayKeyOf ? new Set([dayKeyOf(o)]) : null,
+        minTs: t,
+        maxTs: t,
+      });
+    }
+  }
+  return [...acc.values()].map((a) => ({
+    year: a.year,
+    bucket: a.bucket,
+    value: a.sum / a.days,
+    days: a.days,
+    raw: a.dayKeys ? a.dayKeys.size : a.days,
+    minTs: a.minTs,
+    maxTs: a.maxTs,
+  }));
+}
+
+/**
+ * Statistiche di bucket dalle MEDIE ANNUE della finestra — lo stesso livello
+ * di aggregazione della griglia che sta sopra. `n` è il numero di anni.
+ *
+ * Il detrend sottrae la media di TUTTE le medie annue della finestra (tutti
+ * i bucket insieme): il drift è una proprietà della serie, non della fetta.
+ */
 function buildStats(opts: {
   instrument: SeasonalityInstrument;
   kind: SeasonalityKind;
@@ -160,27 +269,39 @@ function buildStats(opts: {
   clock: SeasonalityClock;
   lookbackYears: number;
   detrended: boolean;
-  observations: IntradayObservation[];
+  aggs: YearBucketAgg[];
   buckets: number[];
-  bucketOf: (o: IntradayObservation) => number;
 }): StatRow[] {
-  const { observations, detrended } = opts;
-  if (observations.length === 0) return [];
+  const { aggs, detrended } = opts;
+  if (aggs.length === 0) return [];
 
-  let values = observations.map((o) => o.value);
-  if (detrended) values = detrend(values);
+  const media = aggs.reduce((a, x) => a + x.value, 0) / aggs.length;
+  const shift = detrended ? media : 0;
 
-  const grouped = new Map<number, { values: number[]; ts: number[] }>();
-  observations.forEach((o, i) => {
-    const bucket = opts.bucketOf(o);
-    const entry = grouped.get(bucket);
+  /* `raw` porta avanti le ORE grezze dietro le medie annue: è il «campione»
+     che la tabella mostra accanto a `n`. `n` resta il numero di anni — il
+     denominatore vero di media, StDev e Pos% — e le due cose non vanno
+     confuse. */
+  const grouped = new Map<
+    number,
+    { values: number[]; minTs: number; maxTs: number; raw: number }
+  >();
+  for (const a of aggs) {
+    const entry = grouped.get(a.bucket);
     if (entry) {
-      entry.values.push(values[i]);
-      entry.ts.push(o.ts.getTime());
+      entry.values.push(a.value - shift);
+      entry.raw += a.raw;
+      if (a.minTs < entry.minTs) entry.minTs = a.minTs;
+      if (a.maxTs > entry.maxTs) entry.maxTs = a.maxTs;
     } else {
-      grouped.set(bucket, { values: [values[i]], ts: [o.ts.getTime()] });
+      grouped.set(a.bucket, {
+        values: [a.value - shift],
+        minTs: a.minTs,
+        maxTs: a.maxTs,
+        raw: a.raw,
+      });
     }
-  });
+  }
 
   const rows: StatRow[] = [];
   for (const bucket of opts.buckets) {
@@ -188,6 +309,14 @@ function buildStats(opts: {
     if (!entry) continue; // nessuna riga finta a zero
     const described = describeSample(entry.values);
     if (!described) continue;
+    const withinSigma =
+      described.stdev === null
+        ? null
+        : entry.values.filter(
+            (v) =>
+              v >= described.mean - described.stdev! &&
+              v <= described.mean + described.stdev!,
+          ).length / described.n;
     rows.push({
       instrument: opts.instrument,
       kind: opts.kind,
@@ -198,45 +327,19 @@ function buildStats(opts: {
       detrended,
       bucket,
       n: described.n,
+      rawCount: entry.raw,
       mean: described.mean,
       median: described.median,
       stdev: described.stdev,
       positiveShare: described.positiveShare,
       p25: described.p25,
       p75: described.p75,
-      firstDate: isoDate(new Date(Math.min(...entry.ts))),
-      lastDate: isoDate(new Date(Math.max(...entry.ts))),
+      withinSigma,
+      firstDate: isoDate(new Date(entry.minTs)),
+      lastDate: isoDate(new Date(entry.maxTs)),
     });
   }
   return rows;
-}
-
-/** Media dei rendimenti orari per (anno, bucket): una casella di heatmap. */
-function aggregateByYear(
-  observations: IntradayObservation[],
-  bucketOf: (o: IntradayObservation) => number,
-): { year: number; bucket: number; value: number; days: number }[] {
-  const acc = new Map<
-    string,
-    { year: number; bucket: number; sum: number; days: number }
-  >();
-  for (const o of observations) {
-    const bucket = bucketOf(o);
-    const key = `${o.year}-${bucket}`;
-    const cur = acc.get(key);
-    if (cur) {
-      cur.sum += o.value;
-      cur.days += 1;
-    } else {
-      acc.set(key, { year: o.year, bucket, sum: o.value, days: 1 });
-    }
-  }
-  return [...acc.values()].map((a) => ({
-    year: a.year,
-    bucket: a.bucket,
-    value: a.sum / a.days,
-    days: a.days,
-  }));
 }
 
 export interface IntradayResult {
@@ -261,10 +364,12 @@ const SESSION_BUCKETS = [0, 1, 2, 3];
  * cambia riga, non rietichetta. Rietichettare sarebbe sbagliato perché fra
  * CET e CEST lo scarto Roma↔UTC cambia dentro l'anno.
  *
- * SESSION esiste in una sola versione: i suoi confini sono ancorati agli
- * orari dei centri finanziari (vedi `market-sessions.ts`), quindi non
- * dipendono dall'orologio di visualizzazione — cambia solo come li si scrive
- * in legenda.
+ * SESSION esiste in una sola versione, definita sull'orologio ITALIANO
+ * (Asia 00-08, Londra 08-14, New York 14-22, Fuori 22-24): stessa
+ * partizione delle sessioni dei trade dell'utente. Decisione esplicita
+ * dell'utente, che ribalta i confini ancorati ai centri finanziari della
+ * Fase 3 — il tradeoff (scostamento fino a 1h nelle settimane di
+ * disallineamento DST) è dichiarato in pagina.
  */
 export function precomputeIntraday(opts: {
   instrument: SeasonalityInstrument;
@@ -294,8 +399,24 @@ export function precomputeIntraday(opts: {
   const stats: StatRow[] = [];
   const obsRows: YearBucketObsRow[] = [];
 
-  // Le sessioni non hanno variante per orologio: una riga sola.
-  for (const a of aggregateByYear(observations, (o) => o.session)) {
+  /* Le medie annue si aggregano UNA volta e alimentano sia la griglia sia le
+     statistiche: un solo livello di verità, per costruzione. Le sessioni non
+     hanno variante per orologio. */
+  /* Il giorno della sessione è quello ROMANO, come i suoi confini. */
+  const sessionAggs = aggregateByYear(
+    observations,
+    (o) => o.session,
+    (o) => {
+      const p = zonedParts(o.ts, CLOCK_TIMEZONE.ROME);
+      return `${p.year}-${p.month}-${p.day}`;
+    },
+  );
+  const hourAggs = {} as Record<SeasonalityClock, YearBucketAgg[]>;
+  for (const clock of CLOCKS) {
+    hourAggs[clock] = aggregateByYear(observations, (o) => o.hour[clock]);
+  }
+
+  for (const a of sessionAggs) {
     obsRows.push({
       instrument,
       granularity: "SESSION",
@@ -307,7 +428,7 @@ export function precomputeIntraday(opts: {
     });
   }
   for (const clock of CLOCKS) {
-    for (const a of aggregateByYear(observations, (o) => o.hour[clock])) {
+    for (const a of hourAggs[clock]) {
       obsRows.push({
         instrument,
         granularity: "HOUR",
@@ -322,8 +443,9 @@ export function precomputeIntraday(opts: {
 
   for (const lookback of LOOKBACK_YEARS) {
     const { from, to } = windowYears(lookback, lastCompleteYear);
-    const window = observations.filter((o) => o.year >= from && o.year <= to);
-    if (window.length === 0) continue;
+    const inWindow = (a: YearBucketAgg) => a.year >= from && a.year <= to;
+    const sessionWindow = sessionAggs.filter(inWindow);
+    if (sessionWindow.length === 0) continue;
 
     for (const detrended of [false, true]) {
       stats.push(
@@ -334,9 +456,8 @@ export function precomputeIntraday(opts: {
           clock: "ROME",
           lookbackYears: lookback,
           detrended,
-          observations: window,
+          aggs: sessionWindow,
           buckets: SESSION_BUCKETS,
-          bucketOf: (o) => o.session,
         }),
       );
       for (const clock of CLOCKS) {
@@ -348,9 +469,8 @@ export function precomputeIntraday(opts: {
             clock,
             lookbackYears: lookback,
             detrended,
-            observations: window,
+            aggs: hourAggs[clock].filter(inWindow),
             buckets: HOUR_BUCKETS,
-            bucketOf: (o) => o.hour[clock],
           }),
         );
       }

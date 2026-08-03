@@ -40,6 +40,10 @@ export interface ZonedParts {
   day: number;
   /** 0-23 */
   hour: number;
+  /** 0-59. Serve ai bucket sotto l'ora (i quarti d'ora del grafico M15): non
+   * si può darlo per scontato uguale al minuto UTC, perché esistono fusi a
+   * scarto di mezz'ora. */
+  minute: number;
 }
 
 /* Un formatter per fuso, creato una volta sola: `Intl.DateTimeFormat` è
@@ -55,6 +59,7 @@ function formatterFor(timeZone: string): Intl.DateTimeFormat {
       month: "2-digit",
       day: "2-digit",
       hour: "2-digit",
+      minute: "2-digit",
       // hourCycle h23 e non hour12:false: con hour12:false alcune
       // implementazioni rendono la mezzanotte come "24", che qui diventerebbe
       // un bucket 24 inesistente.
@@ -72,13 +77,15 @@ export function zonedParts(ts: Date, timeZone: string): ZonedParts {
   let month = 0;
   let day = 0;
   let hour = 0;
+  let minute = 0;
   for (const p of parts) {
     if (p.type === "year") year = Number(p.value);
     else if (p.type === "month") month = Number(p.value);
     else if (p.type === "day") day = Number(p.value);
     else if (p.type === "hour") hour = Number(p.value);
+    else if (p.type === "minute") minute = Number(p.value);
   }
-  return { year, month, day, hour };
+  return { year, month, day, hour, minute };
 }
 
 /**

@@ -3,6 +3,7 @@ import {
   CELL_OPACITY_MAX,
   CELL_OPACITY_MIN,
   cellBackground,
+  decimalsFor,
   formatBucketValue,
   formatStdev,
   unitFor,
@@ -84,20 +85,34 @@ describe("contrasto delle celle di heatmap", () => {
 });
 
 describe("unità di visualizzazione", () => {
-  it("intraday in punti base, calendario in percentuale, volatilità in livello", () => {
-    expect(unitFor("RETURN", "HOUR")).toBe("bp");
-    expect(unitFor("RETURN", "SESSION")).toBe("bp");
-    expect(unitFor("RETURN", "MONTH")).toBe("percent");
-    expect(unitFor("LEVEL", "MONTH")).toBe("level");
+  it("i rendimenti sono SEMPRE percentuale, i livelli sempre livello", () => {
+    expect(unitFor("RETURN")).toBe("percent");
+    expect(unitFor("RETURN")).toBe("percent");
+    expect(unitFor("RETURN")).toBe("percent");
+    expect(unitFor("LEVEL")).toBe("level");
     // Il livello vince sulla granularità: un indice di volatilità resta un
     // livello anche se un giorno avesse i bucket intraday.
-    expect(unitFor("LEVEL", "HOUR")).toBe("level");
+    expect(unitFor("LEVEL")).toBe("level");
   });
 
-  it("i punti base rendono leggibile ciò che in percentuale sarebbe zero", () => {
+  it("sono i DECIMALI a rendere leggibile l'intraday, non un cambio di unità", () => {
     const r = Math.log(1.0000355); // media oraria reale dell'oro
+    // Con la precisione del calendario sparirebbe: è il motivo per cui la
+    // pagina usava i punti base, ed è il problema che `decimalsFor` risolve
+    // senza far cambiare unità a chi legge.
     expect(formatBucketValue(r, "RETURN", 2, "percent")).toBe("+0,00%");
-    expect(formatBucketValue(r, "RETURN", 2, "bp")).toBe("+0,36 pb");
+    expect(decimalsFor("RETURN", "HOUR")).toBe(4);
+    expect(decimalsFor("RETURN", "SESSION")).toBe(4);
+    expect(decimalsFor("RETURN", "MONTH")).toBe(2);
+    expect(
+      formatBucketValue(r, "RETURN", decimalsFor("RETURN", "HOUR"), "percent"),
+    ).toBe("+0,0036%");
+  });
+
+  it("la StDev intraday non collassa a zero con i decimali giusti", () => {
+    const sigma = 0.000044; // dispersione fra anni di un bucket orario
+    expect(formatStdev(sigma, "RETURN", "percent", 2)).toBe("0,00");
+    expect(formatStdev(sigma, "RETURN", "percent", 4)).toBe("0,0044");
   });
 
   it("una statistica non definita è «—», mai zero", () => {

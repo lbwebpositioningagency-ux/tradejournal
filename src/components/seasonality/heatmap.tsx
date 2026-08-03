@@ -5,8 +5,11 @@ import {
 } from "@/components/seasonality/bucket-labels";
 import type { BucketView, HeatmapData } from "@/lib/seasonality/query";
 import {
+  CELL_OPACITY_MAX,
+  CELL_OPACITY_MIN,
   UNIT_LABEL,
   cellBackground,
+  decimalsFor,
   formatBucketValue,
   formatShare,
   formatStdev,
@@ -14,6 +17,7 @@ import {
   positiveLabel,
   robustScale,
   unitFor,
+  valueColor,
 } from "@/components/seasonality/format";
 import { PanelLabel } from "@/components/macro-desk/primitives";
 import { LowSampleMark } from "@/components/seasonality/low-sample";
@@ -45,6 +49,7 @@ export function SeasonalityHeatmap({
   summary,
   windowMedian,
   lookbackYears,
+  currentBucket,
 }: {
   data: HeatmapData;
   kind: SeasonalityKind;
@@ -54,12 +59,17 @@ export function SeasonalityHeatmap({
   /** Riferimento per il colore dei LIVELLI (mediana della finestra). */
   windowMedian: number;
   lookbackYears: number;
+  /** Il bucket in cui ci si trova ADESSO (mese/settimana/…): evidenziato in
+   * intestazione. `null` = nessun marcatore (es. weekend sui giorni lun-ven). */
+  currentBucket?: number | null;
 }) {
   const axis = BUCKET_AXIS[granularity];
-  const unit = unitFor(kind, granularity);
-  /* I punti base hanno bisogno di due decimali per non collassare a zero;
-     le percentuali su un mese di uno solo, o la griglia diventa illeggibile. */
-  const cellDecimals = unit === "bp" ? 2 : 1;
+  const unit = unitFor(kind);
+  /* Nella griglia si sta stretti: un decimale meno che in tabella basta a
+     distinguere le celle senza farle esplodere in larghezza. L'intraday
+     resta comunque abbastanza fine da non collassare a zero. */
+  const cellDecimals = Math.max(1, decimalsFor(kind, granularity) - 1);
+  const sintesiDecimals = decimalsFor(kind, granularity);
   const byYearBucket = new Map<string, (typeof data.cells)[number]>();
   for (const c of data.cells) byYearBucket.set(`${c.year}-${c.bucket}`, c);
 
@@ -69,6 +79,27 @@ export function SeasonalityHeatmap({
   );
 
   const summaryByBucket = new Map(summary.map((s) => [s.bucket, s]));
+
+  /* Scala robusta delle MEDIE di sintesi: la riga Media si colora rispetto
+     agli altri bucket, con la stessa semantica daltonica delle celle. */
+  const summaryScale = robustScale(
+    summary.map((s) => (kind === "LEVEL" ? s.mean - reference : s.mean)),
+  );
+  const mediaBg = (s: BucketView) =>
+    cellBackground(s.mean, kind, summaryScale, reference);
+  /* La riga Pos% si colora attorno al 50%: piu della meta degli anni
+     positivi → verso l'alto, meno → verso il basso. Stessi tetti di opacita
+     AA (CELL_OPACITY_MIN/MAX) delle celle. */
+  const posBg = (s: BucketView) => {
+    const delta = s.positiveShare - 0.5;
+    const intensity = Math.min(1, Math.abs(delta) * 2);
+    if (intensity < 0.04) return undefined;
+    const color = delta > 0 ? valueColor(1, "RETURN") : valueColor(-1, "RETURN");
+    const pct = Math.round(
+      CELL_OPACITY_MIN + intensity * (CELL_OPACITY_MAX - CELL_OPACITY_MIN),
+    );
+    return `color-mix(in oklab, ${color} ${pct}%, transparent)`;
+  };
 
   if (data.cells.length === 0) {
     return (
@@ -102,7 +133,7 @@ export function SeasonalityHeatmap({
             caselle enormi e vuote. */}
         <table
           className={cn(
-            "md-mono border-separate border-spacing-0.5 text-right text-2xs tabular-nums",
+            "md-mono border-separate border-spacing-0.5 text-right text-xs tabular-nums",
             axis.stretch ? "w-full" : "w-auto",
           )}
           style={{ minWidth: `${axis.minWidthRem}rem` }}
@@ -115,19 +146,40 @@ export function SeasonalityHeatmap({
             <tr>
               <th
                 scope="col"
-                className="sticky left-0 z-10 bg-[var(--md-surface)] px-1.5 py-1 text-left font-semibold text-[var(--md-muted)]"
+                className="sticky left-0 z-10 bg-[var(--md-surface)] px-2 py-1.5 text-left font-semibold text-[var(--md-muted)]"
               >
                 Anno
               </th>
-              {axis.buckets.map((b) => (
-                <th
-                  key={b}
-                  scope="col"
-                  className="px-1.5 py-1 font-semibold text-[var(--md-muted)]"
-                >
-                  {axis.short(b)}
-                </th>
-              ))}
+              {axis.buckets.map((b) => {
+                const adesso = b === currentBucket;
+                return (
+                  <th
+                    key={b}
+                    scope="col"
+                    className="px-2 py-1.5 font-semibold"
+                    style={{
+                      color: adesso ? "var(--md-text)" : "var(--md-muted)",
+                    }}
+                    title={adesso ? "Ci troviamo qui adesso" : undefined}
+                    aria-current={adesso ? "date" : undefined}
+                  >
+                    {adesso ? (
+                      <span
+                        className="rounded-[var(--md-r-sm)] px-1 py-0.5"
+                        style={{
+                          backgroundColor:
+                            "color-mix(in oklab, var(--md-warn) 24%, transparent)",
+                          boxShadow: "inset 0 -2px 0 var(--md-warn)",
+                        }}
+                      >
+                        {axis.short(b)}
+                      </span>
+                    ) : (
+                      axis.short(b)
+                    )}
+                  </th>
+                );
+              })}
             </tr>
           </thead>
           <tbody>
@@ -137,7 +189,7 @@ export function SeasonalityHeatmap({
                 <tr key={year}>
                   <th
                     scope="row"
-                    className="sticky left-0 z-10 bg-[var(--md-surface)] px-1.5 py-1 text-left font-semibold text-[var(--md-text-2)]"
+                    className="sticky left-0 z-10 bg-[var(--md-surface)] px-2 py-1.5 text-left font-semibold text-[var(--md-text-2)]"
                   >
                     {year}
                     {parziale ? (
@@ -155,7 +207,7 @@ export function SeasonalityHeatmap({
                       return (
                         <td
                           key={b}
-                          className="px-1.5 py-1 text-[var(--md-muted)]"
+                          className="px-2 py-1.5 text-[var(--md-muted)]"
                         >
                           —
                         </td>
@@ -164,7 +216,7 @@ export function SeasonalityHeatmap({
                     return (
                       <td
                         key={b}
-                        className="rounded-[var(--md-r-sm)] px-1.5 py-1 text-[var(--md-text)]"
+                        className="rounded-[var(--md-r-sm)] px-2 py-1.5 text-[var(--md-text)]"
                         style={{
                           backgroundColor: cellBackground(
                             cell.value,
@@ -189,30 +241,37 @@ export function SeasonalityHeatmap({
             })}
           </tbody>
           <tfoot>
+            {/* Staccho pieno fra gli anni e le sintesi: senza, l'ultima riga
+                di dati e la Media si leggevano come un blocco solo. */}
+            <tr aria-hidden>
+              <td colSpan={axis.buckets.length + 1} className="h-3" />
+            </tr>
             <SummaryRow
               label={meanLabel(kind)}
               buckets={axis.buckets}
               values={summaryByBucket}
-              render={(s) => formatBucketValue(s.mean, kind, 2, unit)}
+              render={(s) => formatBucketValue(s.mean, kind, sintesiDecimals, unit)}
+              cellBg={mediaBg}
               emphasis
             />
             <SummaryRow
               label="StDev"
               buckets={axis.buckets}
               values={summaryByBucket}
-              render={(s) => formatStdev(s.stdev, kind, unit)}
+              render={(s) => formatStdev(s.stdev, kind, unit, sintesiDecimals)}
             />
             <SummaryRow
               label={positiveLabel(kind)}
               buckets={axis.buckets}
               values={summaryByBucket}
               render={(s) => formatShare(s.positiveShare)}
+              cellBg={posBg}
             />
             {/* La riga `n` porta il marcatore di campione basso come la
                 tabella sotto: due viste dello stesso numero non possono
                 avvertire in modo diverso. */}
             <SummaryRow
-              label="n"
+              label="n · anni"
               buckets={axis.buckets}
               values={summaryByBucket}
               render={(s) => String(s.n)}
@@ -246,6 +305,7 @@ function SummaryRow({
   values,
   render,
   mark,
+  cellBg,
   emphasis,
 }: {
   label: string;
@@ -253,13 +313,15 @@ function SummaryRow({
   values: Map<number, BucketView>;
   render: (s: BucketView) => string;
   mark?: (s: BucketView) => React.ReactNode;
+  /** Sfondo heatmap della cella (solo Media e Pos%: StDev e n restano nude). */
+  cellBg?: (s: BucketView) => string | undefined;
   emphasis?: boolean;
 }) {
   return (
     <tr>
       <th
         scope="row"
-        className="sticky left-0 z-10 border-t bg-[var(--md-surface)] px-1.5 py-1 text-left font-semibold text-[var(--md-text-2)]"
+        className="sticky left-0 z-10 border-t bg-[var(--md-surface)] px-2 py-1.5 text-left font-semibold text-[var(--md-text-2)]"
         style={{ borderColor: "var(--md-border)" }}
       >
         {label}
@@ -269,11 +331,12 @@ function SummaryRow({
         return (
           <td
             key={b}
-            className="border-t px-1.5 py-1"
+            className="rounded-[var(--md-r-sm)] border-t px-2 py-1.5"
             style={{
               borderColor: "var(--md-border)",
               color: emphasis ? "var(--md-text)" : "var(--md-text-2)",
               fontWeight: emphasis ? 700 : 500,
+              backgroundColor: s ? cellBg?.(s) : undefined,
             }}
           >
             {s ? (

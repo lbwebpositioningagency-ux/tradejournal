@@ -7,7 +7,7 @@ import {
   hourLabel,
   weekLabel,
 } from "@/lib/seasonality/buckets";
-import { SESSIONS, SESSION_LABELS } from "@/lib/seasonality/market-sessions";
+import { SESSIONS, SESSION_LABELS } from "@/lib/sessions";
 
 /**
  * L'UNICA definizione di «quali bucket esistono e come si chiamano» per ogni
@@ -24,6 +24,11 @@ export interface BucketAxis {
   short: (bucket: number) => string;
   /** Nome della colonna che elenca i bucket. */
   columnName: string;
+  /** Plurale per le frasi («meglio del 70% dei mesi»). */
+  plural: string;
+  /** Unità del CAMPIONE: la stessa del bucket — mesi, settimane, giorni,
+   * sessioni, ore. «Gennaio · 20 mesi» dice da solo cosa è stato contato. */
+  rawUnit: string;
   /** Larghezza minima della heatmap: 53 settimane non stanno in 46rem. */
   minWidthRem: number;
   /** La griglia va stirata a tutta larghezza? No con poche colonne. */
@@ -47,7 +52,9 @@ export const BUCKET_AXIS: Record<
     label: (b) => MONTH_LABELS[b - 1] ?? String(b),
     short: (b) => MONTH_LABELS_SHORT[b - 1] ?? String(b),
     columnName: "Mese",
-    minWidthRem: 46,
+    plural: "mesi",
+    rawUnit: "mesi",
+    minWidthRem: 58,
     stretch: true,
   },
   WEEK: {
@@ -55,8 +62,10 @@ export const BUCKET_AXIS: Record<
     label: (b) => `Settimana ${b}`,
     short: weekLabel,
     columnName: "Settimana ISO",
+    plural: "settimane",
+    rawUnit: "settimane",
     // 53 colonne: la griglia scorre dentro il suo contenitore, il documento no.
-    minWidthRem: 118,
+    minWidthRem: 150,
     stretch: true,
   },
   WEEKDAY: {
@@ -64,7 +73,9 @@ export const BUCKET_AXIS: Record<
     label: (b) => WEEKDAY_LABELS[b] ?? String(b),
     short: (b) => (WEEKDAY_LABELS[b] ?? String(b)).slice(0, 3),
     columnName: "Giorno",
-    minWidthRem: 30,
+    plural: "giorni",
+    rawUnit: "giorni",
+    minWidthRem: 36,
     stretch: false,
   },
   SESSION: {
@@ -72,7 +83,9 @@ export const BUCKET_AXIS: Record<
     label: (b) => SESSION_LABELS[SESSIONS[b]] ?? String(b),
     short: (b) => (SESSION_LABELS[SESSIONS[b]] ?? String(b)).split(" ")[0],
     columnName: "Sessione",
-    minWidthRem: 30,
+    plural: "sessioni",
+    rawUnit: "sessioni",
+    minWidthRem: 36,
     stretch: false,
   },
   HOUR: {
@@ -80,7 +93,9 @@ export const BUCKET_AXIS: Record<
     label: (b) => hourLabel(b),
     short: (b) => String(b).padStart(2, "0"),
     columnName: "Ora",
-    minWidthRem: 60,
+    plural: "ore",
+    rawUnit: "ore",
+    minWidthRem: 88,
     stretch: true,
   },
 };

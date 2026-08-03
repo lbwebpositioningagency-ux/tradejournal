@@ -18,6 +18,7 @@ import type {
   SeasonalityKind,
 } from "@/generated/prisma/client";
 import { SEASONALITY_BY_CODE } from "@/lib/seasonality/instruments";
+import { logToPercent } from "@/lib/seasonality/series";
 import { sampleQuality, type SampleQuality } from "@/lib/seasonality/stats";
 import { windowYears } from "@/lib/seasonality/precompute";
 
@@ -31,6 +32,11 @@ export interface BucketView {
   positiveShare: number;
   p25: number;
   p75: number;
+  /** Osservazioni grezze (giorni o ore) dietro le medie annue: informazione
+   * aggiuntiva accanto a `n`, che resta il numero di anni. */
+  rawCount: number | null;
+  /** Copertura empirica della banda media±1σ (null se σ non definita). */
+  withinSigma: number | null;
   firstDate: string;
   lastDate: string;
   quality: SampleQuality;
@@ -141,6 +147,8 @@ function toView(row: {
   positiveShare: unknown;
   p25: unknown;
   p75: unknown;
+  rawCount?: number | null;
+  withinSigma?: unknown;
   firstDate: Date;
   lastDate: Date;
 }): BucketView {
@@ -153,6 +161,11 @@ function toView(row: {
     positiveShare: Number(row.positiveShare),
     p25: Number(row.p25),
     p75: Number(row.p75),
+    rawCount: row.rawCount ?? null,
+    withinSigma:
+      row.withinSigma === null || row.withinSigma === undefined
+        ? null
+        : Number(row.withinSigma),
     firstDate: iso(row.firstDate),
     lastDate: iso(row.lastDate),
     quality: sampleQuality(row.n),
@@ -359,4 +372,99 @@ export function intradayLookbacks(
   // Se nemmeno la finestra più corta ci sta, si tiene comunque quella: meglio
   // una riga con `n` basso e dichiarato che una pagina vuota senza spiegazione.
   return usable.length > 0 ? usable : [Math.min(...lookbacks)];
+}
+
+/**
+ * Percorso intraday a 96 punti (quarti d'ora) per finestra di lookback.
+ *
+ * Alimenta SOLO il grafico del ritorno intraday. Le tabelle e la heatmap
+ * della vista Ora restano sulle barre H1 con le loro statistiche complete:
+ * qui non c'è StDev né Pos%, c'è una media, perché è l'unica cosa che il
+ * grafico disegna.
+ *
+ * L'aggregazione è la stessa di sempre — livello ANNO: si legge la media
+ * annua di ogni quarto d'ora e si fa la media fra gli anni della finestra.
+ * Una finestra da 10 anni con solo 6 anni in archivio produce 6 anni, non un
+ * errore: `years` lo dichiara e la pagina lo mostra.
+ */
+export async function getQuarterPaths(opts: {
+  instrument: SeasonalityInstrument;
+  clock: SeasonalityClock;
+  lookbacks: number[];
+  detrended: boolean;
+  now?: Date;
+}): Promise<
+  Map<number, { values: number[]; years: number; emptyBuckets: number }>
+> {
+  const out = new Map<
+    number,
+    { values: number[]; years: number; emptyBuckets: number }
+  >();
+  if (opts.lookbacks.length === 0) return out;
+
+  const lcy = lastCompleteYear(opts.now ?? new Date());
+  const maxLookback = Math.max(...opts.lookbacks);
+  const rows = await prisma.seasonalityQuarterYear.findMany({
+    where: {
+      instrument: opts.instrument,
+      clock: opts.clock,
+      year: { gte: lcy - maxLookback + 1, lte: lcy },
+    },
+    select: { year: true, bucket: true, mean: true },
+  });
+  if (rows.length === 0) return out;
+
+  for (const lookback of opts.lookbacks) {
+    const from = lcy - lookback + 1;
+    const perBucket = new Map<number, { sum: number; n: number }>();
+    const anni = new Set<number>();
+    for (const r of rows) {
+      if (r.year < from) continue;
+      anni.add(r.year);
+      const cur = perBucket.get(r.bucket);
+      const v = Number(r.mean);
+      if (cur) {
+        cur.sum += v;
+        cur.n += 1;
+      } else {
+        perBucket.set(r.bucket, { sum: v, n: 1 });
+      }
+    }
+    if (anni.size === 0) continue;
+
+    /* Un quarto d'ora senza NESSUNA quotazione in tutta la finestra non è un
+       buco d'archivio ma un mercato chiuso: la pausa di manutenzione serale
+       di CME ed Eurex, che sul DAX e sull'S&P vale otto e quattro quarti
+       d'ora. Il cumulato ci passa sopra piatto — che è quanto è successo:
+       niente. Non è un valore stimato, e la pagina lo dichiara invece di
+       lasciarlo interpretare a chi guarda. */
+    let emptyBuckets = 0;
+    const medie: number[] = [];
+    for (let b = 0; b < 96; b += 1) {
+      const e = perBucket.get(b);
+      if (!e) emptyBuckets += 1;
+      medie.push(e ? e.sum / e.n : 0);
+    }
+
+    /* Detrend: si toglie il drift MEDIO del quarto d'ora, cioè la media dei
+       96 bucket. Sul cumulato significa che la giornata parte e finisce a
+       zero, e resta solo la FORMA — quali momenti spingono rispetto alla
+       media della giornata, che è la domanda della vista «solo stagionalità». */
+    const drift = opts.detrended
+      ? medie.reduce((a, v) => a + v, 0) / medie.length
+      : 0;
+
+    /* Cumulato in log (additivo), convertito in percentuale solo alla fine:
+       la conversione a metà strada romperebbe l'additività. Cinque decimali
+       perché un quarto d'ora vale millesimi di punto percentuale, e
+       arrotondare qui appiattirebbe la curva prima ancora di disegnarla. */
+    const values: number[] = [];
+    let cum = 0;
+    for (const m of medie) {
+      cum += m - drift;
+      values.push(Number(logToPercent(cum).toFixed(5)));
+    }
+    out.set(lookback, { values, years: anni.size, emptyBuckets });
+  }
+  return out;
 }

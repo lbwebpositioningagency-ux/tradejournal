@@ -71,7 +71,7 @@ async function main() {
       if (args.scrollTo) {
         await client.send("Runtime.evaluate", {
           expression: `(() => {
-            const card = [...document.querySelectorAll("[data-slot='card']")]
+            const card = [...document.querySelectorAll("[data-slot='card'], .md-card")]
               .find((c) => c.textContent.includes(${JSON.stringify(args.scrollTo)}));
             if (!card) return false;
             card.scrollIntoView({ block: 'start' });

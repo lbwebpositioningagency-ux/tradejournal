@@ -69,12 +69,20 @@ export interface StatRow {
   detrended: boolean;
   bucket: number;
   n: number;
+  /** Campione nell'UNITÀ del bucket: mesi per il mese, settimane per la
+   * settimana, giorni per il giorno della settimana, sessioni (giorni) per
+   * la sessione, ore per l'ora. Informazione aggiuntiva accanto a `n`, mai
+   * il denominatore della statistica. */
+  rawCount: number;
   mean: number;
   median: number;
   stdev: number | null;
   positiveShare: number;
   p25: number;
   p75: number;
+  /** Quota di osservazioni davvero dentro [media−σ, media+σ]; null se σ non
+   * è definita. La UI mostra QUESTA, mai il 68% teorico. */
+  withinSigma: number | null;
   /** "YYYY-MM-DD" */
   firstDate: string;
   lastDate: string;
@@ -159,6 +167,13 @@ interface Observation {
   month: number;
   /** Solo per le osservazioni giornaliere. */
   weekday?: number;
+  /**
+   * Peso dell'osservazione nel «campione» dichiarato in tabella, nell'UNITÀ
+   * del bucket: un mese conta UNO (un gennaio è un'occorrenza, non i suoi 21
+   * giorni di quotazione), una settimana conta uno, un giorno conta uno.
+   * Omesso = 1. Resta separato da `n`, che conta le unità statistiche.
+   */
+  days?: number;
 }
 
 /**
@@ -193,6 +208,16 @@ function statsForBuckets(opts: {
   detrendMean?: number;
   buckets: number[];
   bucketOf: (o: Observation) => number;
+  /**
+   * Aggrega le osservazioni per (anno, bucket) PRIMA di calcolare, così che
+   * l'unità statistica sia la casella della griglia e non il dato grezzo.
+   * Serve al giorno della settimana, dove esistono ~52 lunedì l'anno ma la
+   * griglia sopra la tabella mostra una riga per anno: senza, `n` sarebbe
+   * 1044 e la StDev misurerebbe la dispersione fra singoli lunedì invece
+   * che fra anni. Mese e settimana non ne hanno bisogno — hanno già una
+   * osservazione per anno.
+   */
+  aggregateByYear?: boolean;
 }): StatRow[] {
   const { observations, kind, detrended } = opts;
   if (observations.length === 0) return [];
@@ -205,27 +230,88 @@ function statsForBuckets(opts: {
         : values.map((v) => v - opts.detrendMean!);
   }
 
+  /* Le UNITÀ statistiche: o le osservazioni così come sono, o la loro media
+     per (anno, bucket). `raw` porta avanti il conteggio dei dati grezzi, che
+     l'aggregazione non deve perdere — è il numero che la tabella mostra come
+     «campione». Il detrend è già stato applicato ai valori: sottrarre una
+     costante e poi mediare dà lo stesso risultato che mediare e poi
+     sottrarla, quindi l'ordine non cambia niente. */
+  interface Unit {
+    value: number;
+    date: string;
+    bucket: number;
+    raw: number;
+  }
+  let units: Unit[];
+  if (opts.aggregateByYear) {
+    const acc = new Map<
+      string,
+      { sum: number; count: number; bucket: number; dates: string[] }
+    >();
+    observations.forEach((o, i) => {
+      const bucket = opts.bucketOf(o);
+      if (!opts.buckets.includes(bucket)) return;
+      const key = `${o.year}-${bucket}`;
+      const cur = acc.get(key);
+      if (cur) {
+        cur.sum += values[i];
+        cur.count += o.days ?? 1;
+        cur.dates.push(o.date);
+      } else {
+        acc.set(key, {
+          sum: values[i],
+          count: o.days ?? 1,
+          bucket,
+          dates: [o.date],
+        });
+      }
+    });
+    units = [...acc.values()].map((a) => ({
+      // La media è pesata sul numero di osservazioni, non sul loro `days`:
+      // ogni giorno di quotazione conta uno.
+      value: a.sum / a.dates.length,
+      date: a.dates.sort()[0],
+      bucket: a.bucket,
+      raw: a.count,
+    }));
+  } else {
+    units = observations.map((o, i) => ({
+      value: values[i],
+      date: o.date,
+      bucket: opts.bucketOf(o),
+      raw: o.days ?? 1,
+    }));
+  }
+
   // Soglia per la quota "sopra la mediana" dei livelli, calcolata una volta
-  // sull'intera finestra (non per bucket: serve un riferimento comune).
-  const sortedAll = [...values].sort((a, b) => a - b);
+  // sull'intera finestra (non per bucket: serve un riferimento comune) e
+  // sulle stesse unità che poi si confrontano con lei.
+  const sortedAll = units.map((u) => u.value).sort((a, b) => a - b);
   const windowMedian = quantileSorted(sortedAll, 0.5);
   const isPositive =
     kind === "LEVEL"
       ? (v: number) => v > windowMedian
       : (v: number) => v > 0;
 
-  const grouped = new Map<number, { values: number[]; dates: string[] }>();
-  observations.forEach((o, i) => {
-    const bucket = opts.bucketOf(o);
-    if (!opts.buckets.includes(bucket)) return;
-    const entry = grouped.get(bucket);
+  const grouped = new Map<
+    number,
+    { values: number[]; dates: string[]; raw: number }
+  >();
+  for (const u of units) {
+    if (!opts.buckets.includes(u.bucket)) continue;
+    const entry = grouped.get(u.bucket);
     if (entry) {
-      entry.values.push(values[i]);
-      entry.dates.push(o.date);
+      entry.values.push(u.value);
+      entry.dates.push(u.date);
+      entry.raw += u.raw;
     } else {
-      grouped.set(bucket, { values: [values[i]], dates: [o.date] });
+      grouped.set(u.bucket, {
+        values: [u.value],
+        dates: [u.date],
+        raw: u.raw,
+      });
     }
-  });
+  }
 
   const rows: StatRow[] = [];
   for (const bucket of opts.buckets) {
@@ -233,6 +319,14 @@ function statsForBuckets(opts: {
     if (!entry) continue; // bucket senza osservazioni: nessuna riga finta a zero
     const described = describeSample(entry.values, isPositive);
     if (!described) continue;
+    const withinSigma =
+      described.stdev === null
+        ? null
+        : entry.values.filter(
+            (v) =>
+              v >= described.mean - described.stdev! &&
+              v <= described.mean + described.stdev!,
+          ).length / described.n;
     const dates = [...entry.dates].sort();
     rows.push({
       instrument: opts.instrument,
@@ -245,12 +339,14 @@ function statsForBuckets(opts: {
       detrended,
       bucket,
       n: described.n,
+      rawCount: entry.raw,
       mean: described.mean,
       median: described.median,
       stdev: described.stdev,
       positiveShare: described.positiveShare,
       p25: described.p25,
       p75: described.p75,
+      withinSigma,
       firstDate: dates[0],
       lastDate: dates[dates.length - 1],
     });
@@ -453,6 +549,8 @@ export function precomputeDaily(opts: {
         ),
       }));
 
+  /* Niente `days`: il campione di un bucket mensile si conta in MESI —
+     «Gennaio, 20 anni» sono venti gennai, non i loro ~420 giorni. */
   const monthObsAsObservation: Observation[] = monthlyObs.map((m) => ({
     value: m.value,
     date: monthKeyDate(m.year, m.month),
@@ -583,6 +681,7 @@ export function precomputeDaily(opts: {
           observations: dayWindow,
           buckets: [...WEEKDAY_BUCKETS],
           bucketOf: (o) => o.weekday ?? 0,
+          aggregateByYear: true,
         }),
       );
       for (let m = 1; m <= 12; m += 1) {
@@ -602,6 +701,7 @@ export function precomputeDaily(opts: {
             observations: dayWindow.filter((o) => o.month === m),
             buckets: [...WEEKDAY_BUCKETS],
             bucketOf: (o) => o.weekday ?? 0,
+            aggregateByYear: true,
           }),
         );
       }
@@ -617,6 +717,38 @@ export function precomputeDaily(opts: {
           years,
         }),
       );
+    }
+  }
+
+  /* ── Percorso dell'ANNO IN CORSO (lookbackYears = 0) ────────────────────
+     Serve al toggle di sovrapposizione sul grafico: il percorso parziale di
+     quest'anno sopra la media stagionale. n = 1 per costruzione, e le
+     colonne di dispersione ripetono il valore: un solo anno non ha banda.
+     Solo vista grezza — nella vista detrendizzata il confronto con un anno
+     non detrendizzabile (è incompleto) non avrebbe significato. */
+  const annoCorrente = now.getUTCFullYear();
+  const pathCorrente = rawPaths.get(annoCorrente);
+  if (pathCorrente) {
+    const oggiDoy = dayOfYear(
+      annoCorrente,
+      now.getUTCMonth() + 1,
+      now.getUTCDate(),
+    );
+    for (let doy = 1; doy <= Math.min(oggiDoy, 366); doy += 1) {
+      const v = pathCorrente[doy];
+      if (!Number.isFinite(v)) continue;
+      paths.push({
+        instrument,
+        lookbackYears: 0,
+        detrended: false,
+        dayOfYear: doy,
+        meanCum: v,
+        medianCum: v,
+        p25Cum: v,
+        p75Cum: v,
+        positiveShare: v > 0 ? 1 : 0,
+        n: 1,
+      });
     }
   }
 
