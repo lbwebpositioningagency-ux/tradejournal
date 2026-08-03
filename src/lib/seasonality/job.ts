@@ -60,11 +60,16 @@ import { resolveDailySeries } from "@/lib/seasonality/sources";
 const CHUNK = 1000;
 
 /**
- * Budget predefinito: **50 secondi**, sotto il limite di ~60 s di una
- * funzione sul piano Hobby. Sovrascrivibile con `SEASONALITY_BUDGET_MS` per
- * un piano più generoso, o dal backfill locale che non ha limiti.
+ * Budget predefinito: **150 secondi**, ampiamente dentro i 300 s di
+ * `maxDuration` della route. Era 50 s quando il limite del piano era ~60 s;
+ * con la fase M15 non basta più: il solo refresh dell'anno in corso costa
+ * ~40 s di scarico, e con 50 s il cron notturno lo saltava OGNI notte —
+ * `completo: false` per sempre, e al cambio d'anno l'ultimo anno M15
+ * sarebbe rimasto parziale in silenzio. Con 150 s ci stanno il delta orario,
+ * il refresh M15 e, la notte del cambio d'anno, anche due anni di fila.
+ * Sovrascrivibile con `SEASONALITY_BUDGET_MS`.
  */
-export const BUDGET_DEFAULT_MS = 50_000;
+export const BUDGET_DEFAULT_MS = 150_000;
 
 /**
  * Margini: quanto tempo deve restare perché valga la pena cominciare un
