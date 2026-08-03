@@ -11,7 +11,7 @@ import {
   medianaInfo,
   posInfo,
   posizioneInfo,
-  quartiliInfo,
+  sigmaInfo,
   stdevInfo,
 } from "@/lib/seasonality/metric-info";
 import {
@@ -140,6 +140,15 @@ export function BucketWindowTable({
                 <div className="md-mono flex flex-wrap gap-x-3 gap-y-0.5 text-2xs tabular-nums text-[var(--md-muted)]">
                   <span>Mediana {formatBucketValue(sel.median, kind, 2, unit)}</span>
                   <span>StDev {formatStdev(sel.stdev, kind, unit)}</span>
+                  {sel.stdev !== null ? (
+                    <span>
+                      ±1σ {formatBucketValue(sel.mean - sel.stdev, kind, 2, unit)}{" "}
+                      – {formatBucketValue(sel.mean + sel.stdev, kind, 2, unit)}
+                      {sel.withinSigma !== null
+                        ? ` (copre ${formatShare(sel.withinSigma)})`
+                        : ""}
+                    </span>
+                  ) : null}
                   <span>
                     {positiveLabel(kind)} {formatShare(sel.positiveShare)}
                   </span>
@@ -217,8 +226,8 @@ export function BucketWindowTable({
               </th>
               <th scope="col" className="px-2 py-2 text-right font-semibold">
                 <span className="inline-flex items-center justify-end gap-1">
-                  Range tipico p25–p75
-                  <MetricInfo info={quartiliInfo(kind)} size="sm" />
+                  Media ± 1σ
+                  <MetricInfo info={sigmaInfo(kind)} size="sm" />
                 </span>
               </th>
               <th scope="col" className="px-2 py-2 text-right font-semibold">
@@ -318,14 +327,27 @@ export function BucketWindowTable({
                   <td className="px-2 py-2 text-right md-mono text-[var(--md-text-2)]">
                     {sel ? formatStdev(sel.stdev, kind, unit) : "—"}
                   </td>
-                  {/* I quartili erano già calcolati e salvati, e nessuna
-                      tabella li mostrava: metà della dispersione veniva
-                      buttata via. Con media e mediana molto divergenti sono
-                      esattamente ciò che spiega la differenza. */}
-                  <td className="whitespace-nowrap px-2 py-2 text-right md-mono text-[var(--md-muted)]">
-                    {sel
-                      ? `${formatBucketValue(sel.p25, kind, 2, unit)} – ${formatBucketValue(sel.p75, kind, 2, unit)}`
-                      : "—"}
+                  {/* Banda media±1σ al livello degli anni, con la copertura
+                      EMPIRICA accanto: quanti anni ci sono caduti davvero
+                      dentro. Mai il 68% teorico — vale per una normale, e i
+                      rendimenti non lo sono (stessa scelta del simulatore
+                      di equity). */}
+                  <td className="whitespace-nowrap px-2 py-2 text-right md-mono">
+                    {sel && sel.stdev !== null ? (
+                      <span className="inline-flex flex-col items-end gap-0">
+                        <span className="text-[var(--md-text-2)]">
+                          {formatBucketValue(sel.mean - sel.stdev, kind, 2, unit)}{" "}
+                          – {formatBucketValue(sel.mean + sel.stdev, kind, 2, unit)}
+                        </span>
+                        <span className="text-2xs text-[var(--md-muted)]">
+                          {sel.withinSigma !== null
+                            ? `copre ${formatShare(sel.withinSigma)} degli anni`
+                            : ""}
+                        </span>
+                      </span>
+                    ) : (
+                      "—"
+                    )}
                   </td>
                   <td className="px-2 py-2 text-right md-mono text-[var(--md-text-2)]">
                     {sel ? formatShare(sel.positiveShare) : "—"}
@@ -343,8 +365,8 @@ export function BucketWindowTable({
                       <RangeBar
                         position={((sel.mean - min) / span) * 100}
                         color={valueColor(sel.mean, kind, reference)}
-                        ariaLabel={`${label}: posizione nell\u2019intervallo della granularità`}
-                        title={`Da ${formatBucketValue(min, kind, 2, unit)} a ${formatBucketValue(max, kind, 2, unit)}`}
+                        ariaLabel={`${label}: posizione fra ${axis.plural}`}
+                        title={percentileTitle(label, sel.mean, means, axis.plural)}
                       />
                     ) : null}
                   </td>
@@ -368,4 +390,25 @@ export function BucketWindowTable({
       </p>
     </div>
   );
+}
+
+
+/**
+ * «Meglio del X% · peggio del Y%»: il rango del bucket fra tutti i bucket
+ * della stessa vista (stessa granularità, stessa finestra). Volutamente
+ * banale — conteggio, non statistica — perché deve solo rispondere alla
+ * domanda «quanto in alto sta questa riga rispetto alle altre».
+ */
+function percentileTitle(
+  label: string,
+  value: number,
+  all: number[],
+  plural: string,
+): string {
+  const altri = all.length - 1;
+  if (altri <= 0) return label;
+  const sotto = all.filter((m) => m < value).length;
+  const sopra = all.filter((m) => m > value).length;
+  const rango = sopra + 1;
+  return `${label}: ${rango}º su ${all.length} — meglio del ${Math.round((sotto / altri) * 100)}% · peggio del ${Math.round((sopra / altri) * 100)}% degli altri ${plural}`;
 }

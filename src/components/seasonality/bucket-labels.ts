@@ -24,6 +24,8 @@ export interface BucketAxis {
   short: (bucket: number) => string;
   /** Nome della colonna che elenca i bucket. */
   columnName: string;
+  /** Plurale per le frasi («meglio del 70% dei mesi»). */
+  plural: string;
   /** Larghezza minima della heatmap: 53 settimane non stanno in 46rem. */
   minWidthRem: number;
   /** La griglia va stirata a tutta larghezza? No con poche colonne. */
@@ -47,6 +49,7 @@ export const BUCKET_AXIS: Record<
     label: (b) => MONTH_LABELS[b - 1] ?? String(b),
     short: (b) => MONTH_LABELS_SHORT[b - 1] ?? String(b),
     columnName: "Mese",
+    plural: "mesi",
     minWidthRem: 58,
     stretch: true,
   },
@@ -55,6 +58,7 @@ export const BUCKET_AXIS: Record<
     label: (b) => `Settimana ${b}`,
     short: weekLabel,
     columnName: "Settimana ISO",
+    plural: "settimane",
     // 53 colonne: la griglia scorre dentro il suo contenitore, il documento no.
     minWidthRem: 150,
     stretch: true,
@@ -64,6 +68,7 @@ export const BUCKET_AXIS: Record<
     label: (b) => WEEKDAY_LABELS[b] ?? String(b),
     short: (b) => (WEEKDAY_LABELS[b] ?? String(b)).slice(0, 3),
     columnName: "Giorno",
+    plural: "giorni",
     minWidthRem: 36,
     stretch: false,
   },
@@ -72,6 +77,7 @@ export const BUCKET_AXIS: Record<
     label: (b) => SESSION_LABELS[SESSIONS[b]] ?? String(b),
     short: (b) => (SESSION_LABELS[SESSIONS[b]] ?? String(b)).split(" ")[0],
     columnName: "Sessione",
+    plural: "sessioni",
     minWidthRem: 36,
     stretch: false,
   },
@@ -80,6 +86,7 @@ export const BUCKET_AXIS: Record<
     label: (b) => hourLabel(b),
     short: (b) => String(b).padStart(2, "0"),
     columnName: "Ora",
+    plural: "ore",
     minWidthRem: 88,
     stretch: true,
   },
