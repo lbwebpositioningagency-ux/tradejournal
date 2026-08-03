@@ -532,8 +532,12 @@ model SeasonalityStat {
   detrended     Boolean
   bucket        Int
 
-  /** Numerosità del campione: SEMPRE mostrata, è il metro dell'affidabilità. */
+  /** Numerosità del campione: SEMPRE mostrata, è il metro dell'affidabilità.
+   * È il numero di ANNI — l'unità statistica è la casella della griglia. */
   n Int
+  /** Osservazioni GREZZE dietro le medie annue (giorni di quotazione, o ore
+   * per l'intraday). Informazione aggiuntiva, mai il denominatore. */
+  rawCount Int?
   /** RETURN: media dei rendimenti log. LEVEL: livello medio. */
   mean   Decimal @db.Decimal(18, 8)
   median Decimal @db.Decimal(18, 8)

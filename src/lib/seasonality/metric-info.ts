@@ -82,11 +82,18 @@ export function sigmaInfo(kind: SeasonalityKind): MetricInfoData {
 }
 
 export const numerositaInfo: MetricInfoData = {
-  label: "n — numerosità del campione",
-  description: `Quante osservazioni compongono il valore. È il metro dell'affidabilità e non viene mai nascosto: sotto ${LOW_SAMPLE_WARN} osservazioni la riga è marcata, sotto ${LOW_SAMPLE_CRITICAL} è marcata in modo evidente. Un mese su una finestra di 2 anni vale 2 osservazioni: non è una stagionalità, sono due osservazioni.`,
-  formula: "conteggio delle osservazioni del bucket",
+  label: "n — su quanti ANNI",
+  description: `Quanti anni compongono il valore: l'unità statistica è la casella della griglia qui sopra, cioè la media di quell'anno, non la singola osservazione. È il metro dell'affidabilità e non viene mai nascosto: sotto ${LOW_SAMPLE_WARN} anni la riga è marcata, sotto ${LOW_SAMPLE_CRITICAL} in modo evidente. Un mese su una finestra di 2 anni vale 2 osservazioni: non è una stagionalità, sono due osservazioni.`,
+  formula: "conteggio degli anni con almeno un'osservazione nel bucket",
 };
 
+export function campioneInfo(rawUnit: string): MetricInfoData {
+  return {
+    label: "Campione — i dati grezzi sotto",
+    description: `Media, StDev e Pos% sono calcolate su N ANNI (la colonna n): l'unità statistica è la casella della griglia. Questo è invece il numero di osservazioni ${rawUnit === "ore" ? "ORARIE" : "GIORNALIERE"} di mercato che compongono quelle medie annue — le barre davvero lette dall'archivio, buchi esclusi. Serve a distinguere una media annua costruita su cinquanta giorni da una costruita su cinque.`,
+    formula: `somma delle osservazioni grezze dei bucket-anno (${rawUnit})`,
+  };
+}
 export const posizioneInfo: MetricInfoData = {
   label: "Posizione nel range",
   description:

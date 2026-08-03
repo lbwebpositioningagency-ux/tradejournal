@@ -268,7 +268,7 @@ export function SeasonalityHeatmap({
                 tabella sotto: due viste dello stesso numero non possono
                 avvertire in modo diverso. */}
             <SummaryRow
-              label="n"
+              label="n · anni"
               buckets={axis.buckets}
               values={summaryByBucket}
               render={(s) => String(s.n)}

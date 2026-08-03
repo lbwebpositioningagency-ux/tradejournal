@@ -7,6 +7,7 @@ import type { BucketView, WindowCoverage } from "@/lib/seasonality/query";
 import { RangeBar } from "@/components/macro-desk/primitives";
 import { MetricInfo } from "@/components/metric-info";
 import {
+  campioneInfo,
   numerositaInfo,
   medianaInfo,
   posInfo,
@@ -154,6 +155,9 @@ export function BucketWindowTable({
                   </span>
                   <span className="inline-flex items-center gap-1">
                     n={sel.n}
+                    {sel.rawCount != null
+                      ? ` · ${sel.rawCount.toLocaleString("it-IT")} ${axis.rawUnit}`
+                      : ""}
                     <LowSampleMark quality={sel.quality} n={sel.n} />
                   </span>
                 </div>
@@ -238,8 +242,20 @@ export function BucketWindowTable({
               </th>
               <th scope="col" className="px-2 py-2 text-right font-semibold">
                 <span className="inline-flex items-center justify-end gap-1">
-                  n
+                  n · anni
                   <MetricInfo info={numerositaInfo} size="sm" />
+                </span>
+              </th>
+              {/* Il campione grezzo NON sostituisce n: `n` resta il
+                  denominatore di media, StDev e Pos% (gli anni), questa
+                  colonna dice su quanti dati di mercato quelle medie annue
+                  si reggono — che a parità di n cambia moltissimo fra un
+                  mese (~21 giorni l'anno) e un giorno della settimana
+                  (~52). */}
+              <th scope="col" className="px-2 py-2 text-right font-semibold">
+                <span className="inline-flex items-center justify-end gap-1">
+                  Campione
+                  <MetricInfo info={campioneInfo(axis.rawUnit)} size="sm" />
                 </span>
               </th>
               <th scope="col" className="w-28 px-2 py-2 text-left font-semibold">
@@ -359,6 +375,11 @@ export function BucketWindowTable({
                         <LowSampleMark quality={sel.quality} n={sel.n} />
                       ) : null}
                     </span>
+                  </td>
+                  <td className="whitespace-nowrap px-2 py-2 text-right md-mono text-[var(--md-muted)]">
+                    {sel?.rawCount != null
+                      ? `${sel.rawCount.toLocaleString("it-IT")} ${axis.rawUnit}`
+                      : "—"}
                   </td>
                   <td className="px-2 py-2">
                     {sel && span > 0 ? (

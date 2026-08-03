@@ -31,6 +31,9 @@ export interface BucketView {
   positiveShare: number;
   p25: number;
   p75: number;
+  /** Osservazioni grezze (giorni o ore) dietro le medie annue: informazione
+   * aggiuntiva accanto a `n`, che resta il numero di anni. */
+  rawCount: number | null;
   /** Copertura empirica della banda media±1σ (null se σ non definita). */
   withinSigma: number | null;
   firstDate: string;
@@ -143,6 +146,7 @@ function toView(row: {
   positiveShare: unknown;
   p25: unknown;
   p75: unknown;
+  rawCount?: number | null;
   withinSigma?: unknown;
   firstDate: Date;
   lastDate: Date;
@@ -156,6 +160,7 @@ function toView(row: {
     positiveShare: Number(row.positiveShare),
     p25: Number(row.p25),
     p75: Number(row.p75),
+    rawCount: row.rawCount ?? null,
     withinSigma:
       row.withinSigma === null || row.withinSigma === undefined
         ? null

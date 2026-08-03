@@ -247,11 +247,19 @@ function buildStats(opts: {
   const media = aggs.reduce((a, x) => a + x.value, 0) / aggs.length;
   const shift = detrended ? media : 0;
 
-  const grouped = new Map<number, { values: number[]; minTs: number; maxTs: number }>();
+  /* `raw` porta avanti le ORE grezze dietro le medie annue: è il «campione»
+     che la tabella mostra accanto a `n`. `n` resta il numero di anni — il
+     denominatore vero di media, StDev e Pos% — e le due cose non vanno
+     confuse. */
+  const grouped = new Map<
+    number,
+    { values: number[]; minTs: number; maxTs: number; raw: number }
+  >();
   for (const a of aggs) {
     const entry = grouped.get(a.bucket);
     if (entry) {
       entry.values.push(a.value - shift);
+      entry.raw += a.days;
       if (a.minTs < entry.minTs) entry.minTs = a.minTs;
       if (a.maxTs > entry.maxTs) entry.maxTs = a.maxTs;
     } else {
@@ -259,6 +267,7 @@ function buildStats(opts: {
         values: [a.value - shift],
         minTs: a.minTs,
         maxTs: a.maxTs,
+        raw: a.days,
       });
     }
   }
@@ -287,6 +296,7 @@ function buildStats(opts: {
       detrended,
       bucket,
       n: described.n,
+      rawCount: entry.raw,
       mean: described.mean,
       median: described.median,
       stdev: described.stdev,

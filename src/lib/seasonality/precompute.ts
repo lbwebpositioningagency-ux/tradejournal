@@ -69,6 +69,10 @@ export interface StatRow {
   detrended: boolean;
   bucket: number;
   n: number;
+  /** Osservazioni GREZZE dietro le medie annue: giorni per le granularità
+   * di calendario, ore per l'intraday. Informazione aggiuntiva accanto a
+   * `n`, mai il denominatore della statistica. */
+  rawCount: number;
   mean: number;
   median: number;
   stdev: number | null;
@@ -162,6 +166,14 @@ interface Observation {
   month: number;
   /** Solo per le osservazioni giornaliere. */
   weekday?: number;
+  /**
+   * Quante barre giornaliere grezze stanno DIETRO questa osservazione: 21 per
+   * un mese, 5 per una settimana, 1 per un giorno. È il «campione» che la
+   * tabella mostra accanto a `n`, e non va confuso con lui: `n` conta le
+   * osservazioni su cui si regge la statistica (gli anni), questo conta i
+   * dati di mercato che le hanno prodotte.
+   */
+  days?: number;
 }
 
 /**
@@ -196,6 +208,16 @@ function statsForBuckets(opts: {
   detrendMean?: number;
   buckets: number[];
   bucketOf: (o: Observation) => number;
+  /**
+   * Aggrega le osservazioni per (anno, bucket) PRIMA di calcolare, così che
+   * l'unità statistica sia la casella della griglia e non il dato grezzo.
+   * Serve al giorno della settimana, dove esistono ~52 lunedì l'anno ma la
+   * griglia sopra la tabella mostra una riga per anno: senza, `n` sarebbe
+   * 1044 e la StDev misurerebbe la dispersione fra singoli lunedì invece
+   * che fra anni. Mese e settimana non ne hanno bisogno — hanno già una
+   * osservazione per anno.
+   */
+  aggregateByYear?: boolean;
 }): StatRow[] {
   const { observations, kind, detrended } = opts;
   if (observations.length === 0) return [];
@@ -208,27 +230,88 @@ function statsForBuckets(opts: {
         : values.map((v) => v - opts.detrendMean!);
   }
 
+  /* Le UNITÀ statistiche: o le osservazioni così come sono, o la loro media
+     per (anno, bucket). `raw` porta avanti il conteggio dei dati grezzi, che
+     l'aggregazione non deve perdere — è il numero che la tabella mostra come
+     «campione». Il detrend è già stato applicato ai valori: sottrarre una
+     costante e poi mediare dà lo stesso risultato che mediare e poi
+     sottrarla, quindi l'ordine non cambia niente. */
+  interface Unit {
+    value: number;
+    date: string;
+    bucket: number;
+    raw: number;
+  }
+  let units: Unit[];
+  if (opts.aggregateByYear) {
+    const acc = new Map<
+      string,
+      { sum: number; count: number; bucket: number; dates: string[] }
+    >();
+    observations.forEach((o, i) => {
+      const bucket = opts.bucketOf(o);
+      if (!opts.buckets.includes(bucket)) return;
+      const key = `${o.year}-${bucket}`;
+      const cur = acc.get(key);
+      if (cur) {
+        cur.sum += values[i];
+        cur.count += o.days ?? 1;
+        cur.dates.push(o.date);
+      } else {
+        acc.set(key, {
+          sum: values[i],
+          count: o.days ?? 1,
+          bucket,
+          dates: [o.date],
+        });
+      }
+    });
+    units = [...acc.values()].map((a) => ({
+      // La media è pesata sul numero di osservazioni, non sul loro `days`:
+      // ogni giorno di quotazione conta uno.
+      value: a.sum / a.dates.length,
+      date: a.dates.sort()[0],
+      bucket: a.bucket,
+      raw: a.count,
+    }));
+  } else {
+    units = observations.map((o, i) => ({
+      value: values[i],
+      date: o.date,
+      bucket: opts.bucketOf(o),
+      raw: o.days ?? 1,
+    }));
+  }
+
   // Soglia per la quota "sopra la mediana" dei livelli, calcolata una volta
-  // sull'intera finestra (non per bucket: serve un riferimento comune).
-  const sortedAll = [...values].sort((a, b) => a - b);
+  // sull'intera finestra (non per bucket: serve un riferimento comune) e
+  // sulle stesse unità che poi si confrontano con lei.
+  const sortedAll = units.map((u) => u.value).sort((a, b) => a - b);
   const windowMedian = quantileSorted(sortedAll, 0.5);
   const isPositive =
     kind === "LEVEL"
       ? (v: number) => v > windowMedian
       : (v: number) => v > 0;
 
-  const grouped = new Map<number, { values: number[]; dates: string[] }>();
-  observations.forEach((o, i) => {
-    const bucket = opts.bucketOf(o);
-    if (!opts.buckets.includes(bucket)) return;
-    const entry = grouped.get(bucket);
+  const grouped = new Map<
+    number,
+    { values: number[]; dates: string[]; raw: number }
+  >();
+  for (const u of units) {
+    if (!opts.buckets.includes(u.bucket)) continue;
+    const entry = grouped.get(u.bucket);
     if (entry) {
-      entry.values.push(values[i]);
-      entry.dates.push(o.date);
+      entry.values.push(u.value);
+      entry.dates.push(u.date);
+      entry.raw += u.raw;
     } else {
-      grouped.set(bucket, { values: [values[i]], dates: [o.date] });
+      grouped.set(u.bucket, {
+        values: [u.value],
+        dates: [u.date],
+        raw: u.raw,
+      });
     }
-  });
+  }
 
   const rows: StatRow[] = [];
   for (const bucket of opts.buckets) {
@@ -256,6 +339,7 @@ function statsForBuckets(opts: {
       detrended,
       bucket,
       n: described.n,
+      rawCount: entry.raw,
       mean: described.mean,
       median: described.median,
       stdev: described.stdev,
@@ -470,6 +554,7 @@ export function precomputeDaily(opts: {
     date: monthKeyDate(m.year, m.month),
     year: m.year,
     month: m.month,
+    days: m.days,
   }));
 
   /* Le settimane usano l'ANNO ISO come `year`: la settimana a cavallo di
@@ -480,6 +565,7 @@ export function precomputeDaily(opts: {
     date: weekKeyDate(w.isoYear, w.week),
     year: w.isoYear,
     month: w.week, // qui `month` porta il bucket della granularità
+    days: w.days,
   }));
 
   // ── Osservazioni per le HEATMAP (una casella = una osservazione) ─────────
@@ -595,6 +681,7 @@ export function precomputeDaily(opts: {
           observations: dayWindow,
           buckets: [...WEEKDAY_BUCKETS],
           bucketOf: (o) => o.weekday ?? 0,
+          aggregateByYear: true,
         }),
       );
       for (let m = 1; m <= 12; m += 1) {
@@ -614,6 +701,7 @@ export function precomputeDaily(opts: {
             observations: dayWindow.filter((o) => o.month === m),
             buckets: [...WEEKDAY_BUCKETS],
             bucketOf: (o) => o.weekday ?? 0,
+            aggregateByYear: true,
           }),
         );
       }

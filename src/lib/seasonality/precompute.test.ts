@@ -529,3 +529,83 @@ describe("precomputeDaily — osservazioni per le heatmap", () => {
     expect(s1).toBeDefined();
   });
 });
+
+describe("campione grezzo e livello di aggregazione", () => {
+  /** Serie giornaliera vera (lun-ven), per contare giorni e non mesi. */
+  function dailySeries(fromYear: number, toYear: number): DailyBar[] {
+    const bars: DailyBar[] = [];
+    let close = 100;
+    const cur = new Date(Date.UTC(fromYear, 0, 1));
+    const end = Date.UTC(toYear, 11, 31);
+    while (cur.getTime() <= end) {
+      const dow = cur.getUTCDay();
+      if (dow >= 1 && dow <= 5) {
+        close *= 1.001;
+        bars.push({ date: cur.toISOString().slice(0, 10), close });
+      }
+      cur.setUTCDate(cur.getUTCDate() + 1);
+    }
+    return bars;
+  }
+
+  it("il GIORNO della settimana ha n = anni, non n = giorni", () => {
+    const out = precomputeDaily({
+      instrument: "XAUUSD",
+      kind: "RETURN",
+      bars: dailySeries(2015, 2026),
+      now: NOW,
+    });
+    const lun = out.stats.find(
+      (s) =>
+        s.granularity === "WEEKDAY" &&
+        s.scope === "ALL" &&
+        s.lookbackYears === 10 &&
+        s.bucket === 1 &&
+        !s.detrended,
+    );
+    // n è il numero di ANNI della finestra: la stessa unità della griglia
+    // sopra la tabella, dove «lunedì 2024» è UNA casella.
+    expect(lun?.n).toBe(10);
+    // il campione grezzo sono i lunedì veri: ~52 l'anno per dieci anni
+    expect(lun?.rawCount).toBeGreaterThan(500);
+    expect(lun?.rawCount).toBeLessThan(530);
+  });
+
+  it("il campione grezzo del MESE conta i giorni di quotazione", () => {
+    const out = precomputeDaily({
+      instrument: "XAUUSD",
+      kind: "RETURN",
+      bars: dailySeries(2015, 2026),
+      now: NOW,
+    });
+    const set = out.stats.find(
+      (s) =>
+        s.granularity === "MONTH" &&
+        s.lookbackYears === 10 &&
+        s.bucket === 9 &&
+        !s.detrended,
+    );
+    expect(set?.n).toBe(10);
+    // dieci settembre da ~21 giorni lavorativi ciascuno
+    expect(set?.rawCount).toBeGreaterThan(190);
+    expect(set?.rawCount).toBeLessThan(230);
+  });
+
+  it("il campione grezzo della SETTIMANA conta i ~5 giorni per anno", () => {
+    const out = precomputeDaily({
+      instrument: "XAUUSD",
+      kind: "RETURN",
+      bars: dailySeries(2015, 2026),
+      now: NOW,
+    });
+    const w10 = out.stats.find(
+      (s) =>
+        s.granularity === "WEEK" &&
+        s.lookbackYears === 10 &&
+        s.bucket === 10 &&
+        !s.detrended,
+    );
+    expect(w10?.n).toBe(10);
+    expect(w10?.rawCount).toBe(50);
+  });
+});
