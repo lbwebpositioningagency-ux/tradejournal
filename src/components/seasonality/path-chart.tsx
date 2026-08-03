@@ -150,6 +150,12 @@ export function SeasonalPathChart({
           activeDot={false}
         />
 
+        {/* `connectNulls` NON è opzionale qui: le finestre non selezionate
+            arrivano DECIMATE (un punto ogni sette giorni) per non spedire al
+            client 209 KB di punti che nessuno legge, quindi nel dataset unito
+            hanno buchi su sei righe su sette. Senza, Recharts spezza la curva
+            a ogni buco e ne disegna 53 segmenti isolati da un punto — cioè
+            niente di visibile. Misurato. */}
         {windows
           .filter((w) => w !== selectedWindow)
           .map((w) => (
@@ -160,6 +166,7 @@ export function SeasonalPathChart({
               strokeWidth={1}
               strokeOpacity={0.5}
               dot={false}
+              connectNulls
               isAnimationActive={false}
             />
           ))}
