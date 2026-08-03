@@ -1183,3 +1183,22 @@ Ogni tabella per categoria mostra ora **lo stesso set di colonne, nello stesso o
 - **Giorno della settimana:** resta in Reports, con il rimando da Analytics. Non duplicare.
 
 **Nota operativa sugli screenshot: risolta nella Fase 21.** Su `/analytics` i grafici uscivano vuoti per colpa di `captureBeyondViewport`, non del numero di grafici: usare `node scripts/shot.mjs --scroll-to "<titolo della card>"` (viewport singolo, layout stabile). Per le verifiche numeriche c'è `scripts/measure.mjs`, che valuta un'espressione nel DOM della build di produzione dopo il login.
+
+## 🚧 STAGIONALITÀ — Fase 0 «Ricognizione, verifica fonti, spec congelata, impalcatura» (03/08/2026)
+Branch dedicato `feature/seasonality`, **non mergiato**: `npm run build` esegue `prisma migrate deploy`, quindi finché il branch resta fuori da `main` nessuna migrazione tocca la produzione.
+
+Nuova sezione **Stagionalità DI MERCATO** accanto al Macro Desk: il comportamento storico degli strumenti (oro, WTI, GER40, S&P 500 sui rendimenti con drill mese→settimana→giorno→sessione→ora; VIX, GVZ, OVX sul livello con drill mese→settimana→giorno). **Non** è la stagionalità dei trade dell'utente: nessun `userId`, dato unico per l'istanza come `CotWeek`.
+
+**Due scostamenti dalla spec iniziale, entrambi imposti dalla realtà delle fonti.** **Stooq è fuori**: tutti i simboli testati rispondono con un challenge anti-bot proof-of-work invece del CSV, e scriverne il solutore significherebbe aggirare un sistema di bot-detection. **VDAX non esiste su fonti gratuite**: `V1X.DE` su Yahoo risponde 200 ma con un solo punto fermo al 2016, `^V1X`/`V1XI.DE`/`^VDAX` sono vuoti o delistati e la ricerca simboli di Yahoo non trova nulla. Lo strumento resta a catalogo e si mostrerà **disabilitato col motivo scritto**, non nascosto. Nessuna delle due rinunce costa storia: oro dal 1999 (Dukascopy), WTI dal 1986 (FRED `DCOILWTICO`), DAX dal 1987 e S&P dal 1927 (Yahoo).
+
+**Verificato dal vivo, poche righe per endpoint** (nessuno storico scaricato): i 4 ID FRED, i 4 instrument id Dukascopy con le date di inizio **reali** — i metadati del pacchetto sono ottimistici sul daily, `usa500idxusd` dichiara 1980 ma non serve niente prima del 2011 — e un buco accertato in `lightcmdusd` h1 a **marzo 2024**, circondato da mesi pieni. Il precalcolo è tollerante ai buchi per costruzione: `n` è per bucket e sempre mostrato.
+
+**Migrazione additiva generata e NON applicata**: 4 `CREATE TYPE` + 6 `CREATE TABLE` + 1 indice, **zero `ALTER`, zero `DROP`**. Generata con `prisma migrate diff --from-schema/--to-schema` fra due file, che non richiede né database né shadow database: Neon non è stata toccata.
+
+**Impalcatura in piedi, nessun calcolo eseguito:** kernel statistico puro (`lib/seasonality/stats.ts`, 16 test) e bucketing DST-corretto (`lib/seasonality/buckets.ts`, 21 test — le sessioni sono **riusate** da `lib/sessions.ts`, non ridefinite); catalogo strumenti con catena di fonti; pagina `/stagionalita` che dichiara lo stato senza leggere il database; endpoint `/api/seasonality-sync` protetto e inerte; cron Vercel notturno alle 03:30 UTC.
+
+**Perché i bucket orari saranno precalcolati due volte** (una per orologio, UTC e Roma) invece di rietichettare: fra CET e CEST lo scarto cambia dentro l'anno, e con un offset fisso l'apertura di New York — «le 15:30» per un trader italiano — finirebbe spalmata su due ore diverse a seconda della stagione.
+
+**Documenti:** `docs/stagionalita/` → `RECON.md`, `DATA-SOURCES.md`, `SPEC.md`, `SCHEDULING.md`, `MIGRATION.md`.
+
+**Verificato:** typecheck ✅ · lint ✅ · **1142/1142 test unitari** ✅ (37 nuovi; gli 11 file `*.integration.test.ts` restano skippati perché Docker non è avviato, come da comportamento normale senza Postgres locale) · build ✅ con `/stagionalita` e `/api/seasonality-sync` nel manifest — lanciata come `npx next build` e **non** `npm run build`, per non far partire `prisma migrate deploy`. Endpoint provato sul dev server: **401 senza token, 401 con token errato, 200 con `CRON_SECRET`**; `/stagionalita` senza sessione → **307 verso `/login`**.
