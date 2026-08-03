@@ -14,6 +14,7 @@ import {
 import type { SeasonalityKind } from "@/generated/prisma/client";
 import { CHART } from "@/components/charts/chart-spec";
 import { logToPercent } from "@/lib/seasonality/series";
+import { windowColor } from "@/components/seasonality/window-colors";
 import type { PathPointView } from "@/lib/seasonality/query";
 
 /**
@@ -23,8 +24,16 @@ import type { PathPointView } from "@/lib/seasonality/query";
  * 1. la BANDA p25-p75 della finestra selezionata — dove è caduta la metà
  *    centrale degli anni. Sta sotto tutto e non è un ornamento: è ciò che
  *    impedisce di leggere una linea media come una previsione;
- * 2. le linee delle altre finestre, tenui, per confronto;
- * 3. la linea della finestra selezionata, piena.
+ * 2. le linee delle altre finestre, sottili ma OGNUNA NEL PROPRIO COLORE
+ *    (token `--md-w*`): prima erano tutte grigie e indistinguibili, e la
+ *    legenda poteva solo dire «le altre finestre»;
+ * 3. la linea della finestra selezionata, spessa, nel suo colore — lo stesso
+ *    che la banda usa a bassa opacità, così banda e linea si leggono come un
+ *    oggetto solo.
+ *
+ * L'ALTEZZA la decide il contenitore (il wrapper in pagina fissa ~340px su
+ * mobile e ~460px da md in su): un percorso annuale schiacciato in 300px
+ * appiattisce le pendenze, che sono esattamente la cosa da leggere.
  *
  * Disegnare la banda come Area impilata (base + spessore) è l'unico modo in
  * Recharts di ottenere una banda che non parta dall'asse: la prima area è
@@ -95,14 +104,13 @@ export function SeasonalPathChart({
   }
   const data = [...rows.values()].sort((a, b) => a.doy - b.doy);
 
-  const windows = series
-    .map((s) => s.lookbackYears)
-    .sort((a, b) => b - a);
+  const windows = series.map((s) => s.lookbackYears).sort((a, b) => b - a);
 
   const unit = kind === "LEVEL" ? "" : "%";
+  const selectedColor = windowColor(selectedWindow);
 
   return (
-    <ResponsiveContainer width="100%" height={CHART.height + 80}>
+    <ResponsiveContainer width="100%" height="100%">
       <ComposedChart data={data} margin={{ ...CHART.margin, left: 4 }}>
         <CartesianGrid
           strokeDasharray="3 3"
@@ -129,7 +137,8 @@ export function SeasonalPathChart({
           }
         />
 
-        {/* Banda p25-p75: base trasparente + spessore colorato. */}
+        {/* Banda p25-p75 nel colore della finestra selezionata, a bassa
+            opacità: banda e linea sono lo stesso oggetto e devono dirlo. */}
         <Area
           dataKey="bandBase"
           stackId="banda"
@@ -143,8 +152,8 @@ export function SeasonalPathChart({
           dataKey="bandSpan"
           stackId="banda"
           stroke="none"
-          fill="var(--md-info)"
-          fillOpacity={0.14}
+          fill={selectedColor}
+          fillOpacity={0.1}
           isAnimationActive={false}
           legendType="none"
           activeDot={false}
@@ -162,9 +171,9 @@ export function SeasonalPathChart({
             <Line
               key={w}
               dataKey={`w${w}`}
-              stroke="var(--md-muted)"
-              strokeWidth={1}
-              strokeOpacity={0.5}
+              stroke={windowColor(w)}
+              strokeWidth={1.25}
+              strokeOpacity={0.75}
               dot={false}
               connectNulls
               isAnimationActive={false}
@@ -173,8 +182,8 @@ export function SeasonalPathChart({
 
         <Line
           dataKey={`w${selectedWindow}`}
-          stroke="var(--md-info)"
-          strokeWidth={CHART.strokeWidth}
+          stroke={selectedColor}
+          strokeWidth={2.5}
           dot={false}
           isAnimationActive={false}
         />
