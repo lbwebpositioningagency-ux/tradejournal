@@ -114,12 +114,35 @@ WTI, DAX e S&P la storia daily lunga viene da FRED/Yahoo, e Dukascopy resta la
 fonte **intraday**. Questo è anche coerente con la spec: cash (o benchmark
 ufficiale) per il livello giornaliero e sopra, CFD 24h per sessione e ora.
 
-### Buco di copertura accertato
+### Buchi di copertura — misurati sul dato caricato (Fase 3)
 
-`lightcmdusd`, timeframe `h1`, **marzo 2024**: 0 barre. Verificato con due
-tentativi indipendenti e circondato da mesi pieni (gennaio, febbraio e aprile
-2024 restituiscono 115 barre a settimana). Non è un errore di rete: è un buco
-nell'archivio Dukascopy.
+Contati sulle barre effettivamente in tabella, non su come sono state
+richieste:
+
+| Strumento | Mesi interamente assenti |
+|---|---|
+| `xauusd` | **nessuno** (2003-05 → oggi) |
+| `deuidxeur` | **nessuno** (2013-09 → oggi) |
+| `lightcmdusd` | 10: 2012-11, 2013-02/03/04, 2017-06, 2017-12, 2018-06, **2024-03**, 2024-07, 2024-12 |
+| `usa500idxusd` | 7: 2011-10/11/12, 2013-02/03/04, 2014-03 |
+
+Il buco di **marzo 2024** sul WTI, già trovato in Fase 0, è confermato. Il
+2012 dell'S&P ha inoltre mesi *magri* (150-190 ore contro le ~500 di un mese
+pieno): non assenti, ma parziali.
+
+Due difese, entrambe necessarie:
+
+1. **In scarico:** `dukascopy-node` non restituisce un elenco vuoto quando
+   l'archivio non ha un pezzo del periodo richiesto — **lancia**. Chiedendo un
+   anno alla volta bastava un mese mancante per perdere gli altri undici (è
+   successo davvero: WTI e S&P avevano perso il 2011 e il 2013 interi al primo
+   backfill). L'anno che fallisce viene ora ripreso **mese per mese**.
+2. **In calcolo:** un rendimento orario esiste solo se la barra precedente è
+   esattamente un'ora prima. Senza questa regola il salto del fine settimana
+   finirebbe tutto nel bucket della riapertura domenicale, e il mese mancante
+   del WTI nella prima ora di aprile.
+
+I mesi assenti sono **dichiarati in pagina**, non solo nei log.
 
 → Il precalcolo deve essere **tollerante ai buchi** per costruzione: `n` è
 calcolato per bucket e mostrato sempre, quindi un mese mancante si traduce in

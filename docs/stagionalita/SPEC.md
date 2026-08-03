@@ -1,6 +1,6 @@
 # SPEC — Stagionalità di mercato
 
-Specifica congelata al termine della Fase 0 e **aggiornata a fine Fase 2** (03/08/2026).
+Specifica congelata al termine della Fase 0 e **aggiornata a fine Fase 3** (03/08/2026).
 Documenti collegati: [RECON.md](RECON.md) · [DATA-SOURCES.md](DATA-SOURCES.md) ·
 [SCHEDULING.md](SCHEDULING.md).
 
@@ -170,6 +170,19 @@ mostrerà separate.
 Regola trasversale: quando una statistica **non è definita** si scrive «—»,
 mai zero. `stdev` con `n < 2` è `null`, non `0`.
 
+#### Unità di misura *(deciso in Fase 3)*
+
+| Granularità | Unità |
+|---|---|
+| Mese, settimana, giorno | **percentuale** (+1,23%) |
+| Sessione, ora | **punti base** (+3,55 pb, 1 pb = 0,01%) |
+| Indici di volatilità | **livello** (18,85) |
+
+I punti base non sono un vezzo: un rendimento **orario** medio vale qualche
+centesimo di punto percentuale, e in percentuale con due decimali usciva
+`+0,00%` per tutte e ventiquattro le ore — una tabella intera di zeri al posto
+di dati che ci sono. In punti base gli stessi numeri stanno fra −1,9 e +3,6.
+
 ### 4.6 Percorso stagionale con bande di dispersione
 
 Grafico del **rendimento log cumulato dal 1° gennaio** al giorno dell'anno,
@@ -232,22 +245,76 @@ La conversione passa sempre dal **fuso IANA** (`Europe/Rome` via
 stessa regola sostanziale del doppio `AT TIME ZONE` usato in SQL nel resto
 dell'app.
 
-### 5.3 Sessioni
+### 5.3 Sessioni — ancorate ai centri finanziari *(rivisto in Fase 3)*
 
-**Riusate** da `src/lib/sessions.ts`, identiche a quelle dei trade
-dell'utente — due definizioni di «sessione di Londra» nella stessa app
-sarebbero un difetto:
+**La spec di Fase 0 diceva di riusare `lib/sessions.ts`. In Fase 3 questa
+scelta è stata rovesciata**, e vale la pena dire perché.
 
-| Sessione | Ora italiana |
-|---|---|
-| Asia (Tokyo) | 00:00 – 08:00 |
-| Londra | 08:00 – 14:00 |
-| New York | 14:00 – 22:00 |
-| Fuori sessione | 22:00 – 24:00 |
+`lib/sessions.ts` classifica i **trade dell'utente** su fasce fisse
+dell'orologio italiano (Asia 00-08, Londra 08-14, New York 14-22). È una
+decisione presa apposta nella Fase 35 e risponde alla domanda «a che ora ho
+operato, sul mio orologio». La Stagionalità ne pone un'altra: «quale sessione
+di mercato ha prodotto il movimento». Due domande diverse, due risposte
+diverse — e la seconda va ancorata agli orari dei **centri finanziari**.
 
-Partizione contigua: ogni ora appartiene a **esattamente una** sessione.
-Le sessioni sono definite sull'orologio italiano per costruzione, quindi **non
-hanno variante UTC**: il toggle di fuso agisce solo sulla vista oraria.
+Il motivo è concreto: **Londra e New York non cambiano ora negli stessi
+giorni**. L'Unione Europea passa all'ora legale l'ultima domenica di marzo e
+torna indietro l'ultima di ottobre; gli Stati Uniti la seconda domenica di
+marzo e la prima di novembre. Restano due finestre l'anno — circa tre
+settimane a marzo e una a fine ottobre — in cui lo scarto Londra↔New York vale
+**un'ora in meno del solito**. Con fasce fisse sull'orologio italiano, in
+quelle settimane l'apertura di New York cadrebbe nel bucket di Londra, e la
+riga più importante della tabella sarebbe diluita fra due sessioni.
+
+Il vocabolario resta condiviso: chiavi ed etichette vengono ancora da
+`lib/sessions.ts`. Cambiano solo i confini.
+
+#### I quattro tagli
+
+Ognuno espresso nell'ora locale del suo centro:
+
+| Sessione | Da | A |
+|---|---|---|
+| **Asia** | Tokyo 09:00 (apertura TSE) | Londra 08:00 |
+| **Londra** | Londra 08:00 | New York 08:00 |
+| **New York** | New York 08:00 | New York 17:00 |
+| **Fuori sessione** | New York 17:00 | fine giornata UTC |
+
+Le sovrapposizioni reali fra sessioni esistono — Londra e New York contrattano
+insieme per ore — ma un bucket deve appartenere a una sola sessione: si usano
+quindi gli **orari di apertura** come punti di taglio, la convenzione più
+diffusa e l'unica che dia una partizione.
+
+#### I confini in UTC
+
+Il Giappone non ha ora legale (JST = UTC+9 sempre), quindi l'apertura di Tokyo
+cade **sempre alle 00:00 UTC** e la giornata UTC comincia esattamente lì senza
+aggiustamenti. Gli altri tre tagli si spostano:
+
+| Periodo | Asia | Londra | New York | Fuori |
+|---|---|---|---|---|
+| **Inverno** (GMT + EST) | 00:00–08:00 | 08:00–13:00 | 13:00–22:00 | 22:00–24:00 |
+| **Estate** (BST + EDT) | 00:00–07:00 | 07:00–12:00 | 12:00–21:00 | 21:00–24:00 |
+| **Marzo, USA già estivi e UE ancora invernale** | 00:00–08:00 | 08:00–**12:00** | 12:00–21:00 | 21:00–24:00 |
+| **Fine ottobre, UE già invernale e USA ancora estivi** | 00:00–08:00 | 08:00–**12:00** | 12:00–21:00 | 21:00–24:00 |
+
+Nelle due righe di disallineamento la sessione di Londra dura **quattro ore
+invece di cinque**: è il fenomeno reale, non un artefatto. Con confini fissi
+sarebbe stato invisibile e sbagliato.
+
+L'offset di ciascun centro è letto **a mezzogiorno UTC** della giornata, non
+all'istante del confine: è un riferimento unico per tutta la giornata, così due
+barre della stessa ora non possono finire in sessioni diverse. Le 12:00 UTC
+vanno bene perché tutti i cambi d'ora reali avvengono prima — l'UE alle 01:00
+UTC, gli USA fra le 06:00 e le 07:00 UTC.
+
+#### Visualizzazione
+
+I confini sono mostrati in pagina **in ora italiana** e ricalcolati per la data
+di oggi, così l'utente vede gli orari che gli servono e non una media. La
+sessione, a differenza dell'ora, **non ha due versioni precalcolate**: i suoi
+bucket sono ancorati ai centri e non dipendono dal fuso di lettura — cambia
+solo come si scrivono i confini in legenda.
 
 ### 5.4 Giorni della settimana
 
@@ -313,8 +380,7 @@ su tabelle esistenti. SQL integrale in [MIGRATION.md](MIGRATION.md).
 | `SeasonalityDailyBar` | chiusure giornaliere grezze | `(instrument, date)` |
 | `SeasonalityHourBar` | chiusure orarie grezze, UTC | `(instrument, ts)` |
 | `SeasonalityStat` | **le statistiche che la UI legge** | `(instrument, granularity, clock, scope, lookbackYears, detrended, bucket)` |
-| `SeasonalityYearBucketObs` | una riga per (strumento, granularità, anno, bucket): alimenta le heatmap | `(instrument, granularity, year, bucket)` |
-| ~~`SeasonalityMonthlyObs`~~ | superata dalla precedente in Fase 2; resta in schema, inutilizzata | `(instrument, year, month)` |
+| `SeasonalityYearBucketObs` | una riga per (strumento, granularità, orologio, anno, bucket): alimenta le heatmap | `(instrument, granularity, clock, year, bucket)` |
 | `SeasonalityPathPoint` | punti del percorso annuale + bande | `(instrument, lookbackYears, detrended, dayOfYear)` |
 | `SeasonalityCoverage` | fonte, estremi, freschezza per strumento | `instrument` |
 | `SeasonalityRun` | diario delle esecuzioni del job | `id` |
@@ -367,40 +433,53 @@ regime. Restano lato server e non vengono mai lette dalla pagina.
 
 | Fase | Contenuto | Stato |
 |---|---|---|
-| **0** | Ricognizione, verifica fonti, spec congelata, impalcatura | ✅ **questa** |
+| **0** | Ricognizione, verifica fonti, spec congelata, impalcatura | ✅ fatta |
 | **1** | **Daily: ingest, precalcolo, job, tre viste (heatmap · tabella finestre · percorso) su mese e giorno** | ✅ **fatta** |
 | **2** | **Strato calendario completo: settimana ISO, heatmap e tabella generalizzate su tutte e tre le granularità** | ✅ **fatta** |
-| 3 | Intraday: ingest orario Dukascopy, bucket sessione e ora nei due orologi | da fare |
+| **3** | **Intraday: ingest orario H1, sessioni ancorate ai centri, profilo orario nei due orologi** | ✅ **fatta** |
 | 4 | Rifiniture: drill di sessione/ora dentro il mese, verifica finale | da fare |
 
-## 10. Stato a fine Fase 2
+## 10. Stato a fine Fase 3
 
-**Dati caricati** (tutti tranne VDAX, che non ha fonte):
+### Giornaliero (tutti tranne VDAX)
 
-| Strumento | Fonte effettiva | Chiusure | Storia | Anni completi |
+| Strumento | Fonte | Chiusure | Storia | Anni completi |
 |---|---|---|---|---|
 | Oro | Dukascopy `xauusd` | 8.236 | 1999-06-03 → oggi | 27 |
 | WTI | FRED `DCOILWTICO` | 10.209 | 1986-01-02 → oggi | 40 |
 | GER40 | Yahoo `^GDAXI` | 9.758 | 1987-12-30 → oggi | 39 |
 | S&P 500 | Yahoo `^GSPC` | 14.266 | 1970-01-02 → oggi | 56 |
-| VIX | FRED `VIXCLS` | 9.241 | 1990-01-02 → oggi | 36 |
-| GVZ | FRED `GVZCLS` | 4.570 | 2008-06-03 → oggi | 18 |
-| OVX | FRED `OVXCLS` | 4.838 | 2007-05-10 → oggi | 19 |
-| VDAX | — | 0 | — | mostrato disabilitato col motivo |
+| VIX / GVZ / OVX | FRED | 9.241 / 4.570 / 4.838 | 1990 / 2008 / 2007 | 36 / 18 / 19 |
+| VDAX | — | 0 | — | disabilitato col motivo |
 
-**1.296** righe di statistica e 3.660 punti di percorso per strumento di
-prezzo; **648** e 1.825 per gli indici di volatilità (niente detrend). Il job
-completo gira in **~19 secondi**.
+### Intraday — solo i quattro strumenti di prezzo
 
-**In pagina:** selettore strumento, finestra e vista; provenienza, intervallo
-e data dell'ultimo calcolo dichiarati; percorso stagionale multi-finestra con
-bande, `n` e Pos%; tab **Mese**, **Settimana** e **Giorno** tutti attivi, con
-heatmap anni × bucket e tabella su tutte e cinque le finestre; drill dentro un
-singolo mese sul solo giorno della settimana; tab Sessione e Ora disabilitati
-in attesa dell'intraday.
+| Strumento | Strumento Dukascopy | Ore | Da | Anni completi | Mesi assenti |
+|---|---|---|---|---|---|
+| Oro | `xauusd` | 140.481 | 2003-05 | 23 | **nessuno** |
+| WTI | `lightcmdusd` | 81.426 | 2011-11 | 15 | 10 (fra cui **2024-03**) |
+| GER40 | `deuidxeur` | 67.964 | 2013-09 | 13 | nessuno |
+| S&P 500 | `usa500idxusd` | 72.665 | 2011-09 | 15 | 7 |
 
-**Verifica incrociata coi fatti di mercato noti** (S&P 500, finestra 20 anni):
-settembre peggiore mese (−0,61%), aprile/luglio/novembre migliori; **settimana
-48 — quella del Ringraziamento — +1,95% con Pos% 85%**; oro con gennaio più
-forte (+3,53%) e giugno/settembre deboli; VIX con ottobre al livello più alto
-(21,5) e luglio al più basso (17,5).
+Gli indici di volatilità **non hanno sessione né ora**: di un indice che misura
+la volatilità attesa a 30 giorni non esiste il «rendimento delle 15:00». I loro
+tab restano spenti con la spiegazione nel tooltip.
+
+Il job completo — giornaliero **e** intraday incrementale — gira in ~25 secondi
+a regime; il primo popolamento orario ha richiesto ~3 minuti in locale.
+
+### Verifica incrociata coi fatti di mercato noti
+
+- **S&P 500, mesi (20 anni):** settembre peggiore (−0,61%), aprile/luglio/
+  novembre migliori.
+- **S&P 500, settimane:** la 48 — quella del Ringraziamento — +1,95% con Pos%
+  85%.
+- **Oro, mesi:** gennaio più forte (+3,53%), giugno e settembre deboli.
+- **VIX, livelli:** ottobre il più alto (21,5), luglio il più basso (17,5).
+- **Oro, profilo orario (ora italiana, 20 anni):** deviazione standard minima
+  alle 05:00-06:00 (13,4 pb — la pausa asiatica) e massima alle 14:00-16:00
+  (36-37 pb — apertura di New York e dati macro USA).
+- **WTI, sessioni (10 anni):** deviazione standard 74,3 pb a New York contro
+  39,6 in Asia — il petrolio si muove quando apre il NYMEX.
+- **DAX, profilo orario (UTC, 10 anni):** massimo alle 07:00-08:00 UTC, cioè
+  l'apertura del cash di Francoforte.
