@@ -4,6 +4,27 @@ export const ACTIVE_ACCOUNT_COOKIE = "tj-account";
 export const ALL_ACCOUNTS = "all";
 
 /**
+ * Flag dei cookie scritti dal SERVER (SECURITY_AUDIT P2-12).
+ *
+ * Valgono per `tj-account`, `tj-accent` e `tj-pnl`: sono letti solo via
+ * `cookies()` di next/headers, mai da JavaScript, quindi `httpOnly` non
+ * toglie niente a nessuno. NON usarli per `tj-period`, che il client scrive
+ * da sé con `document.cookie` e che quindi httpOnly romperebbe.
+ *
+ * `secure` solo in produzione: in sviluppo si va su http://localhost.
+ * `sameSite: "lax"` lascia funzionare l'arrivo da link esterni ma non manda
+ * il cookie sulle richieste cross-site che contano.
+ */
+export const SERVER_COOKIE_OPTIONS = {
+  httpOnly: true,
+  secure: process.env.NODE_ENV === "production",
+  sameSite: "lax",
+} as const;
+
+/** Un anno: sono preferenze, non sessioni. */
+export const PREFERENCE_COOKIE_MAX_AGE = 60 * 60 * 24 * 365;
+
+/**
  * CONTO DEMO GLOBALE "SIM1" — costanti condivise tra app e seed.
  * Il modello e le regole di scope stanno in src/lib/demo-account.ts (che
  * dipende da Prisma: il seed importa solo da qui).

@@ -6,7 +6,12 @@ import { redirect } from "next/navigation";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { tradingAccountSchema } from "@/lib/validations/account";
-import { ACTIVE_ACCOUNT_COOKIE, ALL_ACCOUNTS } from "@/lib/constants";
+import {
+  ACTIVE_ACCOUNT_COOKIE,
+  ALL_ACCOUNTS,
+  PREFERENCE_COOKIE_MAX_AGE,
+  SERVER_COOKIE_OPTIONS,
+} from "@/lib/constants";
 
 export type AccountFormState = { error?: string; success?: boolean } | undefined;
 
@@ -95,7 +100,10 @@ export async function setAccountArchivedAction(
 
   const store = await cookies();
   if (store.get(ACTIVE_ACCOUNT_COOKIE)?.value === accountId) {
-    store.set(ACTIVE_ACCOUNT_COOKIE, ALL_ACCOUNTS, { path: "/" });
+    store.set(ACTIVE_ACCOUNT_COOKIE, ALL_ACCOUNTS, {
+      path: "/",
+      ...SERVER_COOKIE_OPTIONS,
+    });
   }
 
   revalidatePath("/", "layout");
@@ -117,7 +125,10 @@ export async function deleteAccountAction(accountId: string): Promise<AccountFor
 
   const store = await cookies();
   if (store.get(ACTIVE_ACCOUNT_COOKIE)?.value === accountId) {
-    store.set(ACTIVE_ACCOUNT_COOKIE, ALL_ACCOUNTS, { path: "/" });
+    store.set(ACTIVE_ACCOUNT_COOKIE, ALL_ACCOUNTS, {
+      path: "/",
+      ...SERVER_COOKIE_OPTIONS,
+    });
   }
 
   revalidatePath("/", "layout");
@@ -140,7 +151,8 @@ export async function setActiveAccountAction(accountId: string): Promise<void> {
   const store = await cookies();
   store.set(ACTIVE_ACCOUNT_COOKIE, accountId, {
     path: "/",
-    maxAge: 60 * 60 * 24 * 365,
+    maxAge: PREFERENCE_COOKIE_MAX_AGE,
+    ...SERVER_COOKIE_OPTIONS,
   });
 
   revalidatePath("/", "layout");

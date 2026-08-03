@@ -13,6 +13,8 @@ import {
   ACCENTS,
   PNL_COOKIE,
   PNL_PALETTES,
+  PREFERENCE_COOKIE_MAX_AGE,
+  SERVER_COOKIE_OPTIONS,
   type Accent,
   type PnlPalette,
 } from "@/lib/constants";
@@ -58,7 +60,8 @@ export async function setAccentAction(
   const store = await cookies();
   store.set(ACCENT_COOKIE, accent, {
     path: "/",
-    maxAge: 60 * 60 * 24 * 365,
+    maxAge: PREFERENCE_COOKIE_MAX_AGE,
+    ...SERVER_COOKIE_OPTIONS,
   });
 
   revalidatePath("/", "layout");
@@ -79,7 +82,8 @@ export async function setPnlPaletteAction(
   const store = await cookies();
   store.set(PNL_COOKIE, palette, {
     path: "/",
-    maxAge: 60 * 60 * 24 * 365,
+    maxAge: PREFERENCE_COOKIE_MAX_AGE,
+    ...SERVER_COOKIE_OPTIONS,
   });
 
   revalidatePath("/", "layout");
