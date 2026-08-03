@@ -45,6 +45,8 @@ export interface CoverageView {
   rows: number;
   computedAt: Date | null;
   note: string | null;
+  /** Copertura dell'archivio ORARIO (mesi assenti), separata da `note`. */
+  hourNote: string | null;
   /** Anni solari completi realmente disponibili sul GIORNALIERO. */
   completeYears: number | null;
   /** Sorgente e copertura delle barre ORARIE (null se lo strumento non ne ha). */
@@ -95,6 +97,7 @@ export async function getCoverage(): Promise<CoverageView[]> {
       rows: row?.dailyRows ?? 0,
       computedAt: row?.computedAt ?? null,
       note: row?.note ?? def.unavailable ?? null,
+      hourNote: row?.hourNote ?? null,
       completeYears:
         first === null ? null : Math.max(0, lcy - Number(first.slice(0, 4)) + 1),
       hourSource: row?.hourSource ?? null,

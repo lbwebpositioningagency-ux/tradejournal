@@ -46,7 +46,11 @@ import { todayDayOfYear } from "@/lib/seasonality/precompute";
 import type { SeasonalityInstrument } from "@/generated/prisma/client";
 import { SeasonalityHeatmap } from "@/components/seasonality/heatmap";
 import { BucketWindowTable } from "@/components/seasonality/bucket-window-table";
-import { WindowTruncatedNote } from "@/components/seasonality/low-sample";
+import {
+  LowSampleMark,
+  WindowTruncatedNote,
+} from "@/components/seasonality/low-sample";
+import { sampleQuality } from "@/lib/seasonality/stats";
 import {
   isIntradayGranularity,
   type SeasonalityGranularityUi,
@@ -218,8 +222,22 @@ export default async function StagionalitaPage({
      non tornerebbero, quindi si ricalcola per ogni vista. */
   const reference = def.kind === "LEVEL" ? medianOfMeans(selectedStats) : 0;
 
+  /* Le quattro finestre NON selezionate sono linee grigie sottili di sfondo:
+     mandarle a risoluzione giornaliera piena costava 167 KB dei 209 totali di
+     payload, cioè metà del peso della pagina per un dettaglio che nessuno
+     legge. Un punto ogni sette giorni disegna la stessa curva. La finestra
+     selezionata — quella che si legge davvero, e a cui appartiene la banda —
+     resta intera. */
   const pathSeries = [...paths.entries()]
-    .map(([lookbackYears, points]) => ({ lookbackYears, points }))
+    .map(([lookbackYears, points]) => ({
+      lookbackYears,
+      points:
+        lookbackYears === lookbackEffettivo
+          ? points
+          : points.filter(
+              (p, i) => i % 7 === 0 || i === points.length - 1,
+            ),
+    }))
     .sort((a, b) => b.lookbackYears - a.lookbackYears);
 
   const oggi = todayDayOfYear();
@@ -355,16 +373,37 @@ export default async function StagionalitaPage({
           </div>
 
           {/* ── Provenienza e freschezza del dato ─────────────────────── */}
+          {/* La provenienza segue la SCHEDA, non lo strumento: sulle viste
+              intraday i numeri vengono da Dukascopy anche quando il
+              giornaliero arriva da FRED o da Yahoo. Dichiarare qui la fonte
+              del giornaliero sarebbe un'affermazione falsa. */}
           <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5 text-2xs text-[var(--md-muted)]">
             <MonoChip color={def.colorToken}>{def.label}</MonoChip>
-            {cov?.source ? <span>fonte: {cov.source}</span> : null}
-            {cov?.first && cov.last ? (
-              <span>
-                storia: {cov.first} → {cov.last} ({cov.completeYears} anni
-                completi)
-              </span>
-            ) : null}
-            {cov?.rows ? <span>{cov.rows} chiusure</span> : null}
+            {intraday ? (
+              <>
+                {cov?.hourSource ? <span>fonte: {cov.hourSource}</span> : null}
+                {cov?.hourFirst && cov.hourLast ? (
+                  <span>
+                    storia oraria: {cov.hourFirst} → {cov.hourLast} (
+                    {cov.hourCompleteYears} anni)
+                  </span>
+                ) : null}
+                {cov?.hourRows ? (
+                  <span>{cov.hourRows.toLocaleString("it-IT")} ore</span>
+                ) : null}
+              </>
+            ) : (
+              <>
+                {cov?.source ? <span>fonte: {cov.source}</span> : null}
+                {cov?.first && cov.last ? (
+                  <span>
+                    storia: {cov.first} → {cov.last} ({cov.completeYears} anni
+                    completi)
+                  </span>
+                ) : null}
+                {cov?.rows ? <span>{cov.rows} chiusure</span> : null}
+              </>
+            )}
             {lastRun?.finishedAt ? (
               <span>
                 ultimo calcolo:{" "}
@@ -377,6 +416,12 @@ export default async function StagionalitaPage({
               </span>
             ) : null}
           </div>
+
+          <p className="text-2xs leading-relaxed text-[var(--md-muted)]">
+            Dati: <strong>{def.attribution}</strong>. In questa pagina sono
+            esposte solo statistiche aggregate e derivate: le serie di prezzo
+            grezze restano sul server e non sono scaricabili.
+          </p>
 
           {selectedCoverage?.truncated ? (
             <WindowTruncatedNote
@@ -442,6 +487,12 @@ export default async function StagionalitaPage({
                         {s.lookbackYears}a · n={punto?.n ?? 0} ·{" "}
                         {def.kind === "LEVEL" ? "sopra mediana" : "pos"}{" "}
                         {punto ? Math.round(punto.positiveShare * 100) : 0}%
+                        {punto ? (
+                          <LowSampleMark
+                            quality={sampleQuality(punto.n)}
+                            n={punto.n}
+                          />
+                        ) : null}
                       </span>
                     );
                   })}
@@ -495,9 +546,16 @@ export default async function StagionalitaPage({
                 })}
               </ChipGroup>
 
-              {intraday && cov?.note ? (
+              {intraday && def.intradayNote ? (
+                <p className="text-2xs leading-relaxed text-[var(--md-text-2)]">
+                  <strong>Strumento diverso dal giornaliero.</strong>{" "}
+                  {def.intradayNote}
+                </p>
+              ) : null}
+
+              {intraday && cov?.hourNote ? (
                 <p className="text-2xs leading-relaxed text-[var(--md-warn)]">
-                  {cov.note}
+                  {cov.hourNote}
                 </p>
               ) : null}
 
