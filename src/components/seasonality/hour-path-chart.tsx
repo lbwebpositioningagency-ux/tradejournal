@@ -5,6 +5,7 @@ import {
   CartesianGrid,
   ComposedChart,
   Line,
+  ReferenceArea,
   ReferenceLine,
   ResponsiveContainer,
   Tooltip,
@@ -28,11 +29,12 @@ import {
  * grafico non introduce nessun numero nuovo, li mette in fila.
  *
  * Stesso linguaggio del grafico annuale, per costruzione: stessi colori per
- * finestra, stessa checkbox-legenda, stessi divisori verticali, stesso
- * marcatore ambra «adesso», stesso crosshair.
+ * finestra, stessa checkbox-legenda, stessi divisori verticali, stessa
+ * FASCIA grigia tenue sul periodo corrente (lì il mese, qui l'ora, secondo
+ * l'orologio scelto), stesso crosshair. Compare SOLO sulla vista Ora.
  */
 
-const HOUR_TICKS = [0, 3, 6, 9, 12, 15, 18, 21, 24];
+const HOUR_TICKS = [0, 2, 4, 6, 8, 10, 12, 14, 16, 18, 20, 22, 24];
 
 /** Serie: `values[h]` = cumulato in punti base FINO ALLA FINE dell'ora h. */
 export interface HourPathSeries {
@@ -146,11 +148,27 @@ export function HourPathChart({
               }
             />
 
+            {/* FASCIA dell'ora corrente, coerente con la fascia del mese
+                sul grafico annuale: area grigia tenue dietro le linee,
+                nell'orologio scelto col toggle UTC/Roma. */}
+            <ReferenceArea
+              x1={currentHour}
+              x2={currentHour + 1}
+              fill="var(--md-text)"
+              fillOpacity={0.09}
+              stroke="none"
+            />
+
+            {/* `monotone`: i 24 punti sono le sole osservazioni reali — la
+                curva cambia solo il modo di CONGIUNGERLI, non i valori, e
+                l'interpolazione monotona non inventa massimi o minimi fra
+                due punti come farebbe una spline cardinale. */}
             {visibili
               .filter((w) => w !== selectedWindow)
               .map((w) => (
                 <Line
                   key={w}
+                  type="monotone"
                   dataKey={`w${w}`}
                   stroke={windowColor(w)}
                   strokeWidth={1.5}
@@ -161,6 +179,7 @@ export function HourPathChart({
               ))}
             {visibili.includes(selectedWindow) ? (
               <Line
+                type="monotone"
                 dataKey={`w${selectedWindow}`}
                 stroke={windowColor(selectedWindow)}
                 strokeWidth={2.5}
@@ -172,18 +191,6 @@ export function HourPathChart({
             {yMin < 0 && yMax > 0 ? (
               <ReferenceLine y={0} stroke="var(--md-border)" />
             ) : null}
-            <ReferenceLine
-              x={currentHour + 0.5}
-              stroke="var(--md-warn)"
-              strokeDasharray="4 3"
-              label={{
-                value: "adesso",
-                position: "insideTopRight",
-                fill: "var(--md-warn)",
-                fontSize: 10,
-              }}
-            />
-
             <Tooltip
               cursor={{ stroke: "var(--md-muted)", strokeDasharray: "2 2" }}
               contentStyle={CHART.tooltipStyle}

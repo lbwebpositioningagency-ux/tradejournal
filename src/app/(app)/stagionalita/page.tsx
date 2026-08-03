@@ -195,10 +195,9 @@ export default async function StagionalitaPage({
   let heatmap: HeatmapData | null = null;
   let byWindow: Map<number, BucketView[]> = new Map();
   let paths: Map<number, PathPointView[]> = new Map();
-  let hourStats: Map<number, BucketView[]> = new Map();
 
   if (popolato) {
-    [heatmap, byWindow, paths, hourStats] = await Promise.all([
+    [heatmap, byWindow, paths] = await Promise.all([
       getHeatmap({
         instrument,
         granularity,
@@ -220,21 +219,6 @@ export default async function StagionalitaPage({
         lookbacks: detrended ? LOOKBACK_YEARS : [...LOOKBACK_YEARS, 0],
         detrended,
       }),
-      /* Le 24 statistiche orarie alimentano il grafico del ritorno orario
-         sulle schede intraday. Sulla scheda Ora coincidono con byWindow, ma
-         sulla scheda Sessione vanno chieste a parte. */
-      intraday
-        ? getStatsByWindow({
-            instrument,
-            granularity: "HOUR",
-            clock,
-            lookbacks: intradayLookbacks(
-              LOOKBACK_YEARS,
-              cov?.hourCompleteYears ?? null,
-            ),
-            detrended,
-          })
-        : Promise.resolve(new Map<number, BucketView[]>()),
     ]);
   }
 
@@ -277,8 +261,13 @@ export default async function StagionalitaPage({
     : null;
 
   /* Ritorno orario cumulato per finestra: somma dei log orari (additivi),
-     convertita in punti base solo alla fine. */
-  const hourPathSeries: HourPathSeries[] = [...hourStats.entries()]
+     convertita in punti base solo alla fine. SOLO sulla vista Ora, dove
+     byWindow contiene già le 24 statistiche orarie nell'orologio scelto:
+     nessuna query in più. */
+  const hourPathSeries: HourPathSeries[] = (granularity === "HOUR"
+    ? [...byWindow.entries()]
+    : []
+  )
     .map(([lookbackYears, rows]) => {
       const byBucket = new Map(rows.map((r) => [r.bucket, r.mean]));
       const values: number[] = [];
@@ -567,12 +556,12 @@ export default async function StagionalitaPage({
                     ? "Livello medio dell'indice giorno per giorno dell'anno: non si cumula niente, un livello non compone."
                     : "Rendimento cumulato dal 1° gennaio, mediato sugli anni della finestra."}{" "}
                   Ogni linea è una media, non una promessa: la dispersione
-                  attorno — StDev e range tipico p25-p75 — sta nelle tabelle
-                  qui sotto. L&apos;anno in corso è escluso.
+                  attorno — la fascia Media±1σ e la sua copertura reale — sta
+                  nelle tabelle qui sotto. L&apos;anno in corso è escluso.
                 </p>
               </div>
 
-              {intraday && hourPathSeries.length > 0 ? (
+              {granularity === "HOUR" && hourPathSeries.length > 0 ? (
                 <div className="md-card flex flex-col gap-3 p-4">
                   <div className="flex flex-wrap items-baseline justify-between gap-2">
                     <PanelLabel>
@@ -584,7 +573,7 @@ export default async function StagionalitaPage({
                       la pendenza dice quali ore hanno storicamente spinto
                     </span>
                   </div>
-                  <div className="h-[300px] w-full md:h-[380px]">
+                  <div className="h-[420px] w-full md:h-[560px]">
                     <HourPathChart
                       series={hourPathSeries}
                       selectedWindow={lookbackEffettivo}

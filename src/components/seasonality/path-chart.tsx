@@ -5,6 +5,7 @@ import {
   CartesianGrid,
   ComposedChart,
   Line,
+  ReferenceArea,
   ReferenceLine,
   ResponsiveContainer,
   Tooltip,
@@ -30,8 +31,10 @@ import {
  * smussa, non perché i punti mancano.
  *
  * Linguaggio condiviso col grafico orario: checkbox-legenda per finestra,
- * divisori verticali dei periodi, marcatore ambra «adesso», crosshair al
- * passaggio del mouse con il valore di ogni linea visibile.
+ * divisori verticali dei periodi, FASCIA grigia tenue sul periodo corrente
+ * (il mese qui, l'ora là) dietro le linee, crosshair al passaggio del mouse
+ * con il valore di ogni linea visibile. «Oggi» resta una linea: il giorno è
+ * un istante, il mese un'estensione.
  *
  * L'asse Y si adatta alle sole linee VISIBILI e non forza lo zero: tutte le
  * linee restano nel dominio (niente clipping), e spegnendo la finestra
@@ -207,6 +210,20 @@ export function SeasonalPathChart({
               }
             />
 
+            {/* FASCIA del mese corrente: copre l'intero mese sull'asse X,
+                grigio chiaro a bassissima opacità, DIETRO le linee — si
+                riconosce a colpo d'occhio senza disturbare la lettura. Il
+                giorno resta una linea («oggi»), il mese è un'area. */}
+            <ReferenceArea
+              x1={currentMonthDoy}
+              x2={
+                MONTH_TICKS[MONTH_TICKS.indexOf(currentMonthDoy) + 1] ?? 366
+              }
+              fill="var(--md-text)"
+              fillOpacity={0.07}
+              stroke="none"
+            />
+
             {visibili
               .filter((w) => w !== selectedWindow)
               .map((w) => (
@@ -248,20 +265,6 @@ export function SeasonalPathChart({
             {kind === "RETURN" && yMin < 0 && yMax > 0 ? (
               <ReferenceLine y={0} stroke="var(--md-border)" />
             ) : null}
-            {/* Mese corrente e oggi: stesso ambra «adesso» del resto della
-                pagina, il mese più tenue del giorno. */}
-            <ReferenceLine
-              x={currentMonthDoy}
-              stroke="var(--md-warn)"
-              strokeOpacity={0.45}
-              label={{
-                value: "mese corrente",
-                position: "insideBottomLeft",
-                fill: "var(--md-warn)",
-                opacity: 0.7,
-                fontSize: 10,
-              }}
-            />
             <ReferenceLine
               x={todayDoy}
               stroke="var(--md-warn)"
