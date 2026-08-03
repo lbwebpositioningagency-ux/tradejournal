@@ -12,7 +12,9 @@ conti senza toccare `precompute.ts`. Le ipotesi di difetto sono state
 verificate empiricamente, e **due sono state smentite** — sono riportate lo
 stesso, perché sapere cosa è stato escluso vale quanto sapere cosa è rotto.
 
-**Nessuna correzione è stata applicata.**
+**Nessuna correzione è stata applicata** in fase di audit. La remediation dei
+blocchi A-D è stata eseguita il 04/08/2026: vedi il **registro in fondo al
+documento**, che riporta lo stato di ogni problema e le misure di verifica.
 
 ---
 
@@ -503,3 +505,127 @@ facevano, per chi volesse rifarli:
 | Roll del CFD | distribuzione per giorno del mese dei rendimenti orari estremi e dei salti notturni, con e senza il 2020 |
 | Contrasto | composizione manuale di `color-mix` sopra `--md-surface` e rapporto WCAG 2.1 |
 | Peso pagina | `document.documentElement.outerHTML.length` e somma degli script `self.__next_f` sulla build di produzione |
+
+---
+
+# REGISTRO DI REMEDIATION — 04/08/2026
+
+Eseguiti i blocchi **A, B, C, D** su `feature/seasonality`, un commit per
+blocco. Nessun merge, nessun deploy. Il kernel statistico **non è stato
+toccato**, come da vincolo.
+
+## Stato dei problemi
+
+| ID | Problema | Stato |
+|---|---|---|
+| **P0-1** | Cold-start non convergente su Neon | ✅ **chiuso** — blocco A |
+| **P0-2** | Schede intraday dichiarano la fonte sbagliata | ✅ **chiuso** — blocco B |
+| **P0-3** | Yahoo non ufficiale come fonte primaria | ⏸️ **rischio accettato** per decisione esplicita: Yahoo resta primario per GER40/S&P (rimuoverlo costa 26 anni di storia), mitigato da statistiche solo-aggregate, attribuzione visibile e degrado morbido |
+| **P1-1** | Celle verdi sotto AA (3,08:1) | ✅ **chiuso** — blocco D |
+| **P1-2** | Pagina fino a 1,3 MB | ✅ **chiuso** — blocco D |
+| **P1-3** | Campione basso non marcato ovunque | ✅ **chiuso** — blocco C |
+| **P1-4** | p25/p75 calcolati e mai mostrati | ✅ **chiuso** — blocco C |
+| **P1-5** | WTI daily-spot vs intraday-CFD non dichiarato | ✅ **chiuso** — blocco B |
+| **P2-6** | Doppio messaggio sullo stato vuoto | ✅ **chiuso** — fuori dai quattro blocchi, ma era la risposta sbagliata alla domanda «come si comporta la pagina con Neon vuota» |
+| **P2-7** | Il campo `note` faceva due lavori | ✅ **chiuso** — blocco B (`hourNote` separato) |
+| **P2-8** | Nessuna pausa verso Dukascopy | ✅ **chiuso** — blocco A (250 ms fra i file nel ripiego mensile) |
+| **P2-9** | Manca l'attribuzione CBOE | ✅ **chiuso** — blocco B |
+| P2-1, P2-2, P2-3, P2-4, P2-5, P2-10, P2-11 | rifiniture statistiche e di interfaccia | ⏳ **aperti** — blocchi G e H, non eseguiti |
+
+## Tre difetti trovati DURANTE la remediation
+
+Nessuno dei tre era nell'audit: sono emersi misurando, non ragionando.
+
+**1 · Livelock dei margini.** Il budget protegge ogni passo con un margine
+(«comincia solo se restano almeno N secondi»). Ma un margine più grande del
+budget rende il passo che protegge **irraggiungibile per sempre**:
+`Date.now() + margine` è già oltre la scadenza al primo istante, il job lo
+rinvia a ogni invocazione e non converge mai. Trovato simulando un budget di
+20 s con il margine di 25 s che avevo scritto per il precalcolo. Due rimedi:
+i margini ora sono limitati dal budget, e sono **misurati** — il precalcolo
+dell'oro (140.482 ore) costa 4,2 s, non 25.
+
+**2 · Linee decimate invisibili.** Mandare al grafico le finestre non
+selezionate a un punto ogni sette giorni fa risparmiare 167 KB, ma lascia
+buchi su sei righe su sette del dataset unito. Recharts, senza `connectNulls`,
+spezza la curva a ogni buco: misurato sul DOM, **53 segmenti isolati da un
+punto ciascuno**, cioè niente di visibile. La regressione non si vedeva negli
+screenshot a pagina intera (il noto problema di `captureBeyondViewport`, Fase
+21) — è stata trovata contando gli attributi `d` dei path.
+
+**3 · Lo script di backfill scambiava `20000` per un ticker.** Il valore di
+`--budget` non veniva escluso dagli argomenti liberi, quindi il job non
+trovava nessuno strumento da elaborare e dichiarava «completo» in zero
+secondi.
+
+## Come è stato reso convergente il cold-start
+
+**Budget + cursore, nessuna infrastruttura nuova** (come da «cosa NON fare»
+n. 2 e n. 3: niente coda, niente secondo cron).
+
+1. `SeasonalityJobState` — tabella additiva, una riga per strumento: ultimo
+   giornaliero, **prossimo anno** da scaricare, ingest completo sì/no, righe
+   orarie all'ultimo precalcolo.
+2. Il cursore è un **anno**, non l'ultima barra: un anno interamente vuoto —
+   e ce ne sono, all'inizio di ogni storico — non farebbe avanzare un cursore
+   basato su `max(ts)`, e il job resterebbe a rileggere il vuoto per sempre.
+3. **Fase 1 giornaliero, fase 2 intraday**: dopo la prima esecuzione le
+   schede Mese, Settimana e Giorno sono già complete.
+4. **L'ingest non è più in transazione**: ogni blocco annuale è scritto e
+   confermato subito, e il cursore avanza. Un kill non perde niente. Restano
+   transazionali solo il giornaliero di uno strumento e il precalcolo intraday
+   di uno strumento — brevi e atomici per costruzione.
+5. **Il precalcolo si rifà solo se sono entrate barre nuove.** È il risparmio
+   che a regime tiene il job a un secondo quando non c'è niente da fare.
+
+### Misure
+
+| Scenario | Esito |
+|---|---|
+| Database vergine, budget 20 s | **converge in 17 esecuzioni**, tutti e quattro gli strumenti con ingest completo e precalcolo aggiornato |
+| Database vergine, budget 50 s (il reale) | converge in **4 esecuzioni** |
+| Notte tipica (giornaliero scaduto + delta orario) | **17 s**, completa in una sola esecuzione |
+| Niente da fare | **1 s** |
+| Rilanciato subito dopo | identico, nessun doppione |
+
+## Comportamento della pagina — verificato, non asserito
+
+**Neon appena migrata (tutte le tabelle vuote):** la pagina rende senza
+errori. Un solo messaggio: «Dati non ancora presenti — il caricamento procede
+a tappe e converge su più esecuzioni del job notturno». Prima comparivano due
+messaggi sovrapposti, il primo dei quali («storia disponibile 0 anni»)
+sembrava un errore di calcolo.
+
+**Backfill parziale (solo la fase giornaliera fatta):** la pagina è **già
+completamente utile**. Mese, Settimana e Giorno sono completi con heatmap,
+tabelle, percorso e quartili; Sessione e Ora restano spenti con la
+spiegazione nel tooltip. Verificato eseguendo il job con un budget di 15 s su
+database svuotato: tre strumenti giornalieri fatti, quattro in coda, zero
+intraday — e la pagina dell'oro completa su tutte le viste di calendario.
+
+**Fonte che fallisce:** l'errore finisce in `note` e la pagina mostra il
+motivo; il giornaliero già salvato resta, perché la transazione non viene
+nemmeno aperta. Un errore intraday non declassa più l'esito del giornaliero.
+
+**Serie grezze:** la risposta del job è di **2.277 byte**, non contiene array
+lunghi né campi `close`/`ts`/`bars`. Nessun endpoint della Stagionalità
+espone dati grezzi.
+
+## Payload dopo il blocco D
+
+| Scheda | HTML prima → dopo | RSC prima → dopo |
+|---|---|---|
+| Mese | 612 → **448 KB** | 405 → **254 KB** |
+| Settimana | 1.323 → **1.200 KB** | 822 → **696 KB** |
+| Ora | 753 → **601 KB** | 484 → **342 KB** |
+
+La scheda Settimana resta la più pesante: il grosso sono le 1.113 celle della
+griglia a 53 colonne, non più il grafico. Alleggerirla è il blocco E, non
+eseguito — richiede prima di decidere se la griglia intera debba restare
+integrale, che è anche la sua ragione d'essere.
+
+## Verifica finale
+
+typecheck ✅ · lint ✅ · **1.305 test** ✅ (6 nuovi, fra cui il ricalcolo dei
+contrasti WCAG che fallisce se qualcuno alza il tetto di opacità) · build ✅ ·
+mobile 375 px senza overflow di documento.

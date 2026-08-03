@@ -308,12 +308,12 @@ export default async function StagionalitaPage({
                     href={hrefWith(base, { w: String(y) })}
                     active={y === lookbackEffettivo}
                     title={
-                      c?.truncated
+                      popolato && c?.truncated
                         ? `Storia disponibile: ${c.available} anni su ${y} richiesti`
                         : `${y} anni solari completi`
                     }
                   >
-                    {y}a{c?.truncated ? "!" : ""}
+                    {y}a{popolato && c?.truncated ? "!" : ""}
                   </Chip>
                 );
               })}
@@ -423,7 +423,11 @@ export default async function StagionalitaPage({
             grezze restano sul server e non sono scaricabili.
           </p>
 
-          {selectedCoverage?.truncated ? (
+          {/* L'avviso di finestra troncata ha senso solo quando i dati ci
+              sono: su una tabella vuota diceva «storia disponibile 0», che
+              sembra un errore di calcolo e si accavallava al messaggio giusto
+              subito sotto. Un'assenza va detta una volta sola. */}
+          {popolato && selectedCoverage?.truncated ? (
             <WindowTruncatedNote
               requested={selectedCoverage.requested}
               available={selectedCoverage.available}
@@ -433,7 +437,7 @@ export default async function StagionalitaPage({
           {!popolato ? (
             <Callout label="Dati non ancora presenti" color="var(--md-warn)">
               {cov?.note ??
-                "Nessuna serie salvata per questo strumento. Il precalcolo notturno non è ancora andato a buon fine."}
+                "Nessuna serie salvata per questo strumento. Il caricamento procede a tappe e converge su più esecuzioni del job notturno: appena il giornaliero è pronto questa pagina si popola, l'intraday arriva dopo."}
             </Callout>
           ) : (
             <>
