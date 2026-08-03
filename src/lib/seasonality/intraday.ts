@@ -185,20 +185,41 @@ interface YearBucketAgg {
   bucket: number;
   /** Media dei rendimenti orari di quel bucket in quell'anno. */
   value: number;
-  /** Ore che la compongono. */
+  /** Ore che la compongono (il divisore della media). */
   days: number;
+  /** Campione nell'UNITÀ del bucket: per l'ORA coincide con le ore (quella
+   * fascia occorre una volta per giorno di quotazione), per la SESSIONE è il
+   * numero di GIORNI con almeno un'ora in sessione — una sessione Asia è
+   * un'occorrenza, non le sue otto ore. */
+  raw: number;
   minTs: number;
   maxTs: number;
 }
 
-/** Media dei rendimenti orari per (anno, bucket): una casella di heatmap. */
+/**
+ * Media dei rendimenti orari per (anno, bucket): una casella di heatmap.
+ *
+ * `dayKeyOf` cambia SOLO il campione dichiarato (`raw`), mai la media: quando
+ * è passato, `raw` conta i giorni DISTINTI invece delle osservazioni. Serve
+ * alla sessione, la cui unità naturale è «una sessione» (un giorno) e non le
+ * sue sei-otto ore.
+ */
 function aggregateByYear(
   observations: IntradayObservation[],
   bucketOf: (o: IntradayObservation) => number,
+  dayKeyOf?: (o: IntradayObservation) => string,
 ): YearBucketAgg[] {
   const acc = new Map<
     string,
-    { year: number; bucket: number; sum: number; days: number; minTs: number; maxTs: number }
+    {
+      year: number;
+      bucket: number;
+      sum: number;
+      days: number;
+      dayKeys: Set<string> | null;
+      minTs: number;
+      maxTs: number;
+    }
   >();
   for (const o of observations) {
     const bucket = bucketOf(o);
@@ -208,10 +229,19 @@ function aggregateByYear(
     if (cur) {
       cur.sum += o.value;
       cur.days += 1;
+      cur.dayKeys?.add(dayKeyOf!(o));
       if (t < cur.minTs) cur.minTs = t;
       if (t > cur.maxTs) cur.maxTs = t;
     } else {
-      acc.set(key, { year: o.year, bucket, sum: o.value, days: 1, minTs: t, maxTs: t });
+      acc.set(key, {
+        year: o.year,
+        bucket,
+        sum: o.value,
+        days: 1,
+        dayKeys: dayKeyOf ? new Set([dayKeyOf(o)]) : null,
+        minTs: t,
+        maxTs: t,
+      });
     }
   }
   return [...acc.values()].map((a) => ({
@@ -219,6 +249,7 @@ function aggregateByYear(
     bucket: a.bucket,
     value: a.sum / a.days,
     days: a.days,
+    raw: a.dayKeys ? a.dayKeys.size : a.days,
     minTs: a.minTs,
     maxTs: a.maxTs,
   }));
@@ -259,7 +290,7 @@ function buildStats(opts: {
     const entry = grouped.get(a.bucket);
     if (entry) {
       entry.values.push(a.value - shift);
-      entry.raw += a.days;
+      entry.raw += a.raw;
       if (a.minTs < entry.minTs) entry.minTs = a.minTs;
       if (a.maxTs > entry.maxTs) entry.maxTs = a.maxTs;
     } else {
@@ -267,7 +298,7 @@ function buildStats(opts: {
         values: [a.value - shift],
         minTs: a.minTs,
         maxTs: a.maxTs,
-        raw: a.days,
+        raw: a.raw,
       });
     }
   }
@@ -371,7 +402,15 @@ export function precomputeIntraday(opts: {
   /* Le medie annue si aggregano UNA volta e alimentano sia la griglia sia le
      statistiche: un solo livello di verità, per costruzione. Le sessioni non
      hanno variante per orologio. */
-  const sessionAggs = aggregateByYear(observations, (o) => o.session);
+  /* Il giorno della sessione è quello ROMANO, come i suoi confini. */
+  const sessionAggs = aggregateByYear(
+    observations,
+    (o) => o.session,
+    (o) => {
+      const p = zonedParts(o.ts, CLOCK_TIMEZONE.ROME);
+      return `${p.year}-${p.month}-${p.day}`;
+    },
+  );
   const hourAggs = {} as Record<SeasonalityClock, YearBucketAgg[]>;
   for (const clock of CLOCKS) {
     hourAggs[clock] = aggregateByYear(observations, (o) => o.hour[clock]);

@@ -280,3 +280,46 @@ describe("precomputeIntraday", () => {
     expect(out.completeYears).toBe(0);
   });
 });
+
+describe("campione della sessione in GIORNI, non in ore", () => {
+  it("una sessione è un'occorrenza: le sue ore non si sommano", () => {
+    // Cinque giorni lavorativi pieni di barre orarie adiacenti.
+    const bars: HourBar[] = [];
+    let close = 100;
+    for (let d = 0; d < 5; d += 1) {
+      for (let h = 0; h < 24; h += 1) {
+        close *= 1.0001;
+        bars.push({
+          // lunedì 3 marzo 2025 + d giorni: niente weekend in mezzo
+          ts: new Date(Date.UTC(2025, 2, 3 + d, h)),
+          close,
+        });
+      }
+    }
+    const out = precomputeIntraday({
+      instrument: "XAUUSD",
+      bars,
+      now: new Date("2026-08-05T00:00:00Z"),
+    });
+    const asia = out.observations.find(
+      (o) => o.granularity === "SESSION" && o.year === 2025 && o.bucket === 1,
+    );
+    // Otto ore per giorno cadono in Asia (00-08 italiane), ma il campione
+    // dichiarato deve dire 5 sessioni — è il `days` della casella che resta
+    // in ore, perché è il divisore della media.
+    expect(asia).toBeDefined();
+    const hourObs = out.observations.filter(
+      (o) => o.granularity === "HOUR" && o.clock === "ROME" && o.year === 2025,
+    );
+    // ogni fascia oraria: al più un'occorrenza per giorno
+    for (const h of hourObs) expect(h.days).toBeLessThanOrEqual(5);
+    const sessStat = out.stats.find(
+      (s) =>
+        s.granularity === "SESSION" &&
+        s.bucket === 1 &&
+        s.lookbackYears === 20 &&
+        !s.detrended,
+    );
+    expect(sessStat?.rawCount).toBe(5);
+  });
+});

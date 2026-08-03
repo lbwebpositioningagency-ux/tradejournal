@@ -38,11 +38,11 @@ import {
  * tenue sul periodo corrente (lì il mese, qui l'ora), stesso crosshair.
  */
 
-/* Un divisore per ORA — venticinque tacche da mezzanotte a mezzanotte. La
-   griglia li disegna tutti, tenui; le etichette solo ogni due ore, perché
-   venticinque orari di fila si sovrappongono. */
+/* Un divisore per ORA, TUTTE etichettate — venticinque tacche da mezzanotte
+   a mezzanotte. Perché venticinque etichette non si accavallino, sono la
+   sola ora senza minuti («00»…«23») e con un corpo più piccolo dei tick
+   standard: meglio più corte che salate. */
 const HOUR_TICKS = Array.from({ length: 25 }, (_, i) => i * 4);
-const LABELED_TICKS = new Set(HOUR_TICKS.filter((_, i) => i % 2 === 0));
 
 /** Serie: `values[q]` = cumulato in PERCENTUALE a fine quarto d'ora `q`. */
 export interface HourPathSeries {
@@ -77,6 +77,10 @@ export function HourPathChart({
   clockLabel: string;
 }) {
   const [spente, setSpente] = useState<ReadonlySet<number>>(new Set());
+  /* Sotto i ~640px le venticinque etichette orarie non ci stanno dritte:
+     si ruotano invece di saltarne (la richiesta è UNA per ora, sempre).
+     La larghezza vera la dice il contenitore, non un media query. */
+  const [stretto, setStretto] = useState(false);
 
   const windows = useMemo(
     () => series.map((s) => s.lookbackYears).sort((a, b) => b - a),
@@ -137,7 +141,11 @@ export function HourPathChart({
       <ChartToggles items={toggles} hidden={spente} onToggle={toggle} />
 
       <div className="min-h-0 flex-1">
-        <ResponsiveContainer width="100%" height="100%">
+        <ResponsiveContainer
+          width="100%"
+          height="100%"
+          onResize={(w) => setStretto(w > 0 && w < 640)}
+        >
           <ComposedChart data={data} margin={{ ...CHART.margin, left: 4 }}>
             {/* Divisori orari: tratteggio fine e opacità bassa — devono
                 dare il ritmo della giornata senza competere con le linee
@@ -160,9 +168,13 @@ export function HourPathChart({
               domain={[0, 96]}
               ticks={HOUR_TICKS}
               tickFormatter={(v: number) =>
-                LABELED_TICKS.has(v) ? quarterLabel(v) : ""
+                String(Math.floor(v / 4) % 24).padStart(2, "0")
               }
-              tick={CHART.axisTick}
+              tick={{ ...CHART.axisTick, fontSize: stretto ? 8 : 9 }}
+              interval={0}
+              angle={stretto ? -60 : 0}
+              textAnchor={stretto ? "end" : "middle"}
+              height={stretto ? 26 : 30}
               axisLine={false}
               tickLine={false}
             />

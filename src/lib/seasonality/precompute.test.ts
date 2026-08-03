@@ -571,7 +571,7 @@ describe("campione grezzo e livello di aggregazione", () => {
     expect(lun?.rawCount).toBeLessThan(530);
   });
 
-  it("il campione grezzo del MESE conta i giorni di quotazione", () => {
+  it("il campione del MESE conta i MESI: venti gennai, non i loro giorni", () => {
     const out = precomputeDaily({
       instrument: "XAUUSD",
       kind: "RETURN",
@@ -586,12 +586,11 @@ describe("campione grezzo e livello di aggregazione", () => {
         !s.detrended,
     );
     expect(set?.n).toBe(10);
-    // dieci settembre da ~21 giorni lavorativi ciascuno
-    expect(set?.rawCount).toBeGreaterThan(190);
-    expect(set?.rawCount).toBeLessThan(230);
+    // dieci settembre = dieci occorrenze: l'unità del campione è il bucket
+    expect(set?.rawCount).toBe(10);
   });
 
-  it("il campione grezzo della SETTIMANA conta i ~5 giorni per anno", () => {
+  it("il campione della SETTIMANA conta le SETTIMANE, non i giorni", () => {
     const out = precomputeDaily({
       instrument: "XAUUSD",
       kind: "RETURN",
@@ -606,6 +605,6 @@ describe("campione grezzo e livello di aggregazione", () => {
         !s.detrended,
     );
     expect(w10?.n).toBe(10);
-    expect(w10?.rawCount).toBe(50);
+    expect(w10?.rawCount).toBe(10);
   });
 });

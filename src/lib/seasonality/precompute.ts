@@ -69,9 +69,10 @@ export interface StatRow {
   detrended: boolean;
   bucket: number;
   n: number;
-  /** Osservazioni GREZZE dietro le medie annue: giorni per le granularità
-   * di calendario, ore per l'intraday. Informazione aggiuntiva accanto a
-   * `n`, mai il denominatore della statistica. */
+  /** Campione nell'UNITÀ del bucket: mesi per il mese, settimane per la
+   * settimana, giorni per il giorno della settimana, sessioni (giorni) per
+   * la sessione, ore per l'ora. Informazione aggiuntiva accanto a `n`, mai
+   * il denominatore della statistica. */
   rawCount: number;
   mean: number;
   median: number;
@@ -167,11 +168,10 @@ interface Observation {
   /** Solo per le osservazioni giornaliere. */
   weekday?: number;
   /**
-   * Quante barre giornaliere grezze stanno DIETRO questa osservazione: 21 per
-   * un mese, 5 per una settimana, 1 per un giorno. È il «campione» che la
-   * tabella mostra accanto a `n`, e non va confuso con lui: `n` conta le
-   * osservazioni su cui si regge la statistica (gli anni), questo conta i
-   * dati di mercato che le hanno prodotte.
+   * Peso dell'osservazione nel «campione» dichiarato in tabella, nell'UNITÀ
+   * del bucket: un mese conta UNO (un gennaio è un'occorrenza, non i suoi 21
+   * giorni di quotazione), una settimana conta uno, un giorno conta uno.
+   * Omesso = 1. Resta separato da `n`, che conta le unità statistiche.
    */
   days?: number;
 }
@@ -549,12 +549,13 @@ export function precomputeDaily(opts: {
         ),
       }));
 
+  /* Niente `days`: il campione di un bucket mensile si conta in MESI —
+     «Gennaio, 20 anni» sono venti gennai, non i loro ~420 giorni. */
   const monthObsAsObservation: Observation[] = monthlyObs.map((m) => ({
     value: m.value,
     date: monthKeyDate(m.year, m.month),
     year: m.year,
     month: m.month,
-    days: m.days,
   }));
 
   /* Le settimane usano l'ANNO ISO come `year`: la settimana a cavallo di
@@ -565,7 +566,6 @@ export function precomputeDaily(opts: {
     date: weekKeyDate(w.isoYear, w.week),
     year: w.isoYear,
     month: w.week, // qui `month` porta il bucket della granularità
-    days: w.days,
   }));
 
   // ── Osservazioni per le HEATMAP (una casella = una osservazione) ─────────

@@ -89,9 +89,9 @@ export const numerositaInfo: MetricInfoData = {
 
 export function campioneInfo(rawUnit: string): MetricInfoData {
   return {
-    label: "Campione — i dati grezzi sotto",
-    description: `Media, StDev e Pos% sono calcolate su N ANNI (la colonna n): l'unità statistica è la casella della griglia. Questo è invece il numero di osservazioni ${rawUnit === "ore" ? "ORARIE" : "GIORNALIERE"} di mercato che compongono quelle medie annue — le barre davvero lette dall'archivio, buchi esclusi. Serve a distinguere una media annua costruita su cinquanta giorni da una costruita su cinque.`,
-    formula: `somma delle osservazioni grezze dei bucket-anno (${rawUnit})`,
+    label: "Campione — quante volte è stato osservato",
+    description: `Il numero di occorrenze REALI di questo periodo nella finestra, contate dai dati (buchi d'archivio esclusi) nella sua stessa unità: ${rawUnit}. Media, StDev e Pos% restano calcolate sugli N anni della colonna accanto — l'unità statistica è la casella della griglia — ma questo numero dice quanta storia c'è davvero dietro: venti gennai sono venti occorrenze, i lunedì di vent'anni un migliaio.`,
+    formula: `conteggio delle occorrenze del periodo nella finestra (${rawUnit})`,
   };
 }
 export const posizioneInfo: MetricInfoData = {

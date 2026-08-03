@@ -26,8 +26,8 @@ export interface BucketAxis {
   columnName: string;
   /** Plurale per le frasi («meglio del 70% dei mesi»). */
   plural: string;
-  /** Unità delle osservazioni GREZZE dietro le medie annue: «gg» per le
-   * granularità di calendario, «ore» per l'intraday. */
+  /** Unità del CAMPIONE: la stessa del bucket — mesi, settimane, giorni,
+   * sessioni, ore. «Gennaio · 20 mesi» dice da solo cosa è stato contato. */
   rawUnit: string;
   /** Larghezza minima della heatmap: 53 settimane non stanno in 46rem. */
   minWidthRem: number;
@@ -53,7 +53,7 @@ export const BUCKET_AXIS: Record<
     short: (b) => MONTH_LABELS_SHORT[b - 1] ?? String(b),
     columnName: "Mese",
     plural: "mesi",
-    rawUnit: "gg",
+    rawUnit: "mesi",
     minWidthRem: 58,
     stretch: true,
   },
@@ -63,7 +63,7 @@ export const BUCKET_AXIS: Record<
     short: weekLabel,
     columnName: "Settimana ISO",
     plural: "settimane",
-    rawUnit: "gg",
+    rawUnit: "settimane",
     // 53 colonne: la griglia scorre dentro il suo contenitore, il documento no.
     minWidthRem: 150,
     stretch: true,
@@ -74,7 +74,7 @@ export const BUCKET_AXIS: Record<
     short: (b) => (WEEKDAY_LABELS[b] ?? String(b)).slice(0, 3),
     columnName: "Giorno",
     plural: "giorni",
-    rawUnit: "gg",
+    rawUnit: "giorni",
     minWidthRem: 36,
     stretch: false,
   },
@@ -84,7 +84,7 @@ export const BUCKET_AXIS: Record<
     short: (b) => (SESSION_LABELS[SESSIONS[b]] ?? String(b)).split(" ")[0],
     columnName: "Sessione",
     plural: "sessioni",
-    rawUnit: "ore",
+    rawUnit: "sessioni",
     minWidthRem: 36,
     stretch: false,
   },

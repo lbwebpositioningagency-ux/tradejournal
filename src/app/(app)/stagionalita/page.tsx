@@ -546,10 +546,10 @@ export default async function StagionalitaPage({
                   </span>
                 </div>
                 {pathSeries.length > 0 ? (
-                  /* Più ALTO che largo di proporzione: le pendenze sono la
-                     cosa da leggere, e in 300px si appiattivano. 340px su
-                     mobile (senza obbligare a scroll infinito), 460px da md. */
-                  <div className="h-[420px] w-full md:h-[560px]">
+                  /* Altezza generosa DI PROPOSITO: la pagina può scorrere,
+                     una pendenza schiacciata no. Stessa scala del grafico
+                     intraday più sotto. */
+                  <div className="h-[560px] w-full md:h-[780px]">
                     <SeasonalPathChart
                       series={pathSeries}
                       currentYear={annoInCorsoSerie}
@@ -588,7 +588,7 @@ export default async function StagionalitaPage({
                       momenti hanno storicamente spinto
                     </span>
                   </div>
-                  <div className="h-[420px] w-full md:h-[560px]">
+                  <div className="h-[560px] w-full md:h-[780px]">
                     <HourPathChart
                       series={hourPathSeries}
                       selectedWindow={lookbackEffettivo}
