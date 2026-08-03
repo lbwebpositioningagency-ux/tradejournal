@@ -32,3 +32,17 @@ export const UnderwaterChart = dynamic(
   () => import("./underwater-chart").then((m) => m.UnderwaterChart),
   { ssr: false, loading: () => <ChartFallback /> },
 );
+
+/* Il percorso stagionale è più alto degli altri grafici (una banda di
+   dispersione dentro CHART.height sarebbe illeggibile): il suo fallback ha la
+   stessa altezza maggiorata, altrimenti lo swap sposterebbe la pagina. */
+export const SeasonalPathChart = dynamic(
+  () =>
+    import("../seasonality/path-chart").then((m) => m.SeasonalPathChart),
+  {
+    ssr: false,
+    loading: () => (
+      <Skeleton className="w-full" style={{ height: CHART.height + 80 }} />
+    ),
+  },
+);

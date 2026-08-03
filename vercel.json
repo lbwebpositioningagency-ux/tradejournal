@@ -3,6 +3,10 @@
     {
       "path": "/api/cot-sync",
       "schedule": "0 5 * * 6"
+    },
+    {
+      "path": "/api/seasonality-sync",
+      "schedule": "30 3 * * *"
     }
   ]
 }

@@ -444,3 +444,239 @@ model Mt5SyncSource {
 
   @@index([userId])
 }
+
+// ───────────────────── Stagionalità di MERCATO ─────────────────────
+//
+// Comportamento storico degli STRUMENTI, non dei trade dell'utente: nessun
+// userId in tutto il blocco, come MacroDeskReport e CotWeek. Il dato è unico
+// per l'istanza e arriva da un job notturno.
+//
+// Architettura in tre strati:
+//  1. barre grezze (SeasonalityDailyBar / SeasonalityHourBar) — SOLO lato
+//     server, mai esposte alla UI né scaricabili: i ToS di Dukascopy e CBOE
+//     consentono l'uso derivato, non la ridistribuzione del grezzo;
+//  2. statistiche compatte (SeasonalityStat / SeasonalityPathPoint) —
+//     precalcolate dal job, è l'unica cosa che la pagina legge;
+//  3. copertura e diario delle esecuzioni (SeasonalityCoverage /
+//     SeasonalityRun) — per dichiarare in UI da dove viene il dato, fino a
+//     quando arriva e cosa è fallito.
+
+enum SeasonalityInstrument {
+  // Prezzi: analisi sui RENDIMENTI, drill fino all'ora.
+  XAUUSD
+  WTI
+  GER40
+  SPX
+  // Indici di volatilità: analisi sul LIVELLO, solo mese/settimana/giorno.
+  GVZ
+  OVX
+  VDAX
+  VIX
+}
+
+enum SeasonalityKind {
+  RETURN // rendimenti log dei prezzi
+  LEVEL // livello medio dell'indice di volatilità
+}
+
+enum SeasonalityGranularity {
+  MONTH // mese dell'anno 1-12
+  WEEK // settimana ISO 1-53
+  WEEKDAY // giorno della settimana 1-5 (lun-ven)
+  SESSION // 0-3, indice in SESSIONS (Asia/Londra/New York/fuori sessione)
+  HOUR // ora 0-23
+}
+
+// Orologio dei bucket INTRADAY. Le granularità basate sulla data (mese,
+// settimana, giorno) non hanno fuso: per loro vale sempre ROME, riga unica.
+// Per HOUR esistono entrambe le versioni PRECALCOLATE — il toggle in UI
+// cambia riga, non rietichetta: rietichettare sarebbe sbagliato, tra CET e
+// CEST lo scarto Roma↔UTC vale un'ora e cambia dentro l'anno.
+enum SeasonalityClock {
+  UTC
+  ROME
+}
+
+// Chiusure giornaliere grezze. Chiave logica (instrument, date): il job
+// riscrive solo le date nuove o cambiate (le fonti revisionano il passato).
+model SeasonalityDailyBar {
+  instrument SeasonalityInstrument
+  date       DateTime              @db.Date
+  close      Decimal               @db.Decimal(18, 8)
+
+  @@id([instrument, date])
+}
+
+// Chiusure orarie grezze (solo strumenti di prezzo, sorgente Dukascopy).
+// `ts` è l'INIZIO dell'ora in UTC: il fuso di visualizzazione si applica in
+// fase di bucketing, mai al dato salvato.
+model SeasonalityHourBar {
+  instrument SeasonalityInstrument
+  ts         DateTime              @db.Timestamptz(3)
+  close      Decimal               @db.Decimal(18, 8)
+
+  @@id([instrument, ts])
+}
+
+// Una riga = un bucket stagionale con le sue statistiche oneste.
+// `scope` è il filtro del drill: "ALL" oppure "M01".."M12" (dentro quel mese).
+// `bucket` è l'indice dentro la granularità (mese 1-12, settimana ISO 1-53,
+// giorno 1-5, sessione 0-3, ora 0-23).
+model SeasonalityStat {
+  instrument    SeasonalityInstrument
+  kind          SeasonalityKind
+  granularity   SeasonalityGranularity
+  clock         SeasonalityClock
+  scope         String
+  lookbackYears Int
+  detrended     Boolean
+  bucket        Int
+
+  /** Numerosità del campione: SEMPRE mostrata, è il metro dell'affidabilità. */
+  n Int
+  /** RETURN: media dei rendimenti log. LEVEL: livello medio. */
+  mean   Decimal @db.Decimal(18, 8)
+  median Decimal @db.Decimal(18, 8)
+  /** Deviazione standard campionaria (n-1); null con n < 2. */
+  stdev Decimal? @db.Decimal(18, 8)
+  /** RETURN: quota di osservazioni positive. LEVEL: quota sopra la mediana
+   * di tutto il periodo (un hit rate sul livello non avrebbe senso). */
+  positiveShare Decimal @db.Decimal(18, 8)
+  p25           Decimal @db.Decimal(18, 8)
+  p75           Decimal @db.Decimal(18, 8)
+
+  firstDate DateTime @db.Date
+  lastDate  DateTime @db.Date
+
+  @@id([instrument, granularity, clock, scope, lookbackYears, detrended, bucket])
+}
+
+// Percorso stagionale medio dentro l'anno: rendimento log CUMULATO dal 1°
+// gennaio al giorno `dayOfYear`, mediato sugli anni della finestra, con le
+// bande di dispersione (p25/p75) per non far sembrare una media una regola.
+model SeasonalityPathPoint {
+  instrument    SeasonalityInstrument
+  lookbackYears Int
+  detrended     Boolean
+  dayOfYear     Int
+
+  meanCum   Decimal @db.Decimal(18, 8)
+  medianCum Decimal @db.Decimal(18, 8)
+  p25Cum    Decimal @db.Decimal(18, 8)
+  p75Cum    Decimal @db.Decimal(18, 8)
+  /** Quota di anni sopra lo zero (o sopra la mediana, per i livelli) a
+   * questo punto dell'anno: senza, la linea media sarebbe una media nuda. */
+  positiveShare Decimal @default(0) @db.Decimal(18, 8)
+  /** Anni che contribuiscono a questo punto. */
+  n Int
+
+  @@id([instrument, lookbackYears, detrended, dayOfYear])
+}
+
+// Stato corrente per strumento: la UI lo mostra così l'utente sa da dove
+// viene il numero e quanto è fresco. Una riga per strumento, riscritta ogni
+// esecuzione del job.
+model SeasonalityCoverage {
+  instrument SeasonalityInstrument @id
+  kind       SeasonalityKind
+
+  /** Etichetta della sorgente che ha effettivamente risposto (es. "FRED DCOILWTICO"). */
+  dailySource String?
+  dailyFirst  DateTime? @db.Date
+  dailyLast   DateTime? @db.Date
+  dailyRows   Int       @default(0)
+
+  hourSource String?
+  hourFirst  DateTime? @db.Timestamptz(3)
+  hourLast   DateTime? @db.Timestamptz(3)
+  hourRows   Int       @default(0)
+
+  /** Ultimo precalcolo andato a buon fine per questo strumento. */
+  computedAt DateTime?
+  /** Motivo dichiarato quando il dato GIORNALIERO manca o è parziale. */
+  note String?
+  /** Copertura dell'archivio ORARIO (mesi assenti). Campo separato da `note`:
+   * un errore sul giornaliero e un buco nell'intraday sono due notizie
+   * diverse, e prima si sovrascrivevano a vicenda. */
+  hourNote String?
+
+  updatedAt DateTime @updatedAt
+}
+
+// Diario delle esecuzioni del job notturno: serve a capire dai log e dalla
+// pagina se il dato è fermo e perché.
+model SeasonalityRun {
+  id         String    @id @default(cuid())
+  startedAt  DateTime  @default(now())
+  finishedAt DateTime?
+  ok         Boolean   @default(false)
+  /** Esito per strumento: righe ingerite, sorgente, errori. */
+  detail Json?
+
+  @@index([startedAt])
+}
+
+
+// Una riga per (strumento, granularità, anno, bucket): è ciò che alimenta le
+// HEATMAP anni × {mesi | settimane | giorni}, che per definizione mostrano le
+// singole osservazioni e non un'aggregazione — le righe finali Media / StDev /
+// Pos% / n arrivano invece da `SeasonalityStat`, così lo stesso numero non ha
+// due fonti di verità.
+//
+// `year` è l'anno civile per MONTH e WEEKDAY, e l'anno ISO per WEEK: la
+// settimana a cavallo di capodanno appartiene per intero a uno solo dei due
+// anni, ed è quello ISO (vedi `isoWeekYear`).
+//
+// `value` segue il tipo dello strumento, come ovunque nel modulo:
+// - RETURN → rendimento LOG del periodo (mese/settimana), oppure rendimento
+//   log MEDIO dei giorni di quella settimana (WEEKDAY);
+// - LEVEL  → livello MEDIO nel periodo.
+model SeasonalityYearBucketObs {
+  instrument  SeasonalityInstrument
+  granularity SeasonalityGranularity
+  /** Rilevante solo per HOUR, che esiste in due versioni precalcolate.
+   * Per tutte le altre granularità vale ROME, riga unica. */
+  clock  SeasonalityClock @default(ROME)
+  year   Int
+  bucket Int
+
+  value Decimal @db.Decimal(18, 8)
+  /** Giorni di quotazione che compongono l'osservazione: un mese con 3 giorni
+   * di dati non è un mese, e la heatmap deve poterlo marcare invece di
+   * colorarlo come gli altri. */
+  days Int
+
+  @@id([instrument, granularity, clock, year, bucket])
+}
+
+// Stato di avanzamento del job, per strumento: è il CURSORE che rende il
+// primo caricamento ripartibile.
+//
+// Senza, il job ricomincia da capo a ogni invocazione e su una funzione con
+// un limite di tempo non arriva mai in fondo: scarica, viene ucciso, e la
+// notte dopo riscarica le stesse cose. Con il cursore ogni invocazione fa un
+// pezzo e lo dichiara, e più esecuzioni convergono.
+model SeasonalityJobState {
+  instrument SeasonalityInstrument @id
+
+  /** Ultimo giornaliero portato a termine: sotto le 20 ore non si rifà. */
+  dailyDoneAt DateTime?
+
+  /** Prossimo anno da scaricare per l'intraday. `null` = mai iniziato.
+   * È un anno e non un timestamp perché l'ingest procede a blocchi annuali:
+   * un anno interamente vuoto (l'inizio di uno storico) non farebbe avanzare
+   * un cursore basato sull'ultima barra salvata, e il job resterebbe fermo
+   * a rileggere il vuoto per sempre. */
+  hourNextYear Int?
+
+  /** L'ingest orario ha raggiunto il presente: da qui in poi solo il delta. */
+  hourIngestComplete Boolean @default(false)
+
+  /** Righe orarie al momento dell'ultimo precalcolo. Se non sono cambiate il
+   * precalcolo non si rifà: a regime è il risparmio che tiene il job dentro
+   * il budget. */
+  hourRowsAtCompute Int       @default(0)
+  hourComputedAt    DateTime?
+
+  updatedAt DateTime @updatedAt
+}
