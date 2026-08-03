@@ -2,7 +2,9 @@ import { describe, expect, it } from "vitest";
 import {
   dayOfYear,
   isoWeek,
+  isoWeekYear,
   isoWeekday,
+  isoWeeksInYear,
   monthScope,
   scopeMonth,
   sessionBucket,
@@ -89,6 +91,50 @@ describe("isoWeek", () => {
 
   it("copre l'anno con 53 settimane", () => {
     expect(isoWeek(2020, 12, 31)).toBe(53);
+  });
+});
+
+describe("isoWeekYear", () => {
+  it("a inizio anno può appartenere all'anno ISO precedente", () => {
+    // 1 gennaio 2021 è venerdì: settimana 53 del 2020.
+    expect(isoWeekYear(2021, 1, 1)).toBe(2020);
+    expect(isoWeek(2021, 1, 1)).toBe(53);
+  });
+
+  it("a fine anno può appartenere all'anno ISO successivo", () => {
+    // 31 dicembre 2019 è martedì: settimana 1 del 2020.
+    expect(isoWeekYear(2019, 12, 31)).toBe(2020);
+    expect(isoWeek(2019, 12, 31)).toBe(1);
+  });
+
+  it("in mezzo all'anno coincide con l'anno civile", () => {
+    expect(isoWeekYear(2024, 6, 15)).toBe(2024);
+  });
+});
+
+describe("isoWeeksInYear", () => {
+  it("52 settimane nel caso normale", () => {
+    expect(isoWeeksInYear(2019)).toBe(52);
+    expect(isoWeeksInYear(2021)).toBe(52);
+    expect(isoWeeksInYear(2023)).toBe(52);
+  });
+
+  it("53 settimane quando il 1° gennaio è giovedì", () => {
+    // 1 gennaio 2015 è giovedì.
+    expect(isoWeekday(2015, 1, 1)).toBe(4);
+    expect(isoWeeksInYear(2015)).toBe(53);
+  });
+
+  it("53 settimane quando il 1° gennaio è mercoledì in anno bisestile", () => {
+    // 1 gennaio 2020 è mercoledì e il 2020 è bisestile.
+    expect(isoWeekday(2020, 1, 1)).toBe(3);
+    expect(isoWeeksInYear(2020)).toBe(53);
+  });
+
+  it("coincide con la settimana ISO del 28 dicembre, che è sempre l'ultima", () => {
+    for (const y of [2015, 2019, 2020, 2021, 2024, 2026]) {
+      expect(isoWeeksInYear(y)).toBe(isoWeek(y, 12, 28));
+    }
   });
 });
 

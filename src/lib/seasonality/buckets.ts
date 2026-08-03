@@ -117,6 +117,39 @@ export function isoWeek(year: number, month: number, day: number): number {
 }
 
 /**
+ * ANNO ISO a cui appartiene la settimana di una data.
+ *
+ * Non coincide con l'anno civile alle estremità: il 1° gennaio 2021 (venerdì)
+ * appartiene alla settimana 53 del **2020**, e il 31 dicembre 2019 (martedì)
+ * alla settimana 1 del **2020**. Serve per raggruppare correttamente le
+ * settimane: senza, la settimana a cavallo d'anno finirebbe spezzata in due
+ * bucket e produrrebbe due rendimenti settimanali parziali al posto di uno.
+ */
+export function isoWeekYear(year: number, month: number, day: number): number {
+  const d = new Date(Date.UTC(year, month - 1, day));
+  d.setUTCDate(d.getUTCDate() + 4 - isoWeekday(year, month, day));
+  return d.getUTCFullYear();
+}
+
+/**
+ * Quante settimane ISO ha un anno: 52, oppure **53** quando il 1° gennaio è
+ * giovedì, o quando è mercoledì in un anno bisestile. Serve alla guardia sui
+ * mesi/settimane consecutivi: senza sapere se l'anno finisce alla 52 o alla
+ * 53 non si può dire se due settimane sono davvero adiacenti.
+ */
+export function isoWeeksInYear(year: number): number {
+  const jan1 = isoWeekday(year, 1, 1);
+  const leap = (year % 4 === 0 && year % 100 !== 0) || year % 400 === 0;
+  if (jan1 === 4 || (leap && jan1 === 3)) return 53;
+  return 52;
+}
+
+/** Etichetta di una settimana ISO per gli assi ("S07"). */
+export function weekLabel(week: number): string {
+  return `S${String(week).padStart(2, "0")}`;
+}
+
+/**
  * Sessione di mercato di un'ora, con la stessa partizione dell'orologio
  * italiano già usata per i trade dell'utente (`lib/sessions.ts`): Asia
  * 00-08, Londra 08-14, New York 14-22, fuori sessione 22-24. Riuso

@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { precomputeDaily, windowYears } from "@/lib/seasonality/precompute";
 import type { DailyBar } from "@/lib/seasonality/series";
+import { isoWeek } from "@/lib/seasonality/buckets";
 
 /** Serie sintetica: una barra al mese, prezzo che cresce di un fattore noto. */
 function monthlySeries(
@@ -137,8 +138,9 @@ describe("precomputeDaily — prezzi", () => {
     });
     // La heatmap mostra anche il 2026 parziale: è escluso dalle medie, non
     // dalla griglia.
-    expect(out.monthly.some((m) => m.year === 2026)).toBe(true);
-    const gen2025 = out.monthly.find((m) => m.year === 2025 && m.month === 1)!;
+    const mensili = out.observations.filter((o) => o.granularity === "MONTH");
+    expect(mensili.some((m) => m.year === 2026)).toBe(true);
+    const gen2025 = mensili.find((m) => m.year === 2025 && m.bucket === 1)!;
     expect(gen2025.value).toBeCloseTo(Math.log(1.02), 10);
   });
 
@@ -223,7 +225,7 @@ describe("precomputeDaily — prezzi", () => {
     });
     expect(out.stats).toEqual([]);
     expect(out.paths).toEqual([]);
-    expect(out.monthly).toEqual([]);
+    expect(out.observations).toEqual([]);
     expect(out.firstDate).toBeNull();
   });
 
@@ -328,5 +330,202 @@ describe("precomputeDaily — indici di volatilità", () => {
     // Un cumulato esploderebbe; un livello resta un livello.
     expect(fine.meanCum).toBeGreaterThan(10);
     expect(fine.meanCum).toBeLessThan(35);
+  });
+});
+
+/** Serie giornaliera sintetica lun-ven, con fattore controllabile per data. */
+function dailySeries(
+  fromYear: number,
+  toYear: number,
+  factorFor: (d: Date) => number,
+): DailyBar[] {
+  const bars: DailyBar[] = [];
+  let close = 100;
+  const cur = new Date(Date.UTC(fromYear, 0, 1));
+  const end = Date.UTC(toYear, 11, 31);
+  while (cur.getTime() <= end) {
+    const dow = cur.getUTCDay();
+    if (dow !== 0 && dow !== 6) {
+      close *= factorFor(cur);
+      bars.push({ date: cur.toISOString().slice(0, 10), close });
+    }
+    cur.setUTCDate(cur.getUTCDate() + 1);
+  }
+  return bars;
+}
+
+describe("precomputeDaily — settimana ISO", () => {
+  it("produce 53 bucket settimanali, con la 53 più rara", () => {
+    const out = precomputeDaily({
+      instrument: "SPX",
+      kind: "RETURN",
+      bars: dailySeries(2000, 2026, () => 1.001),
+      now: NOW,
+    });
+    const settimane = out.stats.filter(
+      (s) => s.granularity === "WEEK" && s.lookbackYears === 20 && !s.detrended,
+    );
+    const buckets = settimane.map((s) => s.bucket).sort((a, b) => a - b);
+    expect(buckets[0]).toBe(1);
+    expect(buckets[buckets.length - 1]).toBe(53);
+
+    const s52 = settimane.find((s) => s.bucket === 52)!;
+    const s53 = settimane.find((s) => s.bucket === 53)!;
+    // La 53 esiste solo in alcuni anni: campione più piccolo, non assente.
+    expect(s52.n).toBe(20);
+    expect(s53.n).toBeGreaterThan(0);
+    expect(s53.n).toBeLessThan(s52.n);
+  });
+
+  it("riconosce una settimana stagionalmente forte", () => {
+    // Tutta la settimana ISO 10 spinta, il resto piatto.
+    const bars = dailySeries(2006, 2026, (d) => {
+      const week = isoWeek(
+        d.getUTCFullYear(),
+        d.getUTCMonth() + 1,
+        d.getUTCDate(),
+      );
+      return week === 10 ? 1.01 : 1.0;
+    });
+    const out = precomputeDaily({
+      instrument: "SPX",
+      kind: "RETURN",
+      bars,
+      now: NOW,
+    });
+    const forte = out.stats.find(
+      (s) =>
+        s.granularity === "WEEK" &&
+        s.lookbackYears === 20 &&
+        s.bucket === 10 &&
+        !s.detrended,
+    )!;
+    const piatta = out.stats.find(
+      (s) =>
+        s.granularity === "WEEK" &&
+        s.lookbackYears === 20 &&
+        s.bucket === 25 &&
+        !s.detrended,
+    )!;
+    expect(forte.mean).toBeGreaterThan(0.03);
+    expect(forte.positiveShare).toBe(1);
+    expect(piatta.mean).toBeCloseTo(0, 10);
+  });
+
+  it("le finestre valgono anche per la settimana: n = anni della finestra", () => {
+    const out = precomputeDaily({
+      instrument: "SPX",
+      kind: "RETURN",
+      bars: dailySeries(2000, 2026, () => 1.001),
+      now: NOW,
+    });
+    for (const lookback of [20, 10, 5, 2]) {
+      const row = out.stats.find(
+        (s) =>
+          s.granularity === "WEEK" &&
+          s.lookbackYears === lookback &&
+          s.bucket === 20 &&
+          !s.detrended,
+      )!;
+      expect(row.n).toBe(lookback);
+    }
+  });
+
+  it("il detrend settimanale porta le medie a somma zero", () => {
+    const bars = dailySeries(2006, 2026, (d) => {
+      const week = isoWeek(
+        d.getUTCFullYear(),
+        d.getUTCMonth() + 1,
+        d.getUTCDate(),
+      );
+      return week === 10 ? 1.01 : 1.001;
+    });
+    const out = precomputeDaily({
+      instrument: "SPX",
+      kind: "RETURN",
+      bars,
+      now: NOW,
+    });
+    const detrendizzate = out.stats.filter(
+      (s) => s.granularity === "WEEK" && s.lookbackYears === 20 && s.detrended,
+    );
+    const somma = detrendizzate.reduce((a, s) => a + s.mean * s.n, 0);
+    expect(somma).toBeCloseTo(0, 6);
+  });
+
+  it("gli indici di volatilità hanno la settimana come LIVELLO e senza detrend", () => {
+    const bars = dailySeries(2010, 2026, () => 1).map((b) => ({
+      ...b,
+      close: 20,
+    }));
+    const out = precomputeDaily({
+      instrument: "VIX",
+      kind: "LEVEL",
+      bars,
+      now: NOW,
+    });
+    const week = out.stats.filter((s) => s.granularity === "WEEK");
+    expect(week.length).toBeGreaterThan(0);
+    expect(week.every((s) => !s.detrended)).toBe(true);
+    expect(week[0].mean).toBeCloseTo(20, 8);
+  });
+});
+
+describe("precomputeDaily — osservazioni per le heatmap", () => {
+  it("copre le tre granularità del calendario", () => {
+    const out = precomputeDaily({
+      instrument: "SPX",
+      kind: "RETURN",
+      bars: dailySeries(2020, 2026, () => 1.001),
+      now: NOW,
+    });
+    const gran = new Set(out.observations.map((o) => o.granularity));
+    expect([...gran].sort()).toEqual(["MONTH", "WEEK", "WEEKDAY"]);
+  });
+
+  it("la casella per giorno della settimana è la MEDIA dell'anno, con days", () => {
+    const out = precomputeDaily({
+      instrument: "SPX",
+      kind: "RETURN",
+      bars: dailySeries(2024, 2024, () => 1.001),
+      now: NOW,
+    });
+    const lunedi2024 = out.observations.find(
+      (o) => o.granularity === "WEEKDAY" && o.year === 2024 && o.bucket === 1,
+    )!;
+    expect(lunedi2024.value).toBeCloseTo(Math.log(1.001), 10);
+    // ~52 lunedì nell'anno (il primo giorno non ha rendimento).
+    expect(lunedi2024.days).toBeGreaterThan(45);
+    expect(lunedi2024.days).toBeLessThan(54);
+  });
+
+  it("le caselle per giorno esistono solo per lunedì-venerdì", () => {
+    const out = precomputeDaily({
+      instrument: "SPX",
+      kind: "RETURN",
+      bars: dailySeries(2020, 2026, () => 1.001),
+      now: NOW,
+    });
+    const buckets = new Set(
+      out.observations
+        .filter((o) => o.granularity === "WEEKDAY")
+        .map((o) => o.bucket),
+    );
+    expect([...buckets].sort()).toEqual([1, 2, 3, 4, 5]);
+  });
+
+  it("le settimane sono indicizzate sull'anno ISO", () => {
+    const out = precomputeDaily({
+      instrument: "SPX",
+      kind: "RETURN",
+      bars: dailySeries(2019, 2021, () => 1.001),
+      now: NOW,
+    });
+    // La settimana 1 del 2020 comincia il 30 dicembre 2019: deve stare
+    // sull'anno ISO 2020, non sul 2019.
+    const s1 = out.observations.find(
+      (o) => o.granularity === "WEEK" && o.year === 2020 && o.bucket === 1,
+    );
+    expect(s1).toBeDefined();
   });
 });

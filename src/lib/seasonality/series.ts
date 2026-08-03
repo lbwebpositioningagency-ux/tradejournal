@@ -14,6 +14,8 @@
  * - la conversione a percentuale avviene SOLO in fase di display.
  */
 
+import { isoWeek, isoWeekYear, isoWeeksInYear } from "@/lib/seasonality/buckets";
+
 export interface DailyBar {
   /** "YYYY-MM-DD" */
   date: string;
@@ -32,6 +34,16 @@ export interface MonthlyObservation {
   /** RETURN: rendimento log del mese. LEVEL: livello medio del mese. */
   value: number;
   /** Giorni di quotazione che compongono il mese. */
+  days: number;
+}
+
+export interface WeeklyObservation {
+  /** Anno ISO della settimana, non l'anno civile (vedi `isoWeekYear`). */
+  isoYear: number;
+  /** Settimana ISO 1-53. */
+  week: number;
+  /** RETURN: rendimento log della settimana. LEVEL: livello medio. */
+  value: number;
   days: number;
 }
 
@@ -132,6 +144,90 @@ export function monthlyLogReturns(bars: DailyBar[]): MonthlyObservation[] {
     });
   }
   return out;
+}
+
+/** Ultima chiusura di ogni settimana ISO, in ordine cronologico. */
+function weekEnds(
+  bars: DailyBar[],
+): { isoYear: number; week: number; close: number; days: number }[] {
+  const out: { isoYear: number; week: number; close: number; days: number }[] =
+    [];
+  for (const bar of bars) {
+    const { year, month, day } = parseDate(bar.date);
+    const isoYear = isoWeekYear(year, month, day);
+    const week = isoWeek(year, month, day);
+    const last = out[out.length - 1];
+    if (last && last.isoYear === isoYear && last.week === week) {
+      last.close = bar.close;
+      last.days += 1;
+    } else {
+      out.push({ isoYear, week, close: bar.close, days: 1 });
+    }
+  }
+  return out;
+}
+
+/**
+ * Rendimenti SETTIMANALI ISO: chiusura di fine settimana contro chiusura di
+ * fine settimana precedente.
+ *
+ * Stessa guardia dei mesi, e qui è ancora più necessaria: le festività
+ * lunghe (Natale, Pasqua, Ferragosto sui mercati europei) producono settimane
+ * intere senza contrattazioni, e senza il controllo di adiacenza il salto
+ * verrebbe attribuito per intero a una singola settimana della heatmap.
+ *
+ * L'adiacenza attraversa correttamente il capodanno ISO: dopo l'ultima
+ * settimana di un anno ISO — che è la 52 o la 53 a seconda dell'anno — viene
+ * la settimana 1 dell'anno ISO successivo.
+ */
+export function weeklyLogReturns(bars: DailyBar[]): WeeklyObservation[] {
+  const ends = weekEnds(bars);
+  const out: WeeklyObservation[] = [];
+  for (let i = 1; i < ends.length; i += 1) {
+    const prev = ends[i - 1];
+    const cur = ends[i];
+    const ultima = prev.week >= isoWeeksInYear(prev.isoYear);
+    const expectedWeek = ultima ? 1 : prev.week + 1;
+    const expectedYear = ultima ? prev.isoYear + 1 : prev.isoYear;
+    if (cur.isoYear !== expectedYear || cur.week !== expectedWeek) continue;
+    if (prev.close <= 0 || cur.close <= 0) continue;
+    out.push({
+      isoYear: cur.isoYear,
+      week: cur.week,
+      value: Math.log(cur.close / prev.close),
+      days: cur.days,
+    });
+  }
+  return out;
+}
+
+/** Livello MEDIO di ogni settimana ISO. */
+export function weeklyMeanLevels(bars: DailyBar[]): WeeklyObservation[] {
+  const acc = new Map<
+    string,
+    { isoYear: number; week: number; sum: number; days: number }
+  >();
+  for (const bar of bars) {
+    const { year, month, day } = parseDate(bar.date);
+    const isoYear = isoWeekYear(year, month, day);
+    const week = isoWeek(year, month, day);
+    const key = `${isoYear}-${week}`;
+    const cur = acc.get(key);
+    if (cur) {
+      cur.sum += bar.close;
+      cur.days += 1;
+    } else {
+      acc.set(key, { isoYear, week, sum: bar.close, days: 1 });
+    }
+  }
+  return [...acc.values()]
+    .map((w) => ({
+      isoYear: w.isoYear,
+      week: w.week,
+      value: w.sum / w.days,
+      days: w.days,
+    }))
+    .sort((a, b) => a.isoYear - b.isoYear || a.week - b.week);
 }
 
 /** Livello MEDIO di ogni mese (indici di volatilità: nessun rendimento). */

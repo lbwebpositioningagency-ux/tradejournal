@@ -144,17 +144,18 @@ export async function runSeasonalityDailyJob(
             }),
           );
 
-          await tx.seasonalityMonthlyObs.deleteMany({
+          await tx.seasonalityYearBucketObs.deleteMany({
             where: { instrument: def.code },
           });
-          await insertInChunks(result.monthly, (chunk) =>
-            tx.seasonalityMonthlyObs.createMany({
-              data: chunk.map((m) => ({
-                instrument: m.instrument,
-                year: m.year,
-                month: m.month,
-                value: dec(m.value),
-                days: m.days,
+          await insertInChunks(result.observations, (chunk) =>
+            tx.seasonalityYearBucketObs.createMany({
+              data: chunk.map((o) => ({
+                instrument: o.instrument,
+                granularity: o.granularity,
+                year: o.year,
+                bucket: o.bucket,
+                value: dec(o.value),
+                days: o.days,
               })),
             }),
           );

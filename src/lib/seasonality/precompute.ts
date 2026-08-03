@@ -51,8 +51,11 @@ import {
   levelPathsByYear,
   monthlyLogReturns,
   monthlyMeanLevels,
+  weeklyLogReturns,
+  weeklyMeanLevels,
   type DailyBar,
   type MonthlyObservation,
+  type WeeklyObservation,
 } from "@/lib/seasonality/series";
 import { LOOKBACK_YEARS } from "@/lib/seasonality/instruments";
 
@@ -90,10 +93,15 @@ export interface PathRow {
   n: number;
 }
 
-export interface MonthlyObsRow {
+/**
+ * Osservazione singola di una casella di heatmap: (granularità, anno, bucket).
+ * `year` è l'anno civile per MONTH e WEEKDAY, l'anno ISO per WEEK.
+ */
+export interface YearBucketObsRow {
   instrument: SeasonalityInstrument;
+  granularity: SeasonalityGranularity;
   year: number;
-  month: number;
+  bucket: number;
   value: number;
   days: number;
 }
@@ -101,7 +109,7 @@ export interface MonthlyObsRow {
 export interface PrecomputeResult {
   stats: StatRow[];
   paths: PathRow[];
-  monthly: MonthlyObsRow[];
+  observations: YearBucketObsRow[];
   /** Estremi effettivi della serie: dichiarati in pagina. */
   firstDate: string | null;
   lastDate: string | null;
@@ -121,6 +129,26 @@ export function windowYears(
 function monthKeyDate(year: number, month: number): string {
   return `${year}-${String(month).padStart(2, "0")}-01`;
 }
+
+/**
+ * Data convenzionale di un'osservazione settimanale: il lunedì di quella
+ * settimana ISO. Serve solo a `firstDate`/`lastDate` delle statistiche, cioè
+ * a dichiarare l'intervallo che ha prodotto il numero.
+ */
+function weekKeyDate(isoYear: number, week: number): string {
+  // Il 4 gennaio sta per definizione nella settimana 1: da lì si conta.
+  const jan4 = Date.UTC(isoYear, 0, 4);
+  const jan4Weekday = isoWeekday(isoYear, 1, 4);
+  const monday = new Date(
+    jan4 - (jan4Weekday - 1) * 86_400_000 + (week - 1) * 7 * 86_400_000,
+  );
+  return monday.toISOString().slice(0, 10);
+}
+
+/** Tutte le settimane ISO possibili: la 53 non esiste ogni anno, e il bucket
+ * semplicemente avrà `n` più basso — come il 29 febbraio. */
+const WEEK_BUCKETS = Array.from({ length: 53 }, (_, i) => i + 1);
+const MONTH_BUCKETS = Array.from({ length: 12 }, (_, i) => i + 1);
 
 interface Observation {
   value: number;
@@ -328,6 +356,42 @@ function detrendPaths(
   return out;
 }
 
+/**
+ * Media dei valori giornalieri per (anno, bucket). Serve alla heatmap del
+ * giorno della settimana: la casella «lunedì 2024» non è un'osservazione
+ * singola ma il riassunto dei ~52 lunedì di quell'anno, e `days` dichiara su
+ * quanti si regge.
+ */
+function aggregateByYearBucket(
+  observations: Observation[],
+  bucketOf: (o: Observation) => number,
+): { year: number; bucket: number; value: number; days: number }[] {
+  const acc = new Map<
+    string,
+    { year: number; bucket: number; sum: number; days: number }
+  >();
+  for (const o of observations) {
+    const bucket = bucketOf(o);
+    if (!WEEKDAY_BUCKETS.includes(bucket as 1 | 2 | 3 | 4 | 5)) continue;
+    const key = `${o.year}-${bucket}`;
+    const cur = acc.get(key);
+    if (cur) {
+      cur.sum += o.value;
+      cur.days += 1;
+    } else {
+      acc.set(key, { year: o.year, bucket, sum: o.value, days: 1 });
+    }
+  }
+  return [...acc.values()]
+    .map((a) => ({
+      year: a.year,
+      bucket: a.bucket,
+      value: a.sum / a.days,
+      days: a.days,
+    }))
+    .sort((a, b) => a.year - b.year || a.bucket - b.bucket);
+}
+
 export function precomputeDaily(opts: {
   instrument: SeasonalityInstrument;
   kind: SeasonalityKind;
@@ -343,7 +407,7 @@ export function precomputeDaily(opts: {
     return {
       stats: [],
       paths: [],
-      monthly: [],
+      observations: [],
       firstDate: null,
       lastDate: null,
       lastCompleteYear,
@@ -357,13 +421,10 @@ export function precomputeDaily(opts: {
     ? monthlyLogReturns(bars)
     : monthlyMeanLevels(bars);
 
-  const monthly: MonthlyObsRow[] = monthlyObs.map((m) => ({
-    instrument,
-    year: m.year,
-    month: m.month,
-    value: m.value,
-    days: m.days,
-  }));
+  // ── Osservazioni SETTIMANALI ISO (heatmap e bucket WEEK) ────────────────
+  const weeklyObs: WeeklyObservation[] = isReturn
+    ? weeklyLogReturns(bars)
+    : weeklyMeanLevels(bars);
 
   // ── Osservazioni giornaliere (bucket WEEKDAY) ────────────────────────────
   const dailyObs: Observation[] = isReturn
@@ -397,6 +458,48 @@ export function precomputeDaily(opts: {
     month: m.month,
   }));
 
+  /* Le settimane usano l'ANNO ISO come `year`: la settimana a cavallo di
+     capodanno appartiene per intero a uno dei due anni, e spezzarla darebbe
+     due mezze settimane invece di una. */
+  const weekObsAsObservation: Observation[] = weeklyObs.map((w) => ({
+    value: w.value,
+    date: weekKeyDate(w.isoYear, w.week),
+    year: w.isoYear,
+    month: w.week, // qui `month` porta il bucket della granularità
+  }));
+
+  // ── Osservazioni per le HEATMAP (una casella = una osservazione) ─────────
+  const observations: YearBucketObsRow[] = [
+    ...monthlyObs.map((m) => ({
+      instrument,
+      granularity: "MONTH" as const,
+      year: m.year,
+      bucket: m.month,
+      value: m.value,
+      days: m.days,
+    })),
+    ...weeklyObs.map((w) => ({
+      instrument,
+      granularity: "WEEK" as const,
+      year: w.isoYear,
+      bucket: w.week,
+      value: w.value,
+      days: w.days,
+    })),
+    /* Per il giorno della settimana la casella (anno, giorno) è la MEDIA dei
+       valori di quel giorno in quell'anno: non esiste un'osservazione
+       "il lunedì del 2024", ne esistono cinquantadue. La media è l'unico
+       riassunto onesto, e `days` dice su quanti giorni è costruita. */
+    ...aggregateByYearBucket(dailyObs, (o) => o.weekday ?? 0).map((a) => ({
+      instrument,
+      granularity: "WEEKDAY" as const,
+      year: a.year,
+      bucket: a.bucket,
+      value: a.value,
+      days: a.days,
+    })),
+  ];
+
   // ── Percorsi annuali ────────────────────────────────────────────────────
   const rawPaths = isReturn
     ? cumulativePathsByYear(
@@ -416,6 +519,9 @@ export function precomputeDaily(opts: {
     for (let y = from; y <= to; y += 1) years.push(y);
 
     const monthWindow = monthObsAsObservation.filter(
+      (o) => o.year >= from && o.year <= to,
+    );
+    const weekWindow = weekObsAsObservation.filter(
       (o) => o.year >= from && o.year <= to,
     );
     const dayWindow = dailyObs.filter((o) => o.year >= from && o.year <= to);
@@ -438,7 +544,23 @@ export function precomputeDaily(opts: {
           lookbackYears: lookback,
           detrended,
           observations: monthWindow,
-          buckets: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12],
+          buckets: MONTH_BUCKETS,
+          bucketOf: (o) => o.month,
+        }),
+      );
+
+      // WEEK — 53 bucket ISO. La 53 non esiste in tutti gli anni: quel
+      // bucket avrà `n` più basso, ed è corretto che sia così.
+      stats.push(
+        ...statsForBuckets({
+          instrument,
+          kind,
+          granularity: "WEEK",
+          scope: SCOPE_ALL,
+          lookbackYears: lookback,
+          detrended,
+          observations: weekWindow,
+          buckets: WEEK_BUCKETS,
           bucketOf: (o) => o.month,
         }),
       );
@@ -496,7 +618,7 @@ export function precomputeDaily(opts: {
   return {
     stats,
     paths,
-    monthly,
+    observations,
     firstDate: bars[0].date,
     lastDate: bars[bars.length - 1].date,
     lastCompleteYear,

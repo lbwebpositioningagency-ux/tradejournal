@@ -612,10 +612,13 @@ model SeasonalityRun {
   @@index([startedAt])
 }
 
-// Una riga per (strumento, anno, mese): è ciò che alimenta la HEATMAP
-// anni×mesi, che per definizione mostra le singole osservazioni e non
-// un'aggregazione — le righe finali Media/StDev/Pos% arrivano invece da
-// SeasonalityStat.
+// SUPERATA dalla Fase 2 da `SeasonalityYearBucketObs`, che fa la stessa cosa
+// per tutte le granularità invece che per il solo mese. Non è più letta né
+// scritta da nessuna parte: resta in schema perché le migrazioni di questo
+// branch sono additive per scelta. Si può eliminare con una migrazione di
+// pulizia dedicata (vedi docs/stagionalita/MIGRATION.md).
+//
+// Una riga per (strumento, anno, mese): alimentava la HEATMAP anni×mesi.
 //
 // `value` segue il tipo dello strumento, come ovunque nel modulo:
 // - RETURN → rendimento LOG del mese (chiusura di fine mese contro fine mese
@@ -633,4 +636,33 @@ model SeasonalityMonthlyObs {
   days Int
 
   @@id([instrument, year, month])
+}
+
+// Una riga per (strumento, granularità, anno, bucket): è ciò che alimenta le
+// HEATMAP anni × {mesi | settimane | giorni}, che per definizione mostrano le
+// singole osservazioni e non un'aggregazione — le righe finali Media / StDev /
+// Pos% / n arrivano invece da `SeasonalityStat`, così lo stesso numero non ha
+// due fonti di verità.
+//
+// `year` è l'anno civile per MONTH e WEEKDAY, e l'anno ISO per WEEK: la
+// settimana a cavallo di capodanno appartiene per intero a uno solo dei due
+// anni, ed è quello ISO (vedi `isoWeekYear`).
+//
+// `value` segue il tipo dello strumento, come ovunque nel modulo:
+// - RETURN → rendimento LOG del periodo (mese/settimana), oppure rendimento
+//   log MEDIO dei giorni di quella settimana (WEEKDAY);
+// - LEVEL  → livello MEDIO nel periodo.
+model SeasonalityYearBucketObs {
+  instrument  SeasonalityInstrument
+  granularity SeasonalityGranularity
+  year        Int
+  bucket      Int
+
+  value Decimal @db.Decimal(18, 8)
+  /** Giorni di quotazione che compongono l'osservazione: un mese con 3 giorni
+   * di dati non è un mese, e la heatmap deve poterlo marcare invece di
+   * colorarlo come gli altri. */
+  days Int
+
+  @@id([instrument, granularity, year, bucket])
 }

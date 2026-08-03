@@ -160,17 +160,22 @@ export async function getBucketStats(opts: {
   return rows.map(toView);
 }
 
-/** Statistiche mensili per PIÙ finestre in una sola query (tabella variazioni). */
-export async function getMonthStatsByWindow(opts: {
+/**
+ * Statistiche di una granularità per PIÙ finestre in una sola query: è la
+ * tabella «per bucket, su tutte le finestre» (mese, settimana o giorno).
+ */
+export async function getStatsByWindow(opts: {
   instrument: SeasonalityInstrument;
+  granularity: SeasonalityGranularity;
+  scope?: string;
   lookbacks: readonly number[];
   detrended: boolean;
 }): Promise<Map<number, BucketView[]>> {
   const rows = await prisma.seasonalityStat.findMany({
     where: {
       instrument: opts.instrument,
-      granularity: "MONTH",
-      scope: "ALL",
+      granularity: opts.granularity,
+      scope: opts.scope ?? "ALL",
       lookbackYears: { in: [...opts.lookbacks] },
       detrended: opts.detrended,
       clock: "ROME",
@@ -188,10 +193,10 @@ export async function getMonthStatsByWindow(opts: {
 
 export interface HeatmapCell {
   year: number;
-  month: number;
+  bucket: number;
   value: number;
   days: number;
-  /** Mese con pochi giorni di quotazione: colorarlo come gli altri mentirebbe. */
+  /** Periodo con pochi giorni di quotazione: colorarlo come gli altri mentirebbe. */
   partial: boolean;
 }
 
@@ -203,12 +208,14 @@ export interface HeatmapData {
 }
 
 /**
- * Griglia anni×mesi. Gli anni mostrati sono quelli della finestra
- * selezionata, più l'anno in corso — che compare marcato come parziale
- * perché è utile vederlo, non perché conti nelle statistiche.
+ * Griglia anni × bucket (mesi, settimane ISO o giorni della settimana). Gli
+ * anni mostrati sono quelli della finestra selezionata, più l'anno in corso —
+ * che compare marcato come parziale perché è utile vederlo, non perché conti
+ * nelle statistiche.
  */
 export async function getHeatmap(opts: {
   instrument: SeasonalityInstrument;
+  granularity: SeasonalityGranularity;
   lookbackYears: number;
   now?: Date;
 }): Promise<HeatmapData> {
@@ -217,23 +224,30 @@ export async function getHeatmap(opts: {
   const { from } = windowYears(opts.lookbackYears, lcy);
   const currentYear = now.getUTCFullYear();
 
-  const rows = await prisma.seasonalityMonthlyObs.findMany({
-    where: { instrument: opts.instrument, year: { gte: from, lte: currentYear } },
-    orderBy: [{ year: "desc" }, { month: "asc" }],
+  const rows = await prisma.seasonalityYearBucketObs.findMany({
+    where: {
+      instrument: opts.instrument,
+      granularity: opts.granularity,
+      year: { gte: from, lte: currentYear },
+    },
+    orderBy: [{ year: "desc" }, { bucket: "asc" }],
   });
 
   const years: number[] = [];
   for (let y = currentYear; y >= from; y -= 1) years.push(y);
 
+  /* Soglia di "periodo incompleto" proporzionata alla granularità: 5 giorni
+     su un mese sono pochi, su una settimana sono la settimana intera. */
+  const minDays =
+    opts.granularity === "MONTH" ? 5 : opts.granularity === "WEEK" ? 2 : 10;
+
   return {
     cells: rows.map((r) => ({
       year: r.year,
-      month: r.month,
+      bucket: r.bucket,
       value: Number(r.value),
       days: r.days,
-      // Sotto i 5 giorni di quotazione un mese non è un mese: succede al mese
-      // in corso e ai bordi della serie.
-      partial: r.days < 5,
+      partial: r.days < minDays,
     })),
     years,
     currentYear,

@@ -8,6 +8,8 @@ import {
   monthlyLogReturns,
   monthlyMeanLevels,
   normalizeBars,
+  weeklyLogReturns,
+  weeklyMeanLevels,
 } from "@/lib/seasonality/series";
 
 describe("normalizeBars", () => {
@@ -202,5 +204,80 @@ describe("levelPathsByYear", () => {
     expect(p[4]).toBe(20);
     expect(p[5]).toBe(25);
     expect(p[366]).toBe(25);
+  });
+});
+
+describe("weeklyLogReturns", () => {
+  it("usa la chiusura di fine settimana contro quella precedente", () => {
+    const out = weeklyLogReturns([
+      // settimana ISO 10 del 2024: 4-8 marzo
+      { date: "2024-03-04", close: 100 },
+      { date: "2024-03-08", close: 110 },
+      // settimana ISO 11: 11-15 marzo
+      { date: "2024-03-11", close: 108 },
+      { date: "2024-03-15", close: 121 },
+    ]);
+    expect(out).toHaveLength(1);
+    expect(out[0]).toMatchObject({ isoYear: 2024, week: 11, days: 2 });
+    expect(out[0].value).toBeCloseTo(Math.log(121 / 110), 12);
+  });
+
+  it("NON produce un rendimento a cavallo di una settimana mancante", () => {
+    // Festività lunga: la settimana 11 non esiste. Senza guardia il salto
+    // finirebbe tutto sulla settimana 12.
+    const out = weeklyLogReturns([
+      { date: "2024-03-08", close: 100 },
+      { date: "2024-03-22", close: 150 },
+    ]);
+    expect(out).toEqual([]);
+  });
+
+  it("attraversa il capodanno ISO di un anno a 52 settimane", () => {
+    // 2019 ha 52 settimane ISO: dopo la 52 viene la settimana 1 del 2020.
+    const out = weeklyLogReturns([
+      { date: "2019-12-27", close: 100 }, // 2019-W52
+      { date: "2020-01-03", close: 120 }, // 2020-W01
+    ]);
+    expect(out).toHaveLength(1);
+    expect(out[0]).toMatchObject({ isoYear: 2020, week: 1 });
+    expect(out[0].value).toBeCloseTo(Math.log(1.2), 12);
+  });
+
+  it("attraversa il capodanno ISO di un anno a 53 settimane", () => {
+    // 2020 ha 53 settimane ISO: dopo la 53 viene la settimana 1 del 2021.
+    const out = weeklyLogReturns([
+      { date: "2020-12-31", close: 100 }, // 2020-W53
+      { date: "2021-01-08", close: 110 }, // 2021-W01
+    ]);
+    expect(out).toHaveLength(1);
+    expect(out[0]).toMatchObject({ isoYear: 2021, week: 1 });
+  });
+
+  it("una settimana isolata non produce nessun rendimento", () => {
+    expect(weeklyLogReturns([{ date: "2024-03-04", close: 100 }])).toEqual([]);
+  });
+});
+
+describe("weeklyMeanLevels", () => {
+  it("media i livelli della settimana ISO e conta i giorni", () => {
+    const out = weeklyMeanLevels([
+      { date: "2024-03-04", close: 10 },
+      { date: "2024-03-06", close: 20 },
+      { date: "2024-03-11", close: 30 },
+    ]);
+    expect(out).toEqual([
+      { isoYear: 2024, week: 10, value: 15, days: 2 },
+      { isoYear: 2024, week: 11, value: 30, days: 1 },
+    ]);
+  });
+
+  it("raggruppa sull'anno ISO, non su quello civile", () => {
+    // Entrambe le date stanno nella settimana 1 del 2020.
+    const out = weeklyMeanLevels([
+      { date: "2019-12-31", close: 10 },
+      { date: "2020-01-02", close: 20 },
+    ]);
+    expect(out).toHaveLength(1);
+    expect(out[0]).toMatchObject({ isoYear: 2020, week: 1, value: 15, days: 2 });
   });
 });
