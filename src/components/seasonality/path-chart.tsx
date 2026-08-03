@@ -1,7 +1,7 @@
 "use client";
 
+import { useMemo, useState } from "react";
 import {
-  Area,
   CartesianGrid,
   ComposedChart,
   Line,
@@ -18,26 +18,19 @@ import { windowColor } from "@/components/seasonality/window-colors";
 import type { PathPointView } from "@/lib/seasonality/query";
 
 /**
- * PERCORSO STAGIONALE con bande di dispersione.
+ * PERCORSO STAGIONALE — multilinea con selettore di finestre.
  *
- * Tre strati, in quest'ordine di lettura:
- * 1. la BANDA p25-p75 della finestra selezionata — dove è caduta la metà
- *    centrale degli anni. Sta sotto tutto e non è un ornamento: è ciò che
- *    impedisce di leggere una linea media come una previsione;
- * 2. le linee delle altre finestre, sottili ma OGNUNA NEL PROPRIO COLORE
- *    (token `--md-w*`): prima erano tutte grigie e indistinguibili, e la
- *    legenda poteva solo dire «le altre finestre»;
- * 3. la linea della finestra selezionata, spessa, nel suo colore — lo stesso
- *    che la banda usa a bassa opacità, così banda e linea si leggono come un
- *    oggetto solo.
+ * Ogni finestra ha una CHECKBOX colorata (la checkbox È la legenda): tutte
+ * accese per default, e spegnendole il grafico ri-zooma sulle sole linee
+ * visibili. L'asse Y è stretto sui dati reali — niente zero forzato: un
+ * percorso che oscilla fra +2% e +9% schiacciato su un asse 0-60% era una
+ * riga piatta, e la pendenza è esattamente la cosa da leggere.
  *
- * L'ALTEZZA la decide il contenitore (il wrapper in pagina fissa ~340px su
- * mobile e ~460px da md in su): un percorso annuale schiacciato in 300px
- * appiattisce le pendenze, che sono esattamente la cosa da leggere.
+ * La banda p25-p75 NON sta più sul grafico (decisione esplicita): la
+ * dispersione resta nei numeri — StDev e «Range tipico p25-p75» in tabella.
  *
- * Disegnare la banda come Area impilata (base + spessore) è l'unico modo in
- * Recharts di ottenere una banda che non parta dall'asse: la prima area è
- * trasparente e serve solo a sollevare la seconda fino a p25.
+ * La finestra selezionata (quella dei chip in alto, a cui appartengono le
+ * statistiche) resta la linea più spessa.
  */
 
 const MONTH_TICKS = [1, 32, 60, 91, 121, 152, 182, 213, 244, 274, 305, 335];
@@ -63,11 +56,6 @@ export interface PathSeries {
 
 interface Row {
   doy: number;
-  bandBase?: number;
-  bandSpan?: number;
-  p25?: number;
-  p75?: number;
-  n?: number;
   [key: `w${number}`]: number | undefined;
 }
 
@@ -83,143 +71,188 @@ export function SeasonalPathChart({
   /** Giorno dell'anno di oggi: la linea «siamo qui». */
   todayDoy: number;
 }) {
+  const [spente, setSpente] = useState<ReadonlySet<number>>(new Set());
+
   const toDisplay = (v: number) => (kind === "LEVEL" ? v : logToPercent(v));
 
-  const rows = new Map<number, Row>();
-  for (const s of series) {
-    for (const p of s.points) {
-      const row = rows.get(p.dayOfYear) ?? { doy: p.dayOfYear };
-      row[`w${s.lookbackYears}`] = toDisplay(p.mean);
-      if (s.lookbackYears === selectedWindow) {
-        const lo = toDisplay(p.p25);
-        const hi = toDisplay(p.p75);
-        row.bandBase = lo;
-        row.bandSpan = hi - lo;
-        row.p25 = lo;
-        row.p75 = hi;
-        row.n = p.n;
+  const { data, windows } = useMemo(() => {
+    const rows = new Map<number, Row>();
+    for (const s of series) {
+      for (const p of s.points) {
+        const row = rows.get(p.dayOfYear) ?? { doy: p.dayOfYear };
+        row[`w${s.lookbackYears}`] = toDisplay(p.mean);
+        rows.set(p.dayOfYear, row);
       }
-      rows.set(p.dayOfYear, row);
     }
-  }
-  const data = [...rows.values()].sort((a, b) => a.doy - b.doy);
+    return {
+      data: [...rows.values()].sort((a, b) => a.doy - b.doy),
+      windows: series.map((s) => s.lookbackYears).sort((a, b) => b - a),
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [series, kind]);
 
-  const windows = series.map((s) => s.lookbackYears).sort((a, b) => b - a);
+  const visibili = windows.filter((w) => !spente.has(w));
+
+  /* Dominio Y stretto sulle SOLE linee visibili, con un piccolo respiro:
+     spegnere la finestra corta e volatile fa ri-zoomare le altre. */
+  const [yMin, yMax] = useMemo(() => {
+    let min = Number.POSITIVE_INFINITY;
+    let max = Number.NEGATIVE_INFINITY;
+    for (const row of data) {
+      for (const w of visibili) {
+        const v = row[`w${w}`];
+        if (v === undefined) continue;
+        if (v < min) min = v;
+        if (v > max) max = v;
+      }
+    }
+    if (!Number.isFinite(min) || !Number.isFinite(max)) return [0, 1];
+    const pad = Math.max((max - min) * 0.06, 0.1);
+    return [min - pad, max + pad];
+  }, [data, visibili]);
 
   const unit = kind === "LEVEL" ? "" : "%";
-  const selectedColor = windowColor(selectedWindow);
+
+  const toggle = (w: number) => {
+    setSpente((prev) => {
+      const next = new Set(prev);
+      if (next.has(w)) next.delete(w);
+      else next.add(w);
+      return next;
+    });
+  };
 
   return (
-    <ResponsiveContainer width="100%" height="100%">
-      <ComposedChart data={data} margin={{ ...CHART.margin, left: 4 }}>
-        <CartesianGrid
-          strokeDasharray="3 3"
-          stroke="var(--md-border)"
-          vertical={false}
-        />
-        <XAxis
-          dataKey="doy"
-          type="number"
-          domain={[1, 366]}
-          ticks={MONTH_TICKS}
-          tickFormatter={(v: number) => MONTH_NAMES[MONTH_TICKS.indexOf(v)] ?? ""}
-          tick={CHART.axisTick}
-          axisLine={false}
-          tickLine={false}
-        />
-        <YAxis
-          width={CHART.yAxisWidth}
-          tick={CHART.axisTick}
-          axisLine={false}
-          tickLine={false}
-          tickFormatter={(v: number) =>
-            `${v.toLocaleString("it-IT", { maximumFractionDigits: 1 })}${unit}`
-          }
-        />
-
-        {/* Banda p25-p75 nel colore della finestra selezionata, a bassa
-            opacità: banda e linea sono lo stesso oggetto e devono dirlo. */}
-        <Area
-          dataKey="bandBase"
-          stackId="banda"
-          stroke="none"
-          fill="transparent"
-          isAnimationActive={false}
-          legendType="none"
-          activeDot={false}
-        />
-        <Area
-          dataKey="bandSpan"
-          stackId="banda"
-          stroke="none"
-          fill={selectedColor}
-          fillOpacity={0.1}
-          isAnimationActive={false}
-          legendType="none"
-          activeDot={false}
-        />
-
-        {/* `connectNulls` NON è opzionale qui: le finestre non selezionate
-            arrivano DECIMATE (un punto ogni sette giorni) per non spedire al
-            client 209 KB di punti che nessuno legge, quindi nel dataset unito
-            hanno buchi su sei righe su sette. Senza, Recharts spezza la curva
-            a ogni buco e ne disegna 53 segmenti isolati da un punto — cioè
-            niente di visibile. Misurato. */}
-        {windows
-          .filter((w) => w !== selectedWindow)
-          .map((w) => (
-            <Line
+    <div className="flex h-full flex-col gap-2">
+      {/* La checkbox È la legenda: campione colorato + etichetta. */}
+      <div className="flex flex-wrap items-center gap-x-4 gap-y-1.5">
+        {windows.map((w) => {
+          const accesa = !spente.has(w);
+          const sel = w === selectedWindow;
+          return (
+            <label
               key={w}
-              dataKey={`w${w}`}
-              stroke={windowColor(w)}
-              strokeWidth={1.25}
-              strokeOpacity={0.75}
-              dot={false}
-              connectNulls
-              isAnimationActive={false}
+              className="md-mono inline-flex cursor-pointer select-none items-center gap-1.5 text-2xs"
+              style={{
+                color: accesa ? "var(--md-text-2)" : "var(--md-muted)",
+                fontWeight: sel ? 700 : 500,
+                opacity: accesa ? 1 : 0.6,
+              }}
+            >
+              <input
+                type="checkbox"
+                checked={accesa}
+                onChange={() => toggle(w)}
+                className="size-3.5 cursor-pointer"
+                style={{ accentColor: windowColor(w) }}
+                aria-label={`Mostra la finestra da ${w} anni`}
+              />
+              <span
+                aria-hidden
+                className="inline-block w-4 rounded-full"
+                style={{
+                  height: sel ? 3 : 2,
+                  backgroundColor: windowColor(w),
+                  opacity: accesa ? 1 : 0.35,
+                }}
+              />
+              {w} anni
+            </label>
+          );
+        })}
+      </div>
+
+      <div className="min-h-0 flex-1">
+        <ResponsiveContainer width="100%" height="100%">
+          <ComposedChart data={data} margin={{ ...CHART.margin, left: 4 }}>
+            <CartesianGrid
+              strokeDasharray="3 3"
+              stroke="var(--md-border)"
+              vertical={false}
             />
-          ))}
+            <XAxis
+              dataKey="doy"
+              type="number"
+              domain={[1, 366]}
+              ticks={MONTH_TICKS}
+              tickFormatter={(v: number) =>
+                MONTH_NAMES[MONTH_TICKS.indexOf(v)] ?? ""
+              }
+              tick={CHART.axisTick}
+              axisLine={false}
+              tickLine={false}
+            />
+            <YAxis
+              width={CHART.yAxisWidth}
+              domain={[yMin, yMax]}
+              tick={CHART.axisTick}
+              axisLine={false}
+              tickLine={false}
+              tickFormatter={(v: number) =>
+                `${v.toLocaleString("it-IT", { maximumFractionDigits: 1 })}${unit}`
+              }
+            />
 
-        <Line
-          dataKey={`w${selectedWindow}`}
-          stroke={selectedColor}
-          strokeWidth={2.5}
-          dot={false}
-          isAnimationActive={false}
-        />
+            {/* `connectNulls` NON è opzionale: le finestre non selezionate
+                arrivano DECIMATE (un punto ogni sette giorni), quindi nel
+                dataset unito hanno buchi su sei righe su sette. Senza,
+                Recharts spezza la curva in segmenti isolati invisibili. */}
+            {visibili
+              .filter((w) => w !== selectedWindow)
+              .map((w) => (
+                <Line
+                  key={w}
+                  dataKey={`w${w}`}
+                  stroke={windowColor(w)}
+                  strokeWidth={1.5}
+                  strokeOpacity={0.85}
+                  dot={false}
+                  connectNulls
+                  isAnimationActive={false}
+                />
+              ))}
 
-        {kind === "RETURN" ? (
-          <ReferenceLine y={0} stroke="var(--md-border)" />
-        ) : null}
-        <ReferenceLine
-          x={todayDoy}
-          stroke="var(--md-warn)"
-          strokeDasharray="4 3"
-          label={{
-            value: "oggi",
-            position: "insideTopRight",
-            fill: "var(--md-warn)",
-            fontSize: 10,
-          }}
-        />
+            {!spente.has(selectedWindow) ? (
+              <Line
+                dataKey={`w${selectedWindow}`}
+                stroke={windowColor(selectedWindow)}
+                strokeWidth={2.5}
+                dot={false}
+                isAnimationActive={false}
+              />
+            ) : null}
 
-        <Tooltip
-          contentStyle={CHART.tooltipStyle}
-          itemStyle={CHART.tooltipItemStyle}
-          labelStyle={CHART.tooltipLabelStyle}
-          labelFormatter={(label) => `Giorno ${String(label)} dell'anno`}
-          formatter={(value, name) => {
-            const num = Number(value);
-            const key = String(name);
-            const fmt = Number.isFinite(num)
-              ? `${num.toLocaleString("it-IT", { maximumFractionDigits: 2 })}${unit}`
-              : "—";
-            if (key === "bandSpan") return [fmt, "ampiezza banda p25-p75"];
-            if (key === "bandBase") return [fmt, "p25"];
-            return [fmt, `media ${key.replace("w", "")} anni`];
-          }}
-        />
-      </ComposedChart>
-    </ResponsiveContainer>
+            {kind === "RETURN" && yMin < 0 && yMax > 0 ? (
+              <ReferenceLine y={0} stroke="var(--md-border)" />
+            ) : null}
+            <ReferenceLine
+              x={todayDoy}
+              stroke="var(--md-warn)"
+              strokeDasharray="4 3"
+              label={{
+                value: "oggi",
+                position: "insideTopRight",
+                fill: "var(--md-warn)",
+                fontSize: 10,
+              }}
+            />
+
+            <Tooltip
+              contentStyle={CHART.tooltipStyle}
+              itemStyle={CHART.tooltipItemStyle}
+              labelStyle={CHART.tooltipLabelStyle}
+              labelFormatter={(label) => `Giorno ${String(label)} dell'anno`}
+              formatter={(value, name) => {
+                const num = Number(value);
+                const fmt = Number.isFinite(num)
+                  ? `${num.toLocaleString("it-IT", { maximumFractionDigits: 2 })}${unit}`
+                  : "—";
+                return [fmt, `media ${String(name).replace("w", "")} anni`];
+              }}
+            />
+          </ComposedChart>
+        </ResponsiveContainer>
+      </div>
+    </div>
   );
 }

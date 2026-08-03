@@ -40,15 +40,12 @@ import {
   type PathPointView,
 } from "@/lib/seasonality/query";
 import {
-  marketSessionBucket,
-  sessionBoundaries,
-} from "@/lib/seasonality/market-sessions";
-import {
   CLOCKS,
   CLOCK_LABEL,
   CLOCK_TIMEZONE,
   isoWeek,
   isoWeekday,
+  sessionBucket,
   zonedParts,
 } from "@/lib/seasonality/buckets";
 import { windowColor } from "@/components/seasonality/window-colors";
@@ -277,7 +274,7 @@ export default async function StagionalitaPage({
               return wd <= 5 ? wd : null;
             })()
           : granularity === "SESSION"
-            ? marketSessionBucket(adessoTs)
+            ? sessionBucket(adessoRoma.hour)
             : zonedParts(adessoTs, CLOCK_TIMEZONE[clock]).hour;
 
   return (
@@ -494,43 +491,16 @@ export default async function StagionalitaPage({
                     </PanelLabel>
                     <MetricInfo info={percorsoInfo} size="sm" />
                   </span>
-                  {/* Legenda vera: un campione di linea per finestra, nel suo
-                      colore. Sostituisce il testo «linee tenui: le altre
-                      finestre», che non permetteva di capire quale fosse
-                      quale. */}
-                  <span className="flex flex-wrap items-center gap-x-3 gap-y-1 text-2xs text-[var(--md-muted)]">
-                    {pathSeries.map((ser) => {
-                      const sel = ser.lookbackYears === lookbackEffettivo;
-                      return (
-                        <span
-                          key={ser.lookbackYears}
-                          className="inline-flex items-center gap-1.5"
-                          style={{
-                            color: sel ? "var(--md-text)" : "var(--md-text-2)",
-                            fontWeight: sel ? 700 : 500,
-                          }}
-                        >
-                          <span
-                            aria-hidden
-                            className="inline-block w-4 rounded-full"
-                            style={{
-                              height: sel ? 3 : 2,
-                              backgroundColor: windowColor(ser.lookbackYears),
-                              opacity: sel ? 1 : 0.8,
-                            }}
-                          />
-                          {ser.lookbackYears} anni
-                        </span>
-                      );
-                    })}
-                    <span>· banda p25-p75 sulla finestra selezionata</span>
+                  <span className="text-2xs text-[var(--md-muted)]">
+                    spunta le finestre da confrontare · l’asse si adatta alle
+                    linee visibili
                   </span>
                 </div>
                 {pathSeries.length > 0 ? (
                   /* Più ALTO che largo di proporzione: le pendenze sono la
                      cosa da leggere, e in 300px si appiattivano. 340px su
                      mobile (senza obbligare a scroll infinito), 460px da md. */
-                  <div className="h-[340px] w-full md:h-[460px]">
+                  <div className="h-[420px] w-full md:h-[560px]">
                     <SeasonalPathChart
                       series={pathSeries}
                       selectedWindow={lookbackEffettivo}
@@ -583,9 +553,9 @@ export default async function StagionalitaPage({
                   {def.kind === "LEVEL"
                     ? "Livello medio dell'indice giorno per giorno dell'anno: non si cumula niente, un livello non compone."
                     : "Rendimento cumulato dal 1° gennaio, mediato sugli anni della finestra."}{" "}
-                  La banda mostra dove è caduta la <strong>metà centrale</strong>{" "}
-                  degli anni: se è larga, la forma media esiste ma il singolo
-                  anno può fare tutt&apos;altro. L&apos;anno in corso è escluso.
+                  Ogni linea è una media, non una promessa: la dispersione
+                  attorno — StDev e range tipico p25-p75 — sta nelle tabelle
+                  qui sotto. L&apos;anno in corso è escluso.
                 </p>
               </div>
 
@@ -642,35 +612,23 @@ export default async function StagionalitaPage({
               {granularity === "SESSION" ? (
                 <div className="md-panel flex flex-col gap-1.5 p-3">
                   <PanelLabel>
-                    Confini delle sessioni ({CLOCK_LABEL.ROME})
+                    Confini delle sessioni (ora italiana)
                   </PanelLabel>
                   <div className="md-mono flex flex-wrap gap-x-4 gap-y-1 text-2xs text-[var(--md-text-2)]">
-                    {sessionBoundaries(
-                      new Date(),
-                      CLOCK_TIMEZONE.ROME,
-                    ).map((b) => (
-                      <span key={b.session}>
-                        {b.session === "ASIA"
-                          ? "Asia"
-                          : b.session === "LONDON"
-                            ? "Londra"
-                            : b.session === "NEWYORK"
-                              ? "New York"
-                              : "Fuori"}{" "}
-                        {b.range}
-                      </span>
-                    ))}
+                    <span>Asia 00:00 → 08:00</span>
+                    <span>Londra 08:00 → 14:00</span>
+                    <span>New York 14:00 → 22:00</span>
+                    <span>Fuori 22:00 → 00:00</span>
                   </div>
                   <p className="text-2xs leading-relaxed text-[var(--md-muted)]">
-                    I confini sono ancorati agli orari dei <strong>centri
-                    finanziari</strong> — apertura di Tokyo, di Londra,
-                    apertura e chiusura di New York — ciascuno col proprio
-                    cambio d&apos;ora. Londra e New York non passano all&apos;ora
-                    legale negli stessi giorni: per due o tre settimane a marzo
-                    e una a fine ottobre lo scarto fra le due vale un&apos;ora in
-                    meno del solito, e con fasce fisse sull&apos;orologio italiano
-                    l&apos;apertura di New York finirebbe nel bucket sbagliato.
-                    Gli orari qui sopra sono quelli di oggi.
+                    Fasce sull&apos;<strong>orologio italiano</strong>{" "}
+                    (Europe/Rome, ora legale inclusa): le stesse con cui
+                    l&apos;app classifica i tuoi trade, così le due letture si
+                    confrontano direttamente. Il compromesso dichiarato: nelle
+                    due-tre settimane l&apos;anno in cui l&apos;Italia e Londra
+                    o New York cambiano ora in giorni diversi, il confine può
+                    scostarsi di un&apos;ora dall&apos;apertura reale di quel
+                    centro.
                   </p>
                 </div>
               ) : null}

@@ -5,6 +5,8 @@ import {
 } from "@/components/seasonality/bucket-labels";
 import type { BucketView, HeatmapData } from "@/lib/seasonality/query";
 import {
+  CELL_OPACITY_MAX,
+  CELL_OPACITY_MIN,
   UNIT_LABEL,
   cellBackground,
   formatBucketValue,
@@ -14,6 +16,7 @@ import {
   positiveLabel,
   robustScale,
   unitFor,
+  valueColor,
 } from "@/components/seasonality/format";
 import { PanelLabel } from "@/components/macro-desk/primitives";
 import { LowSampleMark } from "@/components/seasonality/low-sample";
@@ -74,6 +77,27 @@ export function SeasonalityHeatmap({
 
   const summaryByBucket = new Map(summary.map((s) => [s.bucket, s]));
 
+  /* Scala robusta delle MEDIE di sintesi: la riga Media si colora rispetto
+     agli altri bucket, con la stessa semantica daltonica delle celle. */
+  const summaryScale = robustScale(
+    summary.map((s) => (kind === "LEVEL" ? s.mean - reference : s.mean)),
+  );
+  const mediaBg = (s: BucketView) =>
+    cellBackground(s.mean, kind, summaryScale, reference);
+  /* La riga Pos% si colora attorno al 50%: piu della meta degli anni
+     positivi → verso l'alto, meno → verso il basso. Stessi tetti di opacita
+     AA (CELL_OPACITY_MIN/MAX) delle celle. */
+  const posBg = (s: BucketView) => {
+    const delta = s.positiveShare - 0.5;
+    const intensity = Math.min(1, Math.abs(delta) * 2);
+    if (intensity < 0.04) return undefined;
+    const color = delta > 0 ? valueColor(1, "RETURN") : valueColor(-1, "RETURN");
+    const pct = Math.round(
+      CELL_OPACITY_MIN + intensity * (CELL_OPACITY_MAX - CELL_OPACITY_MIN),
+    );
+    return `color-mix(in oklab, ${color} ${pct}%, transparent)`;
+  };
+
   if (data.cells.length === 0) {
     return (
       <p className="text-sm text-[var(--md-muted)]">
@@ -106,7 +130,7 @@ export function SeasonalityHeatmap({
             caselle enormi e vuote. */}
         <table
           className={cn(
-            "md-mono border-separate border-spacing-0.5 text-right text-2xs tabular-nums",
+            "md-mono border-separate border-spacing-0.5 text-right text-xs tabular-nums",
             axis.stretch ? "w-full" : "w-auto",
           )}
           style={{ minWidth: `${axis.minWidthRem}rem` }}
@@ -119,7 +143,7 @@ export function SeasonalityHeatmap({
             <tr>
               <th
                 scope="col"
-                className="sticky left-0 z-10 bg-[var(--md-surface)] px-1.5 py-1 text-left font-semibold text-[var(--md-muted)]"
+                className="sticky left-0 z-10 bg-[var(--md-surface)] px-2 py-1.5 text-left font-semibold text-[var(--md-muted)]"
               >
                 Anno
               </th>
@@ -129,7 +153,7 @@ export function SeasonalityHeatmap({
                   <th
                     key={b}
                     scope="col"
-                    className="px-1.5 py-1 font-semibold"
+                    className="px-2 py-1.5 font-semibold"
                     style={{
                       color: adesso ? "var(--md-text)" : "var(--md-muted)",
                     }}
@@ -162,7 +186,7 @@ export function SeasonalityHeatmap({
                 <tr key={year}>
                   <th
                     scope="row"
-                    className="sticky left-0 z-10 bg-[var(--md-surface)] px-1.5 py-1 text-left font-semibold text-[var(--md-text-2)]"
+                    className="sticky left-0 z-10 bg-[var(--md-surface)] px-2 py-1.5 text-left font-semibold text-[var(--md-text-2)]"
                   >
                     {year}
                     {parziale ? (
@@ -180,7 +204,7 @@ export function SeasonalityHeatmap({
                       return (
                         <td
                           key={b}
-                          className="px-1.5 py-1 text-[var(--md-muted)]"
+                          className="px-2 py-1.5 text-[var(--md-muted)]"
                         >
                           —
                         </td>
@@ -189,7 +213,7 @@ export function SeasonalityHeatmap({
                     return (
                       <td
                         key={b}
-                        className="rounded-[var(--md-r-sm)] px-1.5 py-1 text-[var(--md-text)]"
+                        className="rounded-[var(--md-r-sm)] px-2 py-1.5 text-[var(--md-text)]"
                         style={{
                           backgroundColor: cellBackground(
                             cell.value,
@@ -214,11 +238,17 @@ export function SeasonalityHeatmap({
             })}
           </tbody>
           <tfoot>
+            {/* Staccho pieno fra gli anni e le sintesi: senza, l'ultima riga
+                di dati e la Media si leggevano come un blocco solo. */}
+            <tr aria-hidden>
+              <td colSpan={axis.buckets.length + 1} className="h-3" />
+            </tr>
             <SummaryRow
               label={meanLabel(kind)}
               buckets={axis.buckets}
               values={summaryByBucket}
               render={(s) => formatBucketValue(s.mean, kind, 2, unit)}
+              cellBg={mediaBg}
               emphasis
             />
             <SummaryRow
@@ -232,6 +262,7 @@ export function SeasonalityHeatmap({
               buckets={axis.buckets}
               values={summaryByBucket}
               render={(s) => formatShare(s.positiveShare)}
+              cellBg={posBg}
             />
             {/* La riga `n` porta il marcatore di campione basso come la
                 tabella sotto: due viste dello stesso numero non possono
@@ -271,6 +302,7 @@ function SummaryRow({
   values,
   render,
   mark,
+  cellBg,
   emphasis,
 }: {
   label: string;
@@ -278,13 +310,15 @@ function SummaryRow({
   values: Map<number, BucketView>;
   render: (s: BucketView) => string;
   mark?: (s: BucketView) => React.ReactNode;
+  /** Sfondo heatmap della cella (solo Media e Pos%: StDev e n restano nude). */
+  cellBg?: (s: BucketView) => string | undefined;
   emphasis?: boolean;
 }) {
   return (
     <tr>
       <th
         scope="row"
-        className="sticky left-0 z-10 border-t bg-[var(--md-surface)] px-1.5 py-1 text-left font-semibold text-[var(--md-text-2)]"
+        className="sticky left-0 z-10 border-t bg-[var(--md-surface)] px-2 py-1.5 text-left font-semibold text-[var(--md-text-2)]"
         style={{ borderColor: "var(--md-border)" }}
       >
         {label}
@@ -294,11 +328,12 @@ function SummaryRow({
         return (
           <td
             key={b}
-            className="border-t px-1.5 py-1"
+            className="rounded-[var(--md-r-sm)] border-t px-2 py-1.5"
             style={{
               borderColor: "var(--md-border)",
               color: emphasis ? "var(--md-text)" : "var(--md-text-2)",
               fontWeight: emphasis ? 700 : 500,
+              backgroundColor: s ? cellBg?.(s) : undefined,
             }}
           >
             {s ? (
