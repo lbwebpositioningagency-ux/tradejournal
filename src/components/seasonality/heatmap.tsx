@@ -45,6 +45,7 @@ export function SeasonalityHeatmap({
   summary,
   windowMedian,
   lookbackYears,
+  currentBucket,
 }: {
   data: HeatmapData;
   kind: SeasonalityKind;
@@ -54,6 +55,9 @@ export function SeasonalityHeatmap({
   /** Riferimento per il colore dei LIVELLI (mediana della finestra). */
   windowMedian: number;
   lookbackYears: number;
+  /** Il bucket in cui ci si trova ADESSO (mese/settimana/…): evidenziato in
+   * intestazione. `null` = nessun marcatore (es. weekend sui giorni lun-ven). */
+  currentBucket?: number | null;
 }) {
   const axis = BUCKET_AXIS[granularity];
   const unit = unitFor(kind, granularity);
@@ -119,15 +123,36 @@ export function SeasonalityHeatmap({
               >
                 Anno
               </th>
-              {axis.buckets.map((b) => (
-                <th
-                  key={b}
-                  scope="col"
-                  className="px-1.5 py-1 font-semibold text-[var(--md-muted)]"
-                >
-                  {axis.short(b)}
-                </th>
-              ))}
+              {axis.buckets.map((b) => {
+                const adesso = b === currentBucket;
+                return (
+                  <th
+                    key={b}
+                    scope="col"
+                    className="px-1.5 py-1 font-semibold"
+                    style={{
+                      color: adesso ? "var(--md-text)" : "var(--md-muted)",
+                    }}
+                    title={adesso ? "Ci troviamo qui adesso" : undefined}
+                    aria-current={adesso ? "date" : undefined}
+                  >
+                    {adesso ? (
+                      <span
+                        className="rounded-[var(--md-r-sm)] px-1 py-0.5"
+                        style={{
+                          backgroundColor:
+                            "color-mix(in oklab, var(--md-warn) 24%, transparent)",
+                          boxShadow: "inset 0 -2px 0 var(--md-warn)",
+                        }}
+                      >
+                        {axis.short(b)}
+                      </span>
+                    ) : (
+                      axis.short(b)
+                    )}
+                  </th>
+                );
+              })}
             </tr>
           </thead>
           <tbody>

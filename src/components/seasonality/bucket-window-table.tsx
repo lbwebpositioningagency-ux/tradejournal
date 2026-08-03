@@ -48,6 +48,7 @@ export function BucketWindowTable({
   selectedWindow,
   coverage,
   reference = 0,
+  currentBucket,
 }: {
   kind: SeasonalityKind;
   granularity: SeasonalityGranularityUi;
@@ -61,6 +62,8 @@ export function BucketWindowTable({
    * positivo — risulterebbe verde in tutti e dodici i mesi.
    */
   reference?: number;
+  /** Il bucket in cui ci si trova ADESSO: la sua riga è evidenziata. */
+  currentBucket?: number | null;
 }) {
   const axis = BUCKET_AXIS[granularity];
   const unit = unitFor(kind, granularity);
@@ -94,14 +97,32 @@ export function BucketWindowTable({
           const sel = selectedByBucket.get(bucket);
           if (!sel && !windows.some((w) => byWindow.get(w)?.some((r) => r.bucket === bucket)))
             return null;
+          const adessoCard = bucket === currentBucket;
           return (
             <li
               key={bucket}
               className="md-panel flex flex-col gap-1.5 p-3"
+              style={
+                adessoCard
+                  ? { boxShadow: "inset 2px 0 0 var(--md-warn)" }
+                  : undefined
+              }
             >
               <div className="flex items-center justify-between gap-2">
-                <span className="text-sm font-semibold text-[var(--md-text)]">
+                <span className="inline-flex items-center gap-1.5 text-sm font-semibold text-[var(--md-text)]">
                   {label}
+                  {adessoCard ? (
+                    <span
+                      className="md-mono rounded-[var(--md-r-sm)] px-1 py-0.5 text-2xs leading-none"
+                      style={{
+                        color: "var(--md-warn)",
+                        backgroundColor:
+                          "color-mix(in oklab, var(--md-warn) 18%, transparent)",
+                      }}
+                    >
+                      adesso
+                    </span>
+                  ) : null}
                 </span>
                 <span
                   className="md-mono text-sm font-semibold tabular-nums"
@@ -225,17 +246,42 @@ export function BucketWindowTable({
               // Nessuna riga inventata: la settimana 53 non esiste in tutti
               // gli strumenti, e una riga di trattini non aggiunge niente.
               if (!presente) return null;
+              const adesso = bucket === currentBucket;
               return (
                 <tr
                   key={bucket}
                   className="border-b last:border-0"
-                  style={{ borderColor: "var(--md-border)" }}
+                  style={{
+                    borderColor: "var(--md-border)",
+                    backgroundColor: adesso
+                      ? "color-mix(in oklab, var(--md-warn) 7%, transparent)"
+                      : undefined,
+                    boxShadow: adesso
+                      ? "inset 2px 0 0 var(--md-warn)"
+                      : undefined,
+                  }}
+                  aria-current={adesso ? "date" : undefined}
                 >
                   <th
                     scope="row"
                     className="py-2 pr-2 text-left font-medium text-[var(--md-text)]"
                   >
-                    {label}
+                    <span className="inline-flex items-center gap-1.5">
+                      {label}
+                      {adesso ? (
+                        <span
+                          className="md-mono rounded-[var(--md-r-sm)] px-1 py-0.5 text-2xs leading-none"
+                          style={{
+                            color: "var(--md-warn)",
+                            backgroundColor:
+                              "color-mix(in oklab, var(--md-warn) 18%, transparent)",
+                          }}
+                          title="Ci troviamo qui adesso"
+                        >
+                          adesso
+                        </span>
+                      ) : null}
+                    </span>
                   </th>
                   {windows.map((w) => {
                     const row = byWindow
