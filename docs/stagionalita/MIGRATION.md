@@ -2,8 +2,23 @@
 
 File: `prisma/migrations/20260803120000_seasonality/migration.sql`
 
-**Stato: generata e NON applicata.** Nessun comando di questa sessione ha
-toccato Neon né alcun database.
+**Stato: applicata al Postgres LOCALE, NON a Neon.** La connection string di
+Neon non è accessibile da questa macchina — `.env.production.local` contiene i
+placeholder `[SENSITIVE]` scritti da `vercel env pull`, perché le variabili
+sono marcate come sensibili sul progetto e non vengono esportate. Vedi le
+azioni umane in fondo a questo file.
+
+Le migrazioni del modulo sono **tre**:
+
+| Migrazione | Contenuto |
+|---|---|
+| `20260803120000_seasonality` | 4 `CREATE TYPE` + 6 `CREATE TABLE` + 1 indice |
+| `20260803160000_seasonality_monthly_obs` | 1 `CREATE TABLE` (osservazioni mensili per la heatmap) |
+| `20260803190000_seasonality_path_positive` | 1 `ALTER TABLE ... ADD COLUMN` su `SeasonalityPathPoint` |
+
+L'unico `ALTER` agisce su una tabella **creata dalla prima migrazione di
+questo stesso branch**: nessuna tabella preesistente dell'applicazione viene
+toccata da nessuna delle tre.
 
 ## Come è stata generata senza database
 
@@ -147,3 +162,23 @@ CREATE TABLE "SeasonalityRun" (
 -- CreateIndex
 CREATE INDEX "SeasonalityRun_startedAt_idx" ON "SeasonalityRun"("startedAt");
 ```
+
+
+---
+
+## Come applicarle a Neon
+
+Il comando è uno solo e applica **solo le migrazioni non ancora applicate**
+(le tre della Stagionalità; le 14 precedenti risultano già presenti):
+
+```bash
+npx prisma migrate deploy
+```
+
+Perché non l'ho eseguito io: `prisma migrate deploy` legge `DATABASE_URL`, che
+in locale punta al Postgres Docker. Per farlo puntare a Neon serve la
+connection string di produzione, che su questa macchina non è leggibile.
+
+Le tre migrazioni verranno comunque applicate **da sole** al primo deploy del
+branch, perché `npm run build` esegue `prisma migrate deploy`. Non serve fare
+niente a mano se si preferisce aspettare il deploy.

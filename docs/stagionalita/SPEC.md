@@ -1,6 +1,6 @@
 # SPEC — Stagionalità di mercato
 
-Specifica congelata al termine della Fase 0 (03/08/2026).
+Specifica congelata al termine della Fase 0 e **aggiornata a fine Fase 1** (03/08/2026).
 Documenti collegati: [RECON.md](RECON.md) · [DATA-SOURCES.md](DATA-SOURCES.md) ·
 [SCHEDULING.md](SCHEDULING.md).
 
@@ -107,6 +107,26 @@ lente. Chi la accende deve saperlo, e l'etichetta lo dirà.
 Nessun rendimento, nessun detrend. Per ogni bucket: media, mediana, StDev,
 quartili **del livello dell'indice**.
 
+### 4.3-bis Le finestre sono ANNI SOLARI COMPLETI *(deciso in Fase 1)*
+
+«20 anni» significa gli ultimi **20 anni solari chiusi**, non gli ultimi 7305
+giorni. L'anno in corso è **escluso da tutte le statistiche**.
+
+Tre ragioni, in ordine di peso:
+
+1. **`n` diventa prevedibile e confrontabile.** Con una finestra mobile il
+   bucket di gennaio potrebbe avere 21 osservazioni e quello di dicembre 20 a
+   seconda del giorno in cui gira il job: due mesi della stessa tabella con
+   basi diverse.
+2. **Toglie di mezzo l'ambiguità del mese in corso.** «Il settembre a metà è
+   dentro la media di settembre?» — con gli anni chiusi la risposta è no,
+   sempre, e non dipende da quando guardi.
+3. **Rende i numeri stabili.** Cambiano una volta l'anno, non ogni notte. Una
+   statistica stagionale che si muove tutti i giorni invita a leggere rumore.
+
+L'anno in corso non sparisce: compare nella **heatmap** come riga marcata con
+`*`. Semplicemente non entra in nessuna media.
+
 ### 4.4 Finestre di lookback e avviso sul campione
 
 **20 / 15 / 10 / 5 / 2 anni**, sempre selezionabili — anche quando lo
@@ -157,6 +177,15 @@ dice a colpo d'occhio.
 
 Estremi: il 29 febbraio e il giorno 366 esistono solo negli anni bisestili →
 `n` più basso su quel punto, ed è corretto che sia così.
+
+Per gli **indici di volatilità** il percorso non cumula niente — un livello non
+compone: mostra il **livello medio giorno per giorno dell'anno**, con le stesse
+bande. Le colonne `*Cum` della tabella conservano quel valore; il nome è un
+residuo del caso dei prezzi, e la UI etichetta correttamente «livello medio».
+
+Ogni finestra dichiara sul grafico il proprio **`n` e la propria Pos%**,
+misurate al giorno di oggi: una linea media senza numerosità accanto fa
+sembrare uguali una media su 2 anni e una su 20.
 
 ### 4.7 Deroga dichiarata sulla regola `Decimal`
 
@@ -266,6 +295,7 @@ su tabelle esistenti. SQL integrale in [MIGRATION.md](MIGRATION.md).
 | `SeasonalityDailyBar` | chiusure giornaliere grezze | `(instrument, date)` |
 | `SeasonalityHourBar` | chiusure orarie grezze, UTC | `(instrument, ts)` |
 | `SeasonalityStat` | **le statistiche che la UI legge** | `(instrument, granularity, clock, scope, lookbackYears, detrended, bucket)` |
+| `SeasonalityMonthlyObs` | una riga per (strumento, anno, mese): alimenta la heatmap | `(instrument, year, month)` |
 | `SeasonalityPathPoint` | punti del percorso annuale + bande | `(instrument, lookbackYears, detrended, dayOfYear)` |
 | `SeasonalityCoverage` | fonte, estremi, freschezza per strumento | `instrument` |
 | `SeasonalityRun` | diario delle esecuzioni del job | `id` |
@@ -319,29 +349,37 @@ regime. Restano lato server e non vengono mai lette dalla pagina.
 | Fase | Contenuto | Stato |
 |---|---|---|
 | **0** | Ricognizione, verifica fonti, spec congelata, impalcatura | ✅ **questa** |
-| 1 | Ingest: fetcher per fonte + scritture incrementali idempotenti + script di backfill locale | da fare |
-| 2 | Kernel di calcolo: rendimenti, aggregazione per bucket, detrend, percorso | impalcatura già in piedi (§10) |
-| 3 | Job di precalcolo completo + endpoint cron reale + primo popolamento | da fare |
-| 4 | Letture per la UI (sola lettura del precalcolato) | da fare |
-| 5 | Pagina: drill mese→ora, tabelle, toggle detrend/fuso, selettore finestra | da fare |
-| 6 | Grafico del percorso stagionale con bande | da fare |
-| 7 | Rifiniture, avvisi di campione, mobile, `PROGRESS.md`, verifica finale | da fare |
+| **1** | **Daily/calendario: ingest, precalcolo, job, tre viste (heatmap · tabella finestre · percorso)** | ✅ **fatta** |
+| 2 | Intraday: ingest orario Dukascopy, bucket sessione e ora nei due orologi | da fare |
+| 3 | Tab Settimana (ISO) — dai dati giornalieri già presenti | da fare |
+| 4 | Rifiniture: drill di sessione/ora dentro il mese, mobile, verifica finale | da fare |
 
-## 10. Cosa esiste già a fine Fase 0
+## 10. Stato a fine Fase 1
 
-**Impalcatura**, non calcolo: niente di quanto segue viene eseguito da una
-pagina o da un job, e nessuno storico è stato scaricato.
+**Dati caricati** (tutti tranne VDAX, che non ha fonte):
 
-- `prisma/schema.prisma` + migrazione additiva **generata e non applicata**.
-- `src/lib/seasonality/stats.ts` — kernel statistico puro (media, mediana,
-  StDev campionaria, quantili con interpolazione lineare, quota positivi,
-  soglie di campione basso). **16 test.**
-- `src/lib/seasonality/buckets.ts` — bucketing per mese/settimana ISO/giorno
-  ISO/sessione/ora, conversione di fuso DST-corretta, scope del drill.
-  **21 test.**
-- `src/app/(app)/stagionalita/` — route e pagina **vuota** con lo stato «non
-  ancora popolata».
-- `src/app/api/seasonality-sync/route.ts` — endpoint del job **vuoto**,
-  autenticazione già attiva, nessuna scrittura.
-- `vercel.json` — voce di cron notturna.
-- Voce di sidebar.
+| Strumento | Fonte effettiva | Chiusure | Storia | Anni completi |
+|---|---|---|---|---|
+| Oro | Dukascopy `xauusd` | 8.236 | 1999-06-03 → oggi | 27 |
+| WTI | FRED `DCOILWTICO` | 10.209 | 1986-01-02 → oggi | 40 |
+| GER40 | Yahoo `^GDAXI` | 9.758 | 1987-12-30 → oggi | 39 |
+| S&P 500 | Yahoo `^GSPC` | 14.266 | 1970-01-02 → oggi | 56 |
+| VIX | FRED `VIXCLS` | 9.241 | 1990-01-02 → oggi | 36 |
+| GVZ | FRED `GVZCLS` | 4.570 | 2008-06-03 → oggi | 18 |
+| OVX | FRED `OVXCLS` | 4.838 | 2007-05-10 → oggi | 19 |
+| VDAX | — | 0 | — | mostrato disabilitato col motivo |
+
+770 righe di statistica e 3.660 punti di percorso per strumento di prezzo;
+385 e 1.825 per gli indici di volatilità (niente detrend). Il job completo
+gira in **~13 secondi**.
+
+**In pagina:** selettore strumento, finestra e vista; provenienza, intervallo
+e data dell'ultimo calcolo dichiarati; percorso stagionale multi-finestra con
+bande, `n` e Pos%; tab **Mese** (heatmap + tabella su tutte le finestre) e
+**Giorno** (per giorno della settimana, con drill dentro un singolo mese);
+tab Settimana/Sessione/Ora presenti e disabilitati.
+
+**Verifica incrociata coi fatti di mercato noti** (finestra 20 anni): S&P con
+settembre peggiore (−0,61%) e aprile/luglio/novembre migliori; oro con
+gennaio più forte (+3,53%) e giugno/settembre deboli; VIX con ottobre al
+livello più alto (21,5) e luglio al più basso (17,5).
