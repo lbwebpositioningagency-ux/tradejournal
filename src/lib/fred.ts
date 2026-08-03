@@ -106,20 +106,43 @@ export function parseFredCsv(text: string): FredObservation[] {
   return out;
 }
 
+/**
+ * User agent ESPLICITO — non è cosmetico.
+ *
+ * Con lo user agent di default di Node (undici) `fredgraph.csv` non risponde
+ * affatto: la connessione resta appesa fino al timeout. Misurato il
+ * 03/08/2026 sulla stessa URL: 20 s di attesa e nessuna risposta senza
+ * header, HTTP 200 in 221 ms con header. Il problema non si vedeva finché le
+ * uniche chiamate arrivavano dal runtime di Next; si è manifestato appena il
+ * client è stato usato da uno script Node (il job Stagionalità).
+ */
+const USER_AGENT = "Mozilla/5.0 (compatible; LB-TradingSpace/1.0)";
+
 /** fetch con data-cache giornaliera e timeout (la richiesta persa non blocca). */
 async function fetchWithTimeout(
   url: string,
   revalidate: number,
 ): Promise<Response> {
+  /* AbortController oltre alla race: senza, allo scadere del timeout la
+     promise viene scartata ma la richiesta resta aperta a consumare un
+     socket: con ~50 serie in parallelo se ne accumulano parecchie. */
+  const controller = new AbortController();
   let timer: ReturnType<typeof setTimeout> | undefined;
   const timeout = new Promise<never>((_, reject) => {
-    timer = setTimeout(
-      () => reject(new Error(`Timeout dopo ${TIMEOUT_MS}ms`)),
-      TIMEOUT_MS,
-    );
+    timer = setTimeout(() => {
+      controller.abort();
+      reject(new Error(`Timeout dopo ${TIMEOUT_MS}ms`));
+    }, TIMEOUT_MS);
   });
   try {
-    return await Promise.race([fetch(url, { next: { revalidate } }), timeout]);
+    return await Promise.race([
+      fetch(url, {
+        next: { revalidate },
+        headers: { "User-Agent": USER_AGENT },
+        signal: controller.signal,
+      }),
+      timeout,
+    ]);
   } finally {
     clearTimeout(timer);
   }

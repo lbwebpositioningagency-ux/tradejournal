@@ -564,6 +564,9 @@ model SeasonalityPathPoint {
   medianCum Decimal @db.Decimal(18, 8)
   p25Cum    Decimal @db.Decimal(18, 8)
   p75Cum    Decimal @db.Decimal(18, 8)
+  /** Quota di anni sopra lo zero (o sopra la mediana, per i livelli) a
+   * questo punto dell'anno: senza, la linea media sarebbe una media nuda. */
+  positiveShare Decimal @default(0) @db.Decimal(18, 8)
   /** Anni che contribuiscono a questo punto. */
   n Int
 
@@ -607,4 +610,27 @@ model SeasonalityRun {
   detail Json?
 
   @@index([startedAt])
+}
+
+// Una riga per (strumento, anno, mese): è ciò che alimenta la HEATMAP
+// anni×mesi, che per definizione mostra le singole osservazioni e non
+// un'aggregazione — le righe finali Media/StDev/Pos% arrivano invece da
+// SeasonalityStat.
+//
+// `value` segue il tipo dello strumento, come ovunque nel modulo:
+// - RETURN → rendimento LOG del mese (chiusura di fine mese contro fine mese
+//   precedente); mostrato in pagina come percentuale semplice;
+// - LEVEL  → livello MEDIO dell'indice nel mese.
+model SeasonalityMonthlyObs {
+  instrument SeasonalityInstrument
+  year       Int
+  month      Int
+
+  value Decimal @db.Decimal(18, 8)
+  /** Giorni di quotazione che compongono il mese: un mese con 3 giorni di
+   * dati non è un mese, e la heatmap deve poterlo marcare invece di
+   * colorarlo come gli altri. */
+  days Int
+
+  @@id([instrument, year, month])
 }
