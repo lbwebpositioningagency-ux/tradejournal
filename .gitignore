@@ -46,3 +46,6 @@ next-env.d.ts
 
 .vercel
 .env*
+
+# Repository git annidato, estraneo a questo progetto: ignorato, NON un submodule.
+macro-desk-bridge/

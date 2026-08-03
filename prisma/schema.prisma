@@ -612,31 +612,6 @@ model SeasonalityRun {
   @@index([startedAt])
 }
 
-// SUPERATA dalla Fase 2 da `SeasonalityYearBucketObs`, che fa la stessa cosa
-// per tutte le granularità invece che per il solo mese. Non è più letta né
-// scritta da nessuna parte: resta in schema perché le migrazioni di questo
-// branch sono additive per scelta. Si può eliminare con una migrazione di
-// pulizia dedicata (vedi docs/stagionalita/MIGRATION.md).
-//
-// Una riga per (strumento, anno, mese): alimentava la HEATMAP anni×mesi.
-//
-// `value` segue il tipo dello strumento, come ovunque nel modulo:
-// - RETURN → rendimento LOG del mese (chiusura di fine mese contro fine mese
-//   precedente); mostrato in pagina come percentuale semplice;
-// - LEVEL  → livello MEDIO dell'indice nel mese.
-model SeasonalityMonthlyObs {
-  instrument SeasonalityInstrument
-  year       Int
-  month      Int
-
-  value Decimal @db.Decimal(18, 8)
-  /** Giorni di quotazione che compongono il mese: un mese con 3 giorni di
-   * dati non è un mese, e la heatmap deve poterlo marcare invece di
-   * colorarlo come gli altri. */
-  days Int
-
-  @@id([instrument, year, month])
-}
 
 // Una riga per (strumento, granularità, anno, bucket): è ciò che alimenta le
 // HEATMAP anni × {mesi | settimane | giorni}, che per definizione mostrano le
@@ -655,8 +630,11 @@ model SeasonalityMonthlyObs {
 model SeasonalityYearBucketObs {
   instrument  SeasonalityInstrument
   granularity SeasonalityGranularity
-  year        Int
-  bucket      Int
+  /** Rilevante solo per HOUR, che esiste in due versioni precalcolate.
+   * Per tutte le altre granularità vale ROME, riga unica. */
+  clock  SeasonalityClock @default(ROME)
+  year   Int
+  bucket Int
 
   value Decimal @db.Decimal(18, 8)
   /** Giorni di quotazione che compongono l'osservazione: un mese con 3 giorni
@@ -664,5 +642,5 @@ model SeasonalityYearBucketObs {
    * colorarlo come gli altri. */
   days Int
 
-  @@id([instrument, granularity, year, bucket])
+  @@id([instrument, granularity, clock, year, bucket])
 }
