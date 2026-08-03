@@ -1288,3 +1288,23 @@ Prima di pubblicare il modulo su un'app multi-utente, audit adversarial in sei p
 **Comportamento verificato, non asserito.** *Neon appena migrata:* la pagina rende senza errori con un solo messaggio; prima ne comparivano due sovrapposti, il primo dei quali sembrava un errore di calcolo (P2-6, chiuso fuori dai quattro blocchi perché era la risposta sbagliata a una domanda esplicita). *Backfill parziale:* dopo la sola fase giornaliera la pagina è **già completamente utile** — Mese, Settimana e Giorno completi, Sessione e Ora spenti con la spiegazione. *Serie grezze:* la risposta del job è di **2.277 byte**, senza array lunghi né campi `close`/`ts`. **P0-3 (Yahoo) resta un rischio accettato per decisione esplicita:** rimuoverlo costerebbe 26 anni di storia sull'S&P.
 
 **Verificato:** typecheck ✅ · lint ✅ · **1.305 test** ✅ (6 nuovi) · build ✅ · mobile 375px senza overflow. Restano aperti i P2 dei blocchi G e H (rifiniture statistiche e di interfaccia), non eseguiti.
+
+## Deploy stagionalità — iterazione qualità (round 2-9) · 03/08/2026
+
+Merge `feature/seasonality-design` → main (no-ff, `0c09504`) con gate verde
+(1320 test) e lockfile rigenerato a mano (identico; npm audit invariato: 7
+vulnerabilità pre-esistenti, nessuna introdotta). Primo build Vercel fallito
+per **P1002** (timeout cold-start Neon durante `migrate deploy`, 21
+migrazioni trovate ma lock non acquisito): redeploy dello stesso commit →
+**Ready in 2m**, alias `tradejournal-red-zeta.vercel.app`, 3 migrazioni
+additive applicate (withinSigma, rawCount, SeasonalityQuarterYear+cursore).
+
+Ricalcolo forzato via `/api/seasonality-sync` con pausa di 10 s fra le
+chiamate (lezione del transitorio Neon): **14 chiamate** a budget 280 s —
+la 1ª con `force=1` ha rifatto daily+intraday dei 7 strumenti (tutte le
+semantiche nuove), le successive hanno backfillato gli M15 (oro 24 anni,
+WTI 16, GER40 14, SPX 16) fino a **`completo: true`**, zero errori (VDAX
+`senza_fonte` è lo stato atteso). Post-fix: `BUDGET_DEFAULT_MS` 50→150 s,
+perché il refresh M15 dell'anno in corso (~40 s) non stava nel budget del
+cron e `completo` sarebbe rimasto false ogni notte, con l'ultimo anno M15
+parziale al cambio d'anno.
