@@ -691,6 +691,56 @@ model SeasonalityQuarterYear {
   @@id([instrument, clock, year, bucket])
 }
 
+// ───────────────────── Driver Desk (Macro Desk) ─────────────────────
+//
+// Chiusure giornaliere delle serie del Driver Desk (forza nel paniere,
+// contesto driver, stabilità delle relazioni). Dato di MERCATO unico per
+// l'istanza, nessun userId — come MacroDeskReport, CotWeek e Stagionalità.
+// Blocco ADDITIVO: non tocca nessuna tabella esistente.
+// Spec congelata: docs/driver-desk/SPEC_driver_desk_v1.0.md.
+
+enum DriverDeskSeries {
+  XAUUSD
+  XAGUSD
+  WTI
+  BRENT
+  GER40
+  STOXX50E
+  CAC40
+  SPX
+  DFII10
+  T10YIE
+  DTWEXBGS
+  EURUSD
+  BUND10Y
+}
+
+// Chiusure giornaliere grezze. Chiave (series, date): l'ingest sostituisce
+// integralmente la serie (le fonti revisionano il passato). SOLO lato server,
+// mai esposte alla UI né scaricabili — stessa disciplina delle barre
+// Stagionalità. Lo spread WTI−Brent NON si salva: si deriva a calcolo.
+model DriverDeskBar {
+  series DriverDeskSeries
+  date   DateTime         @db.Date
+  value  Decimal          @db.Decimal(18, 8)
+
+  @@id([series, date])
+}
+
+// Stato per serie: la UI dichiara da dove viene il dato e quanto è fresco,
+// stesso ruolo di SeasonalityCoverage.
+model DriverDeskCoverage {
+  series    DriverDeskSeries @id
+  /** Etichetta della fonte che ha davvero risposto (es. "FRED DFII10"). */
+  source    String?
+  firstDate DateTime?        @db.Date
+  lastDate  DateTime?        @db.Date
+  rows      Int              @default(0)
+  /** Motivo dichiarato quando il dato manca o è parziale. */
+  note      String?
+  updatedAt DateTime         @updatedAt
+}
+
 model SeasonalityJobState {
   instrument SeasonalityInstrument @id
 
