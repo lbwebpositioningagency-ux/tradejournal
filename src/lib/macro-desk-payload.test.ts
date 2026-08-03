@@ -108,6 +108,60 @@ describe("helper di presentazione", () => {
     expect(sanitizeInlineHtml('<img src=x onerror=alert(1)>testo')).toBe("testo");
   });
 
+  /*
+   * P1-5: la versione a solo-regex teneva gli attributi dei tag ammessi.
+   * Questi sono i payload che passavano interi — verificati eseguendo la
+   * vecchia funzione, non ipotizzati.
+   */
+  it("sanitizeInlineHtml elimina gli event handler sui tag ammessi", () => {
+    expect(sanitizeInlineHtml("<b onclick=alert(1)>click</b>")).toBe(
+      "<b>click</b>",
+    );
+    expect(
+      sanitizeInlineHtml('<b onmouseover="alert(document.cookie)">hover</b>'),
+    ).toBe("<b>hover</b>");
+    // Il peggiore: autofocus fa scattare onfocus SENZA interazione utente.
+    expect(sanitizeInlineHtml("<br onfocus=alert(1) autofocus>")).toBe("<br>");
+    expect(
+      sanitizeInlineHtml('<i style="position:fixed;inset:0" onclick=alert(1)>x</i>'),
+    ).toBe("<i>x</i>");
+    expect(sanitizeInlineHtml('<strong data-x="1" onerror=x>t</strong>')).toBe(
+      "<strong>t</strong>",
+    );
+  });
+
+  it("sanitizeInlineHtml non lascia mai passare markup per vie traverse", () => {
+    // Niente attributo sopravvive: nessun output puo contenere "on…=" o "<".
+    const ostili = [
+      "<b onclick=alert(1)>x</b>",
+      "<br onfocus=alert(1) autofocus>",
+      "<scr<script>ipt>alert(1)</script>",
+      "<b/onclick=alert(1)>x</b>",
+      '<B ONCLICK="alert(1)">maiuscole</B>',
+      "<b\nonclick=alert(1)>a capo dentro il tag</b>",
+    ];
+    for (const input of ostili) {
+      const out = sanitizeInlineHtml(input);
+      expect(out, `input: ${input}`).not.toMatch(/<[^>]+\s/);
+      expect(out.toLowerCase(), `input: ${input}`).not.toContain("onclick");
+      expect(out.toLowerCase(), `input: ${input}`).not.toContain("onfocus");
+      expect(out.toLowerCase(), `input: ${input}`).not.toContain("<script");
+    }
+  });
+
+  it("sanitizeInlineHtml non promuove tag simili a quelli ammessi", () => {
+    // <bad> inizia per "b" ma non deve diventare <b>.
+    expect(sanitizeInlineHtml("<bad>x</bad>")).toBe("x");
+    expect(sanitizeInlineHtml("<brr>x</brr>")).toBe("x");
+    // Il testo normale resta leggibile, con & e virgolette escapati.
+    expect(sanitizeInlineHtml("Oro & petrolio")).toBe("Oro &amp; petrolio");
+    expect(sanitizeInlineHtml("<b>a</b> & <i>b</i>")).toBe(
+      "<b>a</b> &amp; <i>b</i>",
+    );
+    // Chiusure e self-closing restano valide.
+    expect(sanitizeInlineHtml("riga<br/>altra")).toBe("riga<br>altra");
+  });
+
   it("dirTone mappa up/dn/fl e i trend tile", () => {
     expect(dirTone("up")).toBe("up");
     expect(dirTone("dn")).toBe("down");

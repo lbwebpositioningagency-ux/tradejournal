@@ -285,12 +285,56 @@ export function parseMacroPayload(raw: unknown): MacroPayload {
 
 /* ── helper di presentazione (puri, testabili) ────────────────────────── */
 
+/** Gli unici tag che sopravvivono, e sempre SENZA attributi. */
+const INLINE_TAGS = ["b", "i", "em", "strong", "br"] as const;
+
+/** `<a href=…>`, `<img …>`, `<script>`: via il tag, resta il testo dentro. */
+const TAG_NON_AMMESSO = new RegExp(
+  `<(?!/?(?:${INLINE_TAGS.join("|")})\\b)[^>]*>`,
+  "gi",
+);
+
 /**
- * `risks` e `watch` arrivano come HTML dal NOSTRO sistema (solo grassetti):
- * difesa a buon mercato comunque — sopravvivono solo b/i/em/strong/br.
+ * Ripristina SOLO `<b> <i> <em> <strong> <br>` (e le chiusure) dal testo
+ * escapato. Il gruppo degli attributi viene catturato e buttato via: è la
+ * riga che uccide `onclick`/`onfocus`/`style`.
+ * Il lookahead dopo il nome impedisce che `<bad>` diventi `<b>`.
+ */
+const TAG_AMMESSO_ESCAPATO = new RegExp(
+  `&lt;(/?)(${INLINE_TAGS.join("|")})(?=[\\s/]|&gt;)(?:(?!&gt;)[\\s\\S])*&gt;`,
+  "gi",
+);
+
+/**
+ * `risks` e `watch` arrivano come HTML dal sistema Macro Desk esterno, e i
+ * report sono dato GLOBALE mostrato a entrambi gli utenti: qui un payload
+ * ostile sarebbe XSS stored cross-utente. Non basta quindi "il mittente è
+ * fidato".
+ *
+ * SECURITY_AUDIT P1-5. La versione precedente toglieva i tag fuori
+ * allowlist ma lasciava intatto tutto ciò che stava DENTRO un tag ammesso,
+ * attributi compresi: `<b onclick=alert(1)>` e `<br onfocus=… autofocus>`
+ * passavano interi — e il secondo non richiede nemmeno un clic.
+ *
+ * Ordine delle operazioni, ed è l'ordine che conta:
+ *   1. si rimuovono i tag non ammessi — puramente cosmetico, per non
+ *      lasciare in pagina il testo di `<script>` e simili;
+ *   2. si escapa TUTTO: da qui in poi niente può più essere interpretato
+ *      come markup, quindi la sicurezza non dipende più dal passo 1;
+ *   3. si ripristinano solo i 5 tag ammessi, scartandone gli attributi.
+ *
+ * La proprietà che ne esce: l'output può contenere soltanto quei 5 tag
+ * nudi e testo escapato. Non c'è forma di input che produca un attributo.
  */
 export function sanitizeInlineHtml(html: string): string {
-  return html.replace(/<(?!\/?(?:b|i|em|strong|br)\b)[^>]*>/gi, "");
+  const senzaTagEstranei = html.replace(TAG_NON_AMMESSO, "");
+  const escapato = senzaTagEstranei
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
+  return escapato.replace(TAG_AMMESSO_ESCAPATO, "<$1$2>");
 }
 
 /** Tono semantico condiviso da dir (up/dn/fl), cls e trend tile (u/s/d). */

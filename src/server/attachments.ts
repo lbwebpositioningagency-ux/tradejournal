@@ -8,6 +8,7 @@ import {
   attachmentFileSchema,
   attachmentTargetSchema,
 } from "@/lib/validations/attachment";
+import { sniffMimeType } from "@/lib/file-signature";
 import { MAX_ATTACHMENTS_PER_TARGET } from "@/lib/constants";
 
 export type AttachmentActionResult = { error?: string; success?: boolean };
@@ -115,13 +116,35 @@ export async function uploadAttachmentAction(
     return { error: checked.error.issues[0]?.message ?? "File non valido" };
   }
 
+  /*
+   * P1-6 — il tipo vero si legge nei BYTE, non in `file.type`.
+   * Quello dichiarato dal client è già stato validato sopra, ma serve solo a
+   * respingere presto l'errore onesto: si falsifica banalmente. Questo MIME
+   * è quello che finirà nel `Content-Type` della route che serve l'allegato,
+   * quindi deve essere un fatto, non un'affermazione di chi carica.
+   * Firma non riconosciuta → rifiuto: un file ignoto non è "probabilmente
+   * un'immagine".
+   */
+  const sniffed = sniffMimeType(data);
+  if (!sniffed) {
+    return {
+      error:
+        "Il contenuto del file non corrisponde a un formato supportato (PNG, JPG, WEBP, GIF o PDF)",
+    };
+  }
+  if (sniffed !== parsedFile.data.mimeType) {
+    return {
+      error: `Il file dichiara ${parsedFile.data.mimeType} ma il contenuto è ${sniffed}`,
+    };
+  }
+
   const attachmentData = {
     userId,
     tradeId,
     dayDate,
     fileName: parsedFile.data.fileName,
     filePath: "db", // locator: byte nella colonna `data`
-    mimeType: parsedFile.data.mimeType,
+    mimeType: sniffed, // dedotto dai byte, non dichiarato dal client
     size: data.byteLength,
     data,
   };
