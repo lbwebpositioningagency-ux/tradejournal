@@ -1,7 +1,7 @@
 import type { SeasonalityKind } from "@/generated/prisma/client";
 import {
   BUCKET_AXIS,
-  type CalendarGranularity,
+  type SeasonalityGranularityUi,
 } from "@/components/seasonality/bucket-labels";
 import type { BucketView, WindowCoverage } from "@/lib/seasonality/query";
 import { RangeBar } from "@/components/macro-desk/primitives";
@@ -14,12 +14,14 @@ import {
   stdevInfo,
 } from "@/lib/seasonality/metric-info";
 import {
+  UNIT_LABEL,
   formatBucketValue,
   formatShare,
   formatStdev,
   meanHelp,
   meanLabel,
   positiveLabel,
+  unitFor,
   valueColor,
 } from "@/components/seasonality/format";
 import { LowSampleMark } from "@/components/seasonality/low-sample";
@@ -48,7 +50,7 @@ export function BucketWindowTable({
   reference = 0,
 }: {
   kind: SeasonalityKind;
-  granularity: CalendarGranularity;
+  granularity: SeasonalityGranularityUi;
   /** Statistiche per finestra, chiave = anni di lookback. */
   byWindow: Map<number, BucketView[]>;
   selectedWindow: number;
@@ -61,6 +63,7 @@ export function BucketWindowTable({
   reference?: number;
 }) {
   const axis = BUCKET_AXIS[granularity];
+  const unit = unitFor(kind, granularity);
   const windows = [...byWindow.keys()].sort((a, b) => b - a);
   const selected = byWindow.get(selectedWindow) ?? [];
   const selectedByBucket = new Map(selected.map((s) => [s.bucket, s]));
@@ -108,13 +111,13 @@ export function BucketWindowTable({
                       : "var(--md-muted)",
                   }}
                 >
-                  {sel ? formatBucketValue(sel.mean, kind) : "—"}
+                  {sel ? formatBucketValue(sel.mean, kind, 2, unit) : "—"}
                 </span>
               </div>
               {sel ? (
                 <div className="md-mono flex flex-wrap gap-x-3 gap-y-0.5 text-2xs tabular-nums text-[var(--md-muted)]">
-                  <span>Mediana {formatBucketValue(sel.median, kind)}</span>
-                  <span>StDev {formatStdev(sel.stdev, kind)}</span>
+                  <span>Mediana {formatBucketValue(sel.median, kind, 2, unit)}</span>
+                  <span>StDev {formatStdev(sel.stdev, kind, unit)}</span>
                   <span>
                     {positiveLabel(kind)} {formatShare(sel.positiveShare)}
                   </span>
@@ -129,7 +132,7 @@ export function BucketWindowTable({
                   const row = byWindow.get(w)?.find((r) => r.bucket === bucket);
                   return (
                     <span key={w}>
-                      {w}a {row ? formatBucketValue(row.mean, kind, 1) : "—"}
+                      {w}a {row ? formatBucketValue(row.mean, kind, 2, unit) : "—"}
                     </span>
                   );
                 })}
@@ -252,15 +255,15 @@ export function BucketWindowTable({
                         }}
                         title={row ? `n = ${row.n}` : undefined}
                       >
-                        {row ? formatBucketValue(row.mean, kind) : "—"}
+                        {row ? formatBucketValue(row.mean, kind, 2, unit) : "—"}
                       </td>
                     );
                   })}
                   <td className="px-2 py-2 text-right md-mono text-[var(--md-text-2)]">
-                    {sel ? formatBucketValue(sel.median, kind) : "—"}
+                    {sel ? formatBucketValue(sel.median, kind, 2, unit) : "—"}
                   </td>
                   <td className="px-2 py-2 text-right md-mono text-[var(--md-text-2)]">
-                    {sel ? formatStdev(sel.stdev, kind) : "—"}
+                    {sel ? formatStdev(sel.stdev, kind, unit) : "—"}
                   </td>
                   <td className="px-2 py-2 text-right md-mono text-[var(--md-text-2)]">
                     {sel ? formatShare(sel.positiveShare) : "—"}
@@ -279,7 +282,7 @@ export function BucketWindowTable({
                         position={((sel.mean - min) / span) * 100}
                         color={valueColor(sel.mean, kind, reference)}
                         ariaLabel={`${label}: posizione nell\u2019intervallo della granularità`}
-                        title={`Da ${formatBucketValue(min, kind)} a ${formatBucketValue(max, kind)}`}
+                        title={`Da ${formatBucketValue(min, kind, 2, unit)} a ${formatBucketValue(max, kind, 2, unit)}`}
                       />
                     ) : null}
                   </td>
@@ -291,8 +294,9 @@ export function BucketWindowTable({
       </div>
 
       <p className="text-2xs leading-relaxed text-[var(--md-muted)]">
-        Mediana, StDev, {positiveLabel(kind)}, n e posizione si riferiscono
-        alla finestra selezionata ({selectedWindow} anni)
+        Valori in <strong>{UNIT_LABEL[unit]}</strong>. Mediana, StDev,{" "}
+        {positiveLabel(kind)}, n e posizione si riferiscono alla finestra
+        selezionata ({selectedWindow} anni)
         {kind === "LEVEL"
           ? ", e su quella è calcolata anche la mediana che decide il colore di tutte le colonne"
           : ""}

@@ -1,10 +1,11 @@
 import type { SeasonalityKind } from "@/generated/prisma/client";
 import {
   BUCKET_AXIS,
-  type CalendarGranularity,
+  type SeasonalityGranularityUi,
 } from "@/components/seasonality/bucket-labels";
 import type { BucketView, HeatmapData } from "@/lib/seasonality/query";
 import {
+  UNIT_LABEL,
   cellBackground,
   formatBucketValue,
   formatShare,
@@ -12,6 +13,7 @@ import {
   meanLabel,
   positiveLabel,
   robustScale,
+  unitFor,
 } from "@/components/seasonality/format";
 import { PanelLabel } from "@/components/macro-desk/primitives";
 import { cn } from "@/lib/utils";
@@ -44,7 +46,7 @@ export function SeasonalityHeatmap({
 }: {
   data: HeatmapData;
   kind: SeasonalityKind;
-  granularity: CalendarGranularity;
+  granularity: SeasonalityGranularityUi;
   /** Statistiche della stessa finestra e granularità: le righe in fondo. */
   summary: BucketView[];
   /** Riferimento per il colore dei LIVELLI (mediana della finestra). */
@@ -52,6 +54,10 @@ export function SeasonalityHeatmap({
   lookbackYears: number;
 }) {
   const axis = BUCKET_AXIS[granularity];
+  const unit = unitFor(kind, granularity);
+  /* I punti base hanno bisogno di due decimali per non collassare a zero;
+     le percentuali su un mese di uno solo, o la griglia diventa illeggibile. */
+  const cellDecimals = unit === "bp" ? 2 : 1;
   const byYearBucket = new Map<string, (typeof data.cells)[number]>();
   for (const c of data.cells) byYearBucket.set(`${c.year}-${c.bucket}`, c);
 
@@ -74,21 +80,15 @@ export function SeasonalityHeatmap({
     <div className="flex flex-col gap-2">
       <div className="flex flex-wrap items-baseline justify-between gap-2">
         <PanelLabel>
-          Anni ×{" "}
-          {granularity === "MONTH"
-            ? "mesi"
-            : granularity === "WEEK"
-              ? "settimane ISO"
-              : "giorni"}{" "}
-          — ultimi {lookbackYears} anni
+          Anni × {axis.columnName.toLowerCase()} — ultimi {lookbackYears} anni
         </PanelLabel>
         <span className="text-2xs text-[var(--md-muted)]">
-          {kind === "LEVEL" ? "livello medio" : "variazione %"}{" "}
-          {granularity === "WEEKDAY"
-            ? "medio dei giorni di quell\u2019anno"
+          {UNIT_LABEL[unit]}
+          {granularity === "MONTH"
+            ? " del mese"
             : granularity === "WEEK"
-              ? "della settimana"
-              : "del mese"}
+              ? " della settimana"
+              : ", media delle osservazioni di quell\u2019anno"}
         </span>
       </div>
 
@@ -101,7 +101,7 @@ export function SeasonalityHeatmap({
         <table
           className={cn(
             "md-mono border-separate border-spacing-0.5 text-right text-2xs tabular-nums",
-            granularity === "WEEKDAY" ? "w-auto" : "w-full",
+            axis.stretch ? "w-full" : "w-auto",
           )}
           style={{ minWidth: `${axis.minWidthRem}rem` }}
         >
@@ -178,7 +178,7 @@ export function SeasonalityHeatmap({
                             : `${cell.days} giorni di quotazione`
                         }
                       >
-                        {formatBucketValue(cell.value, kind, 1)}
+                        {formatBucketValue(cell.value, kind, cellDecimals, unit)}
                       </td>
                     );
                   })}
@@ -191,14 +191,14 @@ export function SeasonalityHeatmap({
               label={meanLabel(kind)}
               buckets={axis.buckets}
               values={summaryByBucket}
-              render={(s) => formatBucketValue(s.mean, kind, 2)}
+              render={(s) => formatBucketValue(s.mean, kind, 2, unit)}
               emphasis
             />
             <SummaryRow
               label="StDev"
               buckets={axis.buckets}
               values={summaryByBucket}
-              render={(s) => formatStdev(s.stdev, kind)}
+              render={(s) => formatStdev(s.stdev, kind, unit)}
             />
             <SummaryRow
               label={positiveLabel(kind)}

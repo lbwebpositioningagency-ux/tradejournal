@@ -33,17 +33,24 @@ import {
   getLastRun,
   getPaths,
   getStatsByWindow,
+  intradayLookbacks,
   windowCoverage,
   type BucketView,
   type HeatmapData,
   type PathPointView,
 } from "@/lib/seasonality/query";
+import { sessionBoundaries } from "@/lib/seasonality/market-sessions";
+import { CLOCKS, CLOCK_LABEL, CLOCK_TIMEZONE } from "@/lib/seasonality/buckets";
+import type { SeasonalityClock } from "@/generated/prisma/client";
 import { todayDayOfYear } from "@/lib/seasonality/precompute";
 import type { SeasonalityInstrument } from "@/generated/prisma/client";
 import { SeasonalityHeatmap } from "@/components/seasonality/heatmap";
 import { BucketWindowTable } from "@/components/seasonality/bucket-window-table";
 import { WindowTruncatedNote } from "@/components/seasonality/low-sample";
-import type { CalendarGranularity } from "@/components/seasonality/bucket-labels";
+import {
+  isIntradayGranularity,
+  type SeasonalityGranularityUi,
+} from "@/components/seasonality/bucket-labels";
 import {
   Chip,
   ChipGroup,
@@ -67,19 +74,17 @@ const fontMono = JetBrains_Mono({
 
 /**
  * Tab di profondità. Mese, settimana e giorno si ricavano tutti e tre dalle
- * chiusure GIORNALIERE già caricate — la settimana non è più profonda del
- * giorno, è solo un altro modo di raggrupparlo. Sessione e ora sono le uniche
- * che richiedono davvero le barre intraday.
+ * chiusure GIORNALIERE — la settimana non è più profonda del giorno, è solo un
+ * altro modo di raggrupparlo. Sessione e ora richiedono le barre orarie, che
+ * esistono solo per i quattro strumenti di PREZZO: di un indice che misura la
+ * volatilità attesa a 30 giorni non esiste il «rendimento delle 15:00».
  */
 const TABS = [
   { id: "mese", label: "Mese", granularity: "MONTH" as const },
   { id: "settimana", label: "Settimana", granularity: "WEEK" as const },
   { id: "giorno", label: "Giorno", granularity: "WEEKDAY" as const },
-] as const;
-
-const TABS_INTRADAY = [
-  { id: "sessione", label: "Sessione" },
-  { id: "ora", label: "Ora" },
+  { id: "sessione", label: "Sessione", granularity: "SESSION" as const },
+  { id: "ora", label: "Ora", granularity: "HOUR" as const },
 ] as const;
 
 type TabId = (typeof TABS)[number]["id"];
@@ -121,9 +126,26 @@ export default async function StagionalitaPage({
   // Vista GREZZA di default: il numero mostrato è quello realmente accaduto.
   // Il detrend è una lente, e per i livelli di volatilità non esiste proprio.
   const detrended = params.d === "1" && def.kind === "RETURN";
-  const tab: TabId = TABS.find((t) => t.id === params.t)?.id ?? "mese";
-  const granularity: CalendarGranularity =
+  const [coverage, lastRun] = await Promise.all([getCoverage(), getLastRun()]);
+  const cov = coverage.find((c) => c.instrument === instrument) ?? null;
+
+  /* L'intraday esiste solo per i prezzi e solo se le barre orarie sono state
+     caricate: un tab che porta a una pagina vuota è peggio di un tab spento. */
+  const intradayPronto = def.hourly !== null && (cov?.hourRows ?? 0) > 0;
+  const richiesto = TABS.find((t) => t.id === params.t);
+  const tab: TabId =
+    richiesto && (!isIntradayGranularity(richiesto.granularity) || intradayPronto)
+      ? richiesto.id
+      : "mese";
+  const granularity: SeasonalityGranularityUi =
     TABS.find((t) => t.id === tab)!.granularity;
+  const intraday = isIntradayGranularity(granularity);
+
+  /* L'orologio riguarda solo la vista ORARIA: le sessioni sono ancorate agli
+     orari dei centri finanziari, quindi i loro bucket non dipendono dal fuso
+     di lettura — cambia solo come si scrivono i confini in legenda. */
+  const clock: SeasonalityClock =
+    params.c === "UTC" && granularity === "HOUR" ? "UTC" : "ROME";
 
   /* Il drill dentro un mese ha senso solo per il GIORNO della settimana: una
      settimana ISO sta dentro un mese per costruzione, e un mese dentro sé
@@ -140,11 +162,20 @@ export default async function StagionalitaPage({
     d: detrended ? "1" : undefined,
     t: tab === "mese" ? undefined : tab,
     m: scope === SCOPE_ALL ? undefined : String(scopeMonthNum),
+    c: clock === "UTC" ? "UTC" : undefined,
   };
 
-  const [coverage, lastRun] = await Promise.all([getCoverage(), getLastRun()]);
-  const cov = coverage.find((c) => c.instrument === instrument) ?? null;
   const popolato = (cov?.rows ?? 0) > 0;
+
+  /* Sull'intraday la storia è molto più corta: il CFD del DAX parte dal 2013,
+     e una finestra da 20 anni non esiste proprio. Le finestre inesistenti
+     vengono NASCOSTE, non mostrate vuote. */
+  const lookbacksDisponibili = intraday
+    ? intradayLookbacks(LOOKBACK_YEARS, cov?.hourCompleteYears ?? null)
+    : [...LOOKBACK_YEARS];
+  const lookbackEffettivo = lookbacksDisponibili.includes(lookback)
+    ? lookback
+    : (lookbacksDisponibili[0] ?? lookback);
 
   /* Tipi espliciti sul ramo "non popolato": senza, il `new Map()` vuoto
      allarga il tipo a Map<any, any> e le righe perdono il loro tipo. */
@@ -154,22 +185,33 @@ export default async function StagionalitaPage({
 
   if (popolato) {
     [heatmap, byWindow, paths] = await Promise.all([
-      getHeatmap({ instrument, granularity, lookbackYears: lookback }),
+      getHeatmap({
+        instrument,
+        granularity,
+        clock,
+        lookbackYears: lookbackEffettivo,
+      }),
       getStatsByWindow({
         instrument,
         granularity,
         scope,
-        lookbacks: LOOKBACK_YEARS,
+        clock,
+        lookbacks: lookbacksDisponibili,
         detrended,
       }),
       getPaths({ instrument, lookbacks: LOOKBACK_YEARS, detrended }),
     ]);
   }
 
-  const windows = windowCoverage(LOOKBACK_YEARS, cov?.completeYears ?? null);
-  const selectedCoverage = windows.find((w) => w.lookbackYears === lookback);
+  const windows = windowCoverage(
+    lookbacksDisponibili,
+    intraday ? (cov?.hourCompleteYears ?? null) : (cov?.completeYears ?? null),
+  );
+  const selectedCoverage = windows.find(
+    (w) => w.lookbackYears === lookbackEffettivo,
+  );
 
-  const selectedStats = byWindow.get(lookback) ?? [];
+  const selectedStats = byWindow.get(lookbackEffettivo) ?? [];
   /* Riferimento del colore per i LIVELLI: la mediana della granularità e
      della finestra correnti. Con lo zero un indice sempre positivo sarebbe
      verde ovunque; con la mediana dei mesi su una tabella di giorni le scale
@@ -240,13 +282,13 @@ export default async function StagionalitaPage({
             </ChipGroup>
 
             <ChipGroup label="Finestra">
-              {LOOKBACK_YEARS.map((y) => {
+              {lookbacksDisponibili.map((y) => {
                 const c = windows.find((w) => w.lookbackYears === y);
                 return (
                   <Chip
                     key={y}
                     href={hrefWith(base, { w: String(y) })}
-                    active={y === lookback}
+                    active={y === lookbackEffettivo}
                     title={
                       c?.truncated
                         ? `Storia disponibile: ${c.available} anni su ${y} richiesti`
@@ -258,6 +300,36 @@ export default async function StagionalitaPage({
                 );
               })}
             </ChipGroup>
+
+            {intraday &&
+            lookbacksDisponibili.length < LOOKBACK_YEARS.length ? (
+              <p className="text-2xs text-[var(--md-muted)]">
+                Le finestre più lunghe di {cov?.hourCompleteYears}{" "}
+                anni non compaiono: l&apos;archivio orario di questo strumento
+                parte dal{" "}
+                {cov?.hourFirst}. Mostrarle vuote sarebbe peggio che non
+                mostrarle.
+              </p>
+            ) : null}
+
+            {granularity === "HOUR" ? (
+              <ChipGroup label="Orologio">
+                {CLOCKS.map((c) => (
+                  <Chip
+                    key={c}
+                    href={hrefWith(base, { c: c === "ROME" ? undefined : c })}
+                    active={c === clock}
+                    title={
+                      c === "ROME"
+                        ? "Ora italiana, con l'ora legale applicata correttamente"
+                        : "Ora UTC, senza cambi stagionali"
+                    }
+                  >
+                    {CLOCK_LABEL[c]}
+                  </Chip>
+                ))}
+              </ChipGroup>
+            ) : null}
 
             {def.kind === "RETURN" ? (
               <ChipGroup label="Vista">
@@ -338,7 +410,7 @@ export default async function StagionalitaPage({
                 {pathSeries.length > 0 ? (
                   <SeasonalPathChart
                     series={pathSeries}
-                    selectedWindow={lookback}
+                    selectedWindow={lookbackEffettivo}
                     kind={def.kind}
                     todayDoy={oggi}
                   />
@@ -388,30 +460,82 @@ export default async function StagionalitaPage({
 
               {/* ── Profondità del calendario ────────────────────────── */}
               <ChipGroup label="Profondità">
-                {TABS.map((t) => (
-                  <Chip
-                    key={t.id}
-                    href={hrefWith(base, {
-                      t: t.id === "mese" ? undefined : t.id,
-                      // Il drill per mese vale solo sul giorno: cambiando tab
-                      // si azzera, altrimenti resterebbe uno scope invisibile.
-                      m: t.id === "giorno" ? base.m : undefined,
-                    })}
-                    active={t.id === tab}
-                  >
-                    {t.label}
-                  </Chip>
-                ))}
-                {TABS_INTRADAY.map((t) => (
-                  <Chip
-                    key={t.id}
-                    disabled
-                    title="Richiede i dati intraday, non ancora caricati: prossima fase."
-                  >
-                    {t.label}
-                  </Chip>
-                ))}
+                {TABS.map((t) => {
+                  const bloccato =
+                    isIntradayGranularity(t.granularity) && !intradayPronto;
+                  return (
+                    <Chip
+                      key={t.id}
+                      href={
+                        bloccato
+                          ? undefined
+                          : hrefWith(base, {
+                              t: t.id === "mese" ? undefined : t.id,
+                              // Il drill per mese vale solo sul giorno, e
+                              // l'orologio solo sull'ora: cambiando tab si
+                              // azzerano, altrimenti resterebbero filtri
+                              // invisibili.
+                              m: t.id === "giorno" ? base.m : undefined,
+                              c: t.id === "ora" ? base.c : undefined,
+                            })
+                      }
+                      active={t.id === tab}
+                      disabled={bloccato}
+                      title={
+                        bloccato
+                          ? def.hourly === null
+                            ? "Un indice di volatilità non ha sessione né ora: misura la volatilità attesa a 30 giorni, non un prezzo che si muove durante la giornata."
+                            : "Barre orarie non ancora caricate per questo strumento."
+                          : undefined
+                      }
+                    >
+                      {t.label}
+                    </Chip>
+                  );
+                })}
               </ChipGroup>
+
+              {intraday && cov?.note ? (
+                <p className="text-2xs leading-relaxed text-[var(--md-warn)]">
+                  {cov.note}
+                </p>
+              ) : null}
+
+              {granularity === "SESSION" ? (
+                <div className="md-panel flex flex-col gap-1.5 p-3">
+                  <PanelLabel>
+                    Confini delle sessioni ({CLOCK_LABEL.ROME})
+                  </PanelLabel>
+                  <div className="md-mono flex flex-wrap gap-x-4 gap-y-1 text-2xs text-[var(--md-text-2)]">
+                    {sessionBoundaries(
+                      new Date(),
+                      CLOCK_TIMEZONE.ROME,
+                    ).map((b) => (
+                      <span key={b.session}>
+                        {b.session === "ASIA"
+                          ? "Asia"
+                          : b.session === "LONDON"
+                            ? "Londra"
+                            : b.session === "NEWYORK"
+                              ? "New York"
+                              : "Fuori"}{" "}
+                        {b.range}
+                      </span>
+                    ))}
+                  </div>
+                  <p className="text-2xs leading-relaxed text-[var(--md-muted)]">
+                    I confini sono ancorati agli orari dei <strong>centri
+                    finanziari</strong> — apertura di Tokyo, di Londra,
+                    apertura e chiusura di New York — ciascuno col proprio
+                    cambio d&apos;ora. Londra e New York non passano all&apos;ora
+                    legale negli stessi giorni: per due o tre settimane a marzo
+                    e una a fine ottobre lo scarto fra le due vale un&apos;ora in
+                    meno del solito, e con fasce fisse sull&apos;orologio italiano
+                    l&apos;apertura di New York finirebbe nel bucket sbagliato.
+                    Gli orari qui sopra sono quelli di oggi.
+                  </p>
+                </div>
+              ) : null}
 
               {granularity === "WEEKDAY" ? (
                 <ChipGroup label="Dentro il mese">
@@ -449,7 +573,7 @@ export default async function StagionalitaPage({
                       scope === SCOPE_ALL ? selectedStats : []
                     }
                     windowMedian={reference}
-                    lookbackYears={lookback}
+                    lookbackYears={lookbackEffettivo}
                   />
                 ) : (
                   <SectionEmpty what="La heatmap" />
@@ -467,7 +591,9 @@ export default async function StagionalitaPage({
               {/* ── Vista 2: tabella per bucket su tutte le finestre ─── */}
               <div className="md-card flex flex-col gap-3 p-4">
                 <PanelLabel>
-                  Per {tab}, su tutte le finestre
+                  Per {tab}
+                  {granularity === "HOUR" ? ` (${CLOCK_LABEL[clock]})` : ""}, su
+                  tutte le finestre
                   {scope === SCOPE_ALL
                     ? ""
                     : ` — solo ${MONTH_LABELS[scopeMonthNum - 1]}`}
@@ -477,7 +603,7 @@ export default async function StagionalitaPage({
                   kind={def.kind}
                   granularity={granularity}
                   byWindow={byWindow}
-                  selectedWindow={lookback}
+                  selectedWindow={lookbackEffettivo}
                   coverage={windows}
                   reference={reference}
                 />

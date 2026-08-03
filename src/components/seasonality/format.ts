@@ -1,5 +1,40 @@
-import type { SeasonalityKind } from "@/generated/prisma/client";
+import type {
+  SeasonalityGranularity,
+  SeasonalityKind,
+} from "@/generated/prisma/client";
 import { logToPercent } from "@/lib/seasonality/series";
+
+/**
+ * Unità di visualizzazione. Non è una preferenza estetica: un rendimento
+ * ORARIO medio vale qualche centesimo di punto percentuale, e in percentuale
+ * con due decimali esce «+0,00%» per tutte e ventiquattro le ore — una
+ * tabella intera di zeri al posto di dati che ci sono. In punti base gli
+ * stessi numeri stanno fra −1,9 e +3,6: leggibili, confrontabili, e nella
+ * scala che qualunque desk usa per questa grandezza.
+ *
+ * 1 punto base (pb) = 0,01%.
+ */
+export type DisplayUnit = "percent" | "bp" | "level";
+
+export function unitFor(
+  kind: SeasonalityKind,
+  granularity: SeasonalityGranularity,
+): DisplayUnit {
+  if (kind === "LEVEL") return "level";
+  return granularity === "SESSION" || granularity === "HOUR" ? "bp" : "percent";
+}
+
+export const UNIT_LABEL: Record<DisplayUnit, string> = {
+  percent: "variazione %",
+  bp: "variazione in punti base (1 pb = 0,01%)",
+  level: "livello medio",
+};
+
+export const UNIT_SUFFIX: Record<DisplayUnit, string> = {
+  percent: "%",
+  bp: " pb",
+  level: "",
+};
 
 /**
  * Formattazione dei numeri della Stagionalità.
@@ -12,25 +47,26 @@ import { logToPercent } from "@/lib/seasonality/series";
 
 const IT = "it-IT";
 
-/** Media/mediana di un bucket, nell'unità giusta per il tipo di strumento. */
+/** Media/mediana di un bucket, nell'unità giusta per strumento e granularità. */
 export function formatBucketValue(
   value: number,
   kind: SeasonalityKind,
   decimals = 2,
+  unit: DisplayUnit = kind === "LEVEL" ? "level" : "percent",
 ): string {
   if (!Number.isFinite(value)) return "—";
-  if (kind === "LEVEL") {
+  if (unit === "level") {
     return value.toLocaleString(IT, {
       minimumFractionDigits: decimals,
       maximumFractionDigits: decimals,
     });
   }
-  const pct = logToPercent(value);
-  const sign = pct > 0 ? "+" : "";
-  return `${sign}${pct.toLocaleString(IT, {
+  const scaled = unit === "bp" ? logToPercent(value) * 100 : logToPercent(value);
+  const sign = scaled > 0 ? "+" : "";
+  return `${sign}${scaled.toLocaleString(IT, {
     minimumFractionDigits: decimals,
     maximumFractionDigits: decimals,
-  })}%`;
+  })}${UNIT_SUFFIX[unit]}`;
 }
 
 /**
@@ -42,12 +78,14 @@ export function formatBucketValue(
 export function formatStdev(
   value: number | null,
   kind: SeasonalityKind,
+  unit: DisplayUnit = kind === "LEVEL" ? "level" : "percent",
 ): string {
   if (value === null || !Number.isFinite(value)) return "—";
-  const scaled = kind === "LEVEL" ? value : value * 100;
+  const scaled =
+    unit === "level" ? value : unit === "bp" ? value * 10_000 : value * 100;
   return scaled.toLocaleString(IT, {
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
+    minimumFractionDigits: unit === "bp" ? 1 : 2,
+    maximumFractionDigits: unit === "bp" ? 1 : 2,
   });
 }
 
