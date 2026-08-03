@@ -17,6 +17,7 @@ import {
 } from "@/lib/seasonality/metric-info";
 import {
   UNIT_LABEL,
+  decimalsFor,
   formatBucketValue,
   formatShare,
   formatStdev,
@@ -68,7 +69,19 @@ export function BucketWindowTable({
   currentBucket?: number | null;
 }) {
   const axis = BUCKET_AXIS[granularity];
-  const unit = unitFor(kind, granularity);
+  const unit = unitFor(kind);
+  /* Quattro decimali sull'intraday, due sul calendario: senza, i rendimenti
+     orari — qualche millesimo di punto percentuale — uscirebbero tutti
+     «+0,00%». Vedi `decimalsFor`. */
+  const dec = decimalsFor(kind, granularity);
+  /* Tabelle LUNGHE (le 24 ore, le 53 settimane) hanno bisogno di più aria per
+     riga di una da dodici mesi: con molte righe e molte colonne l'occhio
+     perde la traccia orizzontale, e comprimere il passo verticale è proprio
+     ciò che rende faticoso leggere una riga fino in fondo. Le tabelle corte
+     restano compatte — allargarle le farebbe galleggiare. */
+  const lunga = axis.buckets.length >= 20;
+  const cella = lunga ? "px-2 py-3" : "px-2 py-2";
+  const cellaRiga = lunga ? "py-3 pl-2 pr-2" : "py-2 pl-2 pr-2";
   const windows = [...byWindow.keys()].sort((a, b) => b - a);
   const selected = byWindow.get(selectedWindow) ?? [];
   const selectedByBucket = new Map(selected.map((s) => [s.bucket, s]));
@@ -134,17 +147,17 @@ export function BucketWindowTable({
                       : "var(--md-muted)",
                   }}
                 >
-                  {sel ? formatBucketValue(sel.mean, kind, 2, unit) : "—"}
+                  {sel ? formatBucketValue(sel.mean, kind, dec, unit) : "—"}
                 </span>
               </div>
               {sel ? (
                 <div className="md-mono flex flex-wrap gap-x-3 gap-y-0.5 text-2xs tabular-nums text-[var(--md-muted)]">
-                  <span>Mediana {formatBucketValue(sel.median, kind, 2, unit)}</span>
-                  <span>StDev {formatStdev(sel.stdev, kind, unit)}</span>
+                  <span>Mediana {formatBucketValue(sel.median, kind, dec, unit)}</span>
+                  <span>StDev {formatStdev(sel.stdev, kind, unit, dec)}</span>
                   {sel.stdev !== null ? (
                     <span>
-                      ±1σ {formatBucketValue(sel.mean - sel.stdev, kind, 2, unit)}{" "}
-                      – {formatBucketValue(sel.mean + sel.stdev, kind, 2, unit)}
+                      ±1σ {formatBucketValue(sel.mean - sel.stdev, kind, dec, unit)}{" "}
+                      – {formatBucketValue(sel.mean + sel.stdev, kind, dec, unit)}
                       {sel.withinSigma !== null
                         ? ` (copre ${formatShare(sel.withinSigma)})`
                         : ""}
@@ -167,7 +180,7 @@ export function BucketWindowTable({
                   const row = byWindow.get(w)?.find((r) => r.bucket === bucket);
                   return (
                     <span key={w}>
-                      {w}a {row ? formatBucketValue(row.mean, kind, 2, unit) : "—"}
+                      {w}a {row ? formatBucketValue(row.mean, kind, dec, unit) : "—"}
                     </span>
                   );
                 })}
@@ -296,7 +309,7 @@ export function BucketWindowTable({
                 >
                   <th
                     scope="row"
-                    className="py-2 pl-2 pr-2 text-left font-medium text-[var(--md-text)]"
+                    className={`${cellaRiga} text-left font-medium text-[var(--md-text)]`}
                   >
                     <span className="inline-flex items-center gap-1.5 whitespace-nowrap">
                       {label}
@@ -323,7 +336,7 @@ export function BucketWindowTable({
                     return (
                       <td
                         key={w}
-                        className="px-2 py-2 text-right md-mono"
+                        className={`${cella} text-right md-mono`}
                         style={{
                           color: row
                             ? valueColor(row.mean, kind, reference)
@@ -333,27 +346,27 @@ export function BucketWindowTable({
                         }}
                         title={row ? `n = ${row.n}` : undefined}
                       >
-                        {row ? formatBucketValue(row.mean, kind, 2, unit) : "—"}
+                        {row ? formatBucketValue(row.mean, kind, dec, unit) : "—"}
                       </td>
                     );
                   })}
-                  <td className="px-2 py-2 text-right md-mono text-[var(--md-text-2)]">
-                    {sel ? formatBucketValue(sel.median, kind, 2, unit) : "—"}
+                  <td className={`${cella} text-right md-mono text-[var(--md-text-2)]`}>
+                    {sel ? formatBucketValue(sel.median, kind, dec, unit) : "—"}
                   </td>
-                  <td className="px-2 py-2 text-right md-mono text-[var(--md-text-2)]">
-                    {sel ? formatStdev(sel.stdev, kind, unit) : "—"}
+                  <td className={`${cella} text-right md-mono text-[var(--md-text-2)]`}>
+                    {sel ? formatStdev(sel.stdev, kind, unit, dec) : "—"}
                   </td>
                   {/* Banda media±1σ al livello degli anni, con la copertura
                       EMPIRICA accanto: quanti anni ci sono caduti davvero
                       dentro. Mai il 68% teorico — vale per una normale, e i
                       rendimenti non lo sono (stessa scelta del simulatore
                       di equity). */}
-                  <td className="whitespace-nowrap px-2 py-2 text-right md-mono">
+                  <td className={`whitespace-nowrap ${cella} text-right md-mono`}>
                     {sel && sel.stdev !== null ? (
                       <span className="inline-flex flex-col items-end gap-0">
                         <span className="text-[var(--md-text-2)]">
-                          {formatBucketValue(sel.mean - sel.stdev, kind, 2, unit)}{" "}
-                          – {formatBucketValue(sel.mean + sel.stdev, kind, 2, unit)}
+                          {formatBucketValue(sel.mean - sel.stdev, kind, dec, unit)}{" "}
+                          – {formatBucketValue(sel.mean + sel.stdev, kind, dec, unit)}
                         </span>
                         <span className="text-2xs text-[var(--md-muted)]">
                           {sel.withinSigma !== null
@@ -365,10 +378,10 @@ export function BucketWindowTable({
                       "—"
                     )}
                   </td>
-                  <td className="px-2 py-2 text-right md-mono text-[var(--md-text-2)]">
+                  <td className={`${cella} text-right md-mono text-[var(--md-text-2)]`}>
                     {sel ? formatShare(sel.positiveShare) : "—"}
                   </td>
-                  <td className="px-2 py-2 text-right md-mono text-[var(--md-text-2)]">
+                  <td className={`${cella} text-right md-mono text-[var(--md-text-2)]`}>
                     <span className="inline-flex items-center justify-end gap-1">
                       {sel?.n ?? "—"}
                       {sel ? (
@@ -376,12 +389,12 @@ export function BucketWindowTable({
                       ) : null}
                     </span>
                   </td>
-                  <td className="whitespace-nowrap px-2 py-2 text-right md-mono text-[var(--md-muted)]">
+                  <td className={`whitespace-nowrap ${cella} text-right md-mono text-[var(--md-muted)]`}>
                     {sel?.rawCount != null
                       ? `${sel.rawCount.toLocaleString("it-IT")} ${axis.rawUnit}`
                       : "—"}
                   </td>
-                  <td className="px-2 py-2">
+                  <td className={cella}>
                     {sel && span > 0 ? (
                       <RangeBar
                         position={((sel.mean - min) / span) * 100}

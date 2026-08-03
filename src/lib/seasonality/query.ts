@@ -454,13 +454,15 @@ export async function getQuarterPaths(opts: {
       ? medie.reduce((a, v) => a + v, 0) / medie.length
       : 0;
 
-    /* Cumulato in log (additivo), convertito in punti base solo alla fine:
-       la conversione a metà strada romperebbe l'additività. */
+    /* Cumulato in log (additivo), convertito in percentuale solo alla fine:
+       la conversione a metà strada romperebbe l'additività. Cinque decimali
+       perché un quarto d'ora vale millesimi di punto percentuale, e
+       arrotondare qui appiattirebbe la curva prima ancora di disegnarla. */
     const values: number[] = [];
     let cum = 0;
     for (const m of medie) {
       cum += m - drift;
-      values.push(Number((logToPercent(cum) * 100).toFixed(3)));
+      values.push(Number(logToPercent(cum).toFixed(5)));
     }
     out.set(lookback, { values, years: anni.size, emptyBuckets });
   }

@@ -5,34 +5,40 @@ import type {
 import { logToPercent } from "@/lib/seasonality/series";
 
 /**
- * Unità di visualizzazione. Non è una preferenza estetica: un rendimento
- * ORARIO medio vale qualche centesimo di punto percentuale, e in percentuale
- * con due decimali esce «+0,00%» per tutte e ventiquattro le ore — una
- * tabella intera di zeri al posto di dati che ci sono. In punti base gli
- * stessi numeri stanno fra −1,9 e +3,6: leggibili, confrontabili, e nella
- * scala che qualunque desk usa per questa grandezza.
- *
- * 1 punto base (pb) = 0,01%.
+ * Unità di visualizzazione: i rendimenti sono SEMPRE in percentuale, i
+ * livelli di volatilità sono livelli. Niente punti base da nessuna parte —
+ * decisione esplicita, perché una pagina che cambia unità a metà costringe
+ * chi legge a ricordarsi in che scala sta guardando.
  */
-export type DisplayUnit = "percent" | "bp" | "level";
+export type DisplayUnit = "percent" | "level";
 
-export function unitFor(
+export function unitFor(kind: SeasonalityKind): DisplayUnit {
+  return kind === "LEVEL" ? "level" : "percent";
+}
+
+/**
+ * Decimali per granularità — è QUI che si risolve il problema che i punti
+ * base risolvevano prima: un rendimento medio orario vale qualche
+ * millesimo di punto percentuale, e con due decimali uscirebbe «+0,00%»
+ * per tutte e ventiquattro le ore, cioè una tabella di zeri al posto di
+ * dati che ci sono. Con quattro decimali gli stessi numeri sono leggibili
+ * e restano nell'unica unità della pagina.
+ */
+export function decimalsFor(
   kind: SeasonalityKind,
   granularity: SeasonalityGranularity,
-): DisplayUnit {
-  if (kind === "LEVEL") return "level";
-  return granularity === "SESSION" || granularity === "HOUR" ? "bp" : "percent";
+): number {
+  if (kind === "LEVEL") return 2;
+  return granularity === "SESSION" || granularity === "HOUR" ? 4 : 2;
 }
 
 export const UNIT_LABEL: Record<DisplayUnit, string> = {
   percent: "variazione %",
-  bp: "variazione in punti base (1 pb = 0,01%)",
   level: "livello medio",
 };
 
 export const UNIT_SUFFIX: Record<DisplayUnit, string> = {
   percent: "%",
-  bp: " pb",
   level: "",
 };
 
@@ -61,7 +67,7 @@ export function formatBucketValue(
       maximumFractionDigits: decimals,
     });
   }
-  const scaled = unit === "bp" ? logToPercent(value) * 100 : logToPercent(value);
+  const scaled = logToPercent(value);
   const sign = scaled > 0 ? "+" : "";
   return `${sign}${scaled.toLocaleString(IT, {
     minimumFractionDigits: decimals,
@@ -79,13 +85,13 @@ export function formatStdev(
   value: number | null,
   kind: SeasonalityKind,
   unit: DisplayUnit = kind === "LEVEL" ? "level" : "percent",
+  decimals = 2,
 ): string {
   if (value === null || !Number.isFinite(value)) return "—";
-  const scaled =
-    unit === "level" ? value : unit === "bp" ? value * 10_000 : value * 100;
+  const scaled = unit === "level" ? value : value * 100;
   return scaled.toLocaleString(IT, {
-    minimumFractionDigits: unit === "bp" ? 1 : 2,
-    maximumFractionDigits: unit === "bp" ? 1 : 2,
+    minimumFractionDigits: decimals,
+    maximumFractionDigits: decimals,
   });
 }
 

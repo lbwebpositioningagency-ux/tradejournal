@@ -9,6 +9,7 @@ import {
   CELL_OPACITY_MIN,
   UNIT_LABEL,
   cellBackground,
+  decimalsFor,
   formatBucketValue,
   formatShare,
   formatStdev,
@@ -63,10 +64,12 @@ export function SeasonalityHeatmap({
   currentBucket?: number | null;
 }) {
   const axis = BUCKET_AXIS[granularity];
-  const unit = unitFor(kind, granularity);
-  /* I punti base hanno bisogno di due decimali per non collassare a zero;
-     le percentuali su un mese di uno solo, o la griglia diventa illeggibile. */
-  const cellDecimals = unit === "bp" ? 2 : 1;
+  const unit = unitFor(kind);
+  /* Nella griglia si sta stretti: un decimale meno che in tabella basta a
+     distinguere le celle senza farle esplodere in larghezza. L'intraday
+     resta comunque abbastanza fine da non collassare a zero. */
+  const cellDecimals = Math.max(1, decimalsFor(kind, granularity) - 1);
+  const sintesiDecimals = decimalsFor(kind, granularity);
   const byYearBucket = new Map<string, (typeof data.cells)[number]>();
   for (const c of data.cells) byYearBucket.set(`${c.year}-${c.bucket}`, c);
 
@@ -247,7 +250,7 @@ export function SeasonalityHeatmap({
               label={meanLabel(kind)}
               buckets={axis.buckets}
               values={summaryByBucket}
-              render={(s) => formatBucketValue(s.mean, kind, 2, unit)}
+              render={(s) => formatBucketValue(s.mean, kind, sintesiDecimals, unit)}
               cellBg={mediaBg}
               emphasis
             />
@@ -255,7 +258,7 @@ export function SeasonalityHeatmap({
               label="StDev"
               buckets={axis.buckets}
               values={summaryByBucket}
-              render={(s) => formatStdev(s.stdev, kind, unit)}
+              render={(s) => formatStdev(s.stdev, kind, unit, sintesiDecimals)}
             />
             <SummaryRow
               label={positiveLabel(kind)}

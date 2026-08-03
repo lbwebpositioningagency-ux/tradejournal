@@ -131,7 +131,7 @@ export function coverageGaps(bars: HourBar[]): {
  * ── LE STATISTICHE VIVONO AL LIVELLO DELL'ANNO, come la griglia ──────────
  *
  * Prima Media/StDev/Pos%/n di sessione e ora erano calcolate sul pool delle
- * osservazioni INDIVIDUALI: n≈38.000 su vent'anni, StDev ~17 pb (la
+ * osservazioni INDIVIDUALI: n≈38.000 su vent'anni, StDev ~0,17% (la
  * dispersione del singolo giorno) e Pos% ~50% (il lancio di moneta del
  * giorno per giorno). La griglia sopra, però, mostra medie PER ANNO: due
  * livelli di aggregazione diversi nella stessa vista, e le righe di sintesi

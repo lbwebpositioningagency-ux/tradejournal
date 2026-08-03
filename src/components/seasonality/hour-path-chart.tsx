@@ -35,13 +35,16 @@ import {
  *
  * Stesso linguaggio del grafico annuale, per costruzione: stessi colori per
  * finestra, stessa checkbox-legenda, divisori verticali, stessa fascia grigia
- * tenue sul periodo corrente (lì il mese, qui il quarto d'ora), stesso
- * crosshair.
+ * tenue sul periodo corrente (lì il mese, qui l'ora), stesso crosshair.
  */
 
-const HOUR_TICKS = [0, 8, 16, 24, 32, 40, 48, 56, 64, 72, 80, 88, 96];
+/* Un divisore per ORA — venticinque tacche da mezzanotte a mezzanotte. La
+   griglia li disegna tutti, tenui; le etichette solo ogni due ore, perché
+   venticinque orari di fila si sovrappongono. */
+const HOUR_TICKS = Array.from({ length: 25 }, (_, i) => i * 4);
+const LABELED_TICKS = new Set(HOUR_TICKS.filter((_, i) => i % 2 === 0));
 
-/** Serie: `values[q]` = cumulato in punti base a fine quarto d'ora `q`. */
+/** Serie: `values[q]` = cumulato in PERCENTUALE a fine quarto d'ora `q`. */
 export interface HourPathSeries {
   lookbackYears: number;
   values: number[];
@@ -106,8 +109,11 @@ export function HourPathChart({
         if (v > max) max = v;
       }
     }
-    if (!Number.isFinite(min) || !Number.isFinite(max)) return [0, 1];
-    const pad = Math.max((max - min) * 0.08, 0.2);
+    if (!Number.isFinite(min) || !Number.isFinite(max)) return [0, 0.01];
+    /* Il minimo di respiro è in PUNTI PERCENTUALI, e su una giornata vale
+       millesimi: col vecchio valore — ereditato da quando l'asse era in punti
+       base — la curva sarebbe finita schiacciata in una striscia al centro. */
+    const pad = Math.max((max - min) * 0.08, 0.002);
     return [min - pad, max + pad];
   }, [data, visibili]);
 
@@ -133,17 +139,29 @@ export function HourPathChart({
       <div className="min-h-0 flex-1">
         <ResponsiveContainer width="100%" height="100%">
           <ComposedChart data={data} margin={{ ...CHART.margin, left: 4 }}>
+            {/* Divisori orari: tratteggio fine e opacità bassa — devono
+                dare il ritmo della giornata senza competere con le linee
+                dei dati, che sono l'unica cosa da leggere. */}
+            <CartesianGrid
+              strokeDasharray="2 4"
+              stroke="var(--md-border)"
+              strokeOpacity={0.45}
+              vertical
+              horizontal={false}
+            />
             <CartesianGrid
               strokeDasharray="3 3"
               stroke="var(--md-border)"
-              vertical
+              vertical={false}
             />
             <XAxis
               dataKey="q"
               type="number"
               domain={[0, 96]}
               ticks={HOUR_TICKS}
-              tickFormatter={(v: number) => quarterLabel(v)}
+              tickFormatter={(v: number) =>
+                LABELED_TICKS.has(v) ? quarterLabel(v) : ""
+              }
               tick={CHART.axisTick}
               axisLine={false}
               tickLine={false}
@@ -156,17 +174,20 @@ export function HourPathChart({
               axisLine={false}
               tickLine={false}
               tickFormatter={(v: number) =>
-                `${v.toLocaleString("it-IT", { maximumFractionDigits: 1 })} pb`
+                `${v.toLocaleString("it-IT", { maximumFractionDigits: 3 })}%`
               }
             />
 
-            {/* Fascia del quarto d'ora corrente, coerente con la fascia del
-                mese sul grafico annuale. */}
+            {/* Fascia dell'ORA corrente, coerente con la fascia del mese sul
+                grafico annuale. Larga un'ora intera anche se i dati sotto
+                sono a quindici minuti: «adesso» per chi guarda è l'ora in
+                cui si trova, e un quarto d'ora su novantasei sarebbe una
+                riga difficile da vedere. */}
             <ReferenceArea
-              x1={currentQuarter}
-              x2={currentQuarter + 1}
+              x1={Math.floor(currentQuarter / 4) * 4}
+              x2={Math.floor(currentQuarter / 4) * 4 + 4}
               fill="var(--md-text)"
-              fillOpacity={0.12}
+              fillOpacity={0.1}
               stroke="none"
             />
 
@@ -209,7 +230,7 @@ export function HourPathChart({
               formatter={(value, name) => {
                 const num = Number(value);
                 const fmt = Number.isFinite(num)
-                  ? `${num.toLocaleString("it-IT", { maximumFractionDigits: 2 })} pb`
+                  ? `${num.toLocaleString("it-IT", { maximumFractionDigits: 4 })}%`
                   : "—";
                 return [fmt, `${String(name).replace("w", "")} anni`];
               }}

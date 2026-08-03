@@ -284,7 +284,7 @@ export default async function StagionalitaPage({
     : null;
 
   /* Ritorno intraday cumulato: 96 punti a quarto d'ora, precalcolati dalle
-     barre M15 e già in punti base. Solo la vista Ora lo mostra. */
+     barre M15 e già in percentuale. Solo la vista Ora lo mostra. */
   const quartiVuoti = quarterPaths.get(lookbackEffettivo)?.emptyBuckets ?? 0;
   const hourPathSeries: HourPathSeries[] = [...quarterPaths.entries()]
     .map(([lookbackYears, v]) => ({
