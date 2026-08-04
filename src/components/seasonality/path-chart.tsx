@@ -19,6 +19,11 @@ import {
   ChartToggles,
   type ToggleItem,
 } from "@/components/seasonality/chart-toggles";
+import { useChartZoom } from "@/components/charts/use-chart-zoom";
+import {
+  ChartZoomControls,
+  ZoomBrush,
+} from "@/components/charts/chart-zoom";
 
 /**
  * PERCORSO STAGIONALE ANNUALE — multilinea a piena risoluzione.
@@ -151,6 +156,19 @@ export function SeasonalPathChart({
     return [min - pad, max + pad];
   }, [data, visibili, overlayAccesa]);
 
+  /* Zoom: l'asse Y parte dal dominio che il grafico calcola da sé (quello
+     sopra), la selezione X dalla striscia sotto. Nessuna delle due tocca i
+     dati — cambia solo cosa si guarda. */
+  const zoom = useChartZoom({ dataLength: data.length, base: [yMin, yMax] });
+  /* L'asse X ha un dominio esplicito (l'anno intero): senza aggiornarlo, il
+     brush accorcerebbe la linea lasciando l'asse fermo su dodici mesi. */
+  const xDomain: [number, number] = zoom.range
+    ? [
+        data[zoom.range.startIndex]?.doy ?? 1,
+        data[zoom.range.endIndex]?.doy ?? 366,
+      ]
+    : [1, 366];
+
   const unit = kind === "LEVEL" ? "" : "%";
 
   const toggle = (key: number) => {
@@ -175,7 +193,10 @@ export function SeasonalPathChart({
 
   return (
     <div className="flex h-full flex-col gap-2">
-      <ChartToggles items={toggles} hidden={spente} onToggle={toggle} />
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <ChartToggles items={toggles} hidden={spente} onToggle={toggle} />
+        <ChartZoomControls zoom={zoom} />
+      </div>
 
       <div className="min-h-0 flex-1">
         <ResponsiveContainer width="100%" height="100%">
@@ -189,7 +210,8 @@ export function SeasonalPathChart({
             <XAxis
               dataKey="doy"
               type="number"
-              domain={[1, 366]}
+              domain={xDomain}
+              allowDataOverflow
               ticks={MONTH_TICKS}
               tickFormatter={(v: number) =>
                 MONTH_NAMES[MONTH_TICKS.indexOf(v)] ?? ""
@@ -200,7 +222,8 @@ export function SeasonalPathChart({
             />
             <YAxis
               width={CHART.yAxisWidth}
-              domain={[yMin, yMax]}
+              domain={zoom.yDomain}
+              allowDataOverflow
               tickCount={9}
               tick={CHART.axisTick}
               axisLine={false}
@@ -275,6 +298,12 @@ export function SeasonalPathChart({
                 fill: "var(--md-warn)",
                 fontSize: 10,
               }}
+            />
+
+            <ZoomBrush
+              zoom={zoom}
+              dataKey="doy"
+              tickFormatter={((v: number) => doyLabel(v)) as never}
             />
 
             {/* Crosshair: linea verticale al giorno e valore di ogni linea. */}

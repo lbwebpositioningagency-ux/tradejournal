@@ -3,6 +3,7 @@
 import { useState } from "react";
 import type { PannelloCot } from "@/lib/cot-panel";
 import type { MacroPayload } from "@/lib/macro-desk-payload";
+import type { DriverDeskData } from "@/lib/queries/driver-desk";
 import { cn } from "@/lib/utils";
 import {
   AssetsTab,
@@ -14,6 +15,7 @@ import {
   VolatilityTab,
 } from "./report-tabs";
 import { CotPanel } from "./cot-panel";
+import { DriverDeskPanel } from "./driver-desk-panel";
 
 /**
  * Shell client del dettaglio report: navigazione a schede sul payload.
@@ -25,6 +27,7 @@ const TABS = [
   { id: "assets", label: "Asset" },
   { id: "vol", label: "Volatilità" },
   { id: "cot", label: "Posizionamento" },
+  { id: "driver", label: "Driver" },
   { id: "events", label: "Eventi & Watch" },
   { id: "macro", label: "Macro" },
   { id: "news", label: "News" },
@@ -37,12 +40,15 @@ export function MacroReportDetail({
   payload,
   biasRecord,
   cotPanel,
+  driverDesk,
 }: {
   payload: MacroPayload;
   /** Weekly Bias Record grezzo: unica fonte numerica di prezzo per il termometro. */
   biasRecord?: unknown;
   /** Pannello COT calcolato lato server dalla tabella CotWeek. */
   cotPanel: PannelloCot;
+  /** Driver Desk composto lato server dalle tabelle DriverDeskBar/Coverage. */
+  driverDesk: DriverDeskData;
 }) {
   const [active, setActive] = useState<TabId>("overview");
 
@@ -92,6 +98,7 @@ export function MacroReportDetail({
         {active === "assets" ? <AssetsTab payload={payload} /> : null}
         {active === "vol" ? <VolatilityTab payload={payload} biasRecord={biasRecord} /> : null}
         {active === "cot" ? <CotPanel pannello={cotPanel} /> : null}
+        {active === "driver" ? <DriverDeskPanel data={driverDesk} /> : null}
         {active === "events" ? <EventsTab payload={payload} /> : null}
         {active === "macro" ? <MacroTab payload={payload} /> : null}
         {active === "news" ? <NewsTab payload={payload} /> : null}

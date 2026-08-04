@@ -18,6 +18,11 @@ import {
   ChartToggles,
   type ToggleItem,
 } from "@/components/seasonality/chart-toggles";
+import { useChartZoom } from "@/components/charts/use-chart-zoom";
+import {
+  ChartZoomControls,
+  ZoomBrush,
+} from "@/components/charts/chart-zoom";
 
 /**
  * RITORNO INTRADAY CUMULATO — il fratello a giornata del percorso annuale.
@@ -121,6 +126,14 @@ export function HourPathChart({
     return [min - pad, max + pad];
   }, [data, visibili]);
 
+  const zoom = useChartZoom({ dataLength: data.length, base: [yMin, yMax] });
+  const xDomain: [number, number] = zoom.range
+    ? [
+        data[zoom.range.startIndex]?.q ?? 0,
+        data[zoom.range.endIndex]?.q ?? 96,
+      ]
+    : [0, 96];
+
   const toggle = (key: number) => {
     setSpente((prev) => {
       const next = new Set(prev);
@@ -138,7 +151,10 @@ export function HourPathChart({
 
   return (
     <div className="flex h-full flex-col gap-2">
-      <ChartToggles items={toggles} hidden={spente} onToggle={toggle} />
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <ChartToggles items={toggles} hidden={spente} onToggle={toggle} />
+        <ChartZoomControls zoom={zoom} />
+      </div>
 
       <div className="min-h-0 flex-1">
         <ResponsiveContainer
@@ -165,7 +181,8 @@ export function HourPathChart({
             <XAxis
               dataKey="q"
               type="number"
-              domain={[0, 96]}
+              domain={xDomain}
+              allowDataOverflow
               ticks={HOUR_TICKS}
               tickFormatter={(v: number) =>
                 String(Math.floor(v / 4) % 24).padStart(2, "0")
@@ -180,7 +197,8 @@ export function HourPathChart({
             />
             <YAxis
               width={CHART.yAxisWidth}
-              domain={[yMin, yMax]}
+              domain={zoom.yDomain}
+              allowDataOverflow
               tickCount={7}
               tick={CHART.axisTick}
               axisLine={false}
@@ -231,6 +249,12 @@ export function HourPathChart({
             {yMin < 0 && yMax > 0 ? (
               <ReferenceLine y={0} stroke="var(--md-border)" />
             ) : null}
+            <ZoomBrush
+              zoom={zoom}
+              dataKey="q"
+              tickFormatter={((v: number) => quarterLabel(v)) as never}
+            />
+
             <Tooltip
               cursor={{ stroke: "var(--md-muted)", strokeDasharray: "2 2" }}
               contentStyle={CHART.tooltipStyle}
