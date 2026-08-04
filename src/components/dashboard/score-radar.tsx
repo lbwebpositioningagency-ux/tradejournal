@@ -31,11 +31,18 @@ import { cn } from "@/lib/utils";
  * l'etichetta e il poligono.
  */
 
+/* Il poligono occupa più box di prima (raggio 70 → 82 su una viewBox più
+   bassa): a parità di larghezza della card il radar si vede più grande, e
+   il box più corto lo alza sotto al titolo. Le etichette si sono avvicinate
+   al vertice (1,16 → 1,06 del raggio) proprio per lasciargli il posto senza
+   uscire dalla card, che ritaglia ciò che sborda. */
 const CX = 160;
-const CY = 104;
-const RADIUS = 70;
+const CY = 100;
+const RADIUS = 82;
 const VIEW_W = 320;
-const VIEW_H = 200;
+const VIEW_H = 192;
+/** Distanza dell'etichetta dal centro, in frazioni di raggio. */
+const LABEL_R = 1.06;
 /** Anelli della griglia esagonale, come frazioni del raggio (25/50/75/100). */
 const GRID_LEVELS = [0.25, 0.5, 0.75, 1];
 
@@ -78,8 +85,12 @@ export function ScoreRadar({ result }: { result: RadarScore | null }) {
   const lowSample = result?.lowSample ?? false;
 
   return (
-    <div className="flex w-full flex-col items-center gap-3">
-      <div className="relative w-full max-w-72">
+    <div className="flex w-full flex-col items-center gap-2">
+      {/* Il radar riempie la card invece di galleggiarci dentro: il cap a
+          18rem lo lasciava piccolo rispetto allo spazio disponibile. Il
+          margine negativo recupera il vuoto sotto il titolo, che nel viewBox
+          è già riservato alle etichette dei sei fattori. */}
+      <div className="relative -mt-2 w-full">
         <svg
           viewBox={`0 0 ${VIEW_W} ${VIEW_H}`}
           className="w-full"
@@ -133,7 +144,7 @@ export function ScoreRadar({ result }: { result: RadarScore | null }) {
 
         {/* Etichette degli assi + icona (i) per fattore, in overlay sull'SVG */}
         {SCORE_FACTOR_KEYS.map((key, i) => {
-          const [x, y] = vertex(i, 1.16);
+          const [x, y] = vertex(i, LABEL_R);
           const side = labelSide(i);
           return (
             <div

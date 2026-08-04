@@ -73,6 +73,7 @@ import { formatDayKey, formatDurationSec } from "@/lib/dates";
 import { sessionsInfo, type SessionPoint } from "@/lib/sessions";
 import { weekdaysInfo, type WeekdayPoint } from "@/lib/weekdays";
 import { MetricInfo } from "@/components/metric-info";
+import { CHART } from "@/components/charts/chart-spec";
 import { EmptyState } from "@/components/empty-state";
 import type { TradeSequencePointView } from "@/components/charts/trade-sequence-chart";
 // P-01/P-06 — i widget sotto la piega arrivano dai wrapper lazy: recharts
@@ -106,7 +107,6 @@ import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import {
   CumulativePnlChart,
   DailyPnlChart,
-  Sparkline,
   type ChartPoint,
 } from "./pnl-charts";
 import { ScoreRadar } from "./score-radar";
@@ -665,7 +665,6 @@ export function DashboardView({ data }: { data: DashboardData }) {
                 : `Fee ${formatMoney(data.fees, data.currency)}${view === "r" ? ` · su ${data.rCount} trade con rischio` : ""}`
             }
           >
-            {data.daily.length > 1 ? <Sparkline points={chart.points} /> : null}
           </StatCard>
         ) : null}
         {show("win-rate") ? (
@@ -1299,45 +1298,18 @@ export function DashboardView({ data }: { data: DashboardData }) {
                 <MetricInfo info={scoreInfo} />
               </CardTitle>
             </CardHeader>
-            <CardContent className="flex flex-col items-center gap-2">
+            <CardContent className="flex flex-col items-center gap-1">
               {/* Radar a 6 fattori + numero 0-100 (2 decimali) e barra a
                   gradiente; peso uguale 100/6, v. lib/metrics/score.ts. */}
               <ScoreRadar result={data.score} />
             </CardContent>
           </Card>
         ) : null}
-        {show("cumulative") ? (
+        {/* Scambio voluto col P&L cumulativo (che è sceso più in basso):
+            l'underwater risponde alla domanda che si fa per prima aprendo la
+            dashboard — «quanto sono sotto il picco adesso». */}
+        {show("underwater") && !hideAnalytics ? (
           <Card className={show("score") ? "lg:col-span-2" : "lg:col-span-3"}>
-            <CardHeader>
-              <CardTitle className="stat-label">P&L cumulativo</CardTitle>
-            </CardHeader>
-            <CardContent>
-              {chart.points.length > 0 ? (
-                <CumulativePnlChart
-                  points={chart.points}
-                  masked={masked}
-                  suffix={chart.suffix}
-                />
-              ) : (
-                <EmptyState
-                  compact
-                  icon={LineChartIcon}
-                  title="Nessun trade chiuso nel periodo"
-                  description="Il grafico si popola con i trade chiusi nel periodo selezionato."
-                />
-              )}
-            </CardContent>
-          </Card>
-        ) : null}
-      </div>
-      )}
-
-      {/* W4 — underwater: statistica seria presentata semplice. Il Monte
-          Carlo vive SOLO in Analytics (Fase 26): la dashboard mostra cosa è
-          successo, non proiezioni ipotetiche configurabili. */}
-      {show("underwater") && !hideAnalytics ? (
-        <div className={cn("grid gap-4 max-lg:order-12", analyticsCls)}>
-          <Card>
             <CardHeader>
               <CardTitle className="stat-label flex items-center gap-1">
                 Underwater plot
@@ -1353,6 +1325,40 @@ export function DashboardView({ data }: { data: DashboardData }) {
                   icon={LineChartIcon}
                   title="Nessun trade chiuso nel periodo"
                   description="L'underwater plot si popola con la serie giornaliera."
+                />
+              )}
+            </CardContent>
+          </Card>
+        ) : null}
+      </div>
+      )}
+
+      {/* W4 — underwater: statistica seria presentata semplice. Il Monte
+          Carlo vive SOLO in Analytics (Fase 26): la dashboard mostra cosa è
+          successo, non proiezioni ipotetiche configurabili. */}
+      {show("cumulative") ? (
+        <div className={cn("grid gap-4 max-lg:order-12", analyticsCls)}>
+          <Card>
+            <CardHeader>
+              <CardTitle className="stat-label">P&L cumulativo</CardTitle>
+            </CardHeader>
+            <CardContent>
+              {chart.points.length > 0 ? (
+                /* Altezza doppia: qui il grafico è il contenuto principale
+                   della riga, e lo zoom ha bisogno di spazio verticale per
+                   servire a qualcosa. */
+                <CumulativePnlChart
+                  points={chart.points}
+                  masked={masked}
+                  suffix={chart.suffix}
+                  height={CHART.height * 2}
+                />
+              ) : (
+                <EmptyState
+                  compact
+                  icon={LineChartIcon}
+                  title="Nessun trade chiuso nel periodo"
+                  description="Il grafico si popola con i trade chiusi nel periodo selezionato."
                 />
               )}
             </CardContent>
