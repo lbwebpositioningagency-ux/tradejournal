@@ -233,6 +233,21 @@ export interface DriverCardDef {
   main: DriverDeskSeries;
   basket: DriverDeskSeries[];
   drivers: DriverRef[];
+  /**
+   * Chiave di lettura PER QUESTA scheda: cosa ha significato storicamente,
+   * per questo asset, il movimento di ciascun componente. Indicizzata sulla
+   * chiave del componente (codice serie, "BASKET" per il paniere combinato,
+   * o l'id del derivato). Un componente senza voce, o assente dai dati,
+   * semplicemente non compare nella legenda — stessa regola delle linee.
+   *
+   * Inquadramento OBBLIGATORIO delle frasi: tendenza storica, mai regola
+   * fissa («storicamente … è stato un contesto meno favorevole», mai
+   * «X sale → Y scende»). Il rimando al blocco di stabilità — che dice se il
+   * legame sta reggendo ADESSO — è aggiunto una volta sola dalla UI in coda
+   * alla legenda: affermare un segno come certo contraddirebbe l'esistenza
+   * stessa di quel blocco.
+   */
+  readingNotes: Record<string, string>;
 }
 
 /**
@@ -260,6 +275,16 @@ export const DRIVER_CARDS: DriverCardDef[] = [
       { kind: "series", code: "T10YIE" },
       { kind: "series", code: "DTWEXBGS" },
     ],
+    readingNotes: {
+      XAGUSD:
+        "storicamente si muove nella stessa direzione dell'oro: sono entrambi metalli preziosi",
+      DFII10:
+        "storicamente, in salita è stato un contesto meno favorevole per l'oro (detenerlo costa di più in termini di opportunità); in discesa, più favorevole",
+      T10YIE:
+        "storicamente, attese di inflazione più alte hanno tendenzialmente sostenuto l'oro come copertura; più basse, meno",
+      DTWEXBGS:
+        "storicamente, un dollaro più forte è stato un contesto meno favorevole per l'oro, uno più debole più favorevole — ma il legame si è indebolito negli ultimi anni (acquisti record delle banche centrali, de-dollarizzazione)",
+    },
   },
   {
     id: "WTI",
@@ -272,6 +297,14 @@ export const DRIVER_CARDS: DriverCardDef[] = [
       { kind: "series", code: "DTWEXBGS" },
       { kind: "derived", derived: "WTI_BRENT_SPREAD" },
     ],
+    readingNotes: {
+      BRENT:
+        "storicamente si muove in modo molto simile al WTI: stesso mercato globale, con differenziali regionali",
+      DTWEXBGS:
+        "storicamente, un dollaro più forte è stato un contesto meno favorevole per il petrolio, che è quotato in dollari; più debole, più favorevole",
+      WTI_BRENT_SPREAD:
+        "se sale, il WTI si sta rafforzando rispetto al Brent; se scende, il contrario",
+    },
   },
   {
     id: "DAX",
@@ -284,6 +317,24 @@ export const DRIVER_CARDS: DriverCardDef[] = [
       { kind: "series", code: "EURUSD" },
       { kind: "series", code: "BUND10Y" },
     ],
+    readingNotes: {
+      // La composizione effettiva del paniere viene aggiunta in coda dalla
+      // composizione (cards.ts): elencarla qui in modo statico mentirebbe
+      // quando un membro è assente dai dati.
+      BASKET:
+        "storicamente si muove nella stessa direzione del DAX: è l'azionario internazionale nel suo insieme",
+      // Voci per i singoli membri: servono quando il paniere è degradato a
+      // un membro solo e quindi non c'è il combinato.
+      STOXX50E:
+        "storicamente si muove nella stessa direzione del DAX (azionario dell'area euro)",
+      CAC40:
+        "storicamente si muove nella stessa direzione del DAX (azionario europeo)",
+      SPX: "storicamente si muove nella stessa direzione del DAX (azionario globale)",
+      EURUSD:
+        "storicamente, un euro più forte è stato un contesto meno favorevole per le grandi esportatrici tedesche che pesano nel DAX; più debole, più favorevole",
+      BUND10Y:
+        "non esiste una direzione storica netta e univoca: rendimenti tedeschi più alti a volte riflettono una crescita più forte, a volte un contesto monetario più restrittivo",
+    },
   },
 ];
 

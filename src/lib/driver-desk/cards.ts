@@ -91,6 +91,13 @@ export interface RelationStability {
   signSentence: string;
 }
 
+/** Una riga della chiave di lettura per-scheda (R7). */
+export interface GuideEntry {
+  label: string;
+  /** Tendenza STORICA, mai regola fissa (vincolo del catalogo). */
+  text: string;
+}
+
 export interface DriverCardPayload {
   id: DriverCardDef["id"];
   label: string;
@@ -99,6 +106,11 @@ export interface DriverCardPayload {
   calendar: CardCalendar;
   /** null quando la finestra non ha abbastanza punti per disegnare. */
   chart: CardChart | null;
+  /**
+   * Chiave di lettura delle linee di QUESTA scheda, nell'ordine del grafico:
+   * solo componenti presenti, l'asset escluso (è il soggetto delle frasi).
+   */
+  guide: GuideEntry[];
   relations: RelationStability[];
   /** Nota di freschezza (es. ritardo di pubblicazione FRED). */
   freshnessNote?: string;
@@ -431,6 +443,23 @@ export function composeCard(
     });
   }
 
+  /* Chiave di lettura (R7): una riga per linea presente nel grafico, testi
+     dal catalogo. Una linea senza voce nel catalogo semplicemente non ha la
+     riga — stessa regola dell'omissione silenziosa. */
+  const guide: GuideEntry[] = chartSeries
+    .filter((s) => s.role !== "main")
+    .flatMap((s) => {
+      const text = card.readingNotes[s.key];
+      if (!text) return [];
+      // Il paniere combinato dichiara la composizione EFFETTIVA: quella del
+      // catalogo sarebbe statica e mentirebbe quando un membro manca.
+      const full =
+        s.key === "BASKET"
+          ? `${text} (qui: ${basketComponents.map((m) => m.label).join(", ")})`
+          : text;
+      return [{ label: s.label, text: full }];
+    });
+
   return {
     id: card.id,
     label: card.label,
@@ -439,6 +468,7 @@ export function composeCard(
     calendar,
     chart:
       chartSeries.length > 0 ? { dates: chartDates, series: chartSeries } : null,
+    guide,
     relations,
     freshnessNote:
       card.id === "WTI"

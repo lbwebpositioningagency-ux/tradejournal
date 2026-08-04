@@ -173,20 +173,10 @@ describe("DriverDeskPanel — legenda esplicativa", () => {
     expect(html).toContain("dodici mesi");
   });
 
-  it("spiega la direzione di OGNI driver mostrato", () => {
-    for (const atteso of [
-      "Rendimento reale USA 10Y",
-      "Breakeven inflazione 10Y",
-      "Dollar index (broad)",
-      "Spread WTI",
-      "EURUSD",
-      "Bund 10Y",
-    ]) {
-      expect(html).toContain(atteso);
-    }
-    expect(html).toContain("dollaro più forte");
-    expect(html).toContain("euro più forte");
-    expect(html).toContain("rendimento del decennale tedesco più alto");
+  it("R7: il blocco generale NON elenca più i driver — la chiave è per scheda", () => {
+    expect(html).not.toContain("Cosa vuol dire che un driver sale");
+    // il blocco generale rimanda alle chiavi di lettura sopra i grafici
+    expect(html).toContain("chiave di lettura sopra ciascun grafico");
   });
 
   it("dichiara che nessun driver è invertito di segno", () => {
@@ -200,6 +190,59 @@ describe("DriverDeskPanel — legenda esplicativa", () => {
   it("dichiara che il blocco copre OGNI linea, paniere incluso", () => {
     expect(html).toContain("una voce per ogni linea del grafico");
     expect(html).toContain("pari di paniere");
+  });
+});
+
+describe("DriverDeskPanel — chiave di lettura per scheda (R7)", () => {
+  it("ogni scheda ha il suo blocco «Chiave di lettura»", () => {
+    expect(html.split("Chiave di lettura").length - 1).toBe(3);
+  });
+
+  it("le voci coprono i componenti di ogni scheda", () => {
+    for (const atteso of [
+      "Rendimento reale USA 10Y",
+      "Breakeven inflazione 10Y",
+      "Dollar index (broad)",
+      "Spread WTI",
+      "EURUSD",
+      "Bund 10Y",
+      "Paniere azionario",
+    ]) {
+      expect(html).toContain(atteso);
+    }
+  });
+
+  it("framing OBBLIGATORIO: tendenza storica, mai regola fissa", () => {
+    // le frasi direzionali usano «storicamente», mai la freccia certa
+    expect(html).toContain("storicamente, un dollaro più forte è stato un contesto meno favorevole");
+    expect(html).toContain("storicamente si muove nella stessa direzione dell&#x27;oro");
+    expect(html).not.toMatch(/sale\s*(→|=&gt;)/);
+  });
+
+  it("ogni blocco rimanda alla stabilità per lo stato ATTUALE del legame", () => {
+    const rimandi = html.split("il blocco «Stabilità").length - 1;
+    expect(rimandi).toBe(3);
+    expect(html).toContain("mai regole fisse");
+  });
+
+  it("oro-dollaro: l'indebolimento recente del legame è dichiarato", () => {
+    expect(html).toContain("il legame si è indebolito negli ultimi anni");
+    expect(html).toContain("de-dollarizzazione");
+  });
+
+  it("Bund: nessun segno pulito inventato — l'ambiguità è detta com'è", () => {
+    expect(html).toContain("non esiste una direzione storica netta");
+    expect(html).toContain("a volte");
+  });
+
+  it("scheda degradata: la voce del componente assente sparisce dalla chiave", () => {
+    const series = { ...SERIES };
+    delete series.BRENT; // decade anche lo spread
+    const markup = renderToStaticMarkup(
+      <DriverDeskPanel data={buildData(series)} />,
+    );
+    const schedaWti = markup.split("Petrolio WTI")[1]?.split("Chiave di lettura")[1] ?? "";
+    expect(schedaWti).not.toContain("Brent");
   });
 });
 
@@ -229,18 +272,18 @@ describe("DriverDeskPanel — schede", () => {
   });
 
   it("la stabilità copre anche il paniere: singoli per oro/WTI, combinato per il DAX", () => {
-    const dopoIlGrafico = html.split("Stabilità delle relazioni").slice(1).join("");
+    // «La relazione con X» è la frase che esiste SOLO nelle voci di stabilità
     for (const atteso of ["Argento", "Brent", "Paniere azionario"]) {
-      expect(dopoIlGrafico).toContain(atteso);
+      expect(html).toContain(`La relazione con ${atteso}`);
     }
   });
 
   it("R6: il DAX ha UNA linea di paniere, non tre voci separate nella stabilità", () => {
-    const dopoIlGrafico = html.split("Stabilità delle relazioni").slice(1).join("");
-    // i tre indici restano nel grafico solo come combinato: nelle voci di
-    // stabilità non compaiono più coi nomi propri
-    expect(dopoIlGrafico).not.toContain("Euro Stoxx 50");
-    expect(dopoIlGrafico).not.toContain("CAC 40");
+    // i tre indici non hanno più una voce propria («La relazione con …»):
+    // restano nominati solo nella chiave di lettura del paniere combinato
+    expect(html).not.toContain("La relazione con Euro Stoxx 50");
+    expect(html).not.toContain("La relazione con CAC 40");
+    expect(html).not.toContain("La relazione con S&amp;P 500");
   });
 
   it("R6: la legenda dichiara le due scale indipendenti", () => {

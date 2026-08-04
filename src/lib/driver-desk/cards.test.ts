@@ -405,3 +405,45 @@ describe("linguaggio piano", () => {
     expect(fmtIt(1.5, 1)).toBe("1,5");
   });
 });
+
+describe("composeCard — chiave di lettura per scheda (R7)", () => {
+  it("una voce per ogni linea presente, asset escluso, nell'ordine del grafico", () => {
+    const oro = composeCard(ORO, fullSeries());
+    expect(oro.guide.map((g) => g.label)).toEqual([
+      "Argento",
+      "Rendimento reale USA 10Y",
+      "Breakeven inflazione 10Y",
+      "Dollar index (broad)",
+    ]);
+    const dax = composeCard(DAX, fullSeries());
+    expect(dax.guide.map((g) => g.label)).toEqual([
+      "Paniere azionario",
+      "EURUSD",
+      "Bund 10Y",
+    ]);
+  });
+
+  it("framing storico: le voci direzionali dicono «storicamente», mai una regola", () => {
+    const oro = composeCard(ORO, fullSeries());
+    for (const g of oro.guide) {
+      expect(g.text).toContain("storicamente");
+      expect(g.text).not.toMatch(/→/);
+    }
+  });
+
+  it("componente assente = voce assente, in silenzio", () => {
+    const series = fullSeries();
+    delete series.BRENT; // decade anche lo spread
+    const wti = composeCard(WTI_CARD, series);
+    expect(wti.guide.map((g) => g.label)).toEqual(["Dollar index (broad)"]);
+  });
+
+  it("paniere DAX degradato a un membro: la voce è quella del membro", () => {
+    const series = fullSeries();
+    delete series.CAC40;
+    delete series.STOXX50E;
+    const dax = composeCard(DAX, series);
+    expect(dax.guide[0].label).toBe("S&P 500");
+    expect(dax.guide[0].text).toContain("stessa direzione del DAX");
+  });
+});

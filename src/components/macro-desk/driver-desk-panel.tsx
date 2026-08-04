@@ -46,18 +46,7 @@ const CONFINI_BANDE = [10, 30, 70, 90];
 
 /* ═══════════════ Legenda esplicativa della pagina ═══════════════ */
 
-function ComeSiLegge({ cards }: { cards: DriverCardPayload[] }) {
-  // I driver presenti davvero nelle schede, senza ripetizioni: se una serie
-  // non c'è, la sua riga non compare — stessa regola del grafico.
-  const drivers: { label: string; risingMeans: string }[] = [];
-  for (const card of cards) {
-    for (const s of card.chart?.series ?? []) {
-      if (s.role !== "driver") continue;
-      if (drivers.some((d) => d.label === s.label)) continue;
-      drivers.push({ label: s.label, risingMeans: s.risingMeans });
-    }
-  }
-
+function ComeSiLegge() {
   return (
     <details open className="md-card md-fade p-4" style={fade(0)}>
       <summary className="cursor-pointer text-sm font-semibold text-[var(--md-text)]">
@@ -87,7 +76,10 @@ function ComeSiLegge({ cards }: { cards: DriverCardPayload[] }) {
             valga di più. La finestra è sempre degli ultimi dodici mesi, e il
             numero nella pillola a fine linea è il punto d&apos;arrivo di
             ciascuna. Con i pulsanti sotto il grafico si accende e si spegne
-            ogni linea.
+            ogni linea. Nessun driver è disegnato col segno invertito per
+            farlo sembrare allineato allo strumento: ognuno sale nella sua
+            direzione naturale, e cosa abbia significato storicamente quel
+            movimento è scritto nella chiave di lettura sopra ciascun grafico.
           </p>
           <p className="mt-2">
             <span className="font-semibold text-[var(--md-text)]">
@@ -101,27 +93,6 @@ function ComeSiLegge({ cards }: { cards: DriverCardPayload[] }) {
             storia.
           </p>
         </div>
-
-        {drivers.length > 0 ? (
-          <div>
-            <PanelLabel>Cosa vuol dire che un driver sale</PanelLabel>
-            <p className="mb-1.5 mt-1 text-xs text-[var(--md-muted)]">
-              Nessun driver è disegnato col segno invertito per farlo sembrare
-              allineato allo strumento: ognuno sale nella sua direzione
-              naturale, ed è qui che si trova la chiave di lettura.
-            </p>
-            <ul className="flex flex-col gap-0.5">
-              {drivers.map((d) => (
-                <li key={d.label} className="text-sm">
-                  <span className="font-semibold text-[var(--md-text)]">
-                    {d.label}
-                  </span>
-                  : {d.risingMeans}.
-                </li>
-              ))}
-            </ul>
-          </div>
-        ) : null}
 
         <div>
           <PanelLabel>Il blocco sotto il grafico</PanelLabel>
@@ -225,6 +196,35 @@ function SchedaStrumento({
           tutte le serie hanno quotato)
         </p>
 
+        {/* Chiave di lettura per QUESTA scheda (R7): tendenze storiche, mai
+            regole — il rimando alla stabilità chiude il blocco, una volta. */}
+        {card.guide.length > 0 ? (
+          <div
+            className="flex flex-col gap-1 rounded-[var(--md-r-md)] p-3"
+            style={{ backgroundColor: "var(--md-surface-2)" }}
+          >
+            <PanelLabel>Chiave di lettura</PanelLabel>
+            <ul className="flex flex-col gap-0.5">
+              {card.guide.map((g) => (
+                <li
+                  key={g.label}
+                  className="text-xs leading-relaxed text-[var(--md-text-2)]"
+                >
+                  <span className="font-semibold text-[var(--md-text)]">
+                    {g.label}
+                  </span>
+                  : {g.text}.
+                </li>
+              ))}
+            </ul>
+            <p className="text-[11px] leading-relaxed text-[var(--md-muted)]">
+              Sono tendenze storiche, mai regole fisse: il blocco «Stabilità
+              delle relazioni» qui sotto dice se ciascun legame sta reggendo
+              adesso.
+            </p>
+          </div>
+        ) : null}
+
         {card.chart ? (
           <DriverDeskChart dates={card.chart.dates} series={card.chart.series} />
         ) : null}
@@ -283,7 +283,7 @@ export function DriverDeskPanel({ data }: { data: DriverDeskData }) {
 
   return (
     <div className="flex flex-col gap-3">
-      <ComeSiLegge cards={cards} />
+      <ComeSiLegge />
 
       <div className="flex flex-col gap-3">
         {cards.map((card, i) => (
