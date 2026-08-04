@@ -1,7 +1,13 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { ChartSpline, ChevronRight, Globe, Target } from "lucide-react";
+import {
+  CalendarRange,
+  ChartSpline,
+  ChevronRight,
+  Globe,
+  Target,
+} from "lucide-react";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { BIAS_SHORT_LABELS, biasColorClass } from "@/lib/macro-desk";
@@ -164,6 +170,12 @@ export default async function MacroDeskPage() {
             <Link href="/macro-desk/scorecard">
               <Target className="size-4" />
               Scorecard
+            </Link>
+          </Button>
+          <Button asChild variant="outline">
+            <Link href="/macro-desk/stagionalita">
+              <CalendarRange className="size-4" />
+              Stagionalità
             </Link>
           </Button>
         </div>

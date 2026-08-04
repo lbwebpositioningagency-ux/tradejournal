@@ -14,6 +14,9 @@ import { cn } from "@/lib/utils";
 
 export type Params = Record<string, string | undefined>;
 
+/** La pagina vive sotto il Macro Desk, accanto a Trends e Scorecard. */
+export const SEASONALITY_PATH = "/macro-desk/stagionalita";
+
 /** Costruisce l'href mantenendo gli altri parametri già selezionati. */
 export function hrefWith(base: Params, changes: Params): string {
   const next = new URLSearchParams();
@@ -21,7 +24,7 @@ export function hrefWith(base: Params, changes: Params): string {
     if (v !== undefined && v !== "") next.set(k, v);
   }
   const qs = next.toString();
-  return qs ? `/stagionalita?${qs}` : "/stagionalita";
+  return qs ? `${SEASONALITY_PATH}?${qs}` : SEASONALITY_PATH;
 }
 
 export function ChipGroup({

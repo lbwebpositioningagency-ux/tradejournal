@@ -1308,3 +1308,9 @@ WTI 16, GER40 14, SPX 16) fino a **`completo: true`**, zero errori (VDAX
 perché il refresh M15 dell'anno in corso (~40 s) non stava nel budget del
 cron e `completo` sarebbe rimasto false ogni notte, con l'ultimo anno M15
 parziale al cambio d'anno.
+
+**Navigazione (03/08/2026):** la Stagionalità è passata da voce di sidebar a
+terzo pulsante del Macro Desk, accanto a Trends e Scorecard, e la rotta è
+diventata `/macro-desk/stagionalita` per coerenza con loro. La vecchia
+`/stagionalita` resta come `permanentRedirect` — era pubblicata, i segnalibri
+non devono rompersi. Contenuto, dati, API e job notturno invariati.

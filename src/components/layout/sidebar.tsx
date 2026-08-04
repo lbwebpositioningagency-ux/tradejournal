@@ -7,7 +7,6 @@ import {
   BarChart3,
   ChartScatter,
   CalendarDays,
-  CalendarRange,
   Globe,
   LayoutDashboard,
   Menu,
@@ -37,7 +36,6 @@ const NAV_ITEMS = [
   { href: "/reports", label: "Reports", icon: BarChart3 },
   { href: "/analytics", label: "Analytics", icon: ChartScatter },
   { href: "/macro-desk", label: "Macro Desk", icon: Globe },
-  { href: "/stagionalita", label: "Stagionalità", icon: CalendarRange },
   { href: "/strategies", label: "Strategie", icon: Target },
   { href: "/settings", label: "Impostazioni", icon: Settings },
 ] as const;
