@@ -45,8 +45,22 @@ describe("ScoreRadar — icona (i) per ogni fattore", () => {
       expect(markup).toContain(SCORE_FACTOR_LABELS[key]);
       expect(markup).toContain(`Cos&#x27;è ${SCORE_FACTOR_INFO[key].label}?`);
     }
-    // Sei bottoni: uno per asse (quello del titolo card sta altrove).
-    expect(markup.match(/<button/g)).toHaveLength(SCORE_FACTOR_KEYS.length);
+    // Dodici bottoni: icona (i) + trigger del tooltip sul pallino, per asse
+    // (quello del titolo card sta altrove).
+    expect(markup.match(/<button/g)).toHaveLength(SCORE_FACTOR_KEYS.length * 2);
+  });
+
+  it("ogni pallino ha il trigger del tooltip col valore 0-100 del fattore", () => {
+    const result = radarScore(input);
+    const markup = render(result);
+    // L'aria-label del trigger è anche il testo del tooltip: stesso valore
+    // `factors[key]` che posiziona il pallino, arrotondato all'intero.
+    for (const key of SCORE_FACTOR_KEYS) {
+      const value = Math.round(result!.factors[key]).toLocaleString("it-IT");
+      expect(markup).toContain(
+        `${SCORE_FACTOR_LABELS[key]}: ${value}/100`,
+      );
+    }
   });
 
   it("le etichette sono HTML in overlay, non <text> dentro l'SVG", () => {
@@ -73,13 +87,14 @@ describe("ScoreRadar — icona (i) per ogni fattore", () => {
 
   it("ogni etichetta è ancorata al proprio vertice e cresce verso l'esterno", () => {
     const markup = render();
-    // Sei posizioni assolute distinte, tutte dentro il riquadro del viewBox.
-    // `left` + `top` insieme = un'etichetta (l'indicatore della barra dello
-    // score ha il solo `left` e non va contato).
+    // Dodici posizioni assolute (6 trigger dei pallini + 6 etichette), tutte
+    // dentro il riquadro del viewBox. `left` + `top` insieme = un ancoraggio
+    // (l'indicatore della barra dello score ha il solo `left` e non va
+    // contato).
     const lefts = [
       ...markup.matchAll(/left:\s*([\d.]+)%;\s*top:\s*([\d.]+)%/g),
     ].map((m) => Number(m[1]));
-    expect(lefts).toHaveLength(SCORE_FACTOR_KEYS.length);
+    expect(lefts).toHaveLength(SCORE_FACTOR_KEYS.length * 2);
     for (const left of lefts) {
       expect(left).toBeGreaterThanOrEqual(0);
       expect(left).toBeLessThanOrEqual(100);

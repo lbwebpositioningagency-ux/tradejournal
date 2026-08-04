@@ -6,6 +6,7 @@ import {
   type RadarScore,
 } from "@/lib/metrics";
 import { MetricInfo } from "@/components/metric-info";
+import { ScoreDotTooltip } from "@/components/dashboard/score-dot-tooltip";
 import { cn } from "@/lib/utils";
 
 /**
@@ -168,6 +169,24 @@ export function ScoreRadar({ result }: { result: RadarScore | null }) {
             </>
           ) : null}
         </svg>
+
+        {/* Tooltip hover/tocco sui pallini: stessa conversione vertice →
+            percentuali delle etichette, stesso valore `factors[key]` che
+            posiziona il pallino sul raggio. */}
+        {result !== null
+          ? SCORE_FACTOR_KEYS.map((key, i) => {
+              const [x, y] = vertex(i, fractions[i]);
+              return (
+                <ScoreDotTooltip
+                  key={key}
+                  label={SCORE_FACTOR_LABELS[key]}
+                  value={result.factors[key]}
+                  left={`${(x / VIEW_W) * 100}%`}
+                  top={`${(y / VIEW_H) * 100}%`}
+                />
+              );
+            })
+          : null}
 
         {/* Etichette degli assi + icona (i) per fattore, in overlay sull'SVG */}
         {SCORE_FACTOR_KEYS.map((key, i) => {
