@@ -295,6 +295,7 @@ export const DRIVER_CARDS: DriverCardDef[] = [
     basket: ["BRENT"],
     drivers: [
       { kind: "series", code: "DTWEXBGS" },
+      { kind: "series", code: "T10YIE" },
       { kind: "derived", derived: "WTI_BRENT_SPREAD" },
     ],
     readingNotes: {
@@ -302,6 +303,8 @@ export const DRIVER_CARDS: DriverCardDef[] = [
         "storicamente si muove in modo molto simile al WTI: stesso mercato globale, con differenziali regionali",
       DTWEXBGS:
         "storicamente, un dollaro più forte è stato un contesto meno favorevole per il petrolio, che è quotato in dollari; più debole, più favorevole",
+      T10YIE:
+        "storicamente si muove nella stessa direzione del petrolio: il greggio pesa nella componente energia dell'inflazione, quindi prezzi più alti hanno tendenzialmente spinto in alto anche le attese di inflazione a breve; più bassi, viceversa",
       WTI_BRENT_SPREAD:
         "se sale, il WTI si sta rafforzando rispetto al Brent; se scende, il contrario",
     },

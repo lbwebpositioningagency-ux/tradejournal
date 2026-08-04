@@ -192,11 +192,13 @@ describe("composeCard — componenti mancanti: omessi in silenzio", () => {
     expect(payload.chart!.series.map((s) => s.label)).toEqual([
       "Petrolio WTI",
       "Dollar index (broad)",
+      "Breakeven inflazione 10Y",
     ]);
     // niente Brent, niente spread, e nessun messaggio al loro posto
     expect(JSON.stringify(payload)).not.toContain("Brent");
     expect(payload.relations.map((r) => r.label)).toEqual([
       "Dollar index (broad)",
+      "Breakeven inflazione 10Y",
     ]);
   });
 
@@ -313,6 +315,7 @@ describe("composeCard — stabilità della relazione", () => {
     expect(wti.relations.map((r) => r.label)).toEqual([
       "Brent",
       "Dollar index (broad)",
+      "Breakeven inflazione 10Y",
       "Spread WTI−Brent",
     ]);
   });
@@ -435,7 +438,10 @@ describe("composeCard — chiave di lettura per scheda (R7)", () => {
     const series = fullSeries();
     delete series.BRENT; // decade anche lo spread
     const wti = composeCard(WTI_CARD, series);
-    expect(wti.guide.map((g) => g.label)).toEqual(["Dollar index (broad)"]);
+    expect(wti.guide.map((g) => g.label)).toEqual([
+      "Dollar index (broad)",
+      "Breakeven inflazione 10Y",
+    ]);
   });
 
   it("paniere DAX degradato a un membro: la voce è quella del membro", () => {
