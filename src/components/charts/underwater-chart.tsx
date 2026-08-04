@@ -19,12 +19,18 @@ import { useChartAnimation } from "@/components/charts/use-chart-animation";
  */
 export function UnderwaterChart({
   points,
-  height = CHART.height,
+  fill = false,
 }: {
   points: UnderwaterPoint[];
-  /** Nella riga alta della dashboard la card è più alta dello standard: il
-   * grafico la riempie invece di lasciarle un fondo vuoto. */
-  height?: number;
+  /**
+   * A `true` il grafico riempie il 100% dello spazio del contenitore invece
+   * dell'altezza standard. Non è un numero fisso DI PROPOSITO: nella riga
+   * alta della dashboard la card viene stirata dalla griglia all'altezza
+   * della vicina, e qualunque pixel fisso lascerebbe un vuoto sotto il
+   * grafico appena la vicina cambia taglia — è già successo due volte.
+   * Richiede un genitore con altezza risolta (flex-1 dentro la card).
+   */
+  fill?: boolean;
 }) {
   const animate = useChartAnimation();
   const data = points.map((p) => ({
@@ -33,7 +39,13 @@ export function UnderwaterChart({
     pct: Number(p.ddPct) * 100,
   }));
   return (
-    <ResponsiveContainer width="100%" height={height}>
+    <ResponsiveContainer
+      width="100%"
+      height={fill ? "100%" : CHART.height}
+      // Sotto i 160px il grafico non è più leggibile: meglio far crescere
+      // la card che schiacciare l'area a una striscia.
+      minHeight={fill ? 160 : undefined}
+    >
       <AreaChart data={data} margin={CHART.margin}>
         <defs>
           <linearGradient id="underwater-fill" x1="0" y1="0" x2="0" y2="1">

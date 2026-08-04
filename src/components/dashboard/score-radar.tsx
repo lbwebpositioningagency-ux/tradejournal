@@ -31,19 +31,20 @@ import { cn } from "@/lib/utils";
  * l'etichetta e il poligono.
  */
 
-/* Raggio 76: la via di mezzo fra il 70 originale (piccolo rispetto alla
-   card) e l'82 del tentativo precedente, che spingeva il ring esterno a
-   ridosso del bordo e — con uno score alto — faceva leggere la quasi
-   coincidenza fra poligono e griglia come un contorno duplicato. La
-   distanza assoluta delle etichette dal centro resta quella di sempre
-   (70 × 1,16 ≈ 76 × 1,07): non possono uscire dalla card più di prima. */
+/* Raggio 62 su un viewBox più corto: la card Score deve essere PICCOLA —
+   richiesta esplicita dopo due round in cui il radar cresceva. I pallini
+   sui vertici restano: sono loro che distinguono il poligono-dato dal ring
+   della griglia quando i fattori toccano il 100. */
 const CX = 160;
-const CY = 101;
-const RADIUS = 76;
+const CY = 90;
+const RADIUS = 62;
 const VIEW_W = 320;
-const VIEW_H = 196;
-/** Distanza dell'etichetta dal centro, in frazioni di raggio. */
-const LABEL_R = 1.07;
+const VIEW_H = 176;
+/** Distanza dell'etichetta dal centro, in frazioni di raggio: il prodotto
+ * RADIUS × LABEL_R (~81px di viewBox) è INVARIATO da tre versioni — le
+ * etichette stanno ferme mentre il poligono cambia taglia, quindi non
+ * possono uscire dalla card oggi se non uscivano ieri. */
+const LABEL_R = 1.31;
 /** Anelli della griglia esagonale, come frazioni del raggio (25/50/75/100). */
 const GRID_LEVELS = [0.25, 0.5, 0.75, 1];
 

@@ -1291,7 +1291,10 @@ export function DashboardView({ data }: { data: DashboardData }) {
       {hideAnalytics ? null : (
       <div className={cn("grid gap-4 max-lg:order-11 lg:grid-cols-3", analyticsCls)}>
         {show("score") ? (
-          <Card>
+          /* `data-size=sm` stringe il padding della card (variante prevista
+             da ui/card): la card Score deve occupare poco, non solo avere un
+             disegno piccolo dentro. */
+          <Card data-size="sm">
             <CardHeader>
               <CardTitle className="stat-label flex items-center gap-1">
                 Score
@@ -1316,9 +1319,14 @@ export function DashboardView({ data }: { data: DashboardData }) {
                 <MetricInfo info={underwaterInfo} />
               </CardTitle>
             </CardHeader>
-            <CardContent>
+            {/* `flex-1 min-h-0`: la card è già una colonna flex e la griglia
+                la stira all'altezza della più alta della riga — il contenuto
+                deve EREDITARE quello spazio, non fissarlo. È il fix
+                strutturale del vuoto sotto il grafico: qualunque altezza
+                risulti dalla riga, il grafico la riempie. */}
+            <CardContent className="min-h-0 flex-1">
               {data.underwater.length > 1 ? (
-                <UnderwaterChart points={data.underwater} height={264} />
+                <UnderwaterChart points={data.underwater} fill />
               ) : (
                 <EmptyState
                   compact
