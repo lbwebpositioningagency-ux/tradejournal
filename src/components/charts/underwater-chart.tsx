@@ -12,14 +12,6 @@ import type { UnderwaterPoint } from "@/lib/metrics";
 import { formatDayKey } from "@/lib/dates";
 import { CHART } from "@/components/charts/chart-spec";
 import { useChartAnimation } from "@/components/charts/use-chart-animation";
-import {
-  domainFromValues,
-  useChartZoom,
-} from "@/components/charts/use-chart-zoom";
-import {
-  ChartZoomControls,
-  ZoomBrush,
-} from "@/components/charts/chart-zoom";
 
 /**
  * W4 — underwater plot: area rossa sotto lo zero, profondità = drawdown %
@@ -30,6 +22,8 @@ export function UnderwaterChart({
   height = CHART.height,
 }: {
   points: UnderwaterPoint[];
+  /** Nella riga alta della dashboard la card è più alta dello standard: il
+   * grafico la riempie invece di lasciarle un fondo vuoto. */
   height?: number;
 }) {
   const animate = useChartAnimation();
@@ -38,17 +32,7 @@ export function UnderwaterChart({
     // frazione ≤ 0 → percentuale per il rendering
     pct: Number(p.ddPct) * 100,
   }));
-  /* Il drawdown è sempre ≤ 0: lo zero deve restare nel dominio, altrimenti
-     l'area perde il suo bordo superiore e il grafico non si legge più. */
-  const zoom = useChartZoom({
-    dataLength: data.length,
-    base: domainFromValues([0, ...data.map((d) => d.pct)]),
-  });
   return (
-    <div className="flex flex-col gap-2">
-      <div className="flex justify-end">
-        <ChartZoomControls zoom={zoom} />
-      </div>
     <ResponsiveContainer width="100%" height={height}>
       <AreaChart data={data} margin={CHART.margin}>
         <defs>
@@ -70,14 +54,7 @@ export function UnderwaterChart({
           tickLine={false}
           axisLine={false}
           width={CHART.yAxisWidth}
-          domain={zoom.yDomain}
-          allowDataOverflow
-          tickFormatter={(v: number) => `${v.toLocaleString("it-IT", { maximumFractionDigits: 1 })}%`}
-        />
-        <ZoomBrush
-          zoom={zoom}
-          dataKey="day"
-          tickFormatter={((v: string) => formatDayKey(v)) as never}
+          tickFormatter={(v: number) => `${v}%`}
         />
         <Tooltip
           formatter={(value: number | string | readonly (number | string)[] | undefined) =>
@@ -99,6 +76,5 @@ export function UnderwaterChart({
         />
       </AreaChart>
     </ResponsiveContainer>
-    </div>
   );
 }

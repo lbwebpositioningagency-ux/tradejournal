@@ -1318,7 +1318,7 @@ export function DashboardView({ data }: { data: DashboardData }) {
             </CardHeader>
             <CardContent>
               {data.underwater.length > 1 ? (
-                <UnderwaterChart points={data.underwater} />
+                <UnderwaterChart points={data.underwater} height={264} />
               ) : (
                 <EmptyState
                   compact

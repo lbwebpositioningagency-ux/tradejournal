@@ -11,14 +11,6 @@ import {
   YAxis,
 } from "recharts";
 import { CHART } from "@/components/charts/chart-spec";
-import {
-  domainFromValues,
-  useChartZoom,
-} from "@/components/charts/use-chart-zoom";
-import {
-  ChartZoomControls,
-  ZoomBrush,
-} from "@/components/charts/chart-zoom";
 import { useChartAnimation } from "@/components/charts/use-chart-animation";
 import { formatDayKey } from "@/lib/dates";
 import {
@@ -107,18 +99,8 @@ export function RollingRatioChart({ points }: { points: RollingRatioPoint[] }) {
     sortino: p.sortino === null ? null : Number(p.sortino),
   }));
 
-  /* Il dominio di partenza guarda le SOLE serie accese: spegnendo il Sortino
-     l'asse si riadatta allo Sharpe, e «Adatta» torna sempre lì. */
-  const base = domainFromValues(
-    data.flatMap((d) =>
-      RATIO_SERIES.filter((s) => visible[s.key]).map((s) => d[s.key]),
-    ),
-  );
-  const zoom = useChartZoom({ dataLength: data.length, base });
-
   return (
     <div className="flex flex-col gap-2">
-      <div className="flex flex-wrap items-center justify-between gap-2">
       <div className="flex flex-wrap gap-2">
         {RATIO_SERIES.map((s) => (
           <Toggle
@@ -133,9 +115,7 @@ export function RollingRatioChart({ points }: { points: RollingRatioPoint[] }) {
           </Toggle>
         ))}
       </div>
-        <ChartZoomControls zoom={zoom} />
-      </div>
-      <ResponsiveContainer width="100%" height={CHART.height + 28}>
+      <ResponsiveContainer width="100%" height={CHART.height}>
         <LineChart data={data} margin={CHART.margin}>
           <XAxis
             dataKey="day"
@@ -150,14 +130,7 @@ export function RollingRatioChart({ points }: { points: RollingRatioPoint[] }) {
             tickLine={false}
             axisLine={false}
             width={CHART.yAxisWidth}
-            domain={zoom.yDomain}
-            allowDataOverflow
             tickFormatter={(v: number) => num(v, 1)}
-          />
-          <ZoomBrush
-            zoom={zoom}
-            dataKey="day"
-            tickFormatter={((v: string) => formatDayKey(v)) as never}
           />
           {/* Zero: sopra la finestra ha reso più del risk-free, sotto meno. */}
           <ReferenceLine y={0} className="stroke-muted-foreground" strokeDasharray="4 4" />
@@ -234,12 +207,8 @@ export function RollingTradeChart({
     return num(v);
   };
 
-  const base = domainFromValues(data.map((d) => d.value));
-  const zoom = useChartZoom({ dataLength: data.length, base });
-
   return (
     <div className="flex flex-col gap-2">
-      <div className="flex flex-wrap items-center justify-between gap-2">
       <div className="flex flex-wrap gap-2">
         {ROLLING_TRADE_METRICS.map((m) => (
           <Toggle
@@ -252,9 +221,7 @@ export function RollingTradeChart({
           </Toggle>
         ))}
       </div>
-        <ChartZoomControls zoom={zoom} />
-      </div>
-      <ResponsiveContainer width="100%" height={CHART.height + 28}>
+      <ResponsiveContainer width="100%" height={CHART.height}>
         <LineChart data={data} margin={CHART.margin}>
           <XAxis
             dataKey="idx"
@@ -269,16 +236,9 @@ export function RollingTradeChart({
             tickLine={false}
             axisLine={false}
             width={CHART.yAxisWidth}
-            domain={zoom.yDomain}
-            allowDataOverflow
             tickFormatter={(v: number) =>
               spec.unit === "percent" ? `${num(v, 0)}%` : num(v, 1)
             }
-          />
-          <ZoomBrush
-            zoom={zoom}
-            dataKey="idx"
-            tickFormatter={((v: number) => `#${v}`) as never}
           />
           {reference !== null && (
             <ReferenceLine

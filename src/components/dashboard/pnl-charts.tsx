@@ -14,14 +14,6 @@ import {
 } from "recharts";
 import { CHART, ClampMark, pnlChartColor } from "@/components/charts/chart-spec";
 import { useChartAnimation } from "@/components/charts/use-chart-animation";
-import {
-  domainFromValues,
-  useChartZoom,
-} from "@/components/charts/use-chart-zoom";
-import {
-  ChartZoomControls,
-  ZoomBrush,
-} from "@/components/charts/chart-zoom";
 import { clampLimit, clampValue } from "@/lib/chart-clamp";
 
 /**
@@ -75,18 +67,9 @@ export function CumulativePnlChart({
   const animate = useChartAnimation();
   const last = points.at(-1)?.cumulative ?? 0;
   const color = pnlChartColor(last === 0 ? 1 : last);
-  const data = withZeroStart(points);
-  const zoom = useChartZoom({
-    dataLength: data.length,
-    base: domainFromValues(data.map((d) => d.cumulative)),
-  });
   return (
-    <div className="flex flex-col gap-2">
-      <div className="flex justify-end">
-        <ChartZoomControls zoom={zoom} />
-      </div>
     <ResponsiveContainer width="100%" height={height}>
-      <AreaChart data={data} margin={CHART.margin}>
+      <AreaChart data={withZeroStart(points)} margin={CHART.margin}>
         <defs>
           <linearGradient id="cumulative-fill" x1="0" y1="0" x2="0" y2="1">
             <stop offset="0%" stopColor={color} stopOpacity={CHART.areaFillFrom} />
@@ -106,16 +89,6 @@ export function CumulativePnlChart({
           tickLine={false}
           axisLine={false}
           width={masked ? 8 : CHART.yAxisWidth}
-          domain={zoom.yDomain}
-          allowDataOverflow
-          tickFormatter={(v: number) =>
-            v.toLocaleString("it-IT", { maximumFractionDigits: 0 })
-          }
-        />
-        <ZoomBrush
-          zoom={zoom}
-          dataKey="day"
-          tickFormatter={((v: string) => (v === "" ? "" : shortDay(v))) as never}
         />
         <Tooltip
           formatter={tooltipFormatter(masked, suffix)}
@@ -135,7 +108,6 @@ export function CumulativePnlChart({
         />
       </AreaChart>
     </ResponsiveContainer>
-    </div>
   );
 }
 
