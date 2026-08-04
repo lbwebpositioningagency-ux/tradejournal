@@ -564,3 +564,531 @@ aspetto ha il dossier in produzione, dove il report arriva ogni giorno.
   · Stagionalità — indici di volatilità — dato al 2026-07-31
   · Trends — Liquidità & Credito — dato al 2026-07-24
 ```
+
+
+---
+
+## 2026-08-04 15:30 — P2 · Sintesi, doppio cancello, fallback
+
+File nuovi:
+- `src/lib/ai-analyst/cancelli.ts` — i due cancelli. Il lessicale eredita
+  INTEGRALMENTE le liste del box COT (`controlloLessicale`) e aggiunge le
+  regole di questa sezione; il semantico pone DUE domande, entrambe
+  fail-closed.
+- `src/lib/ai-analyst/frasi.ts` — i template deterministici (fallback + rete di
+  sicurezza del percorso col modello).
+- `src/lib/ai-analyst/prompt.ts` — costruzione del prompt e sua versione
+  rafforzata per il secondo tentativo.
+- `src/lib/ai-analyst/gemini.ts` — client, ricalcato su `cot-contesto-gemini.ts`.
+- `src/lib/ai-analyst/sintesi.ts` — orchestratore, schema Zod della risposta,
+  fallback, cache in memoria.
+- `src/lib/ai-analyst/fixtures.ts` — fixture condivise dai test.
+- `scripts/ai-analyst-sintesi.ts` — sintesi reale a terminale.
+
+Test nuovi: `cancelli.test.ts` (61), `frasi.test.ts` (28), `sintesi.test.ts`
+(26) più il giro reale `sintesi.live.test.ts` **saltato di default**.
+
+### ⚠ FATTO IMPORTANTE — la chiave Gemini NON è disponibile in locale
+`.env.production.local` (generato da `vercel env pull`) contiene
+`GEMINI_API_KEY="[SENSITIVE]"`: **Vercel redige i valori sensibili**, e lo
+stesso vale per `FRED_API_KEY`. Provata dal vivo: la chiamata torna
+`400 API_KEY_INVALID`.
+
+Conseguenze, tutte verificate dal vivo:
+1. **il fallback deterministico funziona davvero** — l'ho visto girare sul
+  percorso reale, non solo nei test: la sezione produce una sintesi completa e
+  corretta senza modello, dichiarando `ORIGINE: FALLBACK`;
+2. FRED continua a funzionare lo stesso: il client ricade sul CSV pubblico
+  keyless (i numeri dell'anteprima vengono da lì);
+3. **non ho potuto fare un giro reale contro Gemini.** I cancelli sono provati
+  con un client finto, con una batteria di esche difficili — non con testo
+  generato davvero. È la cosa numero uno da rifare quando la chiave c'è.
+
+Ho tolto dal `.env` del worktree le due chiavi redatte: lasciarle produceva un
+400 a ogni chiamata invece del più onesto «chiave assente → fallback».
+
+### Decisione D-11 — con dossier insufficiente non si chiama il modello
+Non c'è una lettura da raccontare, e spendere una chiamata per far scrivere
+«non lo so» aggiunge solo un rischio. Si va diretti al testo deterministico.
+
+### Decisione D-12 — il modello riceve anche la formulazione di riferimento
+Oltre al dossier numerico, il prompt include la frase deterministica già
+approvata di ogni fattore. Il compito diventa «rendi questo più scorrevole»
+invece di «inventa una frase su questi numeri»: meno spazio per scivolare, e il
+confronto fra percorso col modello e fallback resta uno a uno.
+
+### Decisione D-13 — il fallback per modello irraggiungibile NON va in cache
+Se la rete torna dopo dieci minuti la pagina deve poter riprovare, non restare
+inchiodata alla versione senza modello per tutta la giornata. Il fallback per
+DATI INSUFFICIENTI invece si mette in cache: lì non cambia nulla fino a domani.
+
+### Decisione D-14 — riscritte due frasi che il nostro stesso cancello bloccava
+Il cancello lessicale ha fermato testo NOSTRO, ed è servito:
+1. «presenti N fattori su M **attesi**» → «sono arrivate N misure su M»
+  (`attesi` è la radice di «aspettativa», vietata dalla lista del COT);
+2. i limiti fissi di «cosa non sappiamo» dicevano «non dice se il prezzo
+  **salirà o scenderà**» — futuro sul prezzo, vietato. Riscritti in «non indica
+  una direzione di prezzo».
+Un test fa passare TUTTI i template attraverso il cancello su una matrice di
+14 dossier diversi, così una frase nostra non può degradare in silenzio.
+
+### Decisione D-15 — i sostantivi «acquisti»/«vendite» restano ammessi
+La mia prima stesura del cancello vietava anche i sostantivi, e avrebbe
+bloccato le implicazioni meccaniche del COT già approvate a monte («le
+eventuali chiusure di quelle posizioni passano per vendite»). Vietati restano i
+VERBI operativi, che la lista del COT già copre.
+
+### Il limite del primo cancello, dichiarato invece che nascosto
+Cinque esche insinuanti («il metallo ha più spazio sopra di sé che sotto»,
+«chi è entrato la settimana scorsa ha ancora margine») **passano** il cancello
+lessicale: non contengono nessuna parola vietata. C'è un test che lo fissa
+esplicitamente, e un altro che verifica che il percorso completo le fermi con
+il secondo cancello. Non è un difetto nascosto: è il motivo per cui i cancelli
+sono due.
+
+### Gate
+`npm test` 1638 passati + 1 saltato (il giro reale) · typecheck · lint · build
+tutti verdi.
+
+### Sintesi REALE sui dati locali
+
+```text
+[modello: nessuna chiave, si userà il fallback]
+
+══════════════════════════════════════════════════════════════════════════════
+  Oro (XAU/USD)  ·  2026-08-04
+══════════════════════════════════════════════════════════════════════════════
+  ORIGINE: FALLBACK (modello non raggiungibile: GEMINI_API_KEY non configurata)
+  CARATTERE DELLA GIORNATA: Nella norma
+  FIDUCIA NELLA LETTURA: bassa — Manca la lettura del termometro, l'unica misura verificata fuori campione (9 fattori su 12).
+
+  Le misure di volatilità implicita su Oro stanno nella parte centrale della loro storia.
+  In condizioni come questa l'escursione della giornata è stata storicamente in linea con l'abitudine dello strumento.
+  La lettura poggia su 9 misure su 12: 3 mancano, ed è elencato più sotto quale e perché.
+  Resta una descrizione del contesto e dell'ampiezza abituale: non indica dove andrebbe il prezzo.
+
+  ── COSA HA PESATO ──
+  • Indice di volatilità implicita [peso MEDIO]
+      Il GVZ sta a 23,31. È più in basso che nel 69% delle sedute dell'ultimo anno; più in alto che nel 75% di quelle di tre anni; più in alto che nel 84% di quelle di cinque. Variazione: −1,02 punti in una settimana, −3,81 punti in un mese.
+  • Partecipazione al mercato [peso BASSO, dato non dell'ultima seduta]
+      I contratti aperti sul future sono più in basso che nel 97% delle settimane dal 2017 (499 settimane di storia). Partecipazione ai minimi della propria storia: mercato strutturalmente più sottile, dove lo stesso flusso di ordini può produrre oscillazioni di prezzo più ampie che in un mercato affollato.
+  • Posizionamento speculativo [peso BASSO, dato non dell'ultima seduta]
+      L'esposizione netta dei fondi speculativi è più in alto che nel 64% delle settimane dal 2017 (499 settimane di storia). Esposizione netta dei fondi in linea con la storia: nessuno sbilancio strutturale nelle posizioni speculative in essere. Descrive le posizioni in essere, non l'esito della giornata.
+  • Dispersione storica del mese [peso BASSO]
+      Nel mese di agosto, negli ultimi 20 anni, i rendimenti di Oro stanno in una fascia larga circa 6,15 punti fra il quarto più basso e il quarto più alto. I singoli anni si sono distanziati dalla media di circa 4,62 punti. Campione: 20 anni, dal 2006 al 2025.
+  • Dispersione storica del giorno della settimana [peso BASSO]
+      Di martedì, negli ultimi 20 anni, i rendimenti di Oro stanno in una fascia larga circa 0,18 punti fra il quarto più basso e il quarto più alto. I singoli anni si sono distanziati dalla media di circa 0,13 punti. Campione: 20 anni, dal 2006 al 2025.
+  • Livello abituale dell'indice di volatilità in questo mese [peso BASSO]
+      Nel mese di agosto il GVZ ha avuto un livello medio di 18,14, su 18 anni di storia.
+  • Stabilità della relazione con pari e driver [peso BASSO]
+      Nelle ultime settimane Oro si è mosso insieme ai propri pari e ai propri riferimenti in modo più stretto che nel 65% delle sedute dal 2006 (4 confronti, 4616 sedute di storia comune). Un legame largo significa che il movimento dello strumento è spiegato meno da ciò che gli sta attorno.
+  • Condizioni finanziarie complessive [peso BASSO, dato non dell'ultima seduta]
+      Condizioni finanziarie (NFCI): −0,55, più in basso che nel 70% delle rilevazioni degli ultimi dieci anni.
+  • Tensione sul credito [peso BASSO]
+      Spread HY (OAS): 2,84%, più in basso che nel 73% delle rilevazioni degli ultimi dieci anni.
+
+  ── COSA NON C'ERA ──
+  • Stato della volatilità implicita — dato troppo vecchio per essere usato
+  • Ampiezza abituale della giornata — dato troppo vecchio per essere usato
+  • Comportamento storico del termometro — dato troppo vecchio per essere usato
+
+  ── COSA QUESTA LETTURA NON DICE ──
+  • Questa lettura non indica una direzione di prezzo e non è un suggerimento operativo.
+  • Le percentuali citate sono frequenze storiche su campioni dichiarati, non una misura di ciò che accadrà oggi.
+  • La lettura vale per la giornata nel suo insieme: non distingue fra le sessioni né fra i singoli momenti.
+  • Mancano 3 misure su 12: stato della volatilità implicita (dato troppo vecchio per essere usato); ampiezza abituale della giornata (dato troppo vecchio per essere usato); comportamento storico del termometro (dato troppo vecchio per essere usato).
+  • 3 misure non sono dell'ultima seduta: il dato più vecchio usato è del 21/07/2026.
+
+  ── SEZIONI LETTE ──
+  · Trends — Volatilità — dato al 2026-07-31
+  · Posizionamento (CFTC) — dato al 2026-07-21
+  · Stagionalità — dato al 2026-08-02
+  · Stagionalità — indici di volatilità — dato al 2026-07-31
+  · Driver Desk — dato al 2026-07-31
+  · Trends — Liquidità & Credito — dato al 2026-07-24
+  Dato più vecchio usato: 2026-07-21
+
+  [tracciato: tentativo 1: modello non raggiungibile: GEMINI_API_KEY non configurata]
+
+══════════════════════════════════════════════════════════════════════════════
+  Petrolio WTI (WTI)  ·  2026-08-04
+══════════════════════════════════════════════════════════════════════════════
+  ORIGINE: FALLBACK (modello non raggiungibile: GEMINI_API_KEY non configurata)
+  CARATTERE DELLA GIORNATA: Condizioni di espansione
+  FIDUCIA NELLA LETTURA: bassa — Manca la lettura del termometro, l'unica misura verificata fuori campione (9 fattori su 12).
+
+  Le misure di volatilità implicita su Petrolio WTI stanno nella parte alta della loro storia.
+  In condizioni come questa l'escursione della giornata è stata storicamente più ampia dell'abitudine dello strumento.
+  La lettura poggia su 9 misure su 12: 3 mancano, ed è elencato più sotto quale e perché.
+  Resta una descrizione del contesto e dell'ampiezza abituale: non indica dove andrebbe il prezzo.
+
+  ── COSA HA PESATO ──
+  • Indice di volatilità implicita [peso MEDIO]
+      L'OVX sta a 63,04. È più in alto che nel 73% delle sedute dell'ultimo anno; più in alto che nel 91% di quelle di tre anni; più in alto che nel 93% di quelle di cinque. Variazione: −4,96 punti in una settimana, 22,28 punti in un mese.
+  • Partecipazione al mercato [peso BASSO, dato non dell'ultima seduta]
+      I contratti aperti sul future sono più in basso che nel 70% delle settimane dal 2017 (499 settimane di storia). Partecipazione in linea con la storia: lo spessore del mercato è quello a cui questo future è abituato.
+  • Posizionamento speculativo [peso BASSO, dato non dell'ultima seduta]
+      L'esposizione netta dei fondi speculativi è più in basso che nel 93% delle settimane dal 2017 (499 settimane di storia). Esposizione netta dei fondi speculativi ai minimi della propria storia: la struttura delle posizioni in essere pende dal lato corto, e le eventuali chiusure di quelle posizioni passano per acquisti. Descrive le posizioni in essere, non l'esito della giornata.
+  • Dispersione storica del mese [peso BASSO, dato non dell'ultima seduta]
+      Nel mese di agosto, negli ultimi 20 anni, i rendimenti di Petrolio WTI stanno in una fascia larga circa 9,29 punti fra il quarto più basso e il quarto più alto. I singoli anni si sono distanziati dalla media di circa 6,18 punti. Campione: 20 anni, dal 2006 al 2025.
+  • Dispersione storica del giorno della settimana [peso BASSO, dato non dell'ultima seduta]
+      Di martedì, negli ultimi 20 anni, i rendimenti di Petrolio WTI stanno in una fascia larga circa 0,40 punti fra il quarto più basso e il quarto più alto. I singoli anni si sono distanziati dalla media di circa 0,38 punti. Campione: 20 anni, dal 2006 al 2025.
+  • Livello abituale dell'indice di volatilità in questo mese [peso BASSO]
+      Nel mese di agosto il OVX ha avuto un livello medio di 35,11, su 19 anni di storia.
+  • Stabilità della relazione con pari e driver [peso BASSO, dato non dell'ultima seduta]
+      Nelle ultime settimane Petrolio WTI si è mosso insieme ai propri pari e ai propri riferimenti in modo più stretto che nel 70% delle sedute dal 2006 (4 confronti, 5049 sedute di storia comune). Un legame largo significa che il movimento dello strumento è spiegato meno da ciò che gli sta attorno.
+  • Condizioni finanziarie complessive [peso BASSO, dato non dell'ultima seduta]
+      Condizioni finanziarie (NFCI): −0,55, più in basso che nel 70% delle rilevazioni degli ultimi dieci anni.
+  • Tensione sul credito [peso BASSO]
+      Spread HY (OAS): 2,84%, più in basso che nel 73% delle rilevazioni degli ultimi dieci anni.
+
+  ── COSA NON C'ERA ──
+  • Stato della volatilità implicita — dato troppo vecchio per essere usato
+  • Ampiezza abituale della giornata — dato troppo vecchio per essere usato
+  • Comportamento storico del termometro — dato troppo vecchio per essere usato
+
+  ── COSA QUESTA LETTURA NON DICE ──
+  • Questa lettura non indica una direzione di prezzo e non è un suggerimento operativo.
+  • Le percentuali citate sono frequenze storiche su campioni dichiarati, non una misura di ciò che accadrà oggi.
+  • La lettura vale per la giornata nel suo insieme: non distingue fra le sessioni né fra i singoli momenti.
+  • Mancano 3 misure su 12: stato della volatilità implicita (dato troppo vecchio per essere usato); ampiezza abituale della giornata (dato troppo vecchio per essere usato); comportamento storico del termometro (dato troppo vecchio per essere usato).
+  • 6 misure non sono dell'ultima seduta: il dato più vecchio usato è del 21/07/2026.
+
+  ── SEZIONI LETTE ──
+  · Trends — Volatilità — dato al 2026-07-31
+  · Posizionamento (CFTC) — dato al 2026-07-21
+  · Stagionalità — dato al 2026-07-27
+  · Stagionalità — indici di volatilità — dato al 2026-07-31
+  · Driver Desk — dato al 2026-07-27
+  · Trends — Liquidità & Credito — dato al 2026-07-24
+  Dato più vecchio usato: 2026-07-21
+
+  [tracciato: tentativo 1: modello non raggiungibile: GEMINI_API_KEY non configurata]
+
+══════════════════════════════════════════════════════════════════════════════
+  DAX (GER40)  ·  2026-08-04
+══════════════════════════════════════════════════════════════════════════════
+  ORIGINE: FALLBACK (modello non raggiungibile: GEMINI_API_KEY non configurata)
+  CARATTERE DELLA GIORNATA: Condizioni di compressione
+  FIDUCIA NELLA LETTURA: bassa — Manca la lettura del termometro, l'unica misura verificata fuori campione (7 fattori su 7).
+
+  Le misure di volatilità implicita su DAX stanno nella parte bassa della loro storia.
+  In condizioni come questa l'escursione della giornata è stata storicamente più contenuta, con i prezzi che hanno passato più tempo vicino ai valori centrali.
+  Resta una descrizione del contesto e dell'ampiezza abituale: non indica dove andrebbe il prezzo.
+
+  ── COSA HA PESATO ──
+  • Indice di volatilità implicita [peso MEDIO]
+      Il VIX sta a 15,99. È più in basso che nel 76% delle sedute dell'ultimo anno; più in basso che nel 57% di quelle di tre anni; più in basso che nel 70% di quelle di cinque. Variazione: −2,59 punti in una settimana, −0,60 punti in un mese. Attenzione: è l'indice di un altro mercato, usato qui come sostituto dichiarato — questo strumento non ha una misura propria pubblicata.
+  • Dispersione storica del mese [peso BASSO]
+      Nel mese di agosto, negli ultimi 20 anni, i rendimenti di DAX stanno in una fascia larga circa 5,37 punti fra il quarto più basso e il quarto più alto. I singoli anni si sono distanziati dalla media di circa 5,78 punti. Campione: 20 anni, dal 2006 al 2025.
+  • Dispersione storica del giorno della settimana [peso BASSO]
+      Di martedì, negli ultimi 20 anni, i rendimenti di DAX stanno in una fascia larga circa 0,17 punti fra il quarto più basso e il quarto più alto. I singoli anni si sono distanziati dalla media di circa 0,20 punti. Campione: 20 anni, dal 2006 al 2025.
+  • Livello abituale dell'indice di volatilità in questo mese [peso BASSO]
+      Nel mese di agosto il VIX (indice sostitutivo dichiarato) ha avuto un livello medio di 18,82, su 20 anni di storia.
+  • Stabilità della relazione con pari e driver [peso BASSO]
+      Nelle ultime settimane DAX si è mosso insieme ai propri pari e ai propri riferimenti in modo più stretto che nel 69% delle sedute dal 2007 (3 confronti, 4677 sedute di storia comune). Un legame largo significa che il movimento dello strumento è spiegato meno da ciò che gli sta attorno.
+  • Condizioni finanziarie complessive [peso BASSO, dato non dell'ultima seduta]
+      Condizioni finanziarie (NFCI): −0,55, più in basso che nel 70% delle rilevazioni degli ultimi dieci anni.
+  • Tensione sul credito [peso BASSO]
+      Spread HY (OAS): 2,84%, più in basso che nel 73% delle rilevazioni degli ultimi dieci anni.
+
+  ── COSA NON C'ERA ──
+  • Stato della volatilità implicita — non esiste per questo strumento
+  • Ampiezza abituale della giornata — non esiste per questo strumento
+  • Comportamento storico del termometro — non esiste per questo strumento
+  • Partecipazione al mercato — non esiste per questo strumento
+  • Posizionamento speculativo — non esiste per questo strumento
+
+  ── COSA QUESTA LETTURA NON DICE ──
+  • Questa lettura non indica una direzione di prezzo e non è un suggerimento operativo.
+  • Le percentuali citate sono frequenze storiche su campioni dichiarati, non una misura di ciò che accadrà oggi.
+  • La lettura vale per la giornata nel suo insieme: non distingue fra le sessioni né fra i singoli momenti.
+  • Una misura non è dell'ultima seduta: il dato più vecchio usato è del 24/07/2026.
+  • Per questo strumento non esiste una misura di volatilità implicita propria e accessibile: quella usata è di un altro mercato, dichiarata come sostituto.
+
+  ── SEZIONI LETTE ──
+  · Trends — Volatilità — dato al 2026-07-31
+  · Stagionalità — dato al 2026-08-03
+  · Stagionalità — indici di volatilità — dato al 2026-07-31
+  · Driver Desk — dato al 2026-07-31
+  · Trends — Liquidità & Credito — dato al 2026-07-24
+  Dato più vecchio usato: 2026-07-24
+
+  [tracciato: tentativo 1: modello non raggiungibile: GEMINI_API_KEY non configurata]
+
+══════════════════════════════════════════════════════════════════════════════
+  S&P 500 (SPX)  ·  2026-08-04
+══════════════════════════════════════════════════════════════════════════════
+  ORIGINE: FALLBACK (modello non raggiungibile: GEMINI_API_KEY non configurata)
+  CARATTERE DELLA GIORNATA: Condizioni di compressione
+  FIDUCIA NELLA LETTURA: bassa — Manca la lettura del termometro, l'unica misura verificata fuori campione (6 fattori su 9).
+
+  Le misure di volatilità implicita su S&P 500 stanno nella parte bassa della loro storia.
+  In condizioni come questa l'escursione della giornata è stata storicamente più contenuta, con i prezzi che hanno passato più tempo vicino ai valori centrali.
+  La lettura poggia su 6 misure su 9: 3 mancano, ed è elencato più sotto quale e perché.
+  Resta una descrizione del contesto e dell'ampiezza abituale: non indica dove andrebbe il prezzo.
+
+  ── COSA HA PESATO ──
+  • Indice di volatilità implicita [peso MEDIO]
+      Il VIX sta a 15,99. È più in basso che nel 76% delle sedute dell'ultimo anno; più in basso che nel 57% di quelle di tre anni; più in basso che nel 70% di quelle di cinque. Variazione: −2,59 punti in una settimana, −0,60 punti in un mese.
+  • Dispersione storica del mese [peso BASSO]
+      Nel mese di agosto, negli ultimi 20 anni, i rendimenti di S&P 500 stanno in una fascia larga circa 4,58 punti fra il quarto più basso e il quarto più alto. I singoli anni si sono distanziati dalla media di circa 3,57 punti. Campione: 20 anni, dal 2006 al 2025.
+  • Dispersione storica del giorno della settimana [peso BASSO]
+      Di martedì, negli ultimi 20 anni, i rendimenti di S&P 500 stanno in una fascia larga circa 0,11 punti fra il quarto più basso e il quarto più alto. I singoli anni si sono distanziati dalla media di circa 0,13 punti. Campione: 20 anni, dal 2006 al 2025.
+  • Livello abituale dell'indice di volatilità in questo mese [peso BASSO]
+      Nel mese di agosto il VIX ha avuto un livello medio di 18,82, su 20 anni di storia.
+  • Condizioni finanziarie complessive [peso BASSO, dato non dell'ultima seduta]
+      Condizioni finanziarie (NFCI): −0,55, più in basso che nel 70% delle rilevazioni degli ultimi dieci anni.
+  • Tensione sul credito [peso BASSO]
+      Spread HY (OAS): 2,84%, più in basso che nel 73% delle rilevazioni degli ultimi dieci anni.
+
+  ── COSA NON C'ERA ──
+  • Stato della volatilità implicita — dato troppo vecchio per essere usato
+  • Ampiezza abituale della giornata — dato troppo vecchio per essere usato
+  • Comportamento storico del termometro — dato troppo vecchio per essere usato
+  • Partecipazione al mercato — non esiste per questo strumento
+  • Posizionamento speculativo — non esiste per questo strumento
+  • Stabilità della relazione con pari e driver — non esiste per questo strumento
+
+  ── COSA QUESTA LETTURA NON DICE ──
+  • Questa lettura non indica una direzione di prezzo e non è un suggerimento operativo.
+  • Le percentuali citate sono frequenze storiche su campioni dichiarati, non una misura di ciò che accadrà oggi.
+  • La lettura vale per la giornata nel suo insieme: non distingue fra le sessioni né fra i singoli momenti.
+  • Mancano 3 misure su 9: stato della volatilità implicita (dato troppo vecchio per essere usato); ampiezza abituale della giornata (dato troppo vecchio per essere usato); comportamento storico del termometro (dato troppo vecchio per essere usato).
+  • Una misura non è dell'ultima seduta: il dato più vecchio usato è del 24/07/2026.
+
+  ── SEZIONI LETTE ──
+  · Trends — Volatilità — dato al 2026-07-31
+  · Stagionalità — dato al 2026-08-03
+  · Stagionalità — indici di volatilità — dato al 2026-07-31
+  · Trends — Liquidità & Credito — dato al 2026-07-24
+  Dato più vecchio usato: 2026-07-24
+
+  [tracciato: tentativo 1: modello non raggiungibile: GEMINI_API_KEY non configurata]
+```
+
+### Sintesi con report datato a oggi (SIMULAZIONE)
+
+```text
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  SIMULAZIONE: il report in archivio è del 2026-07-22, qui viene DATATO 2026-08-04.
+  I valori sono quelli veri di quel report.
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
+[modello: nessuna chiave, si userà il fallback]
+
+══════════════════════════════════════════════════════════════════════════════
+  Oro (XAU/USD)  ·  2026-08-04
+══════════════════════════════════════════════════════════════════════════════
+  ORIGINE: FALLBACK (modello non raggiungibile: GEMINI_API_KEY non configurata)
+  CARATTERE DELLA GIORNATA: Condizioni di espansione
+  FIDUCIA NELLA LETTURA: media — Fonti concordi ma 3 dati non sono dell'ultima seduta (12 fattori su 12).
+
+  Le misure di volatilità implicita su Oro stanno nella parte alta della loro storia.
+  In condizioni come questa l'escursione della giornata è stata storicamente più ampia dell'abitudine dello strumento.
+  Resta una descrizione del contesto e dell'ampiezza abituale: non indica dove andrebbe il prezzo.
+
+  ── COSA HA PESATO ──
+  • Stato della volatilità implicita [peso ALTO]
+      Il GVZ, che misura quanto costa coprirsi su Oro, sta a 25,37: più in alto che nel 88% delle sedute del periodo 2008-2026. Il termometro classifica la condizione come espansa.
+  • Ampiezza abituale della giornata [peso ALTO]
+      Nelle giornate con questa condizione, Oro ha percorso dal minimo al massimo circa l'1,61% del proprio valore (metà delle volte fra l'1,21% e il 2,25%). La cifra in valuta non compare: manca la chiusura di riferimento.
+  • Comportamento storico del termometro [peso ALTO]
+      Nelle giornate classificate così, l'escursione è poi risultata ampia nel 75% dei casi, contro il 55% di una giornata qualsiasi: 19,7 punti di differenza, misurati su 570 giornate fra il 01/07/2021 e il 27/07/2026. Lo stato è rimasto lo stesso nel 95% dei giorni, in media per 18,8 giorni di fila.
+  • Indice di volatilità implicita [peso MEDIO]
+      Il GVZ sta a 23,31. È più in basso che nel 69% delle sedute dell'ultimo anno; più in alto che nel 75% di quelle di tre anni; più in alto che nel 84% di quelle di cinque. Variazione: −1,02 punti in una settimana, −3,81 punti in un mese.
+  • Partecipazione al mercato [peso BASSO, dato non dell'ultima seduta]
+      I contratti aperti sul future sono più in basso che nel 97% delle settimane dal 2017 (499 settimane di storia). Partecipazione ai minimi della propria storia: mercato strutturalmente più sottile, dove lo stesso flusso di ordini può produrre oscillazioni di prezzo più ampie che in un mercato affollato.
+  • Posizionamento speculativo [peso BASSO, dato non dell'ultima seduta]
+      L'esposizione netta dei fondi speculativi è più in alto che nel 64% delle settimane dal 2017 (499 settimane di storia). Esposizione netta dei fondi in linea con la storia: nessuno sbilancio strutturale nelle posizioni speculative in essere. Descrive le posizioni in essere, non l'esito della giornata.
+  • Dispersione storica del mese [peso BASSO]
+      Nel mese di agosto, negli ultimi 20 anni, i rendimenti di Oro stanno in una fascia larga circa 6,15 punti fra il quarto più basso e il quarto più alto. I singoli anni si sono distanziati dalla media di circa 4,62 punti. Campione: 20 anni, dal 2006 al 2025.
+  • Dispersione storica del giorno della settimana [peso BASSO]
+      Di martedì, negli ultimi 20 anni, i rendimenti di Oro stanno in una fascia larga circa 0,18 punti fra il quarto più basso e il quarto più alto. I singoli anni si sono distanziati dalla media di circa 0,13 punti. Campione: 20 anni, dal 2006 al 2025.
+  • Livello abituale dell'indice di volatilità in questo mese [peso BASSO]
+      Nel mese di agosto il GVZ ha avuto un livello medio di 18,14, su 18 anni di storia.
+  • Stabilità della relazione con pari e driver [peso BASSO]
+      Nelle ultime settimane Oro si è mosso insieme ai propri pari e ai propri riferimenti in modo più stretto che nel 65% delle sedute dal 2006 (4 confronti, 4616 sedute di storia comune). Un legame largo significa che il movimento dello strumento è spiegato meno da ciò che gli sta attorno.
+  • Condizioni finanziarie complessive [peso BASSO, dato non dell'ultima seduta]
+      Condizioni finanziarie (NFCI): −0,55, più in basso che nel 70% delle rilevazioni degli ultimi dieci anni.
+  • Tensione sul credito [peso BASSO]
+      Spread HY (OAS): 2,84%, più in basso che nel 73% delle rilevazioni degli ultimi dieci anni.
+
+  ── COSA QUESTA LETTURA NON DICE ──
+  • Questa lettura non indica una direzione di prezzo e non è un suggerimento operativo.
+  • Le percentuali citate sono frequenze storiche su campioni dichiarati, non una misura di ciò che accadrà oggi.
+  • La lettura vale per la giornata nel suo insieme: non distingue fra le sessioni né fra i singoli momenti.
+  • 3 misure non sono dell'ultima seduta: il dato più vecchio usato è del 21/07/2026.
+
+  ── SEZIONI LETTE ──
+  · Termometro di volatilità — dato al 2026-08-04
+  · Trends — Volatilità — dato al 2026-07-31
+  · Posizionamento (CFTC) — dato al 2026-07-21
+  · Stagionalità — dato al 2026-08-02
+  · Stagionalità — indici di volatilità — dato al 2026-07-31
+  · Driver Desk — dato al 2026-07-31
+  · Trends — Liquidità & Credito — dato al 2026-07-24
+  Dato più vecchio usato: 2026-07-21
+
+  [tracciato: tentativo 1: modello non raggiungibile: GEMINI_API_KEY non configurata]
+
+══════════════════════════════════════════════════════════════════════════════
+  Petrolio WTI (WTI)  ·  2026-08-04
+══════════════════════════════════════════════════════════════════════════════
+  ORIGINE: FALLBACK (modello non raggiungibile: GEMINI_API_KEY non configurata)
+  CARATTERE DELLA GIORNATA: Condizioni di espansione
+  FIDUCIA NELLA LETTURA: media — Fonti concordi ma 6 dati non sono dell'ultima seduta (12 fattori su 12).
+
+  Le misure di volatilità implicita su Petrolio WTI stanno nella parte alta della loro storia.
+  In condizioni come questa l'escursione della giornata è stata storicamente più ampia dell'abitudine dello strumento.
+  Resta una descrizione del contesto e dell'ampiezza abituale: non indica dove andrebbe il prezzo.
+
+  ── COSA HA PESATO ──
+  • Stato della volatilità implicita [peso ALTO]
+      L'OVX, che misura quanto costa coprirsi su Petrolio WTI, sta a 62,07: più in alto che nel 93% delle sedute del periodo 2007-2026. Il termometro classifica la condizione come espansa.
+  • Ampiezza abituale della giornata [peso ALTO]
+      Nelle giornate con questa condizione, Petrolio WTI ha percorso dal minimo al massimo circa il 3,63% del proprio valore (metà delle volte fra il 2,66% e il 4,98%). La cifra in valuta non compare: manca la chiusura di riferimento.
+  • Comportamento storico del termometro [peso ALTO]
+      Nelle giornate classificate così, l'escursione è poi risultata ampia nel 64% dei casi, contro il 48% di una giornata qualsiasi: 16,5 punti di differenza, misurati su 748 giornate fra il 08/12/2021 e il 27/07/2026. Lo stato è rimasto lo stesso nel 91% dei giorni, in media per 11,5 giorni di fila.
+  • Indice di volatilità implicita [peso MEDIO]
+      L'OVX sta a 63,04. È più in alto che nel 73% delle sedute dell'ultimo anno; più in alto che nel 91% di quelle di tre anni; più in alto che nel 93% di quelle di cinque. Variazione: −4,96 punti in una settimana, 22,28 punti in un mese.
+  • Partecipazione al mercato [peso BASSO, dato non dell'ultima seduta]
+      I contratti aperti sul future sono più in basso che nel 70% delle settimane dal 2017 (499 settimane di storia). Partecipazione in linea con la storia: lo spessore del mercato è quello a cui questo future è abituato.
+  • Posizionamento speculativo [peso BASSO, dato non dell'ultima seduta]
+      L'esposizione netta dei fondi speculativi è più in basso che nel 93% delle settimane dal 2017 (499 settimane di storia). Esposizione netta dei fondi speculativi ai minimi della propria storia: la struttura delle posizioni in essere pende dal lato corto, e le eventuali chiusure di quelle posizioni passano per acquisti. Descrive le posizioni in essere, non l'esito della giornata.
+  • Dispersione storica del mese [peso BASSO, dato non dell'ultima seduta]
+      Nel mese di agosto, negli ultimi 20 anni, i rendimenti di Petrolio WTI stanno in una fascia larga circa 9,29 punti fra il quarto più basso e il quarto più alto. I singoli anni si sono distanziati dalla media di circa 6,18 punti. Campione: 20 anni, dal 2006 al 2025.
+  • Dispersione storica del giorno della settimana [peso BASSO, dato non dell'ultima seduta]
+      Di martedì, negli ultimi 20 anni, i rendimenti di Petrolio WTI stanno in una fascia larga circa 0,40 punti fra il quarto più basso e il quarto più alto. I singoli anni si sono distanziati dalla media di circa 0,38 punti. Campione: 20 anni, dal 2006 al 2025.
+  • Livello abituale dell'indice di volatilità in questo mese [peso BASSO]
+      Nel mese di agosto il OVX ha avuto un livello medio di 35,11, su 19 anni di storia.
+  • Stabilità della relazione con pari e driver [peso BASSO, dato non dell'ultima seduta]
+      Nelle ultime settimane Petrolio WTI si è mosso insieme ai propri pari e ai propri riferimenti in modo più stretto che nel 70% delle sedute dal 2006 (4 confronti, 5049 sedute di storia comune). Un legame largo significa che il movimento dello strumento è spiegato meno da ciò che gli sta attorno.
+  • Condizioni finanziarie complessive [peso BASSO, dato non dell'ultima seduta]
+      Condizioni finanziarie (NFCI): −0,55, più in basso che nel 70% delle rilevazioni degli ultimi dieci anni.
+  • Tensione sul credito [peso BASSO]
+      Spread HY (OAS): 2,84%, più in basso che nel 73% delle rilevazioni degli ultimi dieci anni.
+
+  ── COSA QUESTA LETTURA NON DICE ──
+  • Questa lettura non indica una direzione di prezzo e non è un suggerimento operativo.
+  • Le percentuali citate sono frequenze storiche su campioni dichiarati, non una misura di ciò che accadrà oggi.
+  • La lettura vale per la giornata nel suo insieme: non distingue fra le sessioni né fra i singoli momenti.
+  • 6 misure non sono dell'ultima seduta: il dato più vecchio usato è del 21/07/2026.
+
+  ── SEZIONI LETTE ──
+  · Termometro di volatilità — dato al 2026-08-04
+  · Trends — Volatilità — dato al 2026-07-31
+  · Posizionamento (CFTC) — dato al 2026-07-21
+  · Stagionalità — dato al 2026-07-27
+  · Stagionalità — indici di volatilità — dato al 2026-07-31
+  · Driver Desk — dato al 2026-07-27
+  · Trends — Liquidità & Credito — dato al 2026-07-24
+  Dato più vecchio usato: 2026-07-21
+
+  [tracciato: tentativo 1: modello non raggiungibile: GEMINI_API_KEY non configurata]
+
+══════════════════════════════════════════════════════════════════════════════
+  DAX (GER40)  ·  2026-08-04
+══════════════════════════════════════════════════════════════════════════════
+  ORIGINE: FALLBACK (modello non raggiungibile: GEMINI_API_KEY non configurata)
+  CARATTERE DELLA GIORNATA: Condizioni di compressione
+  FIDUCIA NELLA LETTURA: bassa — Manca la lettura del termometro, l'unica misura verificata fuori campione (7 fattori su 7).
+
+  Le misure di volatilità implicita su DAX stanno nella parte bassa della loro storia.
+  In condizioni come questa l'escursione della giornata è stata storicamente più contenuta, con i prezzi che hanno passato più tempo vicino ai valori centrali.
+  Resta una descrizione del contesto e dell'ampiezza abituale: non indica dove andrebbe il prezzo.
+
+  ── COSA HA PESATO ──
+  • Indice di volatilità implicita [peso MEDIO]
+      Il VIX sta a 15,99. È più in basso che nel 76% delle sedute dell'ultimo anno; più in basso che nel 57% di quelle di tre anni; più in basso che nel 70% di quelle di cinque. Variazione: −2,59 punti in una settimana, −0,60 punti in un mese. Attenzione: è l'indice di un altro mercato, usato qui come sostituto dichiarato — questo strumento non ha una misura propria pubblicata.
+  • Dispersione storica del mese [peso BASSO]
+      Nel mese di agosto, negli ultimi 20 anni, i rendimenti di DAX stanno in una fascia larga circa 5,37 punti fra il quarto più basso e il quarto più alto. I singoli anni si sono distanziati dalla media di circa 5,78 punti. Campione: 20 anni, dal 2006 al 2025.
+  • Dispersione storica del giorno della settimana [peso BASSO]
+      Di martedì, negli ultimi 20 anni, i rendimenti di DAX stanno in una fascia larga circa 0,17 punti fra il quarto più basso e il quarto più alto. I singoli anni si sono distanziati dalla media di circa 0,20 punti. Campione: 20 anni, dal 2006 al 2025.
+  • Livello abituale dell'indice di volatilità in questo mese [peso BASSO]
+      Nel mese di agosto il VIX (indice sostitutivo dichiarato) ha avuto un livello medio di 18,82, su 20 anni di storia.
+  • Stabilità della relazione con pari e driver [peso BASSO]
+      Nelle ultime settimane DAX si è mosso insieme ai propri pari e ai propri riferimenti in modo più stretto che nel 69% delle sedute dal 2007 (3 confronti, 4677 sedute di storia comune). Un legame largo significa che il movimento dello strumento è spiegato meno da ciò che gli sta attorno.
+  • Condizioni finanziarie complessive [peso BASSO, dato non dell'ultima seduta]
+      Condizioni finanziarie (NFCI): −0,55, più in basso che nel 70% delle rilevazioni degli ultimi dieci anni.
+  • Tensione sul credito [peso BASSO]
+      Spread HY (OAS): 2,84%, più in basso che nel 73% delle rilevazioni degli ultimi dieci anni.
+
+  ── COSA NON C'ERA ──
+  • Stato della volatilità implicita — non esiste per questo strumento
+  • Ampiezza abituale della giornata — non esiste per questo strumento
+  • Comportamento storico del termometro — non esiste per questo strumento
+  • Partecipazione al mercato — non esiste per questo strumento
+  • Posizionamento speculativo — non esiste per questo strumento
+
+  ── COSA QUESTA LETTURA NON DICE ──
+  • Questa lettura non indica una direzione di prezzo e non è un suggerimento operativo.
+  • Le percentuali citate sono frequenze storiche su campioni dichiarati, non una misura di ciò che accadrà oggi.
+  • La lettura vale per la giornata nel suo insieme: non distingue fra le sessioni né fra i singoli momenti.
+  • Una misura non è dell'ultima seduta: il dato più vecchio usato è del 24/07/2026.
+  • Per questo strumento non esiste una misura di volatilità implicita propria e accessibile: quella usata è di un altro mercato, dichiarata come sostituto.
+
+  ── SEZIONI LETTE ──
+  · Trends — Volatilità — dato al 2026-07-31
+  · Stagionalità — dato al 2026-08-03
+  · Stagionalità — indici di volatilità — dato al 2026-07-31
+  · Driver Desk — dato al 2026-07-31
+  · Trends — Liquidità & Credito — dato al 2026-07-24
+  Dato più vecchio usato: 2026-07-24
+
+  [tracciato: tentativo 1: modello non raggiungibile: GEMINI_API_KEY non configurata]
+
+══════════════════════════════════════════════════════════════════════════════
+  S&P 500 (SPX)  ·  2026-08-04
+══════════════════════════════════════════════════════════════════════════════
+  ORIGINE: FALLBACK (modello non raggiungibile: GEMINI_API_KEY non configurata)
+  CARATTERE DELLA GIORNATA: Nella norma
+  FIDUCIA NELLA LETTURA: bassa — Le due letture della volatilità implicita non concordano: una dice compressione, l'altra il contrario.
+
+  Le misure di volatilità implicita su S&P 500 stanno nella parte centrale della loro storia.
+  In condizioni come questa l'escursione della giornata è stata storicamente in linea con l'abitudine dello strumento.
+  Le due letture della volatilità implicita non concordano fra loro, e la confidenza ne tiene conto.
+  Resta una descrizione del contesto e dell'ampiezza abituale: non indica dove andrebbe il prezzo.
+
+  ── COSA HA PESATO ──
+  • Stato della volatilità implicita [peso ALTO]
+      Il VIX, che misura quanto costa coprirsi su S&P 500, sta a 18,65: più in alto che nel 55% delle sedute del periodo 2000-2026. Il termometro classifica la condizione come espansa.
+  • Ampiezza abituale della giornata [peso ALTO]
+      Nelle giornate con questa condizione, S&P 500 ha percorso dal minimo al massimo circa l'1,29% del proprio valore (metà delle volte fra il 0,93% e l'1,86%). La cifra in valuta non compare: manca la chiusura di riferimento.
+  • Comportamento storico del termometro [peso ALTO]
+      Nelle giornate classificate così, l'escursione è poi risultata ampia nel 75% dei casi, contro il 52% di una giornata qualsiasi: 22,9 punti di differenza, misurati su 1013 giornate fra il 31/12/2018 e il 29/07/2026. Lo stato è rimasto lo stesso nel 94% dei giorni, in media per 17,7 giorni di fila.
+  • Indice di volatilità implicita [peso MEDIO]
+      Il VIX sta a 15,99. È più in basso che nel 76% delle sedute dell'ultimo anno; più in basso che nel 57% di quelle di tre anni; più in basso che nel 70% di quelle di cinque. Variazione: −2,59 punti in una settimana, −0,60 punti in un mese.
+  • Dispersione storica del mese [peso BASSO]
+      Nel mese di agosto, negli ultimi 20 anni, i rendimenti di S&P 500 stanno in una fascia larga circa 4,58 punti fra il quarto più basso e il quarto più alto. I singoli anni si sono distanziati dalla media di circa 3,57 punti. Campione: 20 anni, dal 2006 al 2025.
+  • Dispersione storica del giorno della settimana [peso BASSO]
+      Di martedì, negli ultimi 20 anni, i rendimenti di S&P 500 stanno in una fascia larga circa 0,11 punti fra il quarto più basso e il quarto più alto. I singoli anni si sono distanziati dalla media di circa 0,13 punti. Campione: 20 anni, dal 2006 al 2025.
+  • Livello abituale dell'indice di volatilità in questo mese [peso BASSO]
+      Nel mese di agosto il VIX ha avuto un livello medio di 18,82, su 20 anni di storia.
+  • Condizioni finanziarie complessive [peso BASSO, dato non dell'ultima seduta]
+      Condizioni finanziarie (NFCI): −0,55, più in basso che nel 70% delle rilevazioni degli ultimi dieci anni.
+  • Tensione sul credito [peso BASSO]
+      Spread HY (OAS): 2,84%, più in basso che nel 73% delle rilevazioni degli ultimi dieci anni.
+
+  ── COSA NON C'ERA ──
+  • Partecipazione al mercato — non esiste per questo strumento
+  • Posizionamento speculativo — non esiste per questo strumento
+  • Stabilità della relazione con pari e driver — non esiste per questo strumento
+
+  ── COSA QUESTA LETTURA NON DICE ──
+  • Questa lettura non indica una direzione di prezzo e non è un suggerimento operativo.
+  • Le percentuali citate sono frequenze storiche su campioni dichiarati, non una misura di ciò che accadrà oggi.
+  • La lettura vale per la giornata nel suo insieme: non distingue fra le sessioni né fra i singoli momenti.
+  • Una misura non è dell'ultima seduta: il dato più vecchio usato è del 24/07/2026.
+  • Le due letture della volatilità implicita si contraddicono: non sappiamo quale delle due stia descrivendo meglio la giornata.
+
+  ── SEZIONI LETTE ──
+  · Termometro di volatilità — dato al 2026-08-04
+  · Trends — Volatilità — dato al 2026-07-31
+  · Stagionalità — dato al 2026-08-03
+  · Stagionalità — indici di volatilità — dato al 2026-07-31
+  · Trends — Liquidità & Credito — dato al 2026-07-24
+  Dato più vecchio usato: 2026-07-24
+
+  [tracciato: tentativo 1: modello non raggiungibile: GEMINI_API_KEY non configurata]
+```

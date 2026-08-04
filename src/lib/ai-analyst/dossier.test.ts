@@ -270,7 +270,7 @@ describe("buildDossier — caso vuoto", () => {
 
   it("si dichiara insufficiente, indeterminato e senza confidenza", () => {
     expect(d.datiInsufficienti).toBe(true);
-    expect(d.motivoInsufficienza).toContain("0 fattori su 12");
+    expect(d.motivoInsufficienza).toContain("0 misure su 12");
     expect(d.carattereAtteso).toBe("INDETERMINATO");
     expect(d.confidenza).toBe("NULLA");
   });

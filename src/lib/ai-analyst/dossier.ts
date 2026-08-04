@@ -373,7 +373,9 @@ export function buildDossier(
   // ── Sufficienza (§3.2): due condizioni indipendenti, basta una.
   let motivoInsufficienza: string | null = null;
   if (copertura < COPERTURA_MINIMA) {
-    motivoInsufficienza = `presenti ${presenti} fattori su ${attesiApplicabili} attesi: sotto la metà.`;
+    // NB: niente la parola «attesi» — il cancello lessicale la vieta (è la
+    // radice di «aspettativa»), e questa frase finisce a schermo.
+    motivoInsufficienza = `sono arrivate ${presenti} misure su ${attesiApplicabili}, meno della metà.`;
   } else if (!f1 && !f4) {
     motivoInsufficienza =
       "manca del tutto la lettura della volatilità implicita, che è la base di questa sezione.";
