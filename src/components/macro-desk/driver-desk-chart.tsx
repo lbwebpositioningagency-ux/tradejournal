@@ -78,8 +78,47 @@ function fullDateLabel(iso: string): string {
   return `${Number(d)} ${MONTHS[Number(m) - 1] ?? ""} ${y}`;
 }
 
-/** Spazio a destra per le pillole di fine linea. */
-const PILL_GUTTER = 84;
+/**
+ * DUE SCALE INDIPENDENTI (R6): strumento e paniere sull'asse SINISTRO, i
+ * driver macro sull'asse DESTRO. Quando l'asset ha un anno di trend forte e i
+ * driver no, su una scala unica i driver diventano una fascia piatta
+ * illeggibile: la separazione è una scelta consapevole di leggibilità che
+ * rinuncia al confronto verticale diretto fra i due gruppi — e la legenda
+ * della pagina lo dichiara. Resta confrontabile l'ANDAMENTO di ogni linea.
+ */
+export function axisGroup(role: ChartSeries["role"]): "left" | "right" {
+  return role === "driver" ? "right" : "left";
+}
+
+/**
+ * Dominio di UN asse: min/max delle sole linee accese del proprio gruppo,
+ * con il 6% di margine. Ogni asse si ri-zooma sul proprio gruppo quando una
+ * linea si accende o si spegne, ignorando l'altro.
+ */
+export function axisDomain(
+  series: ChartSeries[],
+  hidden: ReadonlySet<string>,
+  group: "left" | "right",
+): [number, number] {
+  let min = Infinity;
+  let max = -Infinity;
+  for (const s of series) {
+    if (hidden.has(s.key) || axisGroup(s.role) !== group) continue;
+    for (const v of s.values) {
+      if (v < min) min = v;
+      if (v > max) max = v;
+    }
+  }
+  if (!Number.isFinite(min) || !Number.isFinite(max)) return [-1, 1];
+  const range = max - min;
+  const pad = range > 0 ? range * 0.06 : 1;
+  return [min - pad, max + pad];
+}
+
+/** Larghezza dell'asse destro: le pillole si spostano oltre, nel gutter. */
+const RIGHT_AXIS_WIDTH = 50;
+/** Spazio a destra per l'asse dei driver + le pillole di fine linea. */
+const PILL_GUTTER = 96;
 
 /**
  * ALTEZZA: soglia minima fissa, in PIXEL espliciti.
@@ -156,23 +195,17 @@ export function DriverDeskChart({
     });
   }, [dates, series]);
 
-  /* Dominio Y sulle sole linee VISIBILI: spegnendo la linea più estrema le
-     altre si ri-zoomano, com'è già nel percorso della Stagionalità. */
-  const domain = useMemo<[number, number]>(() => {
-    let min = 0;
-    let max = 0;
-    for (const s of visible) {
-      for (const v of s.values) {
-        if (v < min) min = v;
-        if (v > max) max = v;
-      }
-    }
-    // Padding contenuto (6%): il dominio deve restare aderente ai dati
-    // visibili, altrimenti si torna a sprecare l'altezza appena guadagnata.
-    const range = max - min;
-    const pad = range > 0 ? range * 0.06 : 1;
-    return [min - pad, max + pad];
-  }, [visible]);
+  /* Un dominio PER ASSE, sulle sole linee accese del proprio gruppo:
+     spegnendo una linea si ri-zooma solo la scala a cui appartiene. */
+  const leftDomain = useMemo(
+    () => axisDomain(series, hidden, "left"),
+    [series, hidden],
+  );
+  const rightDomain = useMemo(
+    () => axisDomain(series, hidden, "right"),
+    [series, hidden],
+  );
+  const hasRightAxis = series.some((s) => axisGroup(s.role) === "right");
 
   /* Un tick per inizio mese: l'asse resta leggibile su 12 mesi di sedute. */
   const ticks = useMemo(() => {
@@ -209,10 +242,12 @@ export function DriverDeskChart({
             data={rows}
             margin={{ top: 10, right: PILL_GUTTER, bottom: 0, left: 0 }}
           >
+            {/* Divisori mensili: la griglia verticale segue i tick di inizio
+                mese — stesso stile del percorso della Stagionalità. */}
             <CartesianGrid
               stroke="var(--md-border)"
-              strokeDasharray="2 4"
-              vertical={false}
+              strokeDasharray="3 3"
+              vertical
             />
             <XAxis
               dataKey="i"
@@ -226,7 +261,8 @@ export function DriverDeskChart({
               minTickGap={0}
             />
             <YAxis
-              domain={domain}
+              yAxisId="left"
+              domain={leftDomain}
               width={50}
               tick={tickStyle}
               stroke="var(--md-border)"
@@ -234,8 +270,37 @@ export function DriverDeskChart({
                  vuote enormi: più riferimenti = pendenze leggibili. */
               tickCount={10}
               tickFormatter={(v: number) => fmtIt(v, 0)}
+              label={{
+                value: "Strumento e paniere",
+                angle: -90,
+                position: "insideLeft",
+                style: { textAnchor: "middle", fill: "var(--md-text-2)", fontSize: 11 },
+              }}
             />
-            <ReferenceLine y={0} stroke="var(--md-border)" strokeWidth={1} />
+            {hasRightAxis ? (
+              <YAxis
+                yAxisId="right"
+                orientation="right"
+                domain={rightDomain}
+                width={RIGHT_AXIS_WIDTH}
+                tick={tickStyle}
+                stroke="var(--md-border)"
+                tickCount={10}
+                tickFormatter={(v: number) => fmtIt(v, 0)}
+                label={{
+                  value: "Driver — scala separata",
+                  angle: 90,
+                  position: "insideRight",
+                  style: { textAnchor: "middle", fill: "var(--md-text-2)", fontSize: 11 },
+                }}
+              />
+            ) : null}
+            <ReferenceLine
+              yAxisId="left"
+              y={0}
+              stroke="var(--md-border)"
+              strokeWidth={1}
+            />
             <Tooltip
               contentStyle={CHART.tooltipStyle}
               itemStyle={CHART.tooltipItemStyle}
@@ -252,9 +317,11 @@ export function DriverDeskChart({
                 series.findIndex((x) => x.key === s.key) - 1,
                 s.role === "main",
               );
+              const group = axisGroup(s.role);
               return (
                 <Line
                   key={s.key}
+                  yAxisId={group}
                   type="monotone"
                   dataKey={s.key}
                   name={s.label}
@@ -263,7 +330,16 @@ export function DriverDeskChart({
                   dot={false}
                   isAnimationActive={false}
                   label={(props: unknown) =>
-                    renderEndPill(props, color, lastIndex, s.last)
+                    renderEndPill(
+                      props,
+                      color,
+                      lastIndex,
+                      s.last,
+                      /* L'ultimo punto di OGNI linea sta al bordo dell'area
+                         di disegno: quando c'è l'asse destro, tutte le
+                         pillole lo scavalcano per finire nel gutter. */
+                      hasRightAxis ? RIGHT_AXIS_WIDTH : 0,
+                    )
                   }
                 />
               );
@@ -319,13 +395,14 @@ function renderEndPill(
   color: string,
   lastIndex: number,
   lastValue: number,
+  extraOffset: number,
 ): React.ReactElement | null {
   const { x, y, index } = props as { x?: number; y?: number; index?: number };
   if (index !== lastIndex || x === undefined || y === undefined) return null;
   const text = `${lastValue > 0 ? "+" : ""}${fmtIt(lastValue, 1)}`;
   const w = 20 + text.length * 6.2;
   return (
-    <g transform={`translate(${x + 6}, ${y - 9})`}>
+    <g transform={`translate(${x + 6 + extraOffset}, ${y - 9})`}>
       <rect width={w} height={18} rx={9} fill={color} />
       <text
         x={w / 2}

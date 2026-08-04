@@ -262,19 +262,44 @@ export function composeCard(
    * così che l'invariante «ogni linea del grafico ha la sua voce di
    * stabilità sotto» vale per costruzione, e non per disciplina di chi
    * modificherà il file dopo.
+   *
+   * PANIERE A PIÙ MEMBRI (oggi solo il DAX): i membri si fondono in un'unica
+   * voce «Paniere azionario» — R6, per leggibilità del grafico. Le variazioni
+   * della voce combinata sono la media equal-weight delle variazioni dei
+   * membri: alimentano la correlazione di stabilità. Con UN membro solo
+   * (oro/argento, WTI/Brent) non c'è niente da combinare e il membro resta
+   * col suo nome. Il combinato resta un CONFRONTO, mai una fusione di paniere
+   * e driver: il vincolo «niente compositi» della spec riguarda quello.
    */
+  const basketComponents = basketAvailable.map((code) => {
+    const def = DRIVER_SERIES_BY_CODE.get(code);
+    const transform = def?.transform ?? "logret";
+    return {
+      key: code as string,
+      label: seriesLabel(code),
+      role: "basket" as const,
+      risingMeans: def?.risingMeans ?? "",
+      changes: dailyChanges(aligned.get(code) as number[], transform),
+    };
+  });
+
+  const combinedBasket =
+    basketComponents.length > 1
+      ? {
+          key: "BASKET",
+          label: "Paniere azionario",
+          role: "basket" as const,
+          risingMeans: "in salita = indici azionari del paniere più alti",
+          changes: basketComponents[0].changes.map(
+            (_, i) =>
+              basketComponents.reduce((a, b) => a + b.changes[i], 0) /
+              basketComponents.length,
+          ),
+        }
+      : null;
+
   const components = [
-    ...basketAvailable.map((code) => {
-      const def = DRIVER_SERIES_BY_CODE.get(code);
-      const transform = def?.transform ?? "logret";
-      return {
-        key: code as string,
-        label: seriesLabel(code),
-        role: "basket" as const,
-        risingMeans: def?.risingMeans ?? "",
-        changes: dailyChanges(aligned.get(code) as number[], transform),
-      };
-    }),
+    ...(combinedBasket ? [combinedBasket] : basketComponents),
     ...driversAvailable.map((ref) => {
       const meta = driverMeta(ref);
       return {
@@ -329,6 +354,32 @@ export function composeCard(
     if (mainLine) chartSeries.push(mainLine);
 
     for (const c of components) {
+      if (c === combinedBasket) {
+        /* La linea del paniere combinato è la MEDIA punto per punto delle
+           linee dei membri, ciascuna standardizzata dalla PROPRIA σ storica —
+           che per linearità coincide col cumulare la media delle variazioni
+           standardizzate. NON è la standardizzazione della media delle
+           variazioni: quella dividerebbe per la σ del paniere (più bassa, la
+           diversificazione smussa) e gonfierebbe la linea. */
+        const memberLines = basketComponents
+          .map((m) => lineFor(m.key, m.label, "basket", m.risingMeans, m.changes))
+          .filter((l): l is ChartSeries => l !== null);
+        if (memberLines.length === 0) continue;
+        const values = memberLines[0].values.map(
+          (_, i) =>
+            memberLines.reduce((a, l) => a + l.values[i], 0) /
+            memberLines.length,
+        );
+        chartSeries.push({
+          key: c.key,
+          label: c.label,
+          role: "basket",
+          values,
+          last: values[values.length - 1],
+          risingMeans: c.risingMeans,
+        });
+        continue;
+      }
       const line = lineFor(c.key, c.label, c.role, c.risingMeans, c.changes);
       if (line) chartSeries.push(line);
     }

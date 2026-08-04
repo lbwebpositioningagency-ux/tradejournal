@@ -228,12 +228,24 @@ describe("DriverDeskPanel — schede", () => {
     expect(html).toContain("correlazione osservata");
   });
 
-  it("la stabilità copre anche i membri del paniere, non solo i driver", () => {
-    // l'argento è un pari dell'oro: prima non aveva una voce, ora sì
+  it("la stabilità copre anche il paniere: singoli per oro/WTI, combinato per il DAX", () => {
     const dopoIlGrafico = html.split("Stabilità delle relazioni").slice(1).join("");
-    for (const atteso of ["Argento", "Euro Stoxx 50", "S&amp;P 500", "Brent"]) {
+    for (const atteso of ["Argento", "Brent", "Paniere azionario"]) {
       expect(dopoIlGrafico).toContain(atteso);
     }
+  });
+
+  it("R6: il DAX ha UNA linea di paniere, non tre voci separate nella stabilità", () => {
+    const dopoIlGrafico = html.split("Stabilità delle relazioni").slice(1).join("");
+    // i tre indici restano nel grafico solo come combinato: nelle voci di
+    // stabilità non compaiono più coi nomi propri
+    expect(dopoIlGrafico).not.toContain("Euro Stoxx 50");
+    expect(dopoIlGrafico).not.toContain("CAC 40");
+  });
+
+  it("R6: la legenda dichiara le due scale indipendenti", () => {
+    expect(html).toContain("Le due scale sono indipendenti");
+    expect(html).toContain("NON è confrontabile direttamente");
   });
 });
 

@@ -89,6 +89,17 @@ function ComeSiLegge({ cards }: { cards: DriverCardPayload[] }) {
             ciascuna. Con i pulsanti sotto il grafico si accende e si spegne
             ogni linea.
           </p>
+          <p className="mt-2">
+            <span className="font-semibold text-[var(--md-text)]">
+              Le due scale sono indipendenti:
+            </span>{" "}
+            strumento e paniere stanno sull&apos;asse di sinistra, i driver
+            macro su quello di destra, ciascuno adattato alle proprie linee.
+            Quindi la posizione verticale di un driver rispetto allo strumento
+            NON è confrontabile direttamente: quello che resta confrontabile è
+            l&apos;andamento nel tempo di ogni linea rispetto alla propria
+            storia.
+          </p>
         </div>
 
         {drivers.length > 0 ? (

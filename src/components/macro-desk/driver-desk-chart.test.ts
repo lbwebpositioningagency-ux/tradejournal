@@ -2,6 +2,8 @@ import { describe, expect, it } from "vitest";
 import {
   MIN_HEIGHT_DESKTOP,
   MIN_HEIGHT_NARROW,
+  axisDomain,
+  axisGroup,
   minChartHeight,
   seriesColor,
 } from "./driver-desk-chart";
@@ -62,5 +64,71 @@ describe("seriesColor — palette senza verde né rosso", () => {
 
   it("oltre il sesto componente i colori si riciclano invece di sparire", () => {
     expect(seriesColor(6, false)).toBe(seriesColor(0, false));
+  });
+});
+
+/* ───────── Doppio asse (R6): un dominio per gruppo, toggle separati ───────── */
+
+describe("axisGroup / axisDomain — scale indipendenti", () => {
+  const mk = (
+    key: string,
+    role: "main" | "basket" | "driver",
+    values: number[],
+  ) => ({
+    key,
+    label: key,
+    role,
+    values,
+    last: values[values.length - 1],
+    risingMeans: "",
+  });
+
+  const serie = [
+    mk("ORO", "main", [0, 10, 20]),
+    mk("ARG", "basket", [0, 25, 50]),
+    mk("DXY", "driver", [0, -2, -4]),
+    mk("REALE", "driver", [0, 3, 8]),
+  ];
+
+  it("strumento e paniere a sinistra, driver a destra", () => {
+    expect(axisGroup("main")).toBe("left");
+    expect(axisGroup("basket")).toBe("left");
+    expect(axisGroup("driver")).toBe("right");
+  });
+
+  it("ogni asse copre SOLO le linee del proprio gruppo (verifica a mano)", () => {
+    const nessuna = new Set<string>();
+    // sinistra: min 0, max 50 → pad 6% = 3 → [−3, 53]
+    expect(axisDomain(serie, nessuna, "left")).toEqual([-3, 53]);
+    // destra: min −4, max 8 → range 12, pad 0,72 → [−4,72, 8,72]
+    const [rMin, rMax] = axisDomain(serie, nessuna, "right");
+    expect(rMin).toBeCloseTo(-4.72, 10);
+    expect(rMax).toBeCloseTo(8.72, 10);
+  });
+
+  it("spegnere una linea ri-zooma SOLO il suo asse", () => {
+    const spentoArg = new Set(["ARG"]);
+    // sinistra ora copre solo l'oro: [0,20] → [−1,2, 21,2]
+    const [lMin, lMax] = axisDomain(serie, spentoArg, "left");
+    expect(lMin).toBeCloseTo(-1.2, 10);
+    expect(lMax).toBeCloseTo(21.2, 10);
+    // destra IDENTICA a prima: il toggle non era del suo gruppo
+    const [rMin, rMax] = axisDomain(serie, spentoArg, "right");
+    expect(rMin).toBeCloseTo(-4.72, 10);
+    expect(rMax).toBeCloseTo(8.72, 10);
+  });
+
+  it("spegnere un driver ri-zooma la destra e lascia ferma la sinistra", () => {
+    const spentoDxy = new Set(["DXY"]);
+    const [rMin, rMax] = axisDomain(serie, spentoDxy, "right");
+    // resta solo REALE: [0,8] → pad 0,48
+    expect(rMin).toBeCloseTo(-0.48, 10);
+    expect(rMax).toBeCloseTo(8.48, 10);
+    expect(axisDomain(serie, spentoDxy, "left")).toEqual([-3, 53]);
+  });
+
+  it("gruppo tutto spento → dominio di riserva, mai NaN", () => {
+    const tuttiDriverSpenti = new Set(["DXY", "REALE"]);
+    expect(axisDomain(serie, tuttiDriverSpenti, "right")).toEqual([-1, 1]);
   });
 });

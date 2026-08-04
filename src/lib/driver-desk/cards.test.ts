@@ -200,17 +200,32 @@ describe("composeCard — componenti mancanti: omessi in silenzio", () => {
     ]);
   });
 
-  it("senza un componente del paniere DAX gli altri restano", () => {
+  it("senza un componente del paniere DAX il combinato resta, sui superstiti", () => {
     const series = fullSeries();
     delete series.CAC40;
     const payload = composeCard(DAX, series);
     expect(payload.chart!.series.map((s) => s.label)).toEqual([
       "DAX",
-      "Euro Stoxx 50",
+      "Paniere azionario",
+      "EURUSD",
+      "Bund 10Y",
+    ]);
+    // e resta una media dei DUE membri rimasti, non un residuo a tre
+    expect(JSON.stringify(payload)).not.toContain("CAC");
+  });
+
+  it("con UN solo membro superstite non c'è niente da combinare: resta col suo nome", () => {
+    const series = fullSeries();
+    delete series.CAC40;
+    delete series.STOXX50E;
+    const payload = composeCard(DAX, series);
+    expect(payload.chart!.series.map((s) => s.label)).toEqual([
+      "DAX",
       "S&P 500",
       "EURUSD",
       "Bund 10Y",
     ]);
+    expect(payload.relations[0].label).toBe("S&P 500");
   });
 
   it("serie principale assente → errore, mai una scheda muta", () => {
@@ -287,12 +302,10 @@ describe("composeCard — stabilità della relazione", () => {
     expect(rel.rho).toBeCloseTo(expected, 10);
   });
 
-  it("le altre schede: ogni membro del paniere ha la sua voce", () => {
+  it("le altre schede: paniere DAX combinato in una voce, WTI invariato", () => {
     const dax = composeCard(DAX, fullSeries());
     expect(dax.relations.map((r) => r.label)).toEqual([
-      "Euro Stoxx 50",
-      "CAC 40",
-      "S&P 500",
+      "Paniere azionario",
       "EURUSD",
       "Bund 10Y",
     ]);
@@ -302,6 +315,57 @@ describe("composeCard — stabilità della relazione", () => {
       "Dollar index (broad)",
       "Spread WTI−Brent",
     ]);
+  });
+
+  it("VERIFICA INDIPENDENTE: la linea del paniere DAX è la media punto per punto delle tre linee", () => {
+    const series = fullSeries();
+    const payload = composeCard(DAX, series);
+    const combined = payload.chart!.series.find(
+      (s) => s.label === "Paniere azionario",
+    )!;
+    // ricostruzione a mano: per ciascun membro, indice standardizzato con la
+    // PROPRIA sigma storica, poi media dei tre valori in un punto qualunque
+    const idx = 100; // un punto a caso dentro la finestra
+    const w = payload.chart!.dates.length - 1;
+    const memberValueAt = (code: "STOXX50E" | "CAC40" | "SPX") => {
+      const levels = series[code]!.map((o) => o.value);
+      const r = levels.slice(1).map((v, i) => Math.log(v / levels[i]));
+      const mean = r.reduce((a, b) => a + b, 0) / r.length;
+      const sd = Math.sqrt(
+        r.reduce((a, b) => a + (b - mean) ** 2, 0) / (r.length - 1),
+      );
+      let acc = 0;
+      for (let i = r.length - w; i < r.length - w + idx; i += 1) acc += r[i] / sd;
+      return acc;
+    };
+    const expected =
+      (memberValueAt("STOXX50E") + memberValueAt("CAC40") + memberValueAt("SPX")) / 3;
+    expect(combined.values[idx]).toBeCloseTo(expected, 10);
+  });
+
+  it("VERIFICA INDIPENDENTE: rho60 DAX-paniere sul ritorno medio equal-weight", () => {
+    const series = fullSeries();
+    const payload = composeCard(DAX, series);
+    const logret = (code: DriverDeskSeries) => {
+      const xs = series[code]!.map((o) => o.value);
+      return xs.slice(1).map((v, i) => Math.log(v / xs[i]));
+    };
+    const rDax = logret("GER40").slice(-60);
+    const members = ["STOXX50E", "CAC40", "SPX"] as const;
+    const rBasket = logret(members[0]).map(
+      (_, i) => members.reduce((a, m) => a + logret(m)[i], 0) / members.length,
+    ).slice(-60);
+    const n = 60;
+    const sx = rDax.reduce((a, b) => a + b, 0);
+    const sy = rBasket.reduce((a, b) => a + b, 0);
+    const sxx = rDax.reduce((a, b) => a + b * b, 0);
+    const syy = rBasket.reduce((a, b) => a + b * b, 0);
+    const sxy = rDax.reduce((a, b, i) => a + b * rBasket[i], 0);
+    const expected =
+      (n * sxy - sx * sy) /
+      (Math.sqrt(n * sxx - sx * sx) * Math.sqrt(n * syy - sy * sy));
+    const rel = payload.relations.find((r) => r.label === "Paniere azionario")!;
+    expect(rel.rho).toBeCloseTo(expected, 10);
   });
 
   it("VERIFICA INDIPENDENTE: ρ60 oro↔dollaro col Pearson naive", () => {
