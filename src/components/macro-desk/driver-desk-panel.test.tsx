@@ -12,7 +12,9 @@ import { DriverDeskPanel } from "./driver-desk-panel";
  * stessa disciplina del pannello COT e del termometro. I vincoli centrali:
  * - ASSENZA di linguaggio predittivo e di gergo statistico a schermo;
  * - NIENTE verde/rosso (riservati al P&L);
- * - le assenze (rame) DICHIARATE, mai nascoste.
+ * - NESSUN messaggio che dichiari un componente mancante: chi non c'è
+ *   semplicemente non compare;
+ * - la legenda esplicativa c'è, è aperta, e spiega la direzione dei driver.
  */
 
 function lcg(seed: number): () => number {
@@ -34,7 +36,7 @@ function weekdayDates(n: number): string[] {
   return out;
 }
 
-const DATES = weekdayDates(420);
+const DATES = weekdayDates(600);
 
 function priceSeries(seed: number, base: number): SeriesObs[] {
   const rnd = lcg(seed);
@@ -70,8 +72,10 @@ const SERIES: Partial<Record<DriverDeskSeries, SeriesObs[]>> = {
   BUND10Y: yieldSeries(13, 2.5),
 };
 
-function buildData(): DriverDeskData {
-  const { cards, errors } = composeAllCards(SERIES);
+function buildData(
+  series: Partial<Record<DriverDeskSeries, SeriesObs[]>> = SERIES,
+): DriverDeskData {
+  const { cards, errors } = composeAllCards(series);
   return {
     cards,
     errors,
@@ -82,7 +86,7 @@ function buildData(): DriverDeskData {
         lastDate: DATES.at(-1) ?? null,
         rows: DATES.length,
         note: null,
-        updatedAt: "2026-08-03T22:00:00.000Z",
+        updatedAt: "2026-08-04T07:00:00.000Z",
       },
     ],
     empty: false,
@@ -92,8 +96,7 @@ function buildData(): DriverDeskData {
 const html = renderToStaticMarkup(<DriverDeskPanel data={buildData()} />);
 
 describe("DriverDeskPanel — parole vietate", () => {
-  // Stessa lista del pannello COT, più il lessico direzionale: il modulo è
-  // descrittivo per contratto (filosofia vincolante del progetto).
+  // Lessico predittivo e direzionale: il modulo è descrittivo per contratto.
   it.each([
     "hit rate",
     "probabilit",
@@ -106,7 +109,7 @@ describe("DriverDeskPanel — parole vietate", () => {
     "segnale",
     "rialzo",
     "ribasso",
-    "salir", // salirà, salire
+    "salirà",
     "scender",
     "comprare",
     "vendere",
@@ -117,63 +120,130 @@ describe("DriverDeskPanel — parole vietate", () => {
 
 describe("DriverDeskPanel — niente verde/rosso", () => {
   it.each(["text-profit", "text-loss", "--md-up", "--md-down"])(
-    "il markup non usa '%s' (riservato al P&L / alle frecce direzionali)",
+    "il markup non usa '%s' (riservato al P&L)",
     (token) => {
       expect(html).not.toContain(token);
     },
   );
 });
 
-describe("DriverDeskPanel — dichiarazioni", () => {
-  it("il rame è dichiarato assente con il motivo, mai nascosto", () => {
-    expect(html).toContain("Rame assente:");
-    expect(html).toContain("mensile");
+describe("DriverDeskPanel — nessun messaggio di assenza", () => {
+  it.each([
+    "assente",
+    "non disponibil",
+    "mancante",
+    "nessuna fonte",
+    "escluso",
+  ])("il markup non contiene '%s'", (parola) => {
+    expect(html.toLowerCase()).not.toContain(parola);
   });
 
+  it("il rame non è nominato in nessun modo", () => {
+    expect(html.toLowerCase()).not.toContain("rame");
+  });
+
+  it("una scheda che non si può comporre sparisce, senza banner al suo posto", () => {
+    const series = { ...SERIES };
+    delete series.GER40;
+    const markup = renderToStaticMarkup(
+      <DriverDeskPanel data={buildData(series)} />,
+    );
+    expect(markup).not.toContain("GER40");
+    expect(markup.toLowerCase()).not.toContain("scheda dax");
+    // le altre due restano
+    expect(markup).toContain("XAU/USD");
+    expect(markup).toContain("WTI");
+  });
+});
+
+describe("DriverDeskPanel — legenda esplicativa", () => {
+  it("è presente e aperta di default", () => {
+    expect(html).toContain("Come si legge questa pagina");
+    expect(html).toMatch(/<details[^>]*\sopen/);
+  });
+
+  it("dichiara che non è una previsione né un'indicazione operativa", () => {
+    expect(html).toContain("non dice dove andrà il prezzo");
+    expect(html).toContain("nessuna indicazione operativa");
+  });
+
+  it("spiega che le linee non sono prezzi e cosa vuol dire stare più in alto", () => {
+    expect(html).toContain("non sono");
+    expect(html).toContain("in rapporto alla propria storia");
+    expect(html).toContain("dodici mesi");
+  });
+
+  it("spiega la direzione di OGNI driver mostrato", () => {
+    for (const atteso of [
+      "Rendimento reale USA 10Y",
+      "Breakeven inflazione 10Y",
+      "Dollar index (broad)",
+      "Spread WTI",
+      "EURUSD",
+      "Bund 10Y",
+    ]) {
+      expect(html).toContain(atteso);
+    }
+    expect(html).toContain("dollaro più forte");
+    expect(html).toContain("euro più forte");
+    expect(html).toContain("rendimento del decennale tedesco più alto");
+  });
+
+  it("dichiara che nessun driver è invertito di segno", () => {
+    expect(html).toContain("segno invertito");
+  });
+
+  it("spiega a cosa serve il blocco sotto il grafico", () => {
+    expect(html).toContain("quando smettere di fidarsi di un riferimento");
+  });
+
+  it("dichiara che il blocco copre OGNI linea, paniere incluso", () => {
+    expect(html).toContain("una voce per ogni linea del grafico");
+    expect(html).toContain("pari di paniere");
+  });
+});
+
+describe("DriverDeskPanel — schede", () => {
   it("le tre schede ci sono, con la storia comune dichiarata", () => {
     for (const ticker of ["XAU/USD", "WTI", "GER40"]) {
       expect(html).toContain(ticker);
     }
-    expect(html).toContain("storia comune dal");
-    expect(html).toContain("mai riempimenti");
+    expect(html).toContain("storia comune");
   });
 
-  it("i tre blocchi sono presenti e separati (mai un numero unico)", () => {
-    expect(html).toContain("Forza nel paniere");
-    expect(html).toContain("mai sommati");
+  it("la legenda cliccabile del grafico ha un pulsante per componente", () => {
+    // l'asset dell'oro + i suoi quattro componenti
+    for (const label of [
+      "Argento",
+      "Rendimento reale USA 10Y",
+      "Dollar index (broad)",
+    ]) {
+      expect(html).toContain(label);
+    }
+    expect(html).toContain('aria-pressed="true"');
+  });
+
+  it("il blocco di stabilità resta, col segno osservato", () => {
     expect(html).toContain("Stabilità delle relazioni");
-  });
-
-  it("il segno delle relazioni è misurato e dichiarato tale", () => {
     expect(html).toContain("correlazione osservata");
-    expect(html).toContain("Il segno si misura, non si assume");
   });
 
-  it("linguaggio piano: le frasi parlano di sedute, non di statistiche", () => {
-    expect(html).toContain("% delle sedute dal");
+  it("la stabilità copre anche i membri del paniere, non solo i driver", () => {
+    // l'argento è un pari dell'oro: prima non aveva una voce, ora sì
+    const dopoIlGrafico = html.split("Stabilità delle relazioni").slice(1).join("");
+    for (const atteso of ["Argento", "Euro Stoxx 50", "S&amp;P 500", "Brent"]) {
+      expect(dopoIlGrafico).toContain(atteso);
+    }
   });
 });
 
-describe("DriverDeskPanel — stati degradati", () => {
-  it("senza dati: si dichiara che l'ingest non è stato eseguito", () => {
+describe("DriverDeskPanel — modulo senza dati", () => {
+  it("dichiara solo che la tabella è vuota, non un componente mancante", () => {
     const vuoto = renderToStaticMarkup(
       <DriverDeskPanel
         data={{ cards: [], errors: [], coverage: [], empty: true }}
       />,
     );
-    expect(vuoto).toContain("ingest");
-  });
-
-  it("una scheda in errore è dichiarata senza spegnere le altre", () => {
-    const series = { ...SERIES };
-    delete series.GER40;
-    const { cards, errors } = composeAllCards(series);
-    const markup = renderToStaticMarkup(
-      <DriverDeskPanel
-        data={{ cards, errors, coverage: [], empty: false }}
-      />,
-    );
-    expect(markup).toContain("Scheda DAX non disponibile");
-    expect(markup).toContain("XAU/USD");
+    expect(vuoto).toContain("nessuna serie in tabella");
   });
 });

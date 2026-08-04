@@ -1,13 +1,21 @@
 /**
  * Composizione delle schede del Driver Desk — modulo PURO, nessun I/O.
  * Prende le serie grezze (dal DB, via query layer) e produce il payload che
- * la UI si limita a rendere: numeri, bande e frasi in LINGUAGGIO PIANO
- * (mai "87° percentile": "più forte che nel 62% delle sedute dal 2006").
+ * la UI si limita a rendere.
+ *
+ * Struttura di una scheda (R2):
+ *  - GRAFICO di forza relativa: una linea per componente (l'asset, i membri
+ *    del paniere, i driver), tutte riportate a una scala comune. Sostituisce
+ *    i vecchi blocchi testuali «forza nel paniere» e «contesto driver».
+ *  - STABILITÀ DELLA RELAZIONE: invariata, in linguaggio piano, sotto il
+ *    grafico.
  *
  * Vincoli di filosofia fatti rispettare qui per costruzione:
- * - nessun composito paniere+driver: ogni statistica resta separata;
- * - il segno delle relazioni si MISURA (correlazione osservata), mai assunto;
- * - ogni componente assente è dichiarato con il motivo, mai un surrogato.
+ * - nessun composito: le linee restano separate, non si sommano mai fra loro;
+ * - il segno delle relazioni si MISURA (correlazione osservata), mai assunto,
+ *   e nessun driver viene disegnato con il segno invertito;
+ * - un componente senza dati semplicemente NON compare: nessun banner, nessun
+ *   posto vuoto, nessun surrogato.
  */
 
 import {
@@ -18,17 +26,17 @@ import {
   type DriverRef,
 } from "@/lib/driver-desk/catalog";
 import {
-  CHANGE_WINDOW,
+  CHART_WINDOW_DAYS,
   CORRELATION_WINDOW,
-  RS_WINDOWS,
   alignToCalendar,
   bandFromPercentile,
+  cumulativeStandardizedIndex,
   currentVsHistory,
   dailyChanges,
   intersectCalendar,
-  relativeStrengthSeries,
   rollingCorrelation,
-  rollingSum,
+  sampleStats,
+  windowStartIndex,
   type DriverBanda,
   type SeriesObs,
 } from "@/lib/driver-desk/engine";
@@ -42,50 +50,45 @@ export interface CardCalendar {
   end: string;
   /** Sedute nel calendario comune. */
   sessions: number;
-  /** Osservazioni perse per serie nell'intersezione (D5, dichiarato). */
+  /** Osservazioni perse per serie nell'intersezione (D5). */
   dropped: { label: string; count: number }[];
 }
 
-export interface StrengthWindow {
-  window: number;
-  /** RS corrente (rendimento log relativo cumulato a W sedute). */
-  value: number;
-  z: number | null;
-  percentile: number | null;
-  band: DriverBanda | null;
-  sentence: string;
+/** Una linea del grafico: sempre una serie a sé, mai una somma di altre. */
+export interface ChartSeries {
+  /** Chiave stabile (codice serie o id del derivato). */
+  key: string;
+  label: string;
+  /** Ruolo nella scheda: l'asset si disegna con tratto più marcato, e la
+   * legenda della pagina spiega la direzione dei soli driver. */
+  role: "main" | "basket" | "driver";
+  /** Indice cumulato standardizzato, allineato a `chart.dates`. */
+  values: number[];
+  /** Ultimo valore: è quello della pillola a fine linea. */
+  last: number;
+  /** Cosa significa che questa linea sale (dal catalogo). */
+  risingMeans: string;
 }
 
-export interface DriverContext {
-  label: string;
-  unit: string;
-  /** Livello corrente. */
-  level: number;
-  /** Variazione a 20 sedute (stessa unità o log, secondo la trasformazione). */
-  delta: number;
-  zLevel: number | null;
-  zDelta: number | null;
-  percentile: number | null;
-  band: DriverBanda | null;
-  sentence: string;
+export interface CardChart {
+  /** Date dei punti, "YYYY-MM-DD". */
+  dates: string[];
+  series: ChartSeries[];
 }
 
 export interface RelationStability {
   label: string;
+  /** Stesso ruolo della linea corrispondente nel grafico. */
+  role: "basket" | "driver";
   /** ρ60 corrente, con segno. */
   rho: number;
   /** Percentile storico di |ρ60|. */
   percentile: number | null;
   band: DriverBanda | null;
-  /** Frase sulla stabilità (più forte/debole che nel …). */
+  /** Frase sulla stabilità (più stretta/debole che nel …). */
   sentence: string;
   /** Frase sul segno osservato (mai assunto). */
   signSentence: string;
-}
-
-export interface MissingComponent {
-  label: string;
-  reason: string;
 }
 
 export interface DriverCardPayload {
@@ -93,14 +96,9 @@ export interface DriverCardPayload {
   label: string;
   ticker: string;
   colorToken: string;
-  mainLabel: string;
-  basketLabels: string[];
-  missing: MissingComponent[];
   calendar: CardCalendar;
-  /** null = paniere non disponibile (pattern D4), con motivo dichiarato. */
-  strength: StrengthWindow[] | null;
-  strengthUnavailable?: string;
-  drivers: DriverContext[];
+  /** null quando la finestra non ha abbastanza punti per disegnare. */
+  chart: CardChart | null;
   relations: RelationStability[];
   /** Nota di freschezza (es. ritardo di pubblicazione FRED). */
   freshnessNote?: string;
@@ -108,21 +106,15 @@ export interface DriverCardPayload {
 
 /* ───────────────────────── Formattazione ───────────────────────── */
 
-/** Numero in notazione italiana, senza gruppi (payload testuale compatto). */
+/** Numero in notazione italiana, senza gruppi. */
 export function fmtIt(value: number, decimals: number): string {
   return value.toFixed(decimals).replace(".", ",").replace("-", "−");
 }
 
-/** Anno della data di inizio storia comune, per le frasi "dal 2006". */
-function startYear(calendar: CardCalendar): string {
-  return calendar.start.slice(0, 4);
-}
-
 /**
- * Frase "più forte/più debole che nel N% delle sedute dal AAAA".
- * P = quota di sedute storiche SOTTO il valore corrente: se è alta il
- * valore è alto ("più forte che nel P%"), se è bassa si rovescia la frase
- * ("più debole che nel 100−P%") — mai un percentile nudo.
+ * Frase «più X che nel N% delle sedute dal AAAA».
+ * P = quota di sedute storiche SOTTO il valore corrente: se è alta il valore
+ * è alto, se è bassa si rovescia la frase — mai un percentile nudo.
  */
 export function strengthPhrase(
   percentile: number,
@@ -151,22 +143,25 @@ function seriesLabel(code: DriverDeskSeries): string {
 }
 
 function driverMeta(ref: DriverRef): {
+  key: string;
   label: string;
-  unit: string;
   transform: "logret" | "diff";
+  risingMeans: string;
 } {
   if (ref.kind === "derived") {
     return {
+      key: ref.derived,
       label: WTI_BRENT_SPREAD.label,
-      unit: WTI_BRENT_SPREAD.unit,
       transform: WTI_BRENT_SPREAD.transform,
+      risingMeans: WTI_BRENT_SPREAD.risingMeans,
     };
   }
   const def = DRIVER_SERIES_BY_CODE.get(ref.code);
   return {
+    key: ref.code,
     label: def?.label ?? ref.code,
-    unit: def?.unit ?? "",
     transform: def?.transform ?? "logret",
+    risingMeans: def?.risingMeans ?? "",
   };
 }
 
@@ -176,7 +171,7 @@ function driverMeta(ref: DriverRef): {
  */
 function driverLevels(
   ref: DriverRef,
-  aligned: Map<string, number[]>,
+  aligned: Map<DriverDeskSeries, number[]>,
 ): number[] {
   if (ref.kind === "series") {
     const values = aligned.get(ref.code);
@@ -189,16 +184,18 @@ function driverLevels(
   return wti.map((w, i) => w - brent[i]);
 }
 
+/** Serve almeno un mese di punti perché una linea dica qualcosa. */
+const MIN_CHART_POINTS = 20;
+
 /**
  * Compone il payload di una scheda dalle sue serie grezze.
- * `series` deve contenere TUTTE le serie richieste da `cardSeries(card)`;
- * una serie vuota o assente esclude ciò che dipende da lei (dichiarato).
+ * Un componente senza dati viene semplicemente escluso, in silenzio.
  */
 export function composeCard(
   card: DriverCardDef,
   series: Partial<Record<DriverDeskSeries, SeriesObs[]>>,
 ): DriverCardPayload {
-  // Serie effettivamente disponibili (una fonte giù = serie vuota).
+  // Serie effettivamente disponibili (una fonte giù = serie assente).
   const available = new Map<DriverDeskSeries, SeriesObs[]>();
   const needed = new Set<DriverDeskSeries>([card.main, ...card.basket]);
   for (const d of card.drivers) {
@@ -216,35 +213,12 @@ export function composeCard(
     throw new MissingSeriesError([card.main]);
   }
 
-  const missing: MissingComponent[] = [...card.missing];
-
-  // Paniere: si prosegue con i componenti disponibili (D3), dichiarando
-  // gli assenti; senza NESSUN componente il Blocco A decade (D4).
   const basketAvailable = card.basket.filter((b) => available.has(b));
-  for (const b of card.basket) {
-    if (!available.has(b)) {
-      missing.push({
-        label: seriesLabel(b),
-        reason: "serie senza dati al momento del calcolo (fonte non disponibile)",
-      });
-    }
-  }
-
-  // Driver disponibili, con l'assenza dichiarata per gli altri.
-  const driversAvailable: DriverRef[] = [];
-  for (const d of card.drivers) {
-    const ok =
-      d.kind === "series"
-        ? available.has(d.code)
-        : available.has("WTI") && available.has("BRENT");
-    if (ok) driversAvailable.push(d);
-    else {
-      missing.push({
-        label: driverMeta(d).label,
-        reason: "serie senza dati al momento del calcolo (fonte non disponibile)",
-      });
-    }
-  }
+  const driversAvailable = card.drivers.filter((d) =>
+    d.kind === "series"
+      ? available.has(d.code)
+      : available.has("WTI") && available.has("BRENT"),
+  );
 
   // Calendario comune (D5) sulle sole serie DISPONIBILI della scheda.
   const forCalendar: Record<string, SeriesObs[]> = {};
@@ -270,95 +244,108 @@ export function composeCard(
       count: dropped[code] ?? 0,
     })),
   };
-  const year = startYear(calendar);
+  const year = calendar.start.slice(0, 4);
 
-  // Variazioni giornaliere sul calendario della scheda (spec §3.0).
-  const changes = new Map<DriverDeskSeries, number[]>();
-  for (const [code, values] of aligned) {
-    const def = DRIVER_SERIES_BY_CODE.get(code);
-    changes.set(code, dailyChanges(values, def?.transform ?? "logret"));
-  }
-  const mainChanges = changes.get(card.main) as number[];
-  const mainLabel = seriesLabel(card.main);
+  // Variazioni giornaliere sul calendario della scheda (spec §3.0):
+  // `changes[i]` corrisponde a `dates[i + 1]`.
+  const mainDef = DRIVER_SERIES_BY_CODE.get(card.main);
+  const mainChanges = dailyChanges(
+    aligned.get(card.main) as number[],
+    mainDef?.transform ?? "logret",
+  );
 
-  // ── Blocco A — forza nel paniere ──
-  let strength: StrengthWindow[] | null = null;
-  let strengthUnavailable: string | undefined;
-  if (basketAvailable.length === 0) {
-    strengthUnavailable =
-      "confronto di paniere non disponibile: nessun componente del paniere ha dati.";
-  } else {
-    const basketChanges = basketAvailable.map(
-      (b) => changes.get(b) as number[],
-    );
-    const basketNames = basketAvailable.map(seriesLabel).join(", ");
-    strength = RS_WINDOWS.map((w) => {
-      const rs = relativeStrengthSeries(mainChanges, basketChanges, w);
-      const cur = currentVsHistory(rs);
-      if (cur === null) {
-        return {
-          window: w,
-          value: NaN,
-          z: null,
-          percentile: null,
-          band: null,
-          sentence: INSUFFICIENT,
-        };
-      }
-      const sentence =
-        cur.percentile === null
-          ? INSUFFICIENT
-          : `Ultime ${w} sedute: forza rispetto al paniere (${basketNames}) ${strengthPhrase(cur.percentile, year, "alta", "bassa")}.`;
+  /**
+   * I componenti confrontati con lo strumento: prima il paniere, poi i
+   * driver, nello stesso ordine in cui compaiono nel grafico.
+   *
+   * Da questa UNICA lista nascono sia le linee sia le voci di stabilità: è
+   * così che l'invariante «ogni linea del grafico ha la sua voce di
+   * stabilità sotto» vale per costruzione, e non per disciplina di chi
+   * modificherà il file dopo.
+   */
+  const components = [
+    ...basketAvailable.map((code) => {
+      const def = DRIVER_SERIES_BY_CODE.get(code);
+      const transform = def?.transform ?? "logret";
       return {
-        window: w,
-        value: cur.value,
-        z: cur.z,
-        percentile: cur.percentile,
-        band: cur.percentile === null ? null : bandFromPercentile(cur.percentile),
-        sentence,
+        key: code as string,
+        label: seriesLabel(code),
+        role: "basket" as const,
+        risingMeans: def?.risingMeans ?? "",
+        changes: dailyChanges(aligned.get(code) as number[], transform),
       };
-    });
+    }),
+    ...driversAvailable.map((ref) => {
+      const meta = driverMeta(ref);
+      return {
+        key: meta.key,
+        label: meta.label,
+        role: "driver" as const,
+        risingMeans: meta.risingMeans,
+        changes: dailyChanges(driverLevels(ref, aligned), meta.transform),
+      };
+    }),
+  ];
+
+  /* ── Grafico: una linea per componente, scala comune ── */
+
+  // La finestra è di 12 mesi, ma σ si stima su TUTTA la storia comune: è la
+  // volatilità abituale della serie a fare da unità di misura, non quella
+  // dell'anno mostrato.
+  const startIdx = windowStartIndex(dates, CHART_WINDOW_DAYS);
+  const chartDates = dates.slice(startIdx);
+
+  function lineFor(
+    key: string,
+    label: string,
+    role: ChartSeries["role"],
+    risingMeans: string,
+    changes: number[],
+  ): ChartSeries | null {
+    const sd = sampleStats(changes).sd;
+    if (sd === null) return null; // serie piatta: niente da disegnare
+    // changes[i] ↔ dates[i+1]: la finestra parte dal cambio di indice startIdx.
+    const values = cumulativeStandardizedIndex(changes.slice(startIdx), sd);
+    if (values.length !== chartDates.length) return null;
+    return {
+      key,
+      label,
+      role,
+      values,
+      last: values[values.length - 1],
+      risingMeans,
+    };
   }
 
-  // ── Blocco B — contesto driver (ognuno da solo, mai sommati) ──
-  const drivers: DriverContext[] = [];
-  // ── Blocco C — stabilità della relazione ──
-  const relations: RelationStability[] = [];
+  const chartSeries: ChartSeries[] = [];
+  if (chartDates.length >= MIN_CHART_POINTS) {
+    const mainLine = lineFor(
+      card.main,
+      seriesLabel(card.main),
+      "main",
+      mainDef?.risingMeans ?? "",
+      mainChanges,
+    );
+    if (mainLine) chartSeries.push(mainLine);
 
-  for (const ref of driversAvailable) {
-    const meta = driverMeta(ref);
-    const levels = driverLevels(ref, aligned);
-    const levelSeries: (number | null)[] = levels.map((v) => v);
-    const curLevel = currentVsHistory(levelSeries);
-
-    const dChanges = dailyChanges(levels, meta.transform);
-    // Variazione a 20 sedute: somma delle variazioni giornaliere della
-    // finestra — identica a L_t − L_{t−20} (diff) o ln(L_t/L_{t−20}) (logret).
-    const deltaSeries = rollingSum(dChanges, CHANGE_WINDOW);
-    const curDelta = currentVsHistory(deltaSeries);
-
-    if (curLevel !== null) {
-      const sentence =
-        curLevel.percentile === null
-          ? INSUFFICIENT
-          : `${meta.label}: ${strengthPhrase(curLevel.percentile, year, "alto", "basso")}.`;
-      drivers.push({
-        label: meta.label,
-        unit: meta.unit,
-        level: curLevel.value,
-        delta: curDelta?.value ?? NaN,
-        zLevel: curLevel.z,
-        zDelta: curDelta?.z ?? null,
-        percentile: curLevel.percentile,
-        band:
-          curLevel.percentile === null
-            ? null
-            : bandFromPercentile(curLevel.percentile),
-        sentence,
-      });
+    for (const c of components) {
+      const line = lineFor(c.key, c.label, c.role, c.risingMeans, c.changes);
+      if (line) chartSeries.push(line);
     }
+  }
 
-    // Correlazione rolling strumento ↔ driver (spec §3.3).
+  /* ── Stabilità della relazione ──
+   *
+   * Una voce per OGNI componente del grafico, membri del paniere inclusi:
+   * anche un pari come l'argento o l'S&P 500 può smettere di muoversi
+   * insieme allo strumento, ed è esattamente ciò che questo blocco serve a
+   * far vedere. La finestra resta di 60 sedute: su 20 la correlazione è
+   * troppo instabile per essere una stima, sarebbe rumore.
+   */
+
+  const relations: RelationStability[] = [];
+  for (const c of components) {
+    const dChanges = c.changes;
     const rho = rollingCorrelation(mainChanges, dChanges, CORRELATION_WINDOW);
     const absRho = rho.map((r) => (r === null ? null : Math.abs(r)));
     const curAbs = currentVsHistory(absRho);
@@ -369,52 +356,50 @@ export function composeCard(
         break;
       }
     }
-    if (curAbs !== null && lastRho !== null) {
-      const signSentence =
-        lastRho > 0.2
-          ? `correlazione osservata ${fmtIt(lastRho, 2)}: nelle ultime ${CORRELATION_WINDOW} sedute si sono mossi per lo più nella stessa direzione`
-          : lastRho < -0.2
-            ? `correlazione osservata ${fmtIt(lastRho, 2)}: nelle ultime ${CORRELATION_WINDOW} sedute si sono mossi per lo più in direzioni opposte`
-            : `correlazione osservata ${fmtIt(lastRho, 2)}: nelle ultime ${CORRELATION_WINDOW} sedute nessuna direzione condivisa stabile`;
-      const sentence =
+    if (curAbs === null || lastRho === null) continue;
+    const signSentence =
+      lastRho > 0.2
+        ? `correlazione osservata ${fmtIt(lastRho, 2)}: nelle ultime ${CORRELATION_WINDOW} sedute si sono mossi per lo più nella stessa direzione`
+        : lastRho < -0.2
+          ? `correlazione osservata ${fmtIt(lastRho, 2)}: nelle ultime ${CORRELATION_WINDOW} sedute si sono mossi per lo più in direzioni opposte`
+          : `correlazione osservata ${fmtIt(lastRho, 2)}: nelle ultime ${CORRELATION_WINDOW} sedute nessuna direzione condivisa stabile`;
+    relations.push({
+      label: c.label,
+      role: c.role,
+      rho: lastRho,
+      percentile: curAbs.percentile,
+      band:
+        curAbs.percentile === null
+          ? null
+          : bandFromPercentile(curAbs.percentile),
+      sentence:
         curAbs.percentile === null
           ? INSUFFICIENT
-          : `La relazione con ${meta.label} è ${strengthPhrase(curAbs.percentile, year, "stretta", "debole")}.`;
-      relations.push({
-        label: meta.label,
-        rho: lastRho,
-        percentile: curAbs.percentile,
-        band:
-          curAbs.percentile === null
-            ? null
-            : bandFromPercentile(curAbs.percentile),
-        sentence,
-        signSentence,
-      });
-    }
+          : `La relazione con ${c.label} è ${strengthPhrase(curAbs.percentile, year, "stretta", "debole")}.`,
+      signSentence,
+    });
   }
 
-  const usesFredOil = card.id === "WTI";
   return {
     id: card.id,
     label: card.label,
     ticker: card.ticker,
     colorToken: card.colorToken,
-    mainLabel,
-    basketLabels: basketAvailable.map(seriesLabel),
-    missing,
     calendar,
-    strength,
-    strengthUnavailable,
-    drivers,
+    chart:
+      chartSeries.length > 0 ? { dates: chartDates, series: chartSeries } : null,
     relations,
-    freshnessNote: usesFredOil
-      ? "Le serie del petrolio arrivano da FRED con circa una settimana di ritardo di pubblicazione: la data dei dati è dichiarata sopra."
-      : undefined,
+    freshnessNote:
+      card.id === "WTI"
+        ? "Le serie del petrolio arrivano da FRED con circa una settimana di ritardo di pubblicazione: la data dei dati è quella dichiarata sopra."
+        : undefined,
   };
 }
 
-/** Tutte le schede, nell'ordine del catalogo. */
+/**
+ * Tutte le schede, nell'ordine del catalogo. Una scheda che non si può
+ * comporre viene semplicemente omessa dalla pagina.
+ */
 export function composeAllCards(
   series: Partial<Record<DriverDeskSeries, SeriesObs[]>>,
 ): { cards: DriverCardPayload[]; errors: { id: string; error: string }[] } {
@@ -424,6 +409,7 @@ export function composeAllCards(
     try {
       cards.push(composeCard(def, series));
     } catch (error) {
+      // Registrato per i log del server, MAI mostrato in pagina.
       errors.push({ id: def.id, error: String(error) });
     }
   }

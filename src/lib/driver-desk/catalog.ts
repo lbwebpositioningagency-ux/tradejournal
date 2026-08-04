@@ -36,6 +36,17 @@ export interface DriverSeriesDef {
   /** Unità dichiarata (spec §5). */
   unit: string;
   attribution: string;
+  /**
+   * Cosa significa che la linea SALE, in linguaggio piano.
+   *
+   * Vive qui e non nella UI perché è l'unica fonte di verità della direzione
+   * naturale di ogni serie: nel grafico nessun driver viene mai invertito di
+   * segno per farlo sembrare allineato all'asset — invertirlo significherebbe
+   * ASSUMERE la relazione invece di misurarla, che è esattamente ciò che il
+   * blocco di stabilità esiste per evitare. Il lettore riceve la chiave di
+   * lettura nella legenda, non un grafico truccato.
+   */
+  risingMeans: string;
 }
 
 export const DRIVER_SERIES: DriverSeriesDef[] = [
@@ -46,6 +57,8 @@ export const DRIVER_SERIES: DriverSeriesDef[] = [
     daily: [{ provider: "dukascopy", symbol: "xauusd" }],
     unit: "USD/oncia",
     attribution: "Dukascopy Bank SA",
+    risingMeans:
+      "in salita = oro più caro in dollari",
   },
   {
     code: "XAGUSD",
@@ -54,6 +67,8 @@ export const DRIVER_SERIES: DriverSeriesDef[] = [
     daily: [{ provider: "dukascopy", symbol: "xagusd" }],
     unit: "USD/oncia",
     attribution: "Dukascopy Bank SA",
+    risingMeans:
+      "in salita = argento più caro in dollari",
   },
   {
     code: "WTI",
@@ -65,6 +80,8 @@ export const DRIVER_SERIES: DriverSeriesDef[] = [
     ],
     unit: "USD/barile",
     attribution: "U.S. Energy Information Administration via FRED",
+    risingMeans:
+      "in salita = barile WTI più caro",
   },
   {
     code: "BRENT",
@@ -76,6 +93,8 @@ export const DRIVER_SERIES: DriverSeriesDef[] = [
     ],
     unit: "USD/barile",
     attribution: "U.S. Energy Information Administration via FRED",
+    risingMeans:
+      "in salita = barile Brent più caro",
   },
   {
     code: "GER40",
@@ -87,6 +106,8 @@ export const DRIVER_SERIES: DriverSeriesDef[] = [
     ],
     unit: "punti indice",
     attribution: "Deutsche Börse via Yahoo Finance",
+    risingMeans:
+      "in salita = indice tedesco più alto",
   },
   {
     code: "STOXX50E",
@@ -98,6 +119,8 @@ export const DRIVER_SERIES: DriverSeriesDef[] = [
     ],
     unit: "punti indice",
     attribution: "STOXX via Yahoo Finance",
+    risingMeans:
+      "in salita = indice dell'area euro più alto",
   },
   {
     code: "CAC40",
@@ -109,6 +132,8 @@ export const DRIVER_SERIES: DriverSeriesDef[] = [
     ],
     unit: "punti indice",
     attribution: "Euronext via Yahoo Finance",
+    risingMeans:
+      "in salita = indice francese più alto",
   },
   {
     code: "SPX",
@@ -121,6 +146,8 @@ export const DRIVER_SERIES: DriverSeriesDef[] = [
     ],
     unit: "punti indice",
     attribution: "S&P Dow Jones Indices via Yahoo Finance",
+    risingMeans:
+      "in salita = indice americano più alto",
   },
   {
     code: "DFII10",
@@ -129,6 +156,8 @@ export const DRIVER_SERIES: DriverSeriesDef[] = [
     daily: [{ provider: "fred", ids: ["DFII10"] }],
     unit: "punti percentuali",
     attribution: "Federal Reserve via FRED",
+    risingMeans:
+      "in salita = rendimento reale più alto, cioè denaro più caro al netto dell'inflazione attesa",
   },
   {
     code: "T10YIE",
@@ -137,6 +166,8 @@ export const DRIVER_SERIES: DriverSeriesDef[] = [
     daily: [{ provider: "fred", ids: ["T10YIE"] }],
     unit: "punti percentuali",
     attribution: "Federal Reserve via FRED",
+    risingMeans:
+      "in salita = attese di inflazione a dieci anni più alte",
   },
   {
     code: "DTWEXBGS",
@@ -145,6 +176,8 @@ export const DRIVER_SERIES: DriverSeriesDef[] = [
     daily: [{ provider: "fred", ids: ["DTWEXBGS"] }],
     unit: "indice (2006 = 100)",
     attribution: "Federal Reserve via FRED",
+    risingMeans:
+      "in salita = dollaro più forte contro le altre valute",
   },
   {
     code: "EURUSD",
@@ -156,6 +189,8 @@ export const DRIVER_SERIES: DriverSeriesDef[] = [
     ],
     unit: "USD per EUR",
     attribution: "Federal Reserve H.10 via FRED",
+    risingMeans:
+      "in salita = euro più forte sul dollaro",
   },
   {
     code: "BUND10Y",
@@ -170,6 +205,8 @@ export const DRIVER_SERIES: DriverSeriesDef[] = [
     ],
     unit: "punti percentuali",
     attribution: "Deutsche Bundesbank",
+    risingMeans:
+      "in salita = rendimento del decennale tedesco più alto",
   },
 ];
 
@@ -195,14 +232,21 @@ export interface DriverCardDef {
   colorToken: string;
   main: DriverDeskSeries;
   basket: DriverDeskSeries[];
-  /**
-   * Componenti DELIBERATAMENTE assenti, dichiarati a schermo con il motivo
-   * (mai nascosti, mai surrogati) — pattern VDAX del termometro.
-   */
-  missing: { label: string; reason: string }[];
   drivers: DriverRef[];
 }
 
+/**
+ * Le tre schede.
+ *
+ * Un componente che non c'è NON si dichiara a schermo: semplicemente non
+ * viene disegnato. Vale sia per le esclusioni di progetto sia per un buco
+ * temporaneo di una fonte. Il caso di riferimento è il RAME, che non entra
+ * nel paniere dell'oro perché non esiste una serie giornaliera gratuita e
+ * affidabile (FRED lo pubblica solo mensile; l'unica daily gratuita è
+ * l'endpoint non pubblicato di Yahoo, senza fallback utilizzabile — il CFD
+ * Dukascopy ha oltre metà delle sedute mancanti). La motivazione resta qui
+ * nel codice e nel rapporto, non in un banner in pagina.
+ */
 export const DRIVER_CARDS: DriverCardDef[] = [
   {
     id: "ORO",
@@ -211,13 +255,6 @@ export const DRIVER_CARDS: DriverCardDef[] = [
     colorToken: "var(--md-gold)",
     main: "XAUUSD",
     basket: ["XAGUSD"],
-    missing: [
-      {
-        label: "Rame",
-        reason:
-          "nessuna fonte giornaliera gratuita e affidabile: FRED lo pubblica solo mensile, l'unica serie daily gratuita è l'endpoint non pubblicato di Yahoo senza un fallback utilizzabile (il CFD Dukascopy ha oltre metà delle sedute mancanti). Il paniere prosegue con il solo argento.",
-      },
-    ],
     drivers: [
       { kind: "series", code: "DFII10" },
       { kind: "series", code: "T10YIE" },
@@ -231,7 +268,6 @@ export const DRIVER_CARDS: DriverCardDef[] = [
     colorToken: "var(--md-oil)",
     main: "WTI",
     basket: ["BRENT"],
-    missing: [],
     drivers: [
       { kind: "series", code: "DTWEXBGS" },
       { kind: "derived", derived: "WTI_BRENT_SPREAD" },
@@ -244,7 +280,6 @@ export const DRIVER_CARDS: DriverCardDef[] = [
     colorToken: "var(--md-idx)",
     main: "GER40",
     basket: ["STOXX50E", "CAC40", "SPX"],
-    missing: [],
     drivers: [
       { kind: "series", code: "EURUSD" },
       { kind: "series", code: "BUND10Y" },
@@ -257,6 +292,7 @@ export const WTI_BRENT_SPREAD = {
   label: "Spread WTI−Brent",
   transform: "diff" as DriverTransform,
   unit: "USD/barile",
+  risingMeans: "in salita = il WTI si avvicina o supera il Brent",
 };
 
 /** Le serie di cui una scheda ha bisogno (per l'intersezione delle date, D5). */

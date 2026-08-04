@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import type { DriverDeskSeries } from "@/generated/prisma/client";
 import { DRIVER_CARDS } from "@/lib/driver-desk/catalog";
 import type { SeriesObs } from "@/lib/driver-desk/engine";
+import { CHART_WINDOW_DAYS } from "@/lib/driver-desk/engine";
 import {
   MissingSeriesError,
   composeAllCards,
@@ -12,8 +13,9 @@ import {
 
 /**
  * Dati sintetici DETERMINISTICI: sedute nei giorni feriali dal 2024-01-01,
- * livelli generati da un LCG. Abbastanza lunghi (420 sedute) da superare il
- * campione minimo (250) anche dopo le finestre a 60.
+ * livelli generati da un LCG. Abbastanza lunghi (600 sedute ≈ 2,3 anni) da
+ * avere sia una finestra grafico piena di 12 mesi sia una storia precedente
+ * su cui stimare σ e i percentili.
  */
 function lcg(seed: number): () => number {
   let s = seed >>> 0;
@@ -34,7 +36,7 @@ function weekdayDates(n: number, start = "2024-01-01"): string[] {
   return out;
 }
 
-const N = 420;
+const N = 600;
 const DATES = weekdayDates(N);
 
 function priceSeries(seed: number, base: number): SeriesObs[] {
@@ -75,84 +77,234 @@ function fullSeries(): Partial<Record<DriverDeskSeries, SeriesObs[]>> {
 
 const ORO = DRIVER_CARDS.find((c) => c.id === "ORO")!;
 const WTI_CARD = DRIVER_CARDS.find((c) => c.id === "WTI")!;
+const DAX = DRIVER_CARDS.find((c) => c.id === "DAX")!;
 
-describe("composeCard — scheda oro completa", () => {
+describe("composeCard — grafico di forza relativa", () => {
   const payload = composeCard(ORO, fullSeries());
 
-  it("il rame resta dichiarato assente (D1), mai un surrogato", () => {
-    expect(payload.missing.some((m) => m.label === "Rame")).toBe(true);
+  it("una linea per componente: asset + paniere + driver", () => {
+    expect(payload.chart).not.toBeNull();
+    expect(payload.chart!.series.map((s) => s.label)).toEqual([
+      "Oro",
+      "Argento",
+      "Rendimento reale USA 10Y",
+      "Breakeven inflazione 10Y",
+      "Dollar index (broad)",
+    ]);
   });
 
-  it("Blocco A: entrambe le finestre (20 e 60), con banda e frase in linguaggio piano", () => {
-    expect(payload.strength).not.toBeNull();
-    expect(payload.strength!.map((s) => s.window)).toEqual([20, 60]);
-    for (const s of payload.strength!) {
-      expect(s.percentile).not.toBeNull();
-      expect(s.band).not.toBeNull();
-      expect(s.sentence).toMatch(/sedute dal 2024/);
-      // mai gergo statistico nella frase
-      expect(s.sentence).not.toMatch(/percentile|z-score/i);
+  it("l'asset è marcato come riferimento, gli altri no", () => {
+    const roles = payload.chart!.series.map((s) => s.role);
+    expect(roles[0]).toBe("main");
+    expect(roles.slice(1)).toEqual(["basket", "driver", "driver", "driver"]);
+  });
+
+  it("il rame non compare da nessuna parte: nessuna linea, nessun messaggio", () => {
+    const json = JSON.stringify(payload).toLowerCase();
+    expect(json).not.toContain("rame");
+    expect(json).not.toContain("assente");
+    expect(json).not.toContain("non disponibil");
+  });
+
+  it("ogni linea parte da 0 e ha un valore per ogni data della finestra", () => {
+    const n = payload.chart!.dates.length;
+    for (const s of payload.chart!.series) {
+      expect(s.values).toHaveLength(n);
+      expect(s.values[0]).toBe(0);
+      expect(s.last).toBe(s.values[n - 1]);
     }
   });
 
-  it("Blocco B: un contesto per driver, mai sommati (3 driver = 3 voci)", () => {
-    expect(payload.drivers).toHaveLength(3);
-    for (const d of payload.drivers) {
-      expect(d.sentence).toMatch(/sedute dal 2024/);
+  it("la finestra copre 12 mesi e finisce sull'ultima seduta comune", () => {
+    const d = payload.chart!.dates;
+    expect(d[d.length - 1]).toBe(payload.calendar.end);
+    const spanDays =
+      (Date.parse(d[d.length - 1]) - Date.parse(d[0])) / 86_400_000;
+    expect(spanDays).toBeLessThanOrEqual(CHART_WINDOW_DAYS);
+    expect(spanDays).toBeGreaterThan(CHART_WINDOW_DAYS - 10);
+  });
+
+  it("ogni linea porta con sé cosa significa che sale (chiave di lettura)", () => {
+    for (const s of payload.chart!.series) {
+      expect(s.risingMeans).toMatch(/in salita = /);
     }
   });
 
-  it("Blocco C: una relazione per driver, con segno OSSERVATO dichiarato", () => {
-    expect(payload.relations).toHaveLength(3);
+  it("VERIFICA INDIPENDENTE: l'indice dell'oro ricostruito a parte", () => {
+    const series = fullSeries();
+    const gold = series.XAUUSD!.map((o) => o.value);
+    // rendimenti log su TUTTA la storia comune (le serie sintetiche
+    // condividono le stesse date, quindi il calendario comune coincide)
+    const r = gold.slice(1).map((v, i) => Math.log(v / gold[i]));
+    // σ campionaria (n−1) su tutta la storia, non solo sulla finestra
+    const mean = r.reduce((a, b) => a + b, 0) / r.length;
+    const sd = Math.sqrt(
+      r.reduce((a, b) => a + (b - mean) ** 2, 0) / (r.length - 1),
+    );
+    const line = payload.chart!.series.find((s) => s.label === "Oro")!;
+    const w = payload.chart!.dates.length - 1; // variazioni dentro la finestra
+    let acc = 0;
+    for (let i = r.length - w; i < r.length; i += 1) acc += r[i] / sd;
+    expect(line.last).toBeCloseTo(acc, 10);
+  });
+
+  it("la media NON viene sottratta: l'indice resta sulla scala grezza", () => {
+    const series = fullSeries();
+    const gold = series.XAUUSD!.map((o) => o.value);
+    const r = gold.slice(1).map((v, i) => Math.log(v / gold[i]));
+    const mean = r.reduce((a, b) => a + b, 0) / r.length;
+    const sd = Math.sqrt(
+      r.reduce((a, b) => a + (b - mean) ** 2, 0) / (r.length - 1),
+    );
+    const line = payload.chart!.series.find((s) => s.label === "Oro")!;
+    const w = payload.chart!.dates.length - 1;
+    let demeaned = 0;
+    for (let i = r.length - w; i < r.length; i += 1) {
+      demeaned += (r[i] - mean) / sd;
+    }
+    // se la media fosse sottratta i due valori coinciderebbero
+    expect(line.last).not.toBeCloseTo(demeaned, 6);
+  });
+});
+
+describe("composeCard — nessun driver invertito di segno", () => {
+  it("il dollar index sale quando il dollaro si rafforza, senza capovolgimenti", () => {
+    const series = fullSeries();
+    const dxy = series.DTWEXBGS!;
+    // dollaro in rialzo deciso nell'ultimo tratto
+    series.DTWEXBGS = dxy.map((o, i) => ({
+      date: o.date,
+      value: i < N - 60 ? o.value : o.value * (1 + (i - (N - 60)) / 500),
+    }));
+    const payload = composeCard(ORO, series);
+    const line = payload.chart!.series.find((s) => s.label.includes("Dollar"))!;
+    const v = line.values;
+    // l'ultimo tratto dell'indice deve SALIRE, non essere capovolto
+    expect(v[v.length - 1]).toBeGreaterThan(v[v.length - 61]);
+  });
+});
+
+describe("composeCard — componenti mancanti: omessi in silenzio", () => {
+  it("senza Brent la scheda WTI perde quelle linee, senza dirlo", () => {
+    const series = fullSeries();
+    delete series.BRENT;
+    const payload = composeCard(WTI_CARD, series);
+    expect(payload.chart!.series.map((s) => s.label)).toEqual([
+      "Petrolio WTI",
+      "Dollar index (broad)",
+    ]);
+    // niente Brent, niente spread, e nessun messaggio al loro posto
+    expect(JSON.stringify(payload)).not.toContain("Brent");
+    expect(payload.relations.map((r) => r.label)).toEqual([
+      "Dollar index (broad)",
+    ]);
+  });
+
+  it("senza un componente del paniere DAX gli altri restano", () => {
+    const series = fullSeries();
+    delete series.CAC40;
+    const payload = composeCard(DAX, series);
+    expect(payload.chart!.series.map((s) => s.label)).toEqual([
+      "DAX",
+      "Euro Stoxx 50",
+      "S&P 500",
+      "EURUSD",
+      "Bund 10Y",
+    ]);
+  });
+
+  it("serie principale assente → errore, mai una scheda muta", () => {
+    const series = fullSeries();
+    delete series.XAUUSD;
+    expect(() => composeCard(ORO, series)).toThrow(MissingSeriesError);
+  });
+
+  it("composeAllCards omette la scheda che non si può comporre", () => {
+    const series = fullSeries();
+    delete series.GER40;
+    const { cards, errors } = composeAllCards(series);
+    expect(cards.map((c) => c.id)).toEqual(["ORO", "WTI"]);
+    // l'errore resta per i log del server, non per la pagina
+    expect(errors).toHaveLength(1);
+    expect(errors[0].id).toBe("DAX");
+  });
+
+  it("storia troppo corta: nessun grafico, e comunque nessun messaggio", () => {
+    const series = fullSeries();
+    for (const key of Object.keys(series) as DriverDeskSeries[]) {
+      series[key] = series[key]!.slice(-10);
+    }
+    const payload = composeCard(ORO, series);
+    expect(payload.chart).toBeNull();
+    expect(JSON.stringify(payload).toLowerCase()).not.toContain(
+      "non disponibil",
+    );
+  });
+});
+
+describe("composeCard — stabilità della relazione", () => {
+  const payload = composeCard(ORO, fullSeries());
+
+  it("INVARIANTE: ogni linea del grafico (tranne l'asset) ha la sua voce", () => {
+    const linee = payload
+      .chart!.series.filter((s) => s.role !== "main")
+      .map((s) => s.label);
+    expect(payload.relations.map((r) => r.label)).toEqual(linee);
+  });
+
+  it("il paniere è incluso, non solo i driver macro", () => {
+    const argento = payload.relations.find((r) => r.label === "Argento");
+    expect(argento).toBeDefined();
+    expect(argento!.role).toBe("basket");
+    expect(payload.relations.filter((r) => r.role === "driver")).toHaveLength(3);
+  });
+
+  it("ogni voce dichiara il segno OSSERVATO", () => {
     for (const r of payload.relations) {
       expect(r.signSentence).toMatch(/correlazione osservata/);
       expect(Math.abs(r.rho)).toBeLessThanOrEqual(1);
     }
   });
 
-  it("il calendario dichiara inizio, fine e numerosità", () => {
-    expect(payload.calendar.sessions).toBe(N);
-    expect(payload.calendar.start).toBe(DATES[0]);
-    expect(payload.calendar.end).toBe(DATES[N - 1]);
-  });
-
-  it("VERIFICA INDIPENDENTE Blocco A: RS a 20 sedute ricostruita a parte", () => {
+  it("VERIFICA INDIPENDENTE: ρ60 oro↔argento (membro del paniere) col Pearson naive", () => {
     const series = fullSeries();
     const gold = series.XAUUSD!.map((o) => o.value);
     const silver = series.XAGUSD!.map((o) => o.value);
-    // le serie sintetiche condividono già le stesse date: il calendario
-    // comune coincide, quindi la ricostruzione può lavorare sui grezzi
     const logret = (xs: number[]) =>
       xs.slice(1).map((v, i) => Math.log(v / xs[i]));
-    const rg = logret(gold);
-    const rs = logret(silver);
-    const w = 20;
-    let cumG = 0;
-    let cumS = 0;
-    for (let i = rg.length - w; i < rg.length; i += 1) {
-      cumG += rg[i];
-      cumS += rs[i];
-    }
-    const expected = cumG - cumS;
-    const got = payload.strength!.find((s) => s.window === 20)!.value;
-    expect(got).toBeCloseTo(expected, 10);
+    const rg = logret(gold).slice(-60);
+    const rs = logret(silver).slice(-60);
+    const n = 60;
+    const sx = rg.reduce((a, b) => a + b, 0);
+    const sy = rs.reduce((a, b) => a + b, 0);
+    const sxx = rg.reduce((a, b) => a + b * b, 0);
+    const syy = rs.reduce((a, b) => a + b * b, 0);
+    const sxy = rg.reduce((a, b, i) => a + b * rs[i], 0);
+    const expected =
+      (n * sxy - sx * sy) /
+      (Math.sqrt(n * sxx - sx * sx) * Math.sqrt(n * syy - sy * sy));
+    const rel = payload.relations.find((r) => r.label === "Argento")!;
+    expect(rel.rho).toBeCloseTo(expected, 10);
   });
 
-  it("VERIFICA INDIPENDENTE Blocco B: livello e Δ20 del rendimento reale", () => {
-    const series = fullSeries();
-    const dfii = series.DFII10!.map((o) => o.value);
-    const driver = payload.drivers.find((d) =>
-      d.label.includes("reale"),
-    )!;
-    expect(driver.level).toBeCloseTo(dfii[dfii.length - 1], 10);
-    // Δ20 in punti: L_t − L_{t−20}
-    expect(driver.delta).toBeCloseTo(
-      dfii[dfii.length - 1] - dfii[dfii.length - 1 - 20],
-      10,
-    );
+  it("le altre schede: ogni membro del paniere ha la sua voce", () => {
+    const dax = composeCard(DAX, fullSeries());
+    expect(dax.relations.map((r) => r.label)).toEqual([
+      "Euro Stoxx 50",
+      "CAC 40",
+      "S&P 500",
+      "EURUSD",
+      "Bund 10Y",
+    ]);
+    const wti = composeCard(WTI_CARD, fullSeries());
+    expect(wti.relations.map((r) => r.label)).toEqual([
+      "Brent",
+      "Dollar index (broad)",
+      "Spread WTI−Brent",
+    ]);
   });
 
-  it("VERIFICA INDIPENDENTE Blocco C: ρ60 oro↔dollaro ricostruita con Pearson naive", () => {
+  it("VERIFICA INDIPENDENTE: ρ60 oro↔dollaro col Pearson naive", () => {
     const series = fullSeries();
     const gold = series.XAUUSD!.map((o) => o.value);
     const dxy = series.DTWEXBGS!.map((o) => o.value);
@@ -171,62 +323,6 @@ describe("composeCard — scheda oro completa", () => {
       (Math.sqrt(n * sxx - sx * sx) * Math.sqrt(n * syy - sy * sy));
     const rel = payload.relations.find((r) => r.label.includes("Dollar"))!;
     expect(rel.rho).toBeCloseTo(expected, 10);
-  });
-});
-
-describe("composeCard — degradazioni dichiarate", () => {
-  it("D4: senza Brent la scheda WTI perde il paniere ma tiene B e C", () => {
-    const series = fullSeries();
-    delete series.BRENT;
-    const payload = composeCard(WTI_CARD, series);
-    expect(payload.strength).toBeNull();
-    expect(payload.strengthUnavailable).toMatch(/paniere/);
-    // Brent assente E spread decaduto: entrambi dichiarati
-    expect(payload.missing.some((m) => m.label === "Brent")).toBe(true);
-    expect(payload.missing.some((m) => m.label.includes("Spread"))).toBe(true);
-    // resta il solo dollar index in B e C
-    expect(payload.drivers).toHaveLength(1);
-    expect(payload.relations).toHaveLength(1);
-  });
-
-  it("VERIFICA INDIPENDENTE spread: livello = WTI − Brent dell'ultima seduta comune", () => {
-    const series = fullSeries();
-    const payload = composeCard(WTI_CARD, series);
-    const wti = series.WTI!.map((o) => o.value);
-    const brent = series.BRENT!.map((o) => o.value);
-    const spread = payload.drivers.find((d) => d.label.includes("Spread"))!;
-    expect(spread.level).toBeCloseTo(
-      wti[wti.length - 1] - brent[brent.length - 1],
-      10,
-    );
-  });
-
-  it("serie principale assente → errore esplicito, mai una scheda vuota muta", () => {
-    const series = fullSeries();
-    delete series.XAUUSD;
-    expect(() => composeCard(ORO, series)).toThrow(MissingSeriesError);
-  });
-
-  it("composeAllCards raccoglie gli errori senza spegnere le altre schede", () => {
-    const series = fullSeries();
-    delete series.GER40;
-    const { cards, errors } = composeAllCards(series);
-    expect(cards.map((c) => c.id)).toEqual(["ORO", "WTI"]);
-    expect(errors).toHaveLength(1);
-    expect(errors[0].id).toBe("DAX");
-  });
-
-  it("storia corta: statistiche dichiarate insufficienti, mai numeri inventati", () => {
-    const series = fullSeries();
-    const short = 80; // sotto MIN_SAMPLE + finestre
-    for (const key of Object.keys(series) as DriverDeskSeries[]) {
-      series[key] = series[key]!.slice(-short);
-    }
-    const payload = composeCard(ORO, series);
-    for (const s of payload.strength ?? []) {
-      expect(s.percentile).toBeNull();
-      expect(s.sentence).toMatch(/insufficiente/);
-    }
   });
 });
 

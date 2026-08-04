@@ -34,20 +34,16 @@ async function main() {
       console.log(
         `  scartate per intersezione: ${c.calendar.dropped.map((d) => `${d.label}:${d.count}`).join("  ")}`,
       );
-      for (const m of c.missing) {
-        console.log(`  ASSENTE ${m.label}: ${m.reason.slice(0, 90)}…`);
-      }
-      for (const s of c.strength ?? []) {
+      if (c.chart) {
         console.log(
-          `  A[${s.window}] RS=${s.value.toFixed(4)} z=${s.z?.toFixed(2)} p=${s.percentile?.toFixed(0)} ${s.band} — ${s.sentence}`,
+          `  grafico: ${c.chart.dates.length} punti, ${c.chart.dates[0]} → ${c.chart.dates[c.chart.dates.length - 1]}`,
         );
-      }
-      if (c.strengthUnavailable) console.log(`  A: ${c.strengthUnavailable}`);
-      for (const d of c.drivers) {
-        console.log(
-          `  B ${d.label}: livello=${d.level.toFixed(3)} Δ20=${d.delta.toFixed(3)} zL=${d.zLevel?.toFixed(2)} zΔ=${d.zDelta?.toFixed(2)} p=${d.percentile?.toFixed(0)} ${d.band}`,
-        );
-        console.log(`    ${d.sentence}`);
+        for (const s of c.chart.series) {
+          const v = s.values;
+          console.log(
+            `    ${s.role.padEnd(6)} ${s.label.padEnd(26)} fine ${s.last.toFixed(2).padStart(8)} · min ${Math.min(...v).toFixed(1)} max ${Math.max(...v).toFixed(1)}`,
+          );
+        }
       }
       for (const r of c.relations) {
         console.log(

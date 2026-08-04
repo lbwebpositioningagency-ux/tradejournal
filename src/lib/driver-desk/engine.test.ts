@@ -1,8 +1,10 @@
 import { describe, expect, it } from "vitest";
 import {
+  CHART_WINDOW_DAYS,
   MIN_SAMPLE,
   alignToCalendar,
   bandFromPercentile,
+  cumulativeStandardizedIndex,
   currentVsHistory,
   dailyChanges,
   intersectCalendar,
@@ -11,6 +13,7 @@ import {
   rollingCorrelation,
   rollingSum,
   sampleStats,
+  windowStartIndex,
   zScore,
 } from "@/lib/driver-desk/engine";
 
@@ -304,5 +307,55 @@ describe("currentVsHistory", () => {
 
   it("serie tutta null → null", () => {
     expect(currentVsHistory([null, null])).toBeNull();
+  });
+});
+
+/* ───── Indice cumulato standardizzato — grafico di forza relativa ───── */
+
+describe("cumulativeStandardizedIndex", () => {
+  it("parte da 0 e cumula le variazioni divise per σ — fatto a mano", () => {
+    // σ=2: [4, −2, 6] → 0, 2, 1, 4
+    expect(cumulativeStandardizedIndex([4, -2, 6], 2)).toEqual([0, 2, 1, 4]);
+  });
+
+  it("restituisce un valore in più delle variazioni (lo zero iniziale)", () => {
+    const out = cumulativeStandardizedIndex([1, 1, 1, 1], 1);
+    expect(out).toHaveLength(5);
+    expect(out[0]).toBe(0);
+  });
+
+  it("NON sottrae la media: una serie tutta positiva sale, non resta piatta", () => {
+    // se si togliesse la media (=1) il risultato sarebbe piatto a 0
+    expect(cumulativeStandardizedIndex([1, 1, 1], 1)).toEqual([0, 1, 2, 3]);
+  });
+
+  it("serie con volatilità diverse diventano confrontabili", () => {
+    // stessa dinamica, scale diverse: gli indici coincidono
+    const piccola = cumulativeStandardizedIndex([0.01, 0.02], 0.01);
+    const grande = cumulativeStandardizedIndex([10, 20], 10);
+    expect(piccola).toEqual(grande);
+  });
+
+  it("σ non positiva → errore esplicito, mai una divisione per zero", () => {
+    expect(() => cumulativeStandardizedIndex([1], 0)).toThrow(/σ/);
+    expect(() => cumulativeStandardizedIndex([1], -1)).toThrow(/σ/);
+  });
+});
+
+describe("windowStartIndex", () => {
+  it("taglia agli ultimi 12 mesi di calendario", () => {
+    const dates = ["2024-01-02", "2024-06-01", "2025-01-02", "2025-06-02"];
+    // finestra a ritroso da 2025-06-02: parte da 2024-06-02 → primo utile
+    const i = windowStartIndex(dates, CHART_WINDOW_DAYS);
+    expect(dates[i]).toBe("2025-01-02");
+  });
+
+  it("storia più corta della finestra → parte dall'inizio", () => {
+    const dates = ["2025-05-01", "2025-05-02", "2025-05-05"];
+    expect(windowStartIndex(dates, CHART_WINDOW_DAYS)).toBe(0);
+  });
+
+  it("array vuoto → 0, nessun crash", () => {
+    expect(windowStartIndex([], CHART_WINDOW_DAYS)).toBe(0);
   });
 });

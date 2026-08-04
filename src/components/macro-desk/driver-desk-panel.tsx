@@ -1,32 +1,32 @@
 /**
  * Pannello Driver Desk — resa per il tab "Driver" del Macro Desk.
  *
- * Pannello PURAMENTE DESCRITTIVO, come il pannello COT: per ogni strumento
- * mostra quanto è forte rispetto ai suoi pari (Blocco A), in che contesto
- * macro si trova (Blocco B) e quanto le relazioni con i suoi driver stanno
- * reggendo adesso (Blocco C). Niente previsioni, niente probabilità di
- * salita/discesa, nessun composito che fonda paniere e driver: ogni numero
- * resta separato e confrontato SOLO con la propria storia.
+ * Pannello PURAMENTE DESCRITTIVO, come il pannello COT: per ogni strumento un
+ * grafico di forza relativa (l'asset, i suoi pari, i suoi driver macro sullo
+ * stesso asse) e, sotto, quanto le relazioni con quei driver stanno reggendo
+ * adesso. Niente previsioni, niente probabilità di salita o discesa, nessun
+ * composito che fonda paniere e driver in un numero unico.
  *
- * Convenzioni ereditate: linguaggio piano (mai "87° percentile"), bande
- * verbali con le soglie del COT, niente verde/rosso (riservati al P&L),
- * ogni componente assente è DICHIARATO a schermo con il motivo.
+ * Convenzioni ereditate: linguaggio piano (mai «87° percentile»), bande
+ * verbali con le soglie del COT, niente verde/rosso (riservati al P&L).
  *
- * Componente puro (nessuno stato): si testa con renderToStaticMarkup.
+ * Un componente che non c'è NON viene dichiarato: semplicemente non compare
+ * né fra le linee né in legenda. Nessun banner di assenza in tutto il modulo.
+ *
+ * Il pannello è puro (nessuno stato): si testa con renderToStaticMarkup. Lo
+ * stato vive solo nel grafico, che è un componente client a sé.
  */
 
-import { AlertTriangle } from "lucide-react";
 import type {
   DriverCardPayload,
-  DriverContext,
-  MissingComponent,
   RelationStability,
-  StrengthWindow,
 } from "@/lib/driver-desk/cards";
 import { fmtIt } from "@/lib/driver-desk/cards";
 import type { DriverDeskData } from "@/lib/queries/driver-desk";
 import type { DriverBanda } from "@/lib/driver-desk/engine";
-import { Callout, MonoChip, PanelLabel, RangeBar } from "./primitives";
+import { CORRELATION_WINDOW } from "@/lib/driver-desk/engine";
+import { DriverDeskChart } from "./driver-desk-chart";
+import { PanelLabel, RangeBar } from "./primitives";
 
 function fade(index: number) {
   return { animationDelay: `${index * 60}ms` };
@@ -44,152 +44,101 @@ const COLORE_BANDA: Record<DriverBanda, string> = {
 
 const CONFINI_BANDE = [10, 30, 70, 90];
 
-function BandaChip({ banda }: { banda: DriverBanda | null }) {
-  if (banda === null) {
-    return (
-      <span className="md-mono text-2xs text-[var(--md-muted)]">
-        campione insufficiente
-      </span>
-    );
+/* ═══════════════ Legenda esplicativa della pagina ═══════════════ */
+
+function ComeSiLegge({ cards }: { cards: DriverCardPayload[] }) {
+  // I driver presenti davvero nelle schede, senza ripetizioni: se una serie
+  // non c'è, la sua riga non compare — stessa regola del grafico.
+  const drivers: { label: string; risingMeans: string }[] = [];
+  for (const card of cards) {
+    for (const s of card.chart?.series ?? []) {
+      if (s.role !== "driver") continue;
+      if (drivers.some((d) => d.label === s.label)) continue;
+      drivers.push({ label: s.label, risingMeans: s.risingMeans });
+    }
   }
-  const colore = COLORE_BANDA[banda];
-  return (
-    <span
-      className="md-mono self-start rounded px-1.5 py-0.5 text-2xs font-bold"
-      style={{ color: colore, border: `1px solid ${colore}` }}
-    >
-      {banda}
-    </span>
-  );
-}
 
-/** Riga standard: banda + barra di posizione nel range storico + frase. */
-function RigaStatistica({
-  banda,
-  percentile,
-  sentence,
-  chips,
-}: {
-  banda: DriverBanda | null;
-  percentile: number | null;
-  sentence: string;
-  chips?: string[];
-}) {
   return (
-    <div className="flex flex-col gap-1.5">
-      <div className="flex flex-wrap items-center gap-2">
-        <BandaChip banda={banda} />
-        {chips?.map((c) => <MonoChip key={c}>{c}</MonoChip>)}
-      </div>
-      {percentile !== null ? (
-        <RangeBar
-          position={percentile}
-          color={banda ? COLORE_BANDA[banda] : "var(--md-text-2)"}
-          ticks={CONFINI_BANDE}
-          ariaLabel={`Posizione nel range storico: ${Math.round(percentile)} su 100`}
-        />
-      ) : null}
-      <p className="text-sm leading-relaxed text-[var(--md-text-2)]">{sentence}</p>
-    </div>
-  );
-}
+    <details open className="md-card md-fade p-4" style={fade(0)}>
+      <summary className="cursor-pointer text-sm font-semibold text-[var(--md-text)]">
+        Come si legge questa pagina
+      </summary>
 
-function AssenzaDichiarata({ item }: { item: MissingComponent }) {
-  return (
-    <div
-      className="flex items-start gap-2.5 rounded-[var(--md-r-md)] border px-3 py-2.5 text-xs leading-relaxed"
-      style={{
-        borderColor: "var(--md-border)",
-        backgroundColor: "var(--md-surface)",
-      }}
-    >
-      <AlertTriangle
-        className="mt-0.5 size-3.5 shrink-0"
-        style={{ color: "var(--md-warn)" }}
-        aria-hidden
-      />
-      <span className="text-[var(--md-text-2)]">
-        <span className="md-mono mr-1.5 font-semibold uppercase">
-          {item.label} assente:
-        </span>
-        {item.reason}
-      </span>
-    </div>
-  );
-}
-
-function BloccoForza({
-  strength,
-  unavailable,
-}: {
-  strength: StrengthWindow[] | null;
-  unavailable?: string;
-}) {
-  return (
-    <div className="flex flex-col gap-3">
-      <PanelLabel>Forza nel paniere</PanelLabel>
-      {strength === null ? (
-        <p className="text-sm leading-relaxed text-[var(--md-muted)]">
-          {unavailable ?? "Confronto di paniere non disponibile."}
+      <div className="mt-3 flex flex-col gap-3 text-sm leading-relaxed text-[var(--md-text-2)]">
+        <p>
+          Questa pagina non dice dove andrà il prezzo e non contiene nessuna
+          indicazione operativa. Mostra due cose soltanto: come si è mosso
+          ciascuno strumento rispetto ai suoi simili e al proprio contesto
+          macro, e quanto i legami con quei driver stanno tenendo in questo
+          momento.
         </p>
-      ) : (
-        strength.map((s) => (
-          <RigaStatistica
-            key={s.window}
-            banda={s.band}
-            percentile={s.percentile}
-            sentence={s.sentence}
-            chips={[
-              `${s.window} sedute`,
-              ...(s.z !== null ? [`z ${fmtIt(s.z, 1)}`] : []),
-            ]}
-          />
-        ))
-      )}
-    </div>
-  );
-}
 
-function fmtLivello(driver: DriverContext): string {
-  const decimals = Math.abs(driver.level) >= 100 ? 1 : 2;
-  return `${fmtIt(driver.level, decimals)} ${driver.unit}`;
-}
-
-function BloccoDriver({ drivers }: { drivers: DriverContext[] }) {
-  if (drivers.length === 0) return null;
-  return (
-    <div className="flex flex-col gap-3">
-      <PanelLabel>Contesto driver — ciascuno da solo, mai sommati</PanelLabel>
-      {drivers.map((d) => (
-        <div key={d.label} className="flex flex-col gap-1.5">
-          <div className="flex flex-wrap items-baseline justify-between gap-x-2 gap-y-0.5">
-            <span className="text-sm font-semibold text-[var(--md-text)]">
-              {d.label}
-            </span>
-            <span className="md-mono text-xs text-[var(--md-text)]">
-              {fmtLivello(d)}
-            </span>
-          </div>
-          <RigaStatistica
-            banda={d.band}
-            percentile={d.percentile}
-            sentence={d.sentence}
-            chips={[
-              ...(d.zLevel !== null ? [`z livello ${fmtIt(d.zLevel, 1)}`] : []),
-              ...(d.zDelta !== null ? [`z var. 20 sedute ${fmtIt(d.zDelta, 1)}`] : []),
-            ]}
-          />
+        <div>
+          <PanelLabel>Il grafico</PanelLabel>
+          <p className="mt-1">
+            Ogni linea è una serie a sé: lo strumento (tratto più spesso), i
+            suoi pari di paniere e i suoi driver macro. Le linee non sono
+            prezzi: ogni giorno la variazione della serie viene divisa per la
+            sua volatilità abituale e sommata alla precedente, partendo da zero
+            a inizio finestra. È questo che permette di mettere sullo stesso
+            asse un metallo, un indice azionario e un rendimento
+            obbligazionario. Una linea più in alto vuol dire che quella serie si
+            è mossa meglio <em>in rapporto alla propria storia</em>, non che
+            valga di più. La finestra è sempre degli ultimi dodici mesi, e il
+            numero nella pillola a fine linea è il punto d&apos;arrivo di
+            ciascuna. Con i pulsanti sotto il grafico si accende e si spegne
+            ogni linea.
+          </p>
         </div>
-      ))}
-    </div>
+
+        {drivers.length > 0 ? (
+          <div>
+            <PanelLabel>Cosa vuol dire che un driver sale</PanelLabel>
+            <p className="mb-1.5 mt-1 text-xs text-[var(--md-muted)]">
+              Nessun driver è disegnato col segno invertito per farlo sembrare
+              allineato allo strumento: ognuno sale nella sua direzione
+              naturale, ed è qui che si trova la chiave di lettura.
+            </p>
+            <ul className="flex flex-col gap-0.5">
+              {drivers.map((d) => (
+                <li key={d.label} className="text-sm">
+                  <span className="font-semibold text-[var(--md-text)]">
+                    {d.label}
+                  </span>
+                  : {d.risingMeans}.
+                </li>
+              ))}
+            </ul>
+          </div>
+        ) : null}
+
+        <div>
+          <PanelLabel>Il blocco sotto il grafico</PanelLabel>
+          <p className="mt-1">
+            C&apos;è una voce per ogni linea del grafico — i pari di paniere
+            come i driver macro — e dice se il legame storico con lo strumento
+            si sta confermando o si sta indebolendo adesso, confrontando la
+            correlazione delle ultime {CORRELATION_WINDOW} sedute con tutta la
+            sua storia. Serve a sapere quando smettere di fidarsi di un
+            riferimento, non a suggerire un&apos;operazione. Il segno della
+            relazione non viene mai dato per scontato: si mostra quello
+            osservato.
+          </p>
+        </div>
+      </div>
+    </details>
   );
 }
+
+/* ═══════════════ Stabilità delle relazioni (invariato) ═══════════════ */
 
 function BloccoRelazioni({ relations }: { relations: RelationStability[] }) {
   if (relations.length === 0) return null;
   return (
     <div className="flex flex-col gap-3">
-      <PanelLabel>Stabilità delle relazioni (60 sedute)</PanelLabel>
+      <PanelLabel>
+        Stabilità delle relazioni ({CORRELATION_WINDOW} sedute)
+      </PanelLabel>
       {relations.map((r) => (
         <div key={r.label} className="flex flex-col gap-1.5">
           <div className="flex flex-wrap items-baseline justify-between gap-x-2 gap-y-0.5">
@@ -200,20 +149,38 @@ function BloccoRelazioni({ relations }: { relations: RelationStability[] }) {
               ρ {fmtIt(r.rho, 2)}
             </span>
           </div>
-          <RigaStatistica
-            banda={r.band}
-            percentile={r.percentile}
-            sentence={r.sentence}
-          />
+          {r.band !== null ? (
+            <span
+              className="md-mono self-start rounded px-1.5 py-0.5 text-2xs font-bold"
+              style={{
+                color: COLORE_BANDA[r.band],
+                border: `1px solid ${COLORE_BANDA[r.band]}`,
+              }}
+            >
+              {r.band}
+            </span>
+          ) : null}
+          {r.percentile !== null ? (
+            <RangeBar
+              position={r.percentile}
+              color={r.band ? COLORE_BANDA[r.band] : "var(--md-text-2)"}
+              ticks={CONFINI_BANDE}
+              ariaLabel={`Posizione nel range storico: ${Math.round(r.percentile)} su 100`}
+            />
+          ) : null}
+          <p className="text-sm leading-relaxed text-[var(--md-text-2)]">
+            {r.sentence}
+          </p>
           <p className="text-xs leading-relaxed text-[var(--md-muted)]">
-            {r.signSentence}. Il segno si misura, non si assume: quando la
-            relazione si indebolisce è la barra a dirlo.
+            {r.signSentence}.
           </p>
         </div>
       ))}
     </div>
   );
 }
+
+/* ═══════════════ Scheda strumento ═══════════════ */
 
 function SchedaStrumento({
   card,
@@ -224,7 +191,7 @@ function SchedaStrumento({
 }) {
   return (
     <div
-      className="md-card md-card-hover md-fade flex flex-col overflow-hidden"
+      className="md-card md-fade flex flex-col overflow-hidden"
       style={fade(indice + 1)}
     >
       <div className="h-[3px]" style={{ backgroundColor: card.colorToken }} />
@@ -242,35 +209,31 @@ function SchedaStrumento({
         </div>
 
         <p className="md-mono text-[11px] leading-relaxed text-[var(--md-muted)]">
-          dati al {card.calendar.end} · storia comune dal {card.calendar.start} ·{" "}
-          {card.calendar.sessions} sedute (solo giorni con TUTTE le serie
-          quotate, mai riempimenti)
+          dati al {card.calendar.end} · confronti calcolati sulla storia comune
+          dal {card.calendar.start} ({card.calendar.sessions} sedute in cui
+          tutte le serie hanno quotato)
         </p>
 
-        {card.missing.map((m) => (
-          <AssenzaDichiarata key={m.label} item={m} />
-        ))}
+        {card.chart ? (
+          <DriverDeskChart dates={card.chart.dates} series={card.chart.series} />
+        ) : null}
 
-        <BloccoForza
-          strength={card.strength}
-          unavailable={card.strengthUnavailable}
-        />
-        <div
-          className="border-t"
-          style={{ borderColor: "var(--md-border)" }}
-          aria-hidden
-        />
-        <BloccoDriver drivers={card.drivers} />
-        <div
-          className="border-t"
-          style={{ borderColor: "var(--md-border)" }}
-          aria-hidden
-        />
-        <BloccoRelazioni relations={card.relations} />
+        {card.relations.length > 0 ? (
+          <>
+            <div
+              className="border-t"
+              style={{ borderColor: "var(--md-border)" }}
+              aria-hidden
+            />
+            <BloccoRelazioni relations={card.relations} />
+          </>
+        ) : null}
 
         {card.freshnessNote ? (
-          <p className="mt-auto border-t pt-2 text-[11px] leading-relaxed text-[var(--md-muted)]"
-             style={{ borderColor: "var(--md-border)" }}>
+          <p
+            className="mt-auto border-t pt-2 text-[11px] leading-relaxed text-[var(--md-muted)]"
+            style={{ borderColor: "var(--md-border)" }}
+          >
             {card.freshnessNote}
           </p>
         ) : null}
@@ -279,22 +242,28 @@ function SchedaStrumento({
   );
 }
 
-export function DriverDeskPanel({ data }: { data: DriverDeskData }) {
-  const { cards, errors, coverage, empty } = data;
+/* ═══════════════ Pannello ═══════════════ */
 
-  if (empty) {
+export function DriverDeskPanel({ data }: { data: DriverDeskData }) {
+  const { cards, coverage, empty } = data;
+
+  /* Unico messaggio rimasto in tutto il modulo, e non riguarda un componente
+     mancante: dice che l'intera tabella è vuota, cioè che su questo ambiente
+     l'ingest non è mai stato eseguito. Senza, il tab sarebbe una pagina bianca
+     senza spiegazione. */
+  if (empty || cards.length === 0) {
     return (
       <div className="md-card p-4 text-xs text-[var(--md-muted)]">
-        Driver Desk non disponibile: nessuna serie in tabella (l&apos;ingest non è
-        ancora stato eseguito su questo ambiente).
+        Driver Desk non disponibile: nessuna serie in tabella su questo
+        ambiente.
       </div>
     );
   }
 
   const fonti = coverage
     .filter((c) => c.source !== null)
-    .map((c) => c.source as string);
-  const fontiUniche = [...new Set(fonti.map((f) => f.split(" ")[0]))];
+    .map((c) => (c.source as string).split(" ")[0]);
+  const fontiUniche = [...new Set(fonti)];
   const ultimoIngest = coverage
     .map((c) => c.updatedAt)
     .filter(Boolean)
@@ -303,40 +272,9 @@ export function DriverDeskPanel({ data }: { data: DriverDeskData }) {
 
   return (
     <div className="flex flex-col gap-3">
-      <Callout
-        label="Driver Desk — forza, contesto e relazioni"
-        color="var(--md-info)"
-        className="md-card p-4"
-      >
-        Per ciascuno strumento: quanto è forte rispetto ai suoi pari, in che
-        contesto macro si trova, e quanto le relazioni con i suoi driver stanno
-        effettivamente reggendo adesso. È una fotografia descrittiva, come il
-        pannello di posizionamento: ogni numero è confrontato solo con la
-        propria storia, paniere e driver restano separati, e non c&apos;è nessuna
-        indicazione su dove andrà il prezzo.
-      </Callout>
+      <ComeSiLegge cards={cards} />
 
-      {errors.map((e) => (
-        <div
-          key={e.id}
-          className="flex items-start gap-2.5 rounded-[var(--md-r-md)] border px-3.5 py-2.5 text-xs leading-relaxed"
-          style={{
-            borderColor: "var(--md-border)",
-            backgroundColor: "var(--md-surface)",
-          }}
-        >
-          <AlertTriangle
-            className="mt-0.5 size-3.5 shrink-0"
-            style={{ color: "var(--md-warn)" }}
-            aria-hidden
-          />
-          <span className="text-[var(--md-text-2)]">
-            Scheda {e.id} non disponibile: {e.error}
-          </span>
-        </div>
-      ))}
-
-      <div className="grid gap-3 xl:grid-cols-3">
+      <div className="flex flex-col gap-3">
         {cards.map((card, i) => (
           <SchedaStrumento key={card.id} card={card} indice={i} />
         ))}
@@ -344,8 +282,7 @@ export function DriverDeskPanel({ data }: { data: DriverDeskData }) {
 
       <p className="md-mono text-[11px] leading-relaxed text-[var(--md-muted)]">
         Fonti: {fontiUniche.join(", ")} — la fonte esatta di ogni serie è
-        registrata e dichiarata; ogni posizione nel range è calcolata sulla
-        storia comune della sua scheda (data dichiarata sulla scheda).
+        registrata insieme al dato.
         {ultimoIngest
           ? ` Ultimo aggiornamento dati: ${ultimoIngest.slice(0, 10)}.`
           : ""}{" "}

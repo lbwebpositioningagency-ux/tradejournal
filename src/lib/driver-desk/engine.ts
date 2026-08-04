@@ -232,6 +232,65 @@ export function rollingCorrelation(
   return out;
 }
 
+/* ─────────── Indice cumulato standardizzato (grafico, R2) ─────────── */
+
+/** Finestra del grafico di forza relativa: ultimi 12 mesi, fissa. */
+export const CHART_WINDOW_DAYS = 365;
+
+/**
+ * Indice cumulato in UNITÀ COMPARABILI, per mettere sullo stesso asse serie
+ * con unità diverse (dollari, punti indice, punti percentuali).
+ *
+ * Ogni variazione giornaliera viene divisa per la deviazione standard
+ * STORICA della serie stessa — cioè misurata su tutta la storia comune della
+ * scheda, non solo sulla finestra mostrata — e poi sommata progressivamente
+ * partendo da 0. Una linea più in alto significa quindi «si è mosso meglio in
+ * rapporto alla propria volatilità abituale», non «è salito di più in euro».
+ *
+ * NON si sottrae la media delle variazioni. La normalizzazione richiesta è
+ * per la sola deviazione standard: togliere anche la deriva storica
+ * trasformerebbe ogni linea nel residuo rispetto al proprio trend di lungo
+ * periodo — un oggetto diverso, più difficile da spiegare in linguaggio piano
+ * e capace di ribaltare l'ordine visivo delle linee. Restare sulla scala
+ * grezza è la scelta conservativa: le linee dicono cosa è successo davvero,
+ * solo riportato a una scala comune.
+ *
+ * Le serie restano SEMPRE distinte: non si sommano mai fra loro in un unico
+ * indicatore (vincolo «niente compositi» della spec).
+ *
+ * Restituisce `windowChanges.length + 1` valori: il primo è 0, cioè l'inizio
+ * della finestra.
+ */
+export function cumulativeStandardizedIndex(
+  windowChanges: number[],
+  sd: number,
+): number[] {
+  if (!(sd > 0)) {
+    throw new Error("cumulativeStandardizedIndex: σ non positiva");
+  }
+  const out: number[] = [0];
+  let acc = 0;
+  for (const c of windowChanges) {
+    acc += c / sd;
+    out.push(acc);
+  }
+  return out;
+}
+
+/**
+ * Indice della prima data che cade dentro la finestra di `days` giorni
+ * CIVILI a ritroso dall'ultima data. Lavora sulle stringhe ISO: il confronto
+ * lessicografico su "YYYY-MM-DD" è già cronologico.
+ */
+export function windowStartIndex(dates: string[], days: number): number {
+  if (dates.length === 0) return 0;
+  const end = new Date(`${dates[dates.length - 1]}T00:00:00Z`);
+  end.setUTCDate(end.getUTCDate() - days);
+  const cutoff = end.toISOString().slice(0, 10);
+  const i = dates.findIndex((d) => d >= cutoff);
+  return i === -1 ? dates.length - 1 : i;
+}
+
 /* ──────────────────── Bande verbali (§3.4) ──────────────────── */
 
 export type DriverBanda =
