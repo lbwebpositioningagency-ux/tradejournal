@@ -31,18 +31,20 @@ import { cn } from "@/lib/utils";
  * l'etichetta e il poligono.
  */
 
-/* Il poligono occupa più box di prima (raggio 70 → 82 su una viewBox più
-   bassa): a parità di larghezza della card il radar si vede più grande, e
-   il box più corto lo alza sotto al titolo. Le etichette si sono avvicinate
-   al vertice (1,16 → 1,06 del raggio) proprio per lasciargli il posto senza
-   uscire dalla card, che ritaglia ciò che sborda. */
+/* Raggio 62 su un viewBox più corto: la card Score deve essere PICCOLA —
+   richiesta esplicita dopo due round in cui il radar cresceva. I pallini
+   sui vertici restano: sono loro che distinguono il poligono-dato dal ring
+   della griglia quando i fattori toccano il 100. */
 const CX = 160;
-const CY = 100;
-const RADIUS = 82;
+const CY = 90;
+const RADIUS = 62;
 const VIEW_W = 320;
-const VIEW_H = 192;
-/** Distanza dell'etichetta dal centro, in frazioni di raggio. */
-const LABEL_R = 1.06;
+const VIEW_H = 176;
+/** Distanza dell'etichetta dal centro, in frazioni di raggio: il prodotto
+ * RADIUS × LABEL_R (~81px di viewBox) è INVARIATO da tre versioni — le
+ * etichette stanno ferme mentre il poligono cambia taglia, quindi non
+ * possono uscire dalla card oggi se non uscivano ieri. */
+const LABEL_R = 1.31;
 /** Anelli della griglia esagonale, come frazioni del raggio (25/50/75/100). */
 const GRID_LEVELS = [0.25, 0.5, 0.75, 1];
 
@@ -128,17 +130,42 @@ export function ScoreRadar({ result }: { result: RadarScore | null }) {
               />
             );
           })}
-          {/* Area dei fattori: accento primario, contorno netto */}
+          {/* Area dei fattori: accento primario, contorno netto.
+
+              I PALLINI sui vertici non sono decorazione: con uno score alto
+              il poligono quasi coincide col ring esterno della griglia — lo
+              stroke lo copre dove i fattori valgono 100 e lo lascia spuntare
+              dove valgono meno, e quel ring che appare a tratti si legge
+              come un contorno fantasma sfalsato (difetto vero, visto in
+              produzione). Il pallino dichiara «qui c'è un dato»: la griglia
+              resta griglia, il poligono resta misura. */}
           {result !== null ? (
-            <polygon
-              points={polygonPoints(fractions)}
-              fill="var(--primary)"
-              fillOpacity={lowSample ? 0.14 : 0.28}
-              stroke="var(--primary)"
-              strokeWidth={2}
-              strokeOpacity={lowSample ? 0.55 : 1}
-              strokeLinejoin="round"
-            />
+            <>
+              <polygon
+                points={polygonPoints(fractions)}
+                fill="var(--primary)"
+                fillOpacity={lowSample ? 0.14 : 0.28}
+                stroke="var(--primary)"
+                strokeWidth={2}
+                strokeOpacity={lowSample ? 0.55 : 1}
+                strokeLinejoin="round"
+              />
+              {fractions.map((r, i) => {
+                const [x, y] = vertex(i, r);
+                return (
+                  <circle
+                    key={SCORE_FACTOR_KEYS[i]}
+                    cx={x}
+                    cy={y}
+                    r={3}
+                    fill="var(--primary)"
+                    stroke="var(--card)"
+                    strokeWidth={1.5}
+                    opacity={lowSample ? 0.55 : 1}
+                  />
+                );
+              })}
+            </>
           ) : null}
         </svg>
 

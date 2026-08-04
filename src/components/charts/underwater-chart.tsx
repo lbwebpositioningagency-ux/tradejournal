@@ -12,14 +12,6 @@ import type { UnderwaterPoint } from "@/lib/metrics";
 import { formatDayKey } from "@/lib/dates";
 import { CHART } from "@/components/charts/chart-spec";
 import { useChartAnimation } from "@/components/charts/use-chart-animation";
-import {
-  domainFromValues,
-  useChartZoom,
-} from "@/components/charts/use-chart-zoom";
-import {
-  ChartZoomControls,
-  ZoomBrush,
-} from "@/components/charts/chart-zoom";
 
 /**
  * W4 — underwater plot: area rossa sotto lo zero, profondità = drawdown %
@@ -27,10 +19,18 @@ import {
  */
 export function UnderwaterChart({
   points,
-  height = CHART.height,
+  fill = false,
 }: {
   points: UnderwaterPoint[];
-  height?: number;
+  /**
+   * A `true` il grafico riempie il 100% dello spazio del contenitore invece
+   * dell'altezza standard. Non è un numero fisso DI PROPOSITO: nella riga
+   * alta della dashboard la card viene stirata dalla griglia all'altezza
+   * della vicina, e qualunque pixel fisso lascerebbe un vuoto sotto il
+   * grafico appena la vicina cambia taglia — è già successo due volte.
+   * Richiede un genitore con altezza risolta (flex-1 dentro la card).
+   */
+  fill?: boolean;
 }) {
   const animate = useChartAnimation();
   const data = points.map((p) => ({
@@ -38,18 +38,14 @@ export function UnderwaterChart({
     // frazione ≤ 0 → percentuale per il rendering
     pct: Number(p.ddPct) * 100,
   }));
-  /* Il drawdown è sempre ≤ 0: lo zero deve restare nel dominio, altrimenti
-     l'area perde il suo bordo superiore e il grafico non si legge più. */
-  const zoom = useChartZoom({
-    dataLength: data.length,
-    base: domainFromValues([0, ...data.map((d) => d.pct)]),
-  });
   return (
-    <div className="flex flex-col gap-2">
-      <div className="flex justify-end">
-        <ChartZoomControls zoom={zoom} />
-      </div>
-    <ResponsiveContainer width="100%" height={height}>
+    <ResponsiveContainer
+      width="100%"
+      height={fill ? "100%" : CHART.height}
+      // Sotto i 160px il grafico non è più leggibile: meglio far crescere
+      // la card che schiacciare l'area a una striscia.
+      minHeight={fill ? 160 : undefined}
+    >
       <AreaChart data={data} margin={CHART.margin}>
         <defs>
           <linearGradient id="underwater-fill" x1="0" y1="0" x2="0" y2="1">
@@ -70,14 +66,7 @@ export function UnderwaterChart({
           tickLine={false}
           axisLine={false}
           width={CHART.yAxisWidth}
-          domain={zoom.yDomain}
-          allowDataOverflow
-          tickFormatter={(v: number) => `${v.toLocaleString("it-IT", { maximumFractionDigits: 1 })}%`}
-        />
-        <ZoomBrush
-          zoom={zoom}
-          dataKey="day"
-          tickFormatter={((v: string) => formatDayKey(v)) as never}
+          tickFormatter={(v: number) => `${v}%`}
         />
         <Tooltip
           formatter={(value: number | string | readonly (number | string)[] | undefined) =>
@@ -99,6 +88,5 @@ export function UnderwaterChart({
         />
       </AreaChart>
     </ResponsiveContainer>
-    </div>
   );
 }
