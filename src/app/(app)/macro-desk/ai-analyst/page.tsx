@@ -6,6 +6,7 @@ import { ArrowLeft } from "lucide-react";
 import { auth } from "@/lib/auth";
 import { cn } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
+import { MacroDeskSectionNav } from "@/components/macro-desk/section-nav";
 import { AiAnalystView } from "@/components/macro-desk/ai-analyst-view";
 import { buildDossier } from "@/lib/ai-analyst/dossier";
 import { parseAiAnalystInstrument } from "@/lib/ai-analyst/instruments";
@@ -77,24 +78,27 @@ export default async function AiAnalystPage({
 
   return (
     <div className="flex flex-col gap-4">
-      <div>
-        <Link
-          href="/macro-desk"
-          className="mb-1 inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground"
-        >
-          <ArrowLeft className="size-4" />
-          Macro Desk
-        </Link>
-        <h1 className="page-title flex flex-wrap items-center gap-2.5">
-          AI Analyst
-          <Badge variant="outline">carattere della giornata, non direzione</Badge>
-        </h1>
-        <p className="page-subtitle">
-          Una lettura d&apos;insieme di ciò che le sezioni del Macro Desk dicono
-          oggi: quanto ampiamente lo strumento tende a muoversi in condizioni
-          come queste, su che campione lo sappiamo e che cosa invece non
-          sappiamo. Non dice mai se il prezzo salirà o scenderà.
-        </p>
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div className="min-w-0">
+          <Link
+            href="/macro-desk"
+            className="mb-1 inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground"
+          >
+            <ArrowLeft className="size-4" />
+            Macro Desk
+          </Link>
+          <h1 className="page-title flex flex-wrap items-center gap-2.5">
+            AI Analyst
+            <Badge variant="outline">carattere della giornata, non direzione</Badge>
+          </h1>
+          <p className="page-subtitle">
+            Una lettura d&apos;insieme di ciò che le sezioni del Macro Desk dicono
+            oggi: quanto ampiamente lo strumento tende a muoversi in condizioni
+            come queste, su che campione lo sappiamo e che cosa invece non
+            sappiamo. Non dice mai se il prezzo salirà o scenderà.
+          </p>
+        </div>
+        <MacroDeskSectionNav active="ai-analyst" />
       </div>
 
       <div

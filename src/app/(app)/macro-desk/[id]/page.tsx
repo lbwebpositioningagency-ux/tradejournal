@@ -6,8 +6,6 @@ import { ArrowLeft } from "lucide-react";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { parseMacroPayload } from "@/lib/macro-desk-payload";
-import { caricaPannelloCot } from "@/lib/queries/cot-panel";
-import { getDriverDeskData } from "@/lib/queries/driver-desk";
 import { cn } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
 import { MacroReportDetail } from "@/components/macro-desk/report-detail";
@@ -47,11 +45,7 @@ export default async function MacroReportPage({
   if (!session?.user?.id) redirect("/login");
 
   const { id } = await params;
-  const [report, cotPanel, driverDesk] = await Promise.all([
-    prisma.macroDeskReport.findUnique({ where: { id } }),
-    caricaPannelloCot(),
-    getDriverDeskData(),
-  ]);
+  const report = await prisma.macroDeskReport.findUnique({ where: { id } });
   if (!report) notFound();
 
   const payload = parseMacroPayload(report.payload);
@@ -65,12 +59,13 @@ export default async function MacroReportPage({
     <div className="flex flex-col gap-4">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
+          {/* Si arriva qui dallo storico: il ritorno è alla sezione Report. */}
           <Link
-            href="/macro-desk"
+            href="/macro-desk/report"
             className="mb-1 inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground"
           >
             <ArrowLeft className="size-4" />
-            Macro Desk
+            Report
           </Link>
           <h1 className="page-title flex flex-wrap items-center gap-2.5">
             Report {report.type === "DAILY" ? "giornaliero" : "settimanale"}
@@ -93,12 +88,7 @@ export default async function MacroReportPage({
         )}
         style={{ borderColor: "var(--md-border)" }}
       >
-        <MacroReportDetail
-          payload={payload}
-          biasRecord={report.biasRecord}
-          cotPanel={cotPanel}
-          driverDesk={driverDesk}
-        />
+        <MacroReportDetail payload={payload} />
       </div>
     </div>
   );

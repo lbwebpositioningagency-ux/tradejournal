@@ -4,17 +4,16 @@ import { redirect } from "next/navigation";
 import { Inter, JetBrains_Mono } from "next/font/google";
 import { ArrowLeft } from "lucide-react";
 import { auth } from "@/lib/auth";
-import { getScorecardSource } from "@/lib/queries/macro-scorecard-em";
-import { resolveWeeks } from "@/lib/macro-desk-scorecard-em";
+import { caricaPannelloCot } from "@/lib/queries/cot-panel";
 import { cn } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
+import { CotPanel } from "@/components/macro-desk/cot-panel";
 import { MacroDeskSectionNav } from "@/components/macro-desk/section-nav";
-import { ScorecardEmView } from "@/components/macro-desk/scorecard-em-view";
 
-export const metadata: Metadata = { title: "Scorecard Macro Desk" };
+export const metadata: Metadata = { title: "Posizionamento · Macro Desk" };
 
-/* Stessa identità tipografica del dettaglio report: Inter per la UI,
-   JetBrains Mono per tutti i numeri (variabili consumate da .macro-report). */
+/* Identità tipografica del terminale: Inter per la UI, JetBrains Mono per
+   TUTTI i dati numerici/ticker/date (variabili consumate dai token in CSS). */
 const fontUi = Inter({
   subsets: ["latin"],
   weight: ["400", "500", "600", "700", "800"],
@@ -26,12 +25,19 @@ const fontMono = JetBrains_Mono({
   variable: "--md-font-mono",
 });
 
-export default async function MacroScorecardPage() {
+/**
+ * Posizionamento (COT) — sezione di primo livello.
+ *
+ * Legge dalla propria fonte, le tabelle `CotWeek`/`CotContestoBox` popolate dal
+ * job settimanale: non tocca `MacroDeskReport`, quindi la pagina resta piena
+ * anche se non esiste nessun report. Quando la tabella è vuota è il pannello
+ * stesso a dirlo.
+ */
+export default async function MacroPosizionamentoPage() {
   const session = await auth();
   if (!session?.user?.id) redirect("/login");
 
-  const source = await getScorecardSource();
-  const weeks = resolveWeeks(source.records);
+  const pannello = await caricaPannelloCot();
 
   return (
     <div className="flex flex-col gap-4">
@@ -45,33 +51,28 @@ export default async function MacroScorecardPage() {
             Macro Desk
           </Link>
           <h1 className="page-title flex flex-wrap items-center gap-2.5">
-            Scorecard
-            <Badge variant="outline">settimanale · Expected Move</Badge>
+            Posizionamento
+            <Badge variant="outline">COT · settimanale</Badge>
           </h1>
           <p className="page-subtitle">
-            I bias ci prendono? Il desk dichiara un orizzonte settimanale, quindi
-            ogni bias è valutato sulla settimana intera, misurato in Expected
-            Move dell&apos;asset.
+            Come sono messi commercial e speculatori sui futures, quanto è
+            estremo il posizionamento rispetto al proprio storico e da quanto
+            tempo lo è.
           </p>
         </div>
-        <MacroDeskSectionNav active="scorecard" />
+        <MacroDeskSectionNav active="posizionamento" />
       </div>
 
       {/* Terminale: identità visiva propria, scoped a .macro-report */}
       <div
         className={cn(
-          "macro-report overflow-hidden rounded-[var(--md-r-lg)] border",
+          "macro-report overflow-hidden rounded-[var(--md-r-lg)] border p-4 sm:p-6",
           fontUi.variable,
           fontMono.variable,
         )}
         style={{ borderColor: "var(--md-border)" }}
       >
-        <ScorecardEmView
-          weeks={weeks}
-          eligibleReports={source.eligibleReports}
-          excludedReports={source.excludedReports}
-          trackRecordStart={source.trackRecordStart}
-        />
+        <CotPanel pannello={pannello} />
       </div>
     </div>
   );

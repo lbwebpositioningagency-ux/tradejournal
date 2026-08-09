@@ -1,252 +1,64 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import {
-  CalendarRange,
-  ChartSpline,
-  ChevronRight,
-  Globe,
-  Sparkles,
-  Target,
-} from "lucide-react";
+import { ChevronRight } from "lucide-react";
 import { auth } from "@/lib/auth";
-import { prisma } from "@/lib/db";
-import { BIAS_SHORT_LABELS, biasColorClass } from "@/lib/macro-desk";
-import { cn } from "@/lib/utils";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
-import {
-  Card,
-  CardContent,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
-import { EmptyState } from "@/components/empty-state";
+import { Card, CardContent } from "@/components/ui/card";
+import { MACRO_DESK_SECTIONS } from "@/components/macro-desk/section-nav";
 
 export const metadata: Metadata = { title: "Macro Desk" };
 
-const ASSET_LABELS = [
-  { key: "Xau", label: "Oro (XAUUSD)" },
-  { key: "Wti", label: "Petrolio (WTI)" },
-  { key: "Idx", label: "Indici" },
-] as const;
-
-type ReportRow = {
-  id: string;
-  type: "DAILY" | "WEEKLY";
-  reportDate: Date;
-  generatedAt: Date;
-  biasXau: string;
-  biasWti: string;
-  biasIdx: string;
-  confidenceXau: number;
-  confidenceWti: number;
-  confidenceIdx: number;
-  summary: string | null;
-};
-
-/** reportDate è DATE a mezzanotte UTC: label formattata in UTC, mai slittata. */
-function reportDateLabel(date: Date, long = false): string {
-  return new Intl.DateTimeFormat("it-IT", {
-    day: "numeric",
-    month: long ? "long" : "short",
-    year: "numeric",
-    timeZone: "UTC",
-  }).format(date);
-}
-
-function assetFields(report: ReportRow, key: (typeof ASSET_LABELS)[number]["key"]) {
-  return {
-    bias: report[`bias${key}`],
-    confidence: report[`confidence${key}`],
-  };
-}
-
-function LatestReportCard({
-  title,
-  report,
-}: {
-  title: string;
-  report: ReportRow | null;
-}) {
-  const card = (
-    <Card
-      className={cn(
-        report && "transition-colors hover:border-primary/40 hover:bg-accent/40",
-      )}
-    >
-      <CardHeader className="flex flex-row flex-wrap items-center justify-between gap-2">
-        <CardTitle className="stat-label">{title}</CardTitle>
-        {report ? (
-          <span className="text-xs text-muted-foreground">
-            {reportDateLabel(report.reportDate, true)}
-          </span>
-        ) : null}
-      </CardHeader>
-      <CardContent>
-        {!report ? (
-          <EmptyState
-            icon={Globe}
-            title="Nessun report ancora"
-            description="Arriverà dal sistema esterno via API."
-            compact
-          />
-        ) : (
-          <div className="flex flex-col gap-4">
-            <div className="grid gap-4 sm:grid-cols-3">
-              {ASSET_LABELS.map(({ key, label }) => {
-                const { bias, confidence } = assetFields(report, key);
-                return (
-                  <div key={key} className="flex flex-col gap-1">
-                    <span className="stat-label">{label}</span>
-                    <span className={cn("stat-value", biasColorClass(bias))}>
-                      {bias}
-                    </span>
-                    <span className="stat-sub">Confidenza {confidence}%</span>
-                  </div>
-                );
-              })}
-            </div>
-            {report.summary ? (
-              <p className="text-sm text-muted-foreground">{report.summary}</p>
-            ) : null}
-          </div>
-        )}
-      </CardContent>
-    </Card>
-  );
-
-  // Card cliccabile solo quando c'è un report: porta al dettaglio a schede.
-  return report ? (
-    <Link
-      href={`/macro-desk/${report.id}`}
-      aria-label={`Apri il dettaglio: ${title}`}
-      className="block"
-    >
-      {card}
-    </Link>
-  ) : (
-    card
-  );
-}
-
+/**
+ * Indice del Macro Desk: otto sezioni di pari livello, niente altro.
+ *
+ * Qui non si legge un solo dato di mercato — nessuna query, nessun report.
+ * L'ultimo giornaliero, l'ultimo settimanale e lo storico vivono nella sezione
+ * "Report" (`/macro-desk/report`), che è una sezione come le altre.
+ */
 export default async function MacroDeskPage() {
   const session = await auth();
   if (!session?.user?.id) redirect("/login");
 
-  const [latestDaily, latestWeekly, history] = await Promise.all([
-    prisma.macroDeskReport.findFirst({
-      where: { type: "DAILY" },
-      orderBy: { reportDate: "desc" },
-    }),
-    prisma.macroDeskReport.findFirst({
-      where: { type: "WEEKLY" },
-      orderBy: { reportDate: "desc" },
-    }),
-    prisma.macroDeskReport.findMany({
-      orderBy: [{ reportDate: "desc" }, { type: "asc" }],
-      take: 20,
-    }),
-  ]);
-
-  const hasAny = history.length > 0;
-
   return (
     <div className="flex flex-col gap-4">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div>
-          <h1 className="page-title">Macro Desk</h1>
-          <p className="page-subtitle">
-            Bias macro giornaliero e settimanale su oro, petrolio e indici
-          </p>
-        </div>
-        <div className="flex items-center gap-2">
-          <Button asChild variant="outline">
-            <Link href="/macro-desk/trends">
-              <ChartSpline className="size-4" />
-              Trends
-            </Link>
-          </Button>
-          <Button asChild variant="outline">
-            <Link href="/macro-desk/scorecard">
-              <Target className="size-4" />
-              Scorecard
-            </Link>
-          </Button>
-          <Button asChild variant="outline">
-            <Link href="/macro-desk/stagionalita">
-              <CalendarRange className="size-4" />
-              Stagionalità
-            </Link>
-          </Button>
-          <Button asChild variant="outline">
-            <Link href="/macro-desk/ai-analyst">
-              <Sparkles className="size-4" />
-              AI Analyst
-            </Link>
-          </Button>
-        </div>
+      <div>
+        <h1 className="page-title">Macro Desk</h1>
+        <p className="page-subtitle">
+          Otto sezioni indipendenti: ognuna ha i suoi dati, i suoi calcoli e i
+          suoi aggiornamenti.
+        </p>
       </div>
 
-      {!hasAny ? (
-        <EmptyState
-          icon={Globe}
-          title="Nessun report macro ancora"
-          description="I report arrivano dal sistema esterno via API (POST /api/macro-desk): appena ne riceve uno, lo vedi qui."
-        />
-      ) : (
-        <>
-          <div className="grid gap-4 xl:grid-cols-2">
-            <LatestReportCard title="Ultimo report giornaliero" report={latestDaily} />
-            <LatestReportCard title="Ultimo report settimanale" report={latestWeekly} />
-          </div>
-
-          <Card>
-            <CardHeader>
-              <CardTitle className="stat-label">Storico recente</CardTitle>
-            </CardHeader>
-            <CardContent className="flex flex-col gap-1">
-              {/* F48 — etichette leggibili (niente "RIAL/RIBA/NEUT") e
-                  affordance di click esplicita (freccia + bordo hover) */}
-              {history.map((report) => (
-                <Link
-                  key={report.id}
-                  href={`/macro-desk/${report.id}`}
-                  className="group flex flex-wrap items-center justify-between gap-2 rounded-md border border-transparent px-2 py-1.5 text-sm transition-colors hover:border-border hover:bg-accent"
-                >
-                  <span className="flex items-center gap-2">
-                    <Badge variant={report.type === "DAILY" ? "secondary" : "outline"}>
-                      {report.type === "DAILY" ? "Daily" : "Weekly"}
-                    </Badge>
-                    <span className="whitespace-nowrap text-muted-foreground">
-                      {reportDateLabel(report.reportDate)}
+      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+        {MACRO_DESK_SECTIONS.map((section) => {
+          const Icon = section.icon;
+          return (
+            <Link
+              key={section.key}
+              href={section.href}
+              className="group block h-full rounded-xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+            >
+              <Card className="h-full transition-colors group-hover:border-primary/40 group-hover:bg-accent/40">
+                <CardContent className="flex h-full flex-col gap-2">
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="flex items-center gap-2">
+                      <Icon className="size-4 text-primary" aria-hidden />
+                      <span className="font-semibold">{section.label}</span>
                     </span>
-                  </span>
-                  <span className="flex items-center gap-3 tabular-nums">
-                    {ASSET_LABELS.map(({ key, label }) => {
-                      const { bias, confidence } = assetFields(report, key);
-                      return (
-                        <span key={key} className="flex items-center gap-1 text-xs">
-                          <span className="text-muted-foreground">
-                            {label.split(" ")[0]}
-                          </span>
-                          <span className={cn("font-medium", biasColorClass(bias))}>
-                            {BIAS_SHORT_LABELS[bias] ?? bias} {confidence}%
-                          </span>
-                        </span>
-                      );
-                    })}
                     <ChevronRight
-                      className="size-4 text-muted-foreground/50 transition-colors group-hover:text-foreground"
+                      className="size-4 shrink-0 text-muted-foreground/50 transition-colors group-hover:text-foreground"
                       aria-hidden
                     />
-                  </span>
-                </Link>
-              ))}
-            </CardContent>
-          </Card>
-        </>
-      )}
+                  </div>
+                  <p className="text-sm leading-relaxed text-muted-foreground">
+                    {section.description}
+                  </p>
+                </CardContent>
+              </Card>
+            </Link>
+          );
+        })}
+      </div>
     </div>
   );
 }

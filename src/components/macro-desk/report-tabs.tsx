@@ -14,11 +14,8 @@ import {
   type MacroPayload,
   type MacroTone,
 } from "@/lib/macro-desk-payload";
-import { parseWeeklyBiasRecord } from "@/lib/macro-desk-bias-record";
-import { componiIngressi } from "@/lib/termometro-volatilita";
 import { cn } from "@/lib/utils";
 import { BiasGauge } from "./bias-gauge";
-import { TermometroVolatilita } from "./termometro-volatilita";
 import {
   Callout,
   MonoChip,
@@ -139,8 +136,13 @@ function OverviewAssetCard({ asset, index }: { asset: MacroAsset; index: number 
 
 export function OverviewTab({ payload }: { payload: MacroPayload }) {
   const { reportType, lastUpdate, disclaimer, dataIssues, assets, synthesis } = payload;
+  // La sezione Volatilità è un modulo a sé (`/macro-desk/volatilita`) e mostra
+  // SOLO l'ultimo giornaliero. Questo commento invece è testo scritto da QUESTO
+  // report: per gli storici e per i settimanali non comparirebbe da nessun'altra
+  // parte, quindi resta qui invece di essere buttato con il tab.
+  const volReading = payload.volPanel?.reading;
   const hasAnything =
-    reportType || lastUpdate || disclaimer || dataIssues.length > 0 || assets.length > 0 || synthesis;
+    reportType || lastUpdate || disclaimer || dataIssues.length > 0 || assets.length > 0 || synthesis || volReading;
   if (!hasAnything) return <SectionEmpty what="Panoramica" />;
 
   // Solo la severità critica resta in alto; il resto (minor/info/…) va in
@@ -221,8 +223,23 @@ export function OverviewTab({ payload }: { payload: MacroPayload }) {
         </div>
       ) : null}
 
+      {/* Lettura della struttura vol scritta da questo report. I numeri IV
+          stanno nella sezione Volatilità; qui resta il commento del giorno. */}
+      {volReading ? (
+        <div className="md-fade" style={fade(6)}>
+          <Callout label="Lettura della struttura vol" color="var(--md-info)" className="md-card p-5">
+            {volReading}
+            {payload.volPanel?.asOf ? (
+              <span className="md-mono mt-2 block text-xs text-[var(--md-muted)]">
+                {payload.volPanel.asOf}
+              </span>
+            ) : null}
+          </Callout>
+        </div>
+      ) : null}
+
       {/* Data issues non critici: in fondo, sotto la sintesi/conclusione */}
-      <DataIssuesList issues={minorIssues} index={6} />
+      <DataIssuesList issues={minorIssues} index={7} />
     </div>
   );
 }
@@ -393,75 +410,7 @@ export function AssetsTab({ payload }: { payload: MacroPayload }) {
   );
 }
 
-/* ═══════════════ 3 · VOLATILITÀ ═══════════════ */
-
-export function VolatilityTab({
-  payload,
-  biasRecord,
-}: {
-  payload: MacroPayload;
-  /** Weekly Bias Record grezzo: da qui il termometro prende la chiusura di ieri. */
-  biasRecord?: unknown;
-}) {
-  const vol = payload.volPanel;
-  if (!vol || (vol.items.length === 0 && !vol.reading)) {
-    return <SectionEmpty what="Pannello volatilità" />;
-  }
-  return (
-    <div className="flex flex-col gap-4">
-      <TermometroVolatilita
-        ingressi={componiIngressi({
-          volItems: vol.items,
-          biasRecord: parseWeeklyBiasRecord(biasRecord),
-        })}
-        motiviAssenza={{
-          GER40:
-            "l'indice DV1X non è tra quelli raccolti dal report giornaliero: il termometro del DAX resta spento finché non verrà aggiunto",
-        }}
-      />
-      {vol.asOf ? (
-        <p className="md-mono md-fade text-xs leading-relaxed text-[var(--md-muted)]" style={fade(0)}>
-          {vol.asOf}
-        </p>
-      ) : null}
-      {vol.items.length > 0 ? (
-        <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-          {vol.items.map((item, i) => {
-            const tone = dirTone(item.dir);
-            return (
-              <div key={item.k} className="md-card md-card-hover md-fade flex flex-col gap-1.5 p-4" style={fade(i + 1)}>
-                <PanelLabel>{item.k}</PanelLabel>
-                <div className="flex items-baseline gap-2">
-                  <span className="md-mono text-2xl font-bold text-[var(--md-text)]">
-                    {item.v ?? "—"}
-                  </span>
-                  {item.chg ? (
-                    <span className="md-mono flex items-center gap-0.5 text-xs" style={{ color: TONE_COLOR[tone] }}>
-                      <ToneArrow tone={tone} />
-                      {item.chg}
-                    </span>
-                  ) : null}
-                </div>
-                {item.note ? (
-                  <p className="text-xs leading-relaxed text-[var(--md-muted)]">{item.note}</p>
-                ) : null}
-              </div>
-            );
-          })}
-        </div>
-      ) : null}
-      {vol.reading ? (
-        <div className="md-fade" style={fade(vol.items.length + 1)}>
-          <Callout label="Lettura della struttura vol" color="var(--md-info)" className="md-card p-5">
-            {vol.reading}
-          </Callout>
-        </div>
-      ) : null}
-    </div>
-  );
-}
-
-/* ═══════════════ 4 · EVENTI & WATCH ═══════════════ */
+/* ═══════════════ 3 · EVENTI & WATCH ═══════════════ */
 
 function EventCell({ text, accent }: { text?: string; accent: string }) {
   if (!text || text === "—") {

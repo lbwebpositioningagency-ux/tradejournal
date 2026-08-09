@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import { renderToStaticMarkup } from "react-dom/server";
 import sample from "../../../docs/macro-desk-sample-report.json";
 import { parseMacroPayload } from "@/lib/macro-desk-payload";
+import { componiIngressi } from "@/lib/termometro-volatilita";
 import {
   AssetsTab,
   EventsTab,
@@ -9,13 +10,17 @@ import {
   MacroTab,
   NewsTab,
   OverviewTab,
-  VolatilityTab,
 } from "./report-tabs";
+import { VolatilitaPanel } from "./volatilita-panel";
 
 /**
- * Rendering dei 7 tab del dettaglio Macro Desk (renderToStaticMarkup, senza
+ * Rendering dei 6 tab del dettaglio Macro Desk (renderToStaticMarkup, senza
  * DOM): col sample AUTORITATIVO ogni sezione compare; con payload vuoto ogni
  * tab degrada al fallback senza lanciare.
+ *
+ * Volatilità non è più un tab: è la sezione `/macro-desk/volatilita`, resa da
+ * `VolatilitaPanel`. Qui sotto si verifica che la resa sia rimasta identica e
+ * che il commento del giorno, che il tab si portava via, sia in Panoramica.
  */
 
 const full = parseMacroPayload(sample);
@@ -24,7 +29,6 @@ const empty = parseMacroPayload({});
 const TABS = [
   ["OverviewTab", OverviewTab],
   ["AssetsTab", AssetsTab],
-  ["VolatilityTab", VolatilityTab],
   ["EventsTab", EventsTab],
   ["MacroTab", MacroTab],
   ["NewsTab", NewsTab],
@@ -90,8 +94,16 @@ describe("tab con il sample completo", () => {
     expect(html).toContain("186.682"); // valore CoT nel testo
   });
 
-  it("Volatilità: asOf, 7 tessere con valore/chg e lettura", () => {
-    const html = renderToStaticMarkup(<VolatilityTab payload={full} />);
+  it("Volatilità (sezione autonoma): asOf, tessere con valore/chg e lettura", () => {
+    const vol = full.volPanel;
+    const html = renderToStaticMarkup(
+      <VolatilitaPanel
+        ingressi={componiIngressi({ volItems: vol?.items })}
+        items={vol?.items ?? []}
+        reading={vol?.reading}
+        asOf={vol?.asOf}
+      />,
+    );
     expect(html).toContain("Saxo Options Brief"); // asOf
     for (const k of ["VIX", "VVIX", "SKEW", "GVZ", "OVX", "MOVE"]) {
       expect(html).toContain(k);
@@ -100,6 +112,16 @@ describe("tab con il sample completo", () => {
     expect(html).toContain("+3.4%"); // chg OVX
     expect(html).toContain("Lettura della struttura vol");
     expect(html).toContain("VIX1D 13,4"); // reading
+  });
+
+  it("Panoramica: la lettura vol del report NON si perde con la rimozione del tab", () => {
+    const html = renderToStaticMarkup(<OverviewTab payload={full} />);
+    expect(html).toContain("Lettura della struttura vol");
+    expect(html).toContain("VIX1D 13,4"); // reading, ora in Panoramica
+    expect(html).toContain("Saxo Options Brief"); // asOf a corredo
+    // I NUMERI IV restano nella sezione Volatilità: la Panoramica ospita solo
+    // il testo, non le tessere.
+    expect(html).not.toContain("102.82");
   });
 
   it("Eventi & Watch: matrice con reazioni per asset e watch list", () => {

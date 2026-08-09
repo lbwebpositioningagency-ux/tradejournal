@@ -1,9 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import type { PannelloCot } from "@/lib/cot-panel";
 import type { MacroPayload } from "@/lib/macro-desk-payload";
-import type { DriverDeskData } from "@/lib/queries/driver-desk";
 import { cn } from "@/lib/utils";
 import {
   AssetsTab,
@@ -12,22 +10,22 @@ import {
   MacroTab,
   NewsTab,
   OverviewTab,
-  VolatilityTab,
 } from "./report-tabs";
-import { CotPanel } from "./cot-panel";
-import { DriverDeskPanel } from "./driver-desk-panel";
 
 /**
  * Shell client del dettaglio report: navigazione a schede sul payload.
  * Il data-loading resta nella pagina server; qui solo stato del tab attivo.
+ *
+ * Volatilità, Posizionamento e Driver NON sono più schede: sono tre sezioni di
+ * primo livello del Macro Desk, con fonti e job propri. Il payload del report
+ * può continuare a contenere `volPanel` — semplicemente non lo si rende più
+ * qui, tranne il commento del giorno sulla struttura vol, che è testo scritto
+ * da QUESTO report e vive ora in Panoramica.
  */
 
 const TABS = [
   { id: "overview", label: "Panoramica" },
   { id: "assets", label: "Asset" },
-  { id: "vol", label: "Volatilità" },
-  { id: "cot", label: "Posizionamento" },
-  { id: "driver", label: "Driver" },
   { id: "events", label: "Eventi & Watch" },
   { id: "macro", label: "Macro" },
   { id: "news", label: "News" },
@@ -36,20 +34,7 @@ const TABS = [
 
 type TabId = (typeof TABS)[number]["id"];
 
-export function MacroReportDetail({
-  payload,
-  biasRecord,
-  cotPanel,
-  driverDesk,
-}: {
-  payload: MacroPayload;
-  /** Weekly Bias Record grezzo: unica fonte numerica di prezzo per il termometro. */
-  biasRecord?: unknown;
-  /** Pannello COT calcolato lato server dalla tabella CotWeek. */
-  cotPanel: PannelloCot;
-  /** Driver Desk composto lato server dalle tabelle DriverDeskBar/Coverage. */
-  driverDesk: DriverDeskData;
-}) {
+export function MacroReportDetail({ payload }: { payload: MacroPayload }) {
   const [active, setActive] = useState<TabId>("overview");
 
   return (
@@ -96,9 +81,6 @@ export function MacroReportDetail({
       <div role="tabpanel" key={active}>
         {active === "overview" ? <OverviewTab payload={payload} /> : null}
         {active === "assets" ? <AssetsTab payload={payload} /> : null}
-        {active === "vol" ? <VolatilityTab payload={payload} biasRecord={biasRecord} /> : null}
-        {active === "cot" ? <CotPanel pannello={cotPanel} /> : null}
-        {active === "driver" ? <DriverDeskPanel data={driverDesk} /> : null}
         {active === "events" ? <EventsTab payload={payload} /> : null}
         {active === "macro" ? <MacroTab payload={payload} /> : null}
         {active === "news" ? <NewsTab payload={payload} /> : null}
