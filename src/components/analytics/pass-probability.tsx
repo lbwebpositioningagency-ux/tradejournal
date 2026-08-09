@@ -4,6 +4,7 @@ import { useId, useMemo, useState } from "react";
 import {
   Area,
   ComposedChart,
+  Line,
   ReferenceDot,
   ReferenceLine,
   ResponsiveContainer,
@@ -16,14 +17,23 @@ import { useChartAnimation } from "@/components/charts/use-chart-animation";
 import {
   ABSORPTION_GOOD_SAMPLE,
   ABSORPTION_GRID_STEP,
+  ABSORPTION_MAX_HORIZON,
   ABSORPTION_MIN_SAMPLE,
   AbsorptionError,
   absorptionAt,
+  absorptionCurveFromChain,
   binaryDistribution,
-  computeAbsorptionCurve,
+  buildAbsorptionChain,
+  computeAbsorptionHorizon,
+  defaultHorizon,
   empiricalDistribution,
+  expectedTradesAt,
+  expectedTradesFromChain,
+  expectedTradesInfo,
+  horizonFanInfo,
   passProbabilityInfo,
   type AbsorptionPoint,
+  type HorizonStep,
 } from "@/lib/metrics/absorption";
 import { MetricInfo } from "@/components/metric-info";
 import { parseLocaleNumber } from "@/lib/locale-number";
@@ -39,6 +49,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 
 /**
  * PROBABILITÀ DI PASSAGGIO — pannello gemello dell'equity curve simulator.
@@ -70,6 +81,8 @@ interface FormState {
   target: string;
   drawdown: string;
   challengeEquity: string;
+  /** Orizzonte del fan chart in trade; stringa vuota = automatico. */
+  horizon: string;
 }
 
 const parseNum = parseLocaleNumber;
@@ -118,13 +131,43 @@ const fmtProbability = (value: number) => formatPercent(value.toFixed(6), 1);
 const fmtAxisProbability = (value: number) =>
   `${Math.round(value * 100)}%`;
 
+/**
+ * I tre esiti (passato / fallito / in corso) formattati in modo che la somma
+ * faccia ESATTAMENTE 100,0%.
+ *
+ * Arrotondando i tre numeri in modo indipendente si legge «9,6% + 35,7% +
+ * 54,6%» = 99,9%: matematicamente innocuo, ma in un readout che promette una
+ * partizione è un errore visibile. Metodo dei resti maggiori sui decimi di
+ * punto: si distribuisce l'unità mancante a chi ha il resto più grande.
+ */
+function splitOutcomes(...values: number[]): string[] {
+  const scaled = values.map((v) => v * 1000);
+  const floors = scaled.map(Math.floor);
+  const missing = 1000 - floors.reduce((sum, v) => sum + v, 0);
+  const byRemainder = scaled
+    .map((v, i) => ({ remainder: v - floors[i], i }))
+    .sort((a, b) => b.remainder - a.remainder);
+  for (let k = 0; k < missing; k++) floors[byRemainder[k % floors.length].i]++;
+  return floors.map((v) => formatPercent((v / 1000).toFixed(6), 1));
+}
+
+/** Numero di trade: intero sopra 10, un decimale sotto (0,8 trade è un dato). */
+const fmtTrades = (value: number) =>
+  value.toLocaleString("it-IT", {
+    maximumFractionDigits: value >= 10 ? 0 : 1,
+  });
+
 type FieldKey =
   | "winRate"
   | "rewardRisk"
   | "riskPerTrade"
   | "target"
   | "drawdown"
-  | "challengeEquity";
+  | "challengeEquity"
+  | "horizon";
+
+/** Le due viste del pannello: limite asintotico vs orizzonte finito. */
+type View = "unlimited" | "horizon";
 
 /**
  * Validazione PER CAMPO al submit, come nel simulatore accanto: l'input
@@ -184,6 +227,16 @@ function validateForm(form: FormState): Partial<Record<FieldKey, string>> {
     const drawdown = parseNum(form.drawdown);
     if (equity > target || equity < -drawdown) {
       errors.challengeEquity = `Deve stare fra ${fmtLevel(-drawdown, 2)} e ${fmtLevel(target, 2)}.`;
+    }
+  }
+
+  // Orizzonte: vuoto = automatico (2× i trade attesi), altrimenti un intero.
+  if (form.horizon.trim() !== "") {
+    const horizon = parseNum(form.horizon);
+    if (!Number.isFinite(horizon) || !Number.isInteger(horizon) || horizon < 1) {
+      errors.horizon = "Serve un numero intero di trade (o lascia vuoto).";
+    } else if (horizon > ABSORPTION_MAX_HORIZON) {
+      errors.horizon = `Massimo ${ABSORPTION_MAX_HORIZON.toLocaleString("it-IT")} trade.`;
     }
   }
   return errors;
@@ -306,6 +359,13 @@ interface Computed {
   target: number;
   drawdown: number;
   sample: number | null;
+  /** Trade attesi per chiudere il tentativo dal livello di partenza. */
+  expectedTrades: number;
+  /** Orizzonte usato dal fan chart, e se è stato scelto automaticamente. */
+  horizon: number;
+  horizonIsAuto: boolean;
+  /** Passi del fan chart (già campionati per il disegno). */
+  horizonSteps: HorizonStep[];
   error: null;
 }
 
@@ -330,9 +390,13 @@ export function PassProbability({
     target: DEFAULT_TARGET,
     drawdown: DEFAULT_DRAWDOWN,
     challengeEquity: DEFAULT_CHALLENGE_EQUITY,
+    horizon: "",
   });
   const [applied, setApplied] = useState<FormState>(() => ({ ...form }));
   const [errors, setErrors] = useState<Partial<Record<FieldKey, string>>>({});
+  // La vista è una scelta di LETTURA, non un parametro: cambia subito, senza
+  // passare dal pulsante (i due grafici sono già entrambi calcolati).
+  const [view, setView] = useState<View>("unlimited");
 
   const set =
     (key: keyof FormState) =>
@@ -367,15 +431,28 @@ export function PassProbability({
           riskPerTrade: parseNum(applied.riskPerTrade),
         });
       }
-      const curve = computeAbsorptionCurve({
+      // Catena costruita UNA volta: curva, trade attesi e fan chart sono tre
+      // letture della stessa matrice.
+      const chain = buildAbsorptionChain({
         distribution,
         target,
         drawdown,
         gridStep: ABSORPTION_GRID_STEP,
       });
+      const curve = absorptionCurveFromChain(chain);
       // Il campo è validato dentro [−drawdown, +target] prima di arrivare
       // qui: il clamp è una cintura, non una correzione di dati sballati.
       const markerLevel = Math.min(target, Math.max(-drawdown, level));
+      const expectedTrades = expectedTradesAt(
+        chain,
+        expectedTradesFromChain(chain),
+        markerLevel,
+      );
+      const typed = applied.horizon.trim();
+      const horizonIsAuto = typed === "";
+      const horizon = horizonIsAuto
+        ? defaultHorizon(expectedTrades)
+        : Math.round(parseNum(typed));
       return {
         curve,
         atCurrent: absorptionAt(curve, markerLevel) ?? 0,
@@ -383,6 +460,13 @@ export function PassProbability({
         target,
         drawdown,
         sample,
+        expectedTrades,
+        horizon,
+        horizonIsAuto,
+        horizonSteps: computeAbsorptionHorizon(chain, {
+          startLevel: markerLevel,
+          maxTrades: horizon,
+        }).steps,
         error: null,
       };
     } catch (e) {
@@ -507,6 +591,26 @@ export function PassProbability({
             />
           )}
         </Field>
+        {view === "horizon" ? (
+          <Field
+            label="Orizzonte in trade (vuoto = automatico)"
+            error={errors.horizon}
+          >
+            {(id, invalid) => (
+              <Input
+                id={id}
+                inputMode="numeric"
+                aria-invalid={invalid || undefined}
+                className={cn(invalid && "border-destructive")}
+                placeholder={
+                  computed.error === null ? String(computed.horizon) : "auto"
+                }
+                value={form.horizon}
+                onChange={(e) => set("horizon")(e.target.value)}
+              />
+            )}
+          </Field>
+        ) : null}
         <div className="flex items-end">
           <Button type="submit" className="w-full">
             Calcola probabilità
@@ -559,21 +663,51 @@ export function PassProbability({
               tone={computed.atCurrent >= 0.5 ? undefined : "loss"}
             />
             <MiniStat
-              label="Margine al target"
-              value={fmtSpan(
-                Number((computed.target - computed.markerLevel).toFixed(2)),
-              )}
-              sub={`profit target a ${fmtLevel(computed.target, 2)}`}
+              label="Trade attesi per chiudere"
+              value={fmtTrades(computed.expectedTrades)}
+              sub="in media, prima di toccare una delle due soglie"
+              info={expectedTradesInfo}
             />
             <MiniStat
-              label="Margine al max loss"
-              value={fmtSpan(
+              label="Margine alle soglie"
+              value={`${fmtSpan(
+                Number((computed.target - computed.markerLevel).toFixed(2)),
+              )} / ${fmtSpan(
                 Number((computed.markerLevel + computed.drawdown).toFixed(2)),
-              )}
-              sub={`max loss a ${fmtLevel(-computed.drawdown, 2)}`}
+              )}`}
+              sub={`al target ${fmtLevel(computed.target, 2)} · al max loss ${fmtLevel(-computed.drawdown, 2)}`}
             />
           </div>
 
+          {/* La vista è una scelta di lettura: i due grafici raccontano cose
+              diverse della STESSA catena, e si passa dall'una all'altra senza
+              ricalcolare nulla. */}
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <ToggleGroup
+              type="single"
+              variant="outline"
+              value={view}
+              onValueChange={(v) => v && setView(v as View)}
+              aria-label="Vista del grafico"
+            >
+              <ToggleGroupItem value="unlimited">
+                Orizzonte illimitato
+              </ToggleGroupItem>
+              <ToggleGroupItem value="horizon">
+                Per numero di trade
+              </ToggleGroupItem>
+            </ToggleGroup>
+            <span className="text-xs text-muted-foreground">
+              {view === "unlimited"
+                ? "Dove si va a finire con trade illimitati"
+                : `Come si distribuisce l'equity nei primi ${computed.horizon.toLocaleString("it-IT")} trade`}
+            </span>
+          </div>
+
+          {view === "horizon" ? (
+            <HorizonFan computed={computed} animate={animate} applied={applied} />
+          ) : (
+          <>
           <ResponsiveContainer width="100%" height={300}>
             <ComposedChart data={computed.curve} margin={CHART.margin}>
               <defs>
@@ -684,7 +818,7 @@ export function PassProbability({
                 style={{ background: "var(--chart-1)" }}
               />
               Probabilità di toccare {fmtLevel(computed.target, 2)} prima di{" "}
-              {fmtLevel(-computed.drawdown, 2)}
+              {fmtLevel(-computed.drawdown, 2)} (orizzonte illimitato)
             </span>
             <span className="inline-flex items-center gap-1.5">
               <span
@@ -695,13 +829,16 @@ export function PassProbability({
               Equity nella challenge ({fmtLevel(computed.markerLevel, 2)})
             </span>
           </div>
+          </>
+          )}
 
           <p className="rounded-md border border-dashed p-3 text-xs text-muted-foreground">
             <strong className="text-foreground">Come funziona.</strong> I
             livelli di equity fra −drawdown e +target diventano gli stati di una
             catena di Markov: ogni trade è un salto, le due barriere sono stati
             assorbenti (Pass e Fail). La probabilità non è simulata ma{" "}
-            <em>risolta</em> — matrice fondamentale N = (I − Q)⁻¹ — quindi lo
+            <em>risolta</em>{" "}
+            — matrice fondamentale N = (I − Q)⁻¹ — quindi lo
             stesso input dà sempre lo stesso numero, e una sola risoluzione
             produce la curva intera invece del solo punto attuale. Le barriere
             sono statiche sul capitale iniziale (regola delle challenge) e il
@@ -713,6 +850,13 @@ export function PassProbability({
             storico del conto non ti posiziona sulla curva — win rate e
             reward/risk sì, quelli vengono dai tuoi trade veri. Se sei già
             dentro un tentativo, scrivi tu a che punto sei.{" "}
+            <strong className="text-foreground">Le due viste.</strong>{" "}
+            «Orizzonte illimitato» è il limite con trade{" "}
+            <em>illimitati</em>: dice dove si va a finire, ma non quando, e
+            nasconde la strada. «Per numero di trade» propaga lo stesso modello passo
+            per passo (vₙ = vₙ₋₁·P) e mostra la parte che il limite nasconde —
+            nei primi trade un edge positivo può morire per varianza, e quella
+            probabilità non è affatto trascurabile.{" "}
             <strong className="text-foreground">Il limite.</strong> Il modello
             assume trade <em>indipendenti</em>: nessuna autocorrelazione fra
             vincite e perdite consecutive, nessun cambio di comportamento sotto
@@ -723,5 +867,210 @@ export function PassProbability({
         </>
       )}
     </div>
+  );
+}
+
+/**
+ * FAN CHART per numero di trade.
+ *
+ * Cosa aggiunge rispetto alla curva accanto: la curva è un LIMITE, dice dove
+ * si finisce con trade illimitati. Questo dice quando, e soprattutto quanto
+ * pesa la varianza nei primi trade — un edge positivo può morire per una
+ * serie di perdite ben prima di aver "avuto ragione".
+ *
+ * Le bande sono PERCENTILI, non ±σ: la distribuzione qui ha due atomi sulle
+ * barriere (i tentativi già chiusi restano congelati lì) e una lettura
+ * gaussiana sarebbe fuorviante. La copertura scritta in legenda è quella
+ * MISURATA sulla distribuzione all'ultimo passo, non l'80%/50% nominale.
+ */
+function HorizonFan({
+  computed,
+  animate,
+  applied,
+}: {
+  computed: Computed;
+  animate: boolean;
+  applied: FormState;
+}) {
+  const rows = computed.horizonSteps.map((s) => ({
+    trade: s.trade,
+    outer: [s.p10, s.p90] as [number, number],
+    inner: [s.p25, s.p75] as [number, number],
+    median: s.p50,
+    pass: s.pass,
+    fail: s.fail,
+    running: s.running,
+  }));
+  const last = computed.horizonSteps[computed.horizonSteps.length - 1];
+  const lastSplit = splitOutcomes(last.pass, last.fail, last.running);
+  /**
+   * Il modello parametrico ha DUE soli esiti: l'equity vive su un reticolo
+   * grossolano di passo (rischio + rischio×R), e i percentili ci saltano
+   * sopra a scatti. Il dente di sega che si vede è quel reticolo, non rumore
+   * di rendering — e sparisce in modalità storica, dove gli esiti sono tanti.
+   */
+  const coarseLattice = applied.mode === "parametric";
+
+  return (
+    <>
+      <ResponsiveContainer width="100%" height={300}>
+        <ComposedChart data={rows} margin={CHART.margin}>
+          <XAxis
+            dataKey="trade"
+            type="number"
+            domain={[0, computed.horizon]}
+            tick={CHART.axisTick}
+            tickLine={false}
+            axisLine={false}
+            minTickGap={28}
+            tickFormatter={(v: number) => `#${fmtTrades(v)}`}
+          />
+          <YAxis
+            domain={[-computed.drawdown, computed.target]}
+            tick={CHART.axisTick}
+            tickLine={false}
+            axisLine={false}
+            width={CHART.yAxisWidth}
+            tickFormatter={fmtAxisLevel}
+          />
+          <Tooltip
+            cursor={{ stroke: "var(--muted-foreground)", strokeWidth: 1 }}
+            content={({ active, payload }) => {
+              if (!active || !payload?.length) return null;
+              const row = payload[0].payload as (typeof rows)[number];
+              // I tre numeri si leggono da vₙ e sommano a 100% ANCHE dopo
+              // l'arrotondamento (v. splitOutcomes).
+              const [pass, fail, running] = splitOutcomes(
+                row.pass,
+                row.fail,
+                row.running,
+              );
+              return (
+                <div style={CHART.tooltipStyle} className="px-3 py-2">
+                  <div style={CHART.tooltipLabelStyle} className="font-medium">
+                    A {fmtTrades(row.trade)} trade
+                  </div>
+                  <div style={CHART.tooltipItemStyle}>Già passato: {pass}</div>
+                  <div style={CHART.tooltipItemStyle}>Già fallito: {fail}</div>
+                  <div style={CHART.tooltipItemStyle}>
+                    Ancora in corso: {running}
+                  </div>
+                  <div style={CHART.tooltipItemStyle} className="mt-1">
+                    Equity mediana: {fmtLevel(row.median, 2)}
+                  </div>
+                  <div style={CHART.tooltipItemStyle}>
+                    10–90: {fmtLevel(row.outer[0], 2)} … {fmtLevel(row.outer[1], 2)}
+                  </div>
+                </div>
+              );
+            }}
+          />
+          {/* Le due barriere: tratteggiate, coi colori semantici P&L. */}
+          <ReferenceLine
+            y={computed.target}
+            stroke="var(--profit)"
+            strokeDasharray="4 4"
+          />
+          <ReferenceLine
+            y={-computed.drawdown}
+            stroke="var(--loss)"
+            strokeDasharray="4 4"
+          />
+          <ReferenceLine
+            y={0}
+            className="stroke-muted-foreground"
+            strokeDasharray="3 3"
+          />
+          <Area
+            dataKey="outer"
+            stroke="none"
+            fill="var(--chart-1)"
+            fillOpacity={0.12}
+            isAnimationActive={animate}
+          />
+          <Area
+            dataKey="inner"
+            stroke="none"
+            fill="var(--chart-1)"
+            fillOpacity={0.26}
+            isAnimationActive={animate}
+          />
+          <Line
+            dataKey="median"
+            stroke="var(--foreground)"
+            strokeWidth={CHART.strokeWidth}
+            dot={false}
+            isAnimationActive={animate}
+          />
+        </ComposedChart>
+      </ResponsiveContainer>
+
+      <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-muted-foreground">
+        <span className="inline-flex items-center gap-1.5">
+          <span
+            aria-hidden
+            className="inline-block h-0.5 w-5 rounded"
+            style={{ background: "var(--foreground)" }}
+          />
+          Equity mediana
+        </span>
+        <span className="inline-flex items-center gap-1.5">
+          <span
+            aria-hidden
+            className="inline-block h-3 w-5 rounded-sm"
+            style={{ background: "var(--chart-1)", opacity: 0.38 }}
+          />
+          Banda 25–75 · copre il {fmtProbability(last.coverageInner)} dei
+          tentativi a {fmtTrades(last.trade)} trade
+        </span>
+        <span className="inline-flex items-center gap-1.5">
+          <span
+            aria-hidden
+            className="inline-block h-3 w-5 rounded-sm"
+            style={{ background: "var(--chart-1)", opacity: 0.18 }}
+          />
+          Banda 10–90 · {fmtProbability(last.coverageOuter)}
+        </span>
+      </div>
+
+      <div className="grid gap-3 sm:grid-cols-3">
+        <MiniStat
+          label={`Passati entro ${fmtTrades(last.trade)} trade`}
+          value={lastSplit[0]}
+          sub={`contro il ${fmtProbability(computed.atCurrent)} a orizzonte illimitato`}
+          tone="profit"
+          info={horizonFanInfo}
+        />
+        <MiniStat
+          label={`Falliti entro ${fmtTrades(last.trade)} trade`}
+          value={lastSplit[1]}
+          sub="hanno toccato il max loss"
+          tone="loss"
+        />
+        <MiniStat
+          label="Ancora in corso"
+          value={lastSplit[2]}
+          sub={
+            computed.horizonIsAuto
+              ? `orizzonte automatico: 2× i ${fmtTrades(computed.expectedTrades)} trade attesi`
+              : "orizzonte impostato a mano"
+          }
+        />
+      </div>
+
+      <p className="rounded-md border border-dashed p-3 text-xs text-muted-foreground">
+        Le percentuali delle bande sono{" "}
+        <strong className="text-foreground">misurate</strong> sulla
+        distribuzione all&apos;ultimo passo, non i valori nominali: con i
+        tentativi già chiusi che si accumulano sulle due
+        barriere la distribuzione ha due atomi e le code non sono nemmeno
+        lontanamente normali — a orizzonte lungo la banda non si allarga, si
+        appiattisce contro i muri. Un tentativo assorbito resta contato come
+        equity ferma sulla sua soglia per tutti i passi successivi.
+        {coarseLattice
+          ? " Il dente di sega delle bande è il modello a due soli esiti: l'equity può cadere solo sui multipli di (rischio) e (rischio × R), un reticolo grossolano su cui i percentili saltano a scatti. Non è rumore di rendering, e in modalità «Storica reale» — dove gli esiti sono decine — sparisce."
+          : ""}
+      </p>
+    </>
   );
 }
