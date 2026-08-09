@@ -353,6 +353,21 @@ describe("buildDossier — fattori non applicabili", () => {
     expect(d.confidenza).toBe("BASSA");
   });
 
+  it("«non applicabile» dichiarato dalla LETTURA esce comunque dal denominatore", () => {
+    // Di sabato e domenica il bucket «giorno della settimana» non esiste: la
+    // lettura lo dichiara non applicabile anche se per quello STRUMENTO il
+    // fattore esisterebbe. Non è una misura mancante, e non deve abbassare la
+    // copertura — sarebbe un buco fisso di due giorni su sette.
+    const r = letturePiene();
+    r.dispersioneGiorno = letturaAssente("non_applicabile");
+    const d = buildDossier("ORO", GIORNO, r);
+    expect(d.presenti).toBe(11);
+    expect(d.attesiApplicabili).toBe(11);
+    expect(d.copertura).toBe(1);
+    expect(d.assenti.find((a) => a.id === "F8")?.applicabile).toBe(false);
+    expect(d.confidenza).toBe("BUONA");
+  });
+
   it("l'S&P 500 non conta COT né Driver Desk", () => {
     const d = buildDossier("SP500", GIORNO, letturePiene());
     expect(d.attesiApplicabili).toBe(9); // 12 − 2 (COT) − 1 (Driver)

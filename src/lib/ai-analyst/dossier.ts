@@ -310,12 +310,17 @@ export function buildDossier(
       continue;
     }
     if (!lettura.ok) {
+      // `non_applicabile` non conta MAI nel denominatore, da qualunque parte
+      // arrivi. Lo slot dice se il fattore esiste per lo STRUMENTO (il COT non
+      // esiste sugli indici azionari); la lettura può dichiararlo non
+      // applicabile per il GIORNO — di sabato e domenica non c'è un bucket
+      // «giorno della settimana», e non è una misura mancante.
       assenti.push({
         id: def.id,
         nome: def.nome,
         classe: def.classe,
         motivo: lettura.motivo,
-        applicabile: true,
+        applicabile: lettura.motivo !== "non_applicabile",
       });
       continue;
     }
