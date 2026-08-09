@@ -1428,3 +1428,40 @@ il limite» concordava col genere sbagliato. Il dente di sega delle bande in
 modalità parametrica NON è un difetto — è il reticolo grossolano di un modello
 a due soli esiti, verificato che sparisce in modalità storica, e ora la
 didascalia lo dice.
+
+### Round 20 (09/08/2026): la distribuzione storica diventa il default
+
+Il modello parametrico è pulito per costruzione — ogni vincita vale
+esattamente +R, ogni perdita esattamente −1 — e quella pulizia cancella
+proprio ciò che decide una challenge: le perdite più grandi della media, gli
+stop saltati, lo slippage. Il pannello ora apre sulla distribuzione VERA dei
+trade del conto; la parametrica resta nel selettore per gli scenari ipotetici.
+Unica eccezione: conto senza storico, dove l'istogramma non esiste e aprire su
+una modalità che può solo dire «nessun trade» sarebbe un vicolo cieco.
+
+Motore INVARIATO (`absorption.ts` non toccato): cambia solo quale
+distribuzione gli arriva di default.
+
+**Verifica «nessun taglio delle code»** (richiesta esplicita, 4 test nuovi).
+`getPnlPercentHistogram` non filtra outlier: ogni trade chiuso entra per il
+suo valore pieno. L'unico limite è il clamp del Round 18, a ±100.000 nodi =
+±5.000% del capitale — due ordini di grandezza oltre la barriera massima
+ammessa dal pannello (90%), quindi in una zona dove il salto è assorbente
+comunque e nessun risultato può cambiare. I test blindano che un bin estremo
+sopravviva intatto alla normalizzazione, che una singola perdita anomala
+sposti il risultato di punti percentuali (a parità di campione e di somma
+P&L: se un cap la trattasse da outlier, le due distribuzioni darebbero lo
+stesso numero), e che un esito oltre la barriera resti nella distribuzione
+invece di sparire.
+
+**Prova che legge davvero i dati veri**, sui tre conti demo: forex 98,9% vs
+100,0% parametrica (trade attesi 14 vs 28), futures 99,9% vs 100,0% (11 vs
+19), SIM1 95,0% vs 99,9% (43 vs 73). Sempre più basso della versione
+idealizzata, che è il punto. Periodo con 8 soli trade: default empirico,
+avviso di bassa confidenza con entrambe le soglie (100 e 30).
+
+**Testo aggiornato**: la modalità storica usa la dispersione reale, ma resta
+un'ipotesi di indipendenza — cattura QUANTO possono essere brutti i trade
+negativi, non QUANDO arrivano; i periodi in cui si raggruppano restano fuori
+dal modello. Corretti nell'autocontrollo visivo: spazio mangiato da JSX in
+«vera dei tuoi trade» e concordanza «tutti i 8» → «tutti e 8 i».

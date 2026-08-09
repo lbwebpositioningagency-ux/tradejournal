@@ -346,3 +346,95 @@ describe("binaryDistribution / empiricalDistribution", () => {
     expect(at(curve, 0)).toBeLessThan(1);
   });
 });
+
+describe("distribuzione empirica — nessun taglio delle code", () => {
+  /**
+   * Il senso della modalità storica è che gli eventi brutti ci siano. Questi
+   * test blindano che nessuno strato — binning, normalizzazione, motore —
+   * escluda, tronchi o smussi un valore estremo.
+   */
+  it("un bin estremo sopravvive intatto alla normalizzazione", () => {
+    // −8% su un solo trade: enorme rispetto agli altri, ma dentro le barriere.
+    const result = empiricalDistribution(
+      [
+        { bin: -160, count: 1 },
+        { bin: -10, count: 40 },
+        { bin: 20, count: 59 },
+      ],
+      0.05,
+    );
+    expect(result?.sample).toBe(100);
+    expect(result?.distribution).toContainEqual({
+      value: -8,
+      probability: 0.01,
+    });
+  });
+
+  it("una singola perdita anomala sposta il risultato in modo materiale", () => {
+    // Stesso campione, stessa somma di P&L, stesso numero di trade: cambia
+    // solo la FORMA. Un modello che trattasse il −8% come outlier da
+    // escludere (o lo clippasse alla perdita media) darebbe lo stesso numero
+    // delle due distribuzioni. Non deve.
+    const senzaCoda = empiricalDistribution(
+      [
+        { bin: -10, count: 41 },
+        { bin: 20, count: 59 },
+      ],
+      0.05,
+    )!;
+    const conCoda = empiricalDistribution(
+      [
+        { bin: -160, count: 1 },
+        { bin: -7, count: 40 },
+        { bin: 20, count: 59 },
+      ],
+      0.05,
+    )!;
+    const passaggio = (distribution: typeof senzaCoda.distribution) =>
+      at(
+        computeAbsorptionCurve({ distribution, target: 10, drawdown: 10 }),
+        0,
+      );
+    // La coda pesa: non un decimale di differenza, ma punti percentuali.
+    expect(
+      Math.abs(passaggio(senzaCoda.distribution) - passaggio(conCoda.distribution)),
+    ).toBeGreaterThan(0.01);
+  });
+
+  it("un esito oltre la barriera resta nella distribuzione (assorbe, non sparisce)", () => {
+    // Un trade da −15% con drawdown a 10 non viene scartato: da QUALSIASI
+    // livello porta direttamente al fallimento, ed è esattamente ciò che
+    // succede nella realtà.
+    const result = empiricalDistribution(
+      [
+        { bin: -300, count: 5 },
+        { bin: 20, count: 95 },
+      ],
+      0.05,
+    )!;
+    expect(result.distribution).toContainEqual({
+      value: -15,
+      probability: 0.05,
+    });
+    const curve = computeAbsorptionCurve({
+      distribution: result.distribution,
+      target: 10,
+      drawdown: 10,
+    });
+    // 5% di probabilità di morte istantanea a ogni trade: il passaggio resta
+    // possibile ma lontano dalla certezza che darebbe la sola parte "pulita".
+    expect(at(curve, 0)).toBeGreaterThan(0);
+    expect(at(curve, 0)).toBeLessThan(0.95);
+  });
+
+  it("la somma delle probabilità resta 1 anche con code lunghe", () => {
+    const bins = Array.from({ length: 200 }, (_, i) => ({
+      bin: i - 100,
+      count: i === 0 ? 1 : 3,
+    }));
+    const result = empiricalDistribution(bins, 0.05)!;
+    const total = result.distribution.reduce((s, o) => s + o.probability, 0);
+    expect(total).toBeCloseTo(1, 12);
+    expect(result.distribution.length).toBe(bins.length);
+  });
+});

@@ -385,10 +385,17 @@ export async function getPnlPercentHistogram(
   filter: StatsFilter,
   capitalStep: string,
 ): Promise<PnlBinRow[]> {
-  // Il bin è clampato a ±PNL_BIN_LIMIT nodi (±5.000% del capitale): oltre
-  // quella distanza il salto è assorbente comunque, e senza il clamp un conto
-  // con `initialBalance` minuscolo produrrebbe un indice fuori dal range di
-  // int4 — cioè un 500 sull'intera pagina Analytics invece di un numero.
+  // NESSUN filtro sugli outlier: ogni trade chiuso entra per il suo valore
+  // pieno. È il punto della modalità empirica — una perdita anomala, uno stop
+  // saltato, uno slippage brutto sono esattamente gli eventi che un modello
+  // binario pulito nasconde, e vanno nel calcolo interi.
+  //
+  // L'unico limite è il clamp a ±PNL_BIN_LIMIT nodi = ±5.000% del capitale
+  // iniziale, due ordini di grandezza oltre la barriera massima ammessa dal
+  // pannello (90%): un trade in quella zona è assorbente comunque, quindi il
+  // clamp non può alterare nessun risultato. Serve solo a non far uscire
+  // l'indice dal range di int4 su un conto con `initialBalance` minuscolo —
+  // cioè un 500 sull'intera pagina Analytics invece di un numero.
   return prisma.$queryRaw<PnlBinRow[]>(Prisma.sql`
     SELECT
       LEAST(GREATEST(

@@ -73,6 +73,19 @@ import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 
 type Mode = "parametric" | "empirical";
 
+/**
+ * DEFAULT: la distribuzione STORICA, non il modello a due esiti.
+ *
+ * Il modello parametrico è pulito per costruzione — ogni vincita vale
+ * esattamente +R, ogni perdita esattamente −1 — e quella pulizia è una
+ * bugia: cancella le perdite più grandi della media, gli stop saltati, lo
+ * slippage. Sono proprio gli eventi che decidono una challenge, e nella
+ * dispersione vera dei trade ci sono già. La parametrica resta a un click di
+ * distanza per gli scenari ipotetici («e se avessi un win rate diverso?»),
+ * ma non è più la vista di apertura.
+ */
+const DEFAULT_MODE: Mode = "empirical";
+
 interface FormState {
   mode: Mode;
   winRate: string;
@@ -382,8 +395,14 @@ export function PassProbability({
   empiricalBins: { bin: number; count: number }[];
 }) {
   const animate = useChartAnimation();
+  // Il pannello apre sulla distribuzione VERA del conto (v. DEFAULT_MODE).
+  // L'unica eccezione è il conto senza storico: lì l'istogramma non esiste e
+  // aprire su una modalità che può solo dire «nessun trade» sarebbe un vicolo
+  // cieco, quindi si parte dal modello parametrico.
+  const initialMode: Mode =
+    empiricalBins.length > 0 ? DEFAULT_MODE : "parametric";
   const [form, setForm] = useState<FormState>({
-    mode: "parametric",
+    mode: initialMode,
     winRate: defaultWinRate ?? "50",
     rewardRisk: defaultRewardRisk ?? "1.5",
     riskPerTrade: DEFAULT_RISK_PER_TRADE,
@@ -625,9 +644,15 @@ export function PassProbability({
             lowSample ? "text-foreground" : "text-muted-foreground",
           )}
         >
-          Distribuzione costruita sui {empiricalSample}{" "}
-          {empiricalSample === 1 ? "trade chiuso" : "trade chiusi"} del periodo,
-          ciascuno espresso in % del capitale iniziale.
+          {/* «tutti e N i trade» evita l'articolo, che in italiano cambia col
+              numero («tutti i 5» ma «tutti gli 8»). */}
+          Distribuzione costruita{" "}
+          {empiricalSample === 1
+            ? "sull'unico trade chiuso"
+            : `su tutti e ${empiricalSample} i trade chiusi`}{" "}
+          del periodo, ciascuno espresso in % del capitale iniziale e preso{" "}
+          <strong className="text-foreground">per intero</strong>: nessun
+          outlier escluso, nessun valore tagliato o smussato.
           {lowSample
             ? ` Indicativo: sotto i ${ABSORPTION_GOOD_SAMPLE} trade la forma della distribuzione è dominata dal caso${
                 empiricalSample < ABSORPTION_MIN_SAMPLE
@@ -847,9 +872,18 @@ export function PassProbability({
             agganciato al nodo più vicino. Il punto di partenza è{" "}
             <strong className="text-foreground">0% per default</strong>: una
             challenge riparte da zero a ogni tentativo, quindi il P&amp;L
-            storico del conto non ti posiziona sulla curva — win rate e
-            reward/risk sì, quelli vengono dai tuoi trade veri. Se sei già
-            dentro un tentativo, scrivi tu a che punto sei.{" "}
+            storico del conto non ti posiziona sulla curva. Se sei già dentro
+            un tentativo, scrivi tu a che punto sei.{" "}
+            <strong className="text-foreground">
+              Da dove viene la distribuzione.
+            </strong>{" "}
+            Di default dai tuoi trade veri: l&apos;istogramma dei P&amp;L per
+            trade in % del capitale iniziale, ognuno preso per intero — le
+            perdite più grandi della media, gli stop saltati, lo slippage ci
+            sono <em>perché sono davvero successi</em>. Il modello parametrico
+            resta disponibile per gli scenari ipotetici, ma è pulito per
+            costruzione (ogni vincita vale esattamente +R, ogni perdita −1) e
+            quella pulizia cancella proprio la coda che decide le challenge.{" "}
             <strong className="text-foreground">Le due viste.</strong>{" "}
             «Orizzonte illimitato» è il limite con trade{" "}
             <em>illimitati</em>: dice dove si va a finire, ma non quando, e
@@ -858,11 +892,15 @@ export function PassProbability({
             nei primi trade un edge positivo può morire per varianza, e quella
             probabilità non è affatto trascurabile.{" "}
             <strong className="text-foreground">Il limite.</strong> Il modello
-            assume trade <em>indipendenti</em>: nessuna autocorrelazione fra
-            vincite e perdite consecutive, nessun cambio di comportamento sotto
-            pressione. Se le tue perdite arrivano a grappoli — e quasi sempre è
-            così — la probabilità vera è più bassa di questa. Non è un consiglio
-            finanziario.
+            assume trade <em>indipendenti</em>, e questo vale anche con la
+            distribuzione storica: la dispersione vera cattura{" "}
+            <em>quanto</em> possono essere brutti i tuoi trade negativi, non{" "}
+            <em>quando</em> arrivano. I periodi in cui si raggruppano — la
+            settimana storta, il tilt dopo una perdita grossa — restano fuori
+            dal modello, perché ogni trade viene estratto come se i precedenti
+            non fossero mai esistiti. Se le tue perdite arrivano a grappoli, e
+            quasi sempre è così, la probabilità vera è più bassa di questa. Non
+            è un consiglio finanziario.
           </p>
         </>
       )}
