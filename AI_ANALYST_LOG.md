@@ -1,3 +1,273 @@
+# RELEASE v1.0 — AI Analyst in produzione (deterministica)
+
+> 9 agosto 2026. **Deployata.** `origin/main` è a `7bcf511`, deployment Vercel
+> di produzione in stato **success**. Le sezioni precedenti stanno più sotto,
+> intatte.
+
+> **Dove sta il resto della storia.** Su questo branch il diario arriva fino al
+> primo giro reale con Gemini. Il quarto giro — l'esperimento «collegamento» e
+> la valutazione delle 29 generazioni che ha portato a scegliere la versione
+> deterministica — vive solo su `experiment/ai-analyst-linking`, che come da
+> istruzione non entra in questo merge: è la sezione in cima al log di quel
+> branch.
+
+## 1. Stato delle fasi
+
+| Fase | Esito | Commit |
+|---|---|---|
+| 1 — pagina resa deterministica | fatta | `38947d0` |
+| 2 — push del branch + allineamento con main | fatta, merge no-op | — |
+| 3 — merge su main e deploy | fatta | `7bcf511` (merge --no-ff) |
+| 4 — verifica tecnica in produzione | fatta, **con un limite dichiarato** (§6) | — |
+
+Gate eseguito tre volte — dopo la fase 1, dopo l'allineamento, e sul commit di
+merge: **1679 test verdi** (+1 saltato, il giro reale contro Gemini), typecheck,
+lint, build, sempre con la rotta `/macro-desk/ai-analyst` registrata.
+
+## 2. GEMINI_API_KEY non è invocata da questa release — confermato
+
+Tre prove indipendenti, in ordine di forza.
+
+**Prova strutturale.** La pagina non importa più nessun client di modello. Le
+tre righe di import sono sparite e la chiamata è diventata una:
+
+```ts
+const sintesi = sintesiFallback(dossier, MOTIVO_DETERMINISTICO);
+```
+
+**Prova automatica.** `src/lib/ai-analyst/pagina-deterministica.test.ts` legge
+il **sorgente della pagina** e fallisce se qualcuno riaccende il percorso senza
+volerlo: niente `ai-analyst/gemini`, niente `cot-contesto-gemini`, niente
+`sintesiDelGiorno`, niente `generaSintesi`, e la stringa `GEMINI_API_KEY` non
+compare nemmeno in un commento. È un test insolito — guarda un file invece che
+un comportamento — ma è l'unico che misura davvero l'invariante che ci
+interessa fra sei mesi.
+
+**Prova empirica.** Ho generato le quattro sintesi sui dati locali tre volte, in
+tre condizioni d'ambiente diverse, e confrontato l'impronta SHA-256:
+
+```
+chiave presente          impronta abf22bf45ecc2a74
+chiave rimossa           impronta abf22bf45ecc2a74
+chiave palesemente falsa impronta abf22bf45ecc2a74
+```
+
+Identiche. Se la chiave sparisse dalle variabili d'ambiente di Vercel domani,
+questa pagina non se ne accorgerebbe.
+
+Il percorso col modello **non è stato cancellato**: orchestratore, doppio
+cancello e i loro test restano nel codice con la loro copertura. Riaccenderlo
+è passare delle dipendenze vere in quella riga, e nient'altro.
+
+## 3. Una decisione presa al posto tuo — la nota di provenienza
+
+La pagina dichiara sempre in fondo da dove viene il testo. Prima aveva due casi
+(«scritto dal modello» / «senza modello, direttamente dai dati *(motivo)*») e in
+questa release avrebbe stampato «Testo generato senza modello linguistico
+(modello non raggiungibile: …)». **Sarebbe stata una bugia**: il modello non è
+irraggiungibile, l'abbiamo spento noi.
+
+Ho quindi aggiunto un terzo caso, con la costante `MOTIVO_DETERMINISTICO`. In
+produzione si legge:
+
+> «Testo composto direttamente dai dati, senza modelli linguistici: a parità di
+> numeri la pagina dice sempre le stesse parole.»
+
+Il caso «modello non raggiungibile» resta, per il giorno in cui il percorso col
+modello venisse riacceso.
+
+## 4. Fase 2 — allineamento: non c'era niente da allineare
+
+`origin/main` era ancora a `930d396`, cioè esattamente il commit da cui era nato
+il branch. `git merge origin/main` ha risposto **«Already up to date»**: nessun
+conflitto, **nessun conflitto sul lockfile**, quindi nessuna reinstallazione da
+zero e nessuna nuova CVE da valutare.
+
+Il confronto delle dipendenze lo conferma: `git diff origin/main..HEAD --
+package.json package-lock.json` è **vuoto**. `npm audit` riporta 10
+vulnerabilità (3 moderate, 7 alte, il gruppo `undici` già noto): sono
+**esattamente quelle di main**, non ne introduciamo nessuna. Non ho eseguito
+`npm audit fix` in nessuna forma.
+
+## 5. Fase 3 — come ho fatto il merge, e perché non alla lettera
+
+Il piano diceva `git checkout main`. **Non si poteva**, e mi sembra giusto
+dirlo invece di far finta:
+
+```
+fatal: 'main' is already used by worktree at 'C:/Users/chenn/progetti/tradezella 2.0'
+```
+
+`main` è in checkout nella working copy principale — quella con le modifiche
+non mie a `src/lib/validations/macro-desk.ts` che ho solo guardato nei giri
+precedenti. Fare il checkout lì avrebbe significato metterci le mani.
+
+Ho scelto la strada più conservativa: **merge `--no-ff` in HEAD staccato** su
+`origin/main`, esattamente lo stesso comando e lo stesso risultato, senza
+toccare quella copia:
+
+```
+git checkout --detach origin/main
+git merge --no-ff feature/ai-analyst
+git push origin HEAD:main
+```
+
+Verificato prima del push che l'albero del commit di merge coincidesse byte per
+byte con quello del branch (nessuna sorpresa nascosta nel merge).
+
+**Conseguenza da sapere:** il ref locale `main` nella working copy principale è
+rimasto a `930d396`, quindi lì `git status` dirà «behind by 8 commits». È
+normale e si risolve con un `git pull` quando quella copia sarà libera. Non
+l'ho fatto io perché avrebbe toccato la copia condivisa.
+
+### Schema Neon: nessuna modifica, verificato
+
+```
+git diff --stat 930d396..HEAD -- prisma/     → (vuoto)
+migrazioni su origin/main: 22
+migrazioni su questo branch: 22
+prisma/schema.prisma: invariato
+```
+
+Nessuna migrazione, nemmeno additiva. Il `prisma migrate deploy` del build è un
+no-op contro Neon. È anche il motivo per cui il preview deploy generato dal
+push del branch (`38947d0`) non ha potuto fare danni: non aveva niente da
+applicare.
+
+## 6. Fase 4 — verifica tecnica in produzione
+
+### Il deploy è andato
+
+```
+deployment 5818959547 · Production · sha 7bcf511 · 2026-08-09T13:06:03Z · success
+stato del commit su GitHub: Vercel → success
+```
+
+E la produzione **serve davvero questo commit**: degli 12 chunk JavaScript che
+`/login` carica in produzione, **11 hanno lo stesso nome del mio build locale
+di `7bcf511`**. I nomi dei chunk Turbopack derivano dal contenuto, quindi la
+coincidenza non è casuale.
+
+### La rotta risponde, e risponde come le sorelle
+
+```
+/macro-desk                307 → /login
+/macro-desk/trends         307 → /login
+/macro-desk/scorecard      307 → /login
+/macro-desk/stagionalita   307 → /login
+/macro-desk/ai-analyst     307 → /login     ← la nuova
+/percorso-inesistente-xyz  404
+```
+
+Nessun 5xx da nessuna parte. Tempi di risposta della rotta su cinque richieste:
+**0,29 – 0,38 s**. Il 307 dimostra che il modulo della pagina si carica e che
+`auth()` gira: un errore a livello di modulo darebbe 500.
+
+### Il limite, dichiarato
+
+**Non ho potuto vedere la pagina renderizzata in produzione.** Sta dietro
+l'autenticazione e in questa sessione non inserisco credenziali. Quindi:
+
+- la verifica del punto 10 arriva fino a «la rotta risponde senza errori»,
+  non fino a «il corpo della pagina si compone senza errori»: per un utente non
+  autenticato il codice che legge i dati **non viene mai eseguito**;
+- il punto 11 — «la data del dato più vecchio dichiarata a schermo» — **non l'ho
+  potuto leggere**. Sotto c'è cosa mi aspetto e su quali prove, ma è
+  un'inferenza, non una lettura.
+- i log applicativi runtime di Vercel richiedono la CLI o la dashboard: la CLI
+  non è installata su questa macchina.
+
+## 7. Cosa mi aspetto che veda tu, e su quali prove
+
+Ho letto — in sola lettura — l'ultimo report che il ponte ha inoltrato alla
+produzione, `macro-desk-bridge/reports/latest.json`:
+
+```
+type: DAILY · reportDate: 2026-08-03 · generatedAt: 2026-08-03T05:26:23Z
+volPanel: 7 voci → VIX, VVIX, SKEW, Put/Call, GVZ, OVX, MOVE
+biasRecord: assente
+```
+
+Da qui, con le soglie della spec:
+
+- **il report ha 6 giorni.** Soglia di avviso 3, soglia di scarto 10: il
+  termometro sarà **presente ma marcato «non è dell'ultima seduta»**, con il
+  peso che scende da ALTO a MEDIO;
+- di conseguenza **la fiducia non potrà essere «buona»**: al massimo «media».
+  Un solo dato invecchiato lo impedisce, per regola;
+- **oro, petrolio e S&P 500 avranno il termometro** (GVZ, OVX e VIX ci sono nel
+  pannello); **il DAX no**, perché DV1X non è pubblicato lì — è la lacuna
+  strutturale già dichiarata in pagina;
+- `biasRecord` assente ⇒ **l'ampiezza in valuta non comparirà**, e la pagina
+  scriverà «manca la chiusura di riferimento». È il comportamento giusto, non
+  un bug;
+- **la «data del dato più vecchio» sarà quella del COT**, non del report: il
+  COT è settimanale e il suo cron gira il sabato. Se il sync di ieri è andato,
+  dovrebbe essere attorno al **04/08/2026**.
+
+Non mi aspetto **«dati insufficienti»** su nessuno dei quattro strumenti.
+
+## 8. Il segnale da non rincorrere — e sì, lo osservo
+
+Me l'avevi chiesto di segnalarlo, e c'è.
+
+**L'ultimo report inoltrato alla produzione è del 3 agosto. Oggi è il 9.** Sei
+giorni senza un report giornaliero nuovo. La storia dei commit del ponte
+racconta il resto:
+
+```
+bfbdc59 Ripristina DAILY 2026-08-03 come report corrente
+5a5716a Reinvio WEEKLY 2026-08-02 (consegna recuperata)
+d58a90e Normalizza generatedAt in ISO UTC prima dell'inoltro
+```
+
+«Consegna recuperata», «normalizza generatedAt»: è esattamente la catena dei
+400 di cui parlava il commento nel test non committato della working copy
+principale — *cinque run su quindici morte*.
+
+**Quindi: se la sezione ti appare con fiducia «media» invece che «buona», o con
+il termometro segnato come non dell'ultima seduta, la causa è il ponte, non
+questa sezione.** La riprova è a portata di mano: appena arriva un report
+giornaliero fresco, la fiducia sale da sola, senza toccare una riga di codice.
+
+Una precisazione per onestà: sto leggendo il *repository* del ponte. Se
+qualcuno avesse consegnato un report direttamente via `curl` — la via
+preferenziale descritta nel suo README — quel file non lo saprebbe. È l'unica
+prova che ho senza toccare Neon.
+
+## 9. La tua QA visiva — checklist breve
+
+Apri `/macro-desk/ai-analyst` da loggato e guarda queste otto cose:
+
+1. **Il quarto pulsante** nella riga del Macro Desk, accanto a Stagionalità:
+   stessa forma e stesso peso visivo degli altri tre.
+2. **I font**: Inter per il testo, JetBrains Mono per numeri, sigle e date. Se
+   vedi un serif, la variabile del font non è arrivata (nelle mie anteprime
+   fuori dall'app succedeva, nella pagina vera non dovrebbe).
+3. **I quattro chip degli strumenti** (XAU/USD, WTI, GER40, SPX): che cambino
+   davvero strumento e che quello attivo si veda.
+4. **Il blocco «Cosa questa lettura non dice»**: c'è sempre, non è mai vuoto.
+5. **La riga in fondo**: deve dire «Testo composto direttamente dai dati, senza
+   modelli linguistici». Se dice «modello non raggiungibile», qualcosa è andato
+   storto nella release.
+6. **La data del dato più vecchio** in fondo, e le sezioni lette: confrontale
+   col §7 qui sopra.
+7. **Su mobile** (o finestra stretta): i chip devono andare a capo e non ci
+   deve essere scorrimento orizzontale.
+8. **Nessuna freccia su/giù e nessun verde/rosso** come giudizio. L'unico
+   ambra ammesso è sugli avvisi di qualità del dato.
+
+Sul **DAX** aspettati un blocco «Cosa non c'era» lungo: cinque misure dichiarate
+«non esiste per questo strumento». È corretto, non è un errore di caricamento.
+
+## 10. Cosa NON ho fatto, come da istruzioni
+
+Nessun `npm audit fix` in nessuna forma · nessuna credenziale o ruolo Neon
+toccato · nessun `db:seed` · nessun force-push · nessuna riattivazione del
+modello · `experiment/ai-analyst-linking` non toccato, resta a `3ddb483`.
+
+---
+
 # Giro reale con Gemini — FATTO
 
 > 9 agosto 2026, terzo giro. Branch `feature/ai-analyst`, worktree
