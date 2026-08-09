@@ -1387,3 +1387,44 @@ demo: col default il marker cade al centro esatto della curva (frazione 0,523
 della larghezza del grafico, identica sui tre conti nonostante storici molto
 diversi); a +3% si sposta a 0,663; a +25% la validazione rifiuta e il grafico
 resta sull'ultimo stato valido.
+
+### Round 19 (09/08/2026): fan chart per numero di trade
+
+La curva probabilità-vs-livello è un LIMITE: dice dove si va a finire con
+trade illimitati, e proprio per questo nasconde la cosa che a chi sta facendo
+una challenge interessa di più — nel breve la varianza può chiudere il
+tentativo anche con un edge positivo. Seconda vista, stessa catena, stessa
+filosofia (esatta, non simulata).
+
+**Calcolo.** `computeAbsorptionHorizon` propaga v₀ (massa 1 sullo stato di
+partenza) con vₙ = vₙ₋₁·P, assorbenti con self-loop 1: un tentativo chiuso
+resta congelato sulla sua barriera e continua a contare nei percentili come
+equity ferma lì. Da ogni vₙ si estraggono i percentili 10/25/50/75/90 su TUTTO
+lo spazio degli stati, i due atomi compresi. La copertura delle bande è
+MISURATA e scritta in legenda: con due atomi sui muri i percentili teorici
+gaussiani non hanno alcun senso, e infatti a orizzonte lungo la banda non si
+allarga — collassa contro la barriera dove si è accumulata la massa.
+
+Refactoring minimo per non ricostruire tre volte la stessa matrice:
+`buildAbsorptionChain` una volta, poi `absorptionCurveFromChain`,
+`expectedTradesFromChain` (t = N·1, sottoprodotto gratuito, esposto come card
+«Trade attesi per chiudere») e l'orizzonte. Orizzonte di default = 2× i trade
+attesi arrotondato a 50/100/200 (il ×2 perché la distribuzione del tempo di
+assorbimento ha la coda lunga a destra); campo numerico editabile, vuoto =
+automatico. Niente Brush/zoom, coerente con la decisione già presa.
+
+**Test** (+15, totale 1723): E[durata] = i·(N−i) del gambler's ruin equo a 8
+decimali; massa tutta sul punto di partenza a n = 0; conservazione della
+probabilità a OGNI passo; convergenza di pass+fail al limite già validato
+entro 0,1 punti; edge forte che non crolla a n piccolo ed edge debole in cui
+il fallimento corre più veloce del successo; percentili ordinati e dentro le
+barriere; copertura ≥ nominale; partenza da una barriera che resta congelata.
+
+**Autocontrollo visivo.** Tre difetti trovati e corretti: i tre numeri del
+readout in hover sommavano a 99,9% per arrotondamento indipendente (ora metodo
+dei resti maggiori, somma esatta 100,0%); mancava lo spazio dopo due tag
+inline nel testo esplicativo («risolta— matrice», «misuratesulla»); «Questa è
+il limite» concordava col genere sbagliato. Il dente di sega delle bande in
+modalità parametrica NON è un difetto — è il reticolo grossolano di un modello
+a due soli esiti, verificato che sparisce in modalità storica, e ora la
+didascalia lo dice.
