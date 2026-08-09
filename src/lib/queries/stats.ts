@@ -360,6 +360,9 @@ export async function getNetPnlBefore(
   return rows[0].netPnl;
 }
 
+/** Tetto (in nodi di griglia) all'indice di bin: vedi nota nella query. */
+const PNL_BIN_LIMIT = 100_000;
+
 /** Un bin dell'istogramma dei P&L per trade, in nodi di griglia. */
 export interface PnlBinRow {
   /** Indice del nodo: ROUND(netPnl / passo-in-valuta). */
@@ -382,9 +385,15 @@ export async function getPnlPercentHistogram(
   filter: StatsFilter,
   capitalStep: string,
 ): Promise<PnlBinRow[]> {
+  // Il bin è clampato a ±PNL_BIN_LIMIT nodi (±5.000% del capitale): oltre
+  // quella distanza il salto è assorbente comunque, e senza il clamp un conto
+  // con `initialBalance` minuscolo produrrebbe un indice fuori dal range di
+  // int4 — cioè un 500 sull'intera pagina Analytics invece di un numero.
   return prisma.$queryRaw<PnlBinRow[]>(Prisma.sql`
     SELECT
-      ROUND(t."netPnl" / ${capitalStep}::numeric)::int AS "bin",
+      LEAST(GREATEST(
+        ROUND(t."netPnl" / ${capitalStep}::numeric),
+        ${-PNL_BIN_LIMIT}), ${PNL_BIN_LIMIT})::int     AS "bin",
       COUNT(*)::int                                    AS "count"
     ${FROM_TRADES}
     WHERE ${whereClosedTrades(filter)}
