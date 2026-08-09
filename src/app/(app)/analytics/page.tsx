@@ -73,6 +73,7 @@ import {
   getRMultiples,
   getDailyPnl,
   getPnlPercentHistogram,
+  getPnlPercentSequence,
   getStartingBalance,
   getLifetimeNetPnl,
   getNetPnlBefore,
@@ -319,14 +320,21 @@ export default async function AnalyticsPage({
   // valuta dipende dal capitale iniziale: unica dipendenza vera, agganciata
   // alla promise del saldo (stesso pattern della rolling window a trade).
   const startBalancePromise = getStartingBalance(filter);
-  const pnlHistogramPromise = startBalancePromise.then((balance) => {
-    const capitalStep = new Decimal(balance)
-      .times(ABSORPTION_GRID_STEP)
-      .div(100);
-    return capitalStep.gt(0)
+  const capitalStepPromise = startBalancePromise.then((balance) =>
+    new Decimal(balance).times(ABSORPTION_GRID_STEP).div(100),
+  );
+  const pnlHistogramPromise = capitalStepPromise.then((capitalStep) =>
+    capitalStep.gt(0)
       ? getPnlPercentHistogram(accountFilter, capitalStep.toFixed(8))
-      : [];
-  });
+      : [],
+  );
+  // Sequenza ORDINATA per il block bootstrap (Round 21): l'istogramma perde
+  // l'ordine, che lì è esattamente il dato che serve.
+  const pnlSequencePromise = capitalStepPromise.then((capitalStep) =>
+    capitalStep.gt(0)
+      ? getPnlPercentSequence(accountFilter, capitalStep.toFixed(8))
+      : [],
+  );
   const [
     coverage,
     bucketRows,
@@ -351,6 +359,7 @@ export default async function AnalyticsPage({
     concentrationRow,
     rollingRows,
     pnlHistogram,
+    pnlSequence,
   ] = await Promise.all([
     coveragePromise,
     getTargetRBuckets(filter),
@@ -372,6 +381,7 @@ export default async function AnalyticsPage({
     getTopConcentration(filter),
     rollingRowsPromise,
     pnlHistogramPromise,
+    pnlSequencePromise,
   ]);
   timing.mark("queries");
   timing.flush();
@@ -777,6 +787,7 @@ export default async function AnalyticsPage({
                   accPayoff !== null ? new Decimal(accPayoff).toFixed(2) : null
                 }
                 empiricalBins={pnlHistogram}
+                empiricalSequence={pnlSequence}
               />
             </CardContent>
           </Card>

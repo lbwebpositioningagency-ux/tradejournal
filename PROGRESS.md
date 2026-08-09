@@ -1465,3 +1465,49 @@ un'ipotesi di indipendenza — cattura QUANTO possono essere brutti i trade
 negativi, non QUANDO arrivano; i periodi in cui si raggruppano restano fuori
 dal modello. Corretti nell'autocontrollo visivo: spazio mangiato da JSX in
 «vera dei tuoi trade» e concordanza «tutti i 8» → «tutti e 8 i».
+
+### Round 21 (09/08/2026): block bootstrap + rischio di percorso
+
+Terzo modello nel selettore e due tabelle che la matrice non può produrre.
+Motore nuovo in `src/lib/metrics/challenge-sim.ts`, separato da
+`absorption.ts` (che resta intatto e viene usato solo come termine di
+paragone).
+
+**Perché una simulazione, se la matrice dà la risposta esatta.** Due motivi,
+entrambi strutturali. La catena sa dire *come va a finire*, non *quanto male
+si è messa nel frattempo*: equity minima toccata e serie di perdite più lunga
+sono grandezze di TRAIETTORIA, e due tentativi che passano entrambi possono
+aver fatto passare notti diversissime. E la catena assume trade indipendenti
+per costruzione: il **block bootstrap** ricampiona blocchi di trade
+CONSECUTIVI (circolari, default 20, editabile) e quindi conserva i grappoli —
+è l'unico dei tre modelli che vede la dipendenza temporale.
+
+Sul conto SIM1 la differenza si misura: **95,0% i.i.d. contro 89,5% con
+blocchi da 20**, e il rischio di scendere sotto −5% passa da 20,7% a 28,1%.
+Cinque punti e mezzo è il prezzo dei grappoli, sulla stessa identica
+distribuzione di esiti.
+
+**Il cross-check ha fatto il suo mestiere al primo giro.** Per le modalità
+i.i.d. il tasso simulato deve coincidere con quello della matrice: alla prima
+esecuzione in pagina la console ha strillato «simulato 48,02%, esatto 94,96%,
+scarto 46,94 punti». Non era rumore — passavo alla simulazione gli INDICI DI
+BIN invece dei punti percentuali, così un bin 20 (+1%) veniva letto come +20%
+e sfondava ogni barriera al primo trade. Corretto; ora la console tace. È
+esattamente il tipo di bug che i 20 test unitari non avevano preso, perché
+lì la conversione la facevo giusta a mano.
+
+**Test** (+20, totale 1747): blocco = 1 degenera nell'empirica i.i.d. entro
+1 punto; cross-check simulato-vs-esatto sotto 0,5 punti su 20.000 percorsi per
+entrambe le modalità i.i.d.; conservazione pass/fail/non-risolto sui conteggi
+interi; con edge fortissimo P(streak ≥ 10) piccola ma MAI zero; due storici
+con gli stessi valori e le stesse frequenze, uno a grappoli e uno alternato,
+indistinguibili per l'i.i.d. e diversissimi per il block bootstrap.
+
+**UI**: la simulazione parte solo DOPO il mount (niente 100-200 ms aggiunti a
+ogni render server di /analytics) e passa da `startTransition`, così lo stato
+di attesa si dipinge prima del blocco. Seed fisso: il pannello promette
+riproducibilità e una simulazione ballerina la romperebbe. In modalità block
+il numero di testa viene dalla simulazione — la catena non sa rappresentare i
+blocchi — e grafici e legenda lo dichiarano come modello i.i.d. invece di
+fingere. Corretto nell'autocontrollo visivo: i tre titoli della nuova sezione
+avevano tutti lo stesso peso tipografico.

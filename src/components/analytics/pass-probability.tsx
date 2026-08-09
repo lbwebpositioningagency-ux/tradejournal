@@ -1,6 +1,6 @@
 "use client";
 
-import { useId, useMemo, useState } from "react";
+import { useEffect, useId, useMemo, useState, useTransition } from "react";
 import {
   Area,
   ComposedChart,
@@ -35,6 +35,21 @@ import {
   type AbsorptionPoint,
   type HorizonStep,
 } from "@/lib/metrics/absorption";
+import {
+  SIM_DEFAULT_BLOCK_LENGTH,
+  SIM_DEFAULT_PATHS,
+  SIM_MAX_BLOCK_LENGTH,
+  SIM_MAX_TRADES_PER_PATH,
+  SIM_MIN_BLOCKS,
+  SIM_SEED,
+  blockBootstrapInfo,
+  blocksAvailable,
+  crossCheckPassRate,
+  drawdownRiskInfo,
+  lossStreakInfo,
+  runChallengeSimulation,
+  type ChallengeSimResult,
+} from "@/lib/metrics/challenge-sim";
 import { MetricInfo } from "@/components/metric-info";
 import { parseLocaleNumber } from "@/lib/locale-number";
 import { formatPercent } from "@/lib/money";
@@ -71,7 +86,7 @@ import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
  * DEFAULT_CHALLENGE_EQUITY).
  */
 
-type Mode = "parametric" | "empirical";
+type Mode = "parametric" | "empirical" | "block";
 
 /**
  * DEFAULT: la distribuzione STORICA, non il modello a due esiti.
@@ -96,6 +111,8 @@ interface FormState {
   challengeEquity: string;
   /** Orizzonte del fan chart in trade; stringa vuota = automatico. */
   horizon: string;
+  /** Trade consecutivi per blocco (solo modalità block bootstrap). */
+  blockLength: string;
 }
 
 const parseNum = parseLocaleNumber;
@@ -164,6 +181,9 @@ function splitOutcomes(...values: number[]): string[] {
   return floors.map((v) => formatPercent((v / 1000).toFixed(6), 1));
 }
 
+/** Conteggi interi con raggruppamento it-IT («20.000»). */
+const fmtCount = (value: number) => value.toLocaleString("it-IT");
+
 /** Numero di trade: intero sopra 10, un decimale sotto (0,8 trade è un dato). */
 const fmtTrades = (value: number) =>
   value.toLocaleString("it-IT", {
@@ -177,7 +197,8 @@ type FieldKey =
   | "target"
   | "drawdown"
   | "challengeEquity"
-  | "horizon";
+  | "horizon"
+  | "blockLength";
 
 /** Le due viste del pannello: limite asintotico vs orizzonte finito. */
 type View = "unlimited" | "horizon";
@@ -240,6 +261,15 @@ function validateForm(form: FormState): Partial<Record<FieldKey, string>> {
     const drawdown = parseNum(form.drawdown);
     if (equity > target || equity < -drawdown) {
       errors.challengeEquity = `Deve stare fra ${fmtLevel(-drawdown, 2)} e ${fmtLevel(target, 2)}.`;
+    }
+  }
+
+  if (form.mode === "block") {
+    const block = parseNum(form.blockLength);
+    if (!Number.isFinite(block) || !Number.isInteger(block) || block < 1) {
+      errors.blockLength = "Serve un numero intero di trade (≥ 1).";
+    } else if (block > SIM_MAX_BLOCK_LENGTH) {
+      errors.blockLength = `Massimo ${SIM_MAX_BLOCK_LENGTH} trade per blocco.`;
     }
   }
 
@@ -386,6 +416,7 @@ export function PassProbability({
   defaultWinRate,
   defaultRewardRisk,
   empiricalBins,
+  empiricalSequence,
 }: {
   /** Win rate reale del conto in % ("52.5"); null se non calcolabile. */
   defaultWinRate: string | null;
@@ -393,6 +424,12 @@ export function PassProbability({
   defaultRewardRisk: string | null;
   /** Istogramma dei P&L per trade, già binnato in SQL sul passo di griglia. */
   empiricalBins: { bin: number; count: number }[];
+  /**
+   * Gli stessi P&L in ORDINE CRONOLOGICO, in nodi di griglia. L'istogramma
+   * basta alla catena di Markov (i.i.d.); il block bootstrap ha bisogno
+   * dell'ordine, che è precisamente l'informazione che l'istogramma butta via.
+   */
+  empiricalSequence: number[];
 }) {
   const animate = useChartAnimation();
   // Il pannello apre sulla distribuzione VERA del conto (v. DEFAULT_MODE).
@@ -410,6 +447,7 @@ export function PassProbability({
     drawdown: DEFAULT_DRAWDOWN,
     challengeEquity: DEFAULT_CHALLENGE_EQUITY,
     horizon: "",
+    blockLength: String(SIM_DEFAULT_BLOCK_LENGTH),
   });
   const [applied, setApplied] = useState<FormState>(() => ({ ...form }));
   const [errors, setErrors] = useState<Partial<Record<FieldKey, string>>>({});
@@ -433,7 +471,11 @@ export function PassProbability({
     try {
       let distribution;
       let sample: number | null = null;
-      if (applied.mode === "empirical") {
+      // Il block bootstrap non ha una controparte esatta: la catena assume
+      // trade indipendenti per costruzione. Curva e fan chart restano quindi
+      // il modello i.i.d. sulla STESSA distribuzione — dichiarato in pagina —
+      // e servono da termine di paragone per il numero simulato.
+      if (applied.mode !== "parametric") {
         const empirical = empiricalDistribution(empiricalBins, ABSORPTION_GRID_STEP);
         if (empirical === null) {
           return {
@@ -501,6 +543,89 @@ export function PassProbability({
   const empiricalSample = empiricalBins.reduce((sum, row) => sum + row.count, 0);
   const lowSample = empiricalSample < ABSORPTION_GOOD_SAMPLE;
 
+  // SIMULAZIONE (Round 21). Sta dietro lo stesso pulsante della matrice, ma
+  // costa tre ordini di grandezza in più: 20.000 percorsi da percorrere trade
+  // per trade contro una risoluzione di sistema lineare. Due conseguenze:
+  //
+  // - parte solo DOPO il mount (`simReady`), non durante il render sul
+  //   server: nessun motivo di far pagare 100-200 ms a ogni richiesta di
+  //   /analytics per due tabelle che il server non deve rendere;
+  // - il ricalcolo passa da `startTransition`, così React dipinge lo stato di
+  //   attesa PRIMA di bloccarsi sul conto invece di congelare il pulsante.
+  const [simReady, setSimReady] = useState(false);
+  const [isPending, startTransition] = useTransition();
+  useEffect(() => {
+    startTransition(() => setSimReady(true));
+  }, []);
+
+  // La prop arriva in NODI di griglia (come l'istogramma): il simulatore
+  // lavora in punti percentuali. Saltare questa conversione è esattamente il
+  // bug che il cross-check ha pescato la prima volta — un bin 20 letto come
+  // +20% sfonda ogni barriera al primo trade.
+  const sequencePercent = useMemo(
+    () => empiricalSequence.map((bin) => bin * ABSORPTION_GRID_STEP),
+    [empiricalSequence],
+  );
+
+  const simulation = useMemo<ChallengeSimResult | null>(() => {
+    if (!simReady || computed.error !== null) return null;
+    try {
+      return runChallengeSimulation({
+        mode: applied.mode,
+        sequence: sequencePercent,
+        binary: {
+          winRate: parseNum(applied.winRate) / 100,
+          rewardRisk: parseNum(applied.rewardRisk),
+          riskPerTrade: parseNum(applied.riskPerTrade),
+        },
+        blockLength: Math.round(parseNum(applied.blockLength)),
+        target: computed.target,
+        drawdown: computed.drawdown,
+        startLevel: computed.markerLevel,
+        paths: SIM_DEFAULT_PATHS,
+        // Tetto generoso rispetto all'attesa: i percorsi non risolti devono
+        // restare una briciola, altrimenti il cross-check confronterebbe due
+        // cose diverse (la matrice non ha orizzonte).
+        maxTrades: Math.min(
+          SIM_MAX_TRADES_PER_PATH,
+          Math.max(200, Math.ceil(computed.expectedTrades * 25)),
+        ),
+        gridStep: ABSORPTION_GRID_STEP,
+        seed: SIM_SEED,
+      });
+    } catch {
+      // La simulazione è un di più: se i parametri non la reggono, il
+      // pannello resta utilizzabile con la sola matrice esatta.
+      return null;
+    }
+  }, [simReady, applied, computed, sequencePercent]);
+
+  // Il cross-check vive in un effetto, non nel render: è un side effect
+  // (scrive in console) e in StrictMode un render doppio lo raddoppierebbe.
+  useEffect(() => {
+    if (simulation === null || computed.error !== null) return;
+    crossCheckPassRate({
+      mode: applied.mode,
+      simulated: simulation.passAmongResolved,
+      exact: computed.atCurrent,
+    });
+  }, [simulation, computed, applied.mode]);
+
+  // In modalità block il numero di testa viene dalla SIMULAZIONE: la catena
+  // non sa rappresentare i blocchi, e spacciare il suo valore per la risposta
+  // del modello selezionato sarebbe falso.
+  const headline =
+    computed.error !== null
+      ? 0
+      : applied.mode === "block" && simulation?.passAmongResolved != null
+        ? simulation.passAmongResolved
+        : computed.atCurrent;
+
+  const availableBlocks = blocksAvailable(
+    empiricalSequence.length,
+    Math.round(parseNum(applied.blockLength)) || 1,
+  );
+
   return (
     <div className="flex flex-col gap-4">
       <form
@@ -510,7 +635,7 @@ export function PassProbability({
           const nextErrors = validateForm(form);
           setErrors(nextErrors);
           if (Object.keys(nextErrors).length > 0) return;
-          setApplied({ ...form });
+          startTransition(() => setApplied({ ...form }));
         }}
       >
         <Field label="Distribuzione degli esiti">
@@ -525,6 +650,7 @@ export function PassProbability({
               <SelectContent>
                 <SelectItem value="parametric">Parametrica</SelectItem>
                 <SelectItem value="empirical">Storica reale</SelectItem>
+                <SelectItem value="block">Block bootstrap</SelectItem>
               </SelectContent>
             </Select>
           )}
@@ -610,6 +736,23 @@ export function PassProbability({
             />
           )}
         </Field>
+        {form.mode === "block" ? (
+          <Field
+            label="Lunghezza blocco (trade)"
+            error={errors.blockLength}
+          >
+            {(id, invalid) => (
+              <Input
+                id={id}
+                inputMode="numeric"
+                aria-invalid={invalid || undefined}
+                className={cn(invalid && "border-destructive")}
+                value={form.blockLength}
+                onChange={(e) => set("blockLength")(e.target.value)}
+              />
+            )}
+          </Field>
+        ) : null}
         {view === "horizon" ? (
           <Field
             label="Orizzonte in trade (vuoto = automatico)"
@@ -631,13 +774,13 @@ export function PassProbability({
           </Field>
         ) : null}
         <div className="flex items-end">
-          <Button type="submit" className="w-full">
-            Calcola probabilità
+          <Button type="submit" className="w-full" disabled={isPending}>
+            {isPending ? "Calcolo…" : "Calcola probabilità"}
           </Button>
         </div>
       </form>
 
-      {applied.mode === "empirical" ? (
+      {applied.mode !== "parametric" ? (
         <p
           className={cn(
             "rounded-md border border-dashed p-3 text-xs",
@@ -660,6 +803,13 @@ export function PassProbability({
                   : ""
               }.`
             : ""}
+          {applied.mode === "block"
+            ? ` Il block bootstrap ne ricampiona blocchi di ${Math.round(parseNum(applied.blockLength))} trade consecutivi: con questo storico sono ${availableBlocks} blocchi non sovrapposti${
+                availableBlocks < SIM_MIN_BLOCKS
+                  ? ` — sotto i ${SIM_MIN_BLOCKS}, quindi la simulazione ricicla poche sequenze diverse e il risultato è indicativo: accorcia il blocco o allarga il periodo`
+                  : ""
+              }.`
+            : ""}
         </p>
       ) : null}
 
@@ -672,20 +822,26 @@ export function PassProbability({
           <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
             <MiniStat
               label="Probabilità di passaggio"
-              value={fmtProbability(computed.atCurrent)}
+              value={fmtProbability(headline)}
               sub={
-                computed.markerLevel === 0
-                  ? "da un tentativo appena aperto"
-                  : `dal livello ${fmtLevel(computed.markerLevel, 2)} del tentativo`
+                applied.mode === "block"
+                  ? simulation === null
+                    ? "block bootstrap: calcolo in corso…"
+                    : `block bootstrap, su ${fmtCount(simulation.paths)} tentativi simulati`
+                  : computed.markerLevel === 0
+                    ? "da un tentativo appena aperto"
+                    : `dal livello ${fmtLevel(computed.markerLevel, 2)} del tentativo`
               }
-              tone={computed.atCurrent >= 0.5 ? "profit" : "loss"}
-              info={passProbabilityInfo}
+              tone={headline >= 0.5 ? "profit" : "loss"}
+              info={
+                applied.mode === "block" ? blockBootstrapInfo : passProbabilityInfo
+              }
             />
             <MiniStat
               label="Probabilità di fallire"
-              value={fmtProbability(1 - computed.atCurrent)}
+              value={fmtProbability(1 - headline)}
               sub={`prima si tocca ${fmtLevel(-computed.drawdown, 2)}`}
-              tone={computed.atCurrent >= 0.5 ? undefined : "loss"}
+              tone={headline >= 0.5 ? undefined : "loss"}
             />
             <MiniStat
               label="Trade attesi per chiudere"
@@ -843,7 +999,8 @@ export function PassProbability({
                 style={{ background: "var(--chart-1)" }}
               />
               Probabilità di toccare {fmtLevel(computed.target, 2)} prima di{" "}
-              {fmtLevel(-computed.drawdown, 2)} (orizzonte illimitato)
+              {fmtLevel(-computed.drawdown, 2)} (orizzonte illimitato
+              {applied.mode === "block" ? ", modello i.i.d." : ""})
             </span>
             <span className="inline-flex items-center gap-1.5">
               <span
@@ -856,6 +1013,13 @@ export function PassProbability({
           </div>
           </>
           )}
+
+          <PathRisk
+            simulation={simulation}
+            pending={isPending || !simReady}
+            mode={applied.mode}
+            exact={computed.atCurrent}
+          />
 
           <p className="rounded-md border border-dashed p-3 text-xs text-muted-foreground">
             <strong className="text-foreground">Come funziona.</strong> I
@@ -883,7 +1047,11 @@ export function PassProbability({
             sono <em>perché sono davvero successi</em>. Il modello parametrico
             resta disponibile per gli scenari ipotetici, ma è pulito per
             costruzione (ogni vincita vale esattamente +R, ogni perdita −1) e
-            quella pulizia cancella proprio la coda che decide le challenge.{" "}
+            quella pulizia cancella proprio la coda che decide le challenge.
+            Il <em>block bootstrap</em> fa un passo in più: ricampiona blocchi
+            di trade <em>consecutivi</em> invece di pescarli uno a uno, quindi
+            conserva i grappoli — se le tue perdite arrivano in serie, quelle
+            serie restano.{" "}
             <strong className="text-foreground">Le due viste.</strong>{" "}
             «Orizzonte illimitato» è il limite con trade{" "}
             <em>illimitati</em>: dice dove si va a finire, ma non quando, e
@@ -891,16 +1059,31 @@ export function PassProbability({
             per passo (vₙ = vₙ₋₁·P) e mostra la parte che il limite nasconde —
             nei primi trade un edge positivo può morire per varianza, e quella
             probabilità non è affatto trascurabile.{" "}
-            <strong className="text-foreground">Il limite.</strong> Il modello
-            assume trade <em>indipendenti</em>, e questo vale anche con la
-            distribuzione storica: la dispersione vera cattura{" "}
-            <em>quanto</em> possono essere brutti i tuoi trade negativi, non{" "}
-            <em>quando</em> arrivano. I periodi in cui si raggruppano — la
-            settimana storta, il tilt dopo una perdita grossa — restano fuori
-            dal modello, perché ogni trade viene estratto come se i precedenti
-            non fossero mai esistiti. Se le tue perdite arrivano a grappoli, e
-            quasi sempre è così, la probabilità vera è più bassa di questa. Non
-            è un consiglio finanziario.
+            <strong className="text-foreground">Il limite.</strong>{" "}
+            {applied.mode === "block" ? (
+              <>
+                Il block bootstrap conserva i grappoli <em>che ci sono nel tuo
+                storico</em>, ma non può inventare quelli che non hai ancora
+                vissuto: se il campione è corto, la peggior sequenza simulabile
+                è la peggiore già successa. E i blocchi vengono rimescolati fra
+                loro, quindi la dipendenza oltre la lunghezza del blocco resta
+                fuori. Curva e fan chart qui sopra restano il modello i.i.d.
+              </>
+            ) : (
+              <>
+                Il modello assume trade <em>indipendenti</em>, e questo vale
+                anche con la distribuzione storica: la dispersione vera cattura{" "}
+                <em>quanto</em> possono essere brutti i tuoi trade negativi, non{" "}
+                <em>quando</em> arrivano. I periodi in cui si raggruppano — la
+                settimana storta, il tilt dopo una perdita grossa — restano
+                fuori dal modello, perché ogni trade viene estratto come se i
+                precedenti non fossero mai esistiti. Se le tue perdite arrivano
+                a grappoli, e quasi sempre è così, la probabilità vera è più
+                bassa di questa: il <em>block bootstrap</em> nel selettore serve
+                proprio a misurare quanto.
+              </>
+            )}{" "}
+            Non è un consiglio finanziario.
           </p>
         </>
       )}
@@ -1110,5 +1293,136 @@ function HorizonFan({
           : ""}
       </p>
     </>
+  );
+}
+
+/**
+ * RISCHIO DI PERCORSO — le due tabelle che la matrice non può produrre.
+ *
+ * La catena di Markov sa dire come va a finire; non sa dire quanto male si è
+ * messa la cosa nel frattempo. Equity minima toccata e serie di perdite più
+ * lunga sono grandezze di TRAIETTORIA: due tentativi che passano entrambi
+ * possono aver fatto passare notti diversissime, e la differenza è
+ * esattamente ciò che fa abbandonare un piano prima che l'edge abbia il tempo
+ * di manifestarsi. Vengono dalla simulazione, in tutte e tre le modalità.
+ */
+function PathRisk({
+  simulation,
+  pending,
+  mode,
+  exact,
+}: {
+  simulation: ChallengeSimResult | null;
+  pending: boolean;
+  mode: Mode;
+  /** Probabilità esatta dalla matrice, per il confronto in modalità block. */
+  exact: number;
+}) {
+  if (simulation === null) {
+    return (
+      <p className="rounded-md border border-dashed p-3 text-xs text-muted-foreground">
+        {pending
+          ? "Simulazione dei percorsi in corso…"
+          : "Rischio di percorso non calcolabile con questi parametri."}
+      </p>
+    );
+  }
+
+  const rows: { label: string; value: string; hint?: string }[] =
+    simulation.drawdownRisk.map((d) => ({
+      label: `Scende sotto ${fmtLevel(d.threshold, 2)}`,
+      value: fmtProbability(d.probability),
+    }));
+
+  return (
+    <div className={cn("flex flex-col gap-3", pending && "opacity-60")}>
+      <div className="stat-label">Rischio di percorso</div>
+
+      <div className="grid gap-4 md:grid-cols-2">
+        <MiniTable
+          title="Rischio di drawdown intermedio"
+          info={drawdownRiskInfo}
+          head={["Equity minima toccata", "Probabilità"]}
+          rows={rows}
+        />
+        <MiniTable
+          title="Streak di perdite"
+          info={lossStreakInfo}
+          head={["Perdite consecutive", "Probabilità"]}
+          rows={simulation.lossStreak.map((s) => ({
+            label: `Almeno ${s.length} di fila`,
+            value: fmtProbability(s.probability),
+          }))}
+        />
+      </div>
+
+      {mode === "block" ? (
+        <p className="rounded-md border border-dashed p-3 text-xs text-muted-foreground">
+          <strong className="text-foreground">
+            Quanto costa la dipendenza temporale.
+          </strong>{" "}
+          Con gli stessi trade ma pescati uno a uno in modo indipendente la
+          matrice esatta dà {fmtProbability(exact)}; ricampionando blocchi
+          consecutivi si ottiene{" "}
+          {simulation.passAmongResolved === null
+            ? "—"
+            : fmtProbability(simulation.passAmongResolved)}
+          . La differenza è il prezzo dei grappoli: la stessa distribuzione di
+          esiti, messa in fila come è successa davvero. I grafici qui sopra
+          restano il modello i.i.d. — la catena di Markov non sa rappresentare
+          i blocchi, e fingere il contrario sarebbe peggio che dirlo.
+        </p>
+      ) : null}
+
+      <p className="text-xs text-muted-foreground">
+        Misurato su {fmtCount(simulation.paths)} tentativi simulati
+        {simulation.unresolved > 0.001
+          ? ` (${fmtProbability(simulation.unresolved)} non si è risolto entro il tetto di trade e conta comunque nelle due tabelle)`
+          : ""}
+        . Le percentuali sono frequenze osservate su quel campione, non valori
+        teorici: con 20.000 percorsi l&apos;incertezza su un evento raro resta
+        dell&apos;ordine di qualche decimo di punto.
+      </p>
+    </div>
+  );
+}
+
+/** Tabellina a due colonne, stessa impostazione delle altre della pagina. */
+function MiniTable({
+  title,
+  info,
+  head,
+  rows,
+}: {
+  title: string;
+  info: React.ComponentProps<typeof MetricInfo>["info"];
+  head: [string, string];
+  rows: { label: string; value: string }[];
+}) {
+  return (
+    <div className="flex flex-col gap-2">
+      <div className="flex items-center gap-1 text-xs font-medium text-muted-foreground">
+        {title}
+        <MetricInfo info={info} />
+      </div>
+      <table className="w-full text-sm">
+        <thead>
+          <tr className="border-b text-left text-xs text-muted-foreground">
+            <th className="py-2 pr-3 font-medium">{head[0]}</th>
+            <th className="py-2 text-right font-medium">{head[1]}</th>
+          </tr>
+        </thead>
+        <tbody>
+          {rows.map((row) => (
+            <tr key={row.label} className="border-b last:border-0">
+              <td className="py-2 pr-3">{row.label}</td>
+              <td className="py-2 text-right font-medium tabular-nums">
+                {row.value}
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
   );
 }
