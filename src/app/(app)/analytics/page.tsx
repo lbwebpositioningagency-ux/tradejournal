@@ -515,15 +515,6 @@ export default async function AnalyticsPage({
       ? simAvgWinR.div(simAvgLossR).toFixed(4)
       : null;
 
-  // §1b — posizione ATTUALE dell'equity in punti percentuali sul capitale
-  // INIZIALE: è l'asse della probabilità di passaggio, che ragiona su
-  // barriere statiche (il saldo di partenza), non sull'equity corrente.
-  const passLevel = new Decimal(mcStartBalance).gt(0)
-    ? Number(
-        new Decimal(mcLifetime).div(mcStartBalance).times(100).toFixed(4),
-      )
-    : null;
-
   const streaks = streakDistribution(streakRuns);
   const lossProbability =
     proAgg.total > 0
@@ -767,8 +758,10 @@ export default async function AnalyticsPage({
               <CardDescription>
                 La probabilità di toccare il profit target prima del max loss,
                 con le due soglie fissate sul capitale iniziale come in una
-                challenge prop firm. La curva mostra il valore da ogni livello
-                di equity; il marker verticale è dove sei adesso.
+                challenge prop firm. Win rate e reward/risk partono dalle
+                statistiche reali del conto; il tentativo parte da 0% — una
+                challenge riparte da zero, non dal P&amp;L storico del journal
+                — e il marker si sposta solo se dichiari a che punto sei.
               </CardDescription>
             </CardHeader>
             <CardContent>
@@ -781,7 +774,6 @@ export default async function AnalyticsPage({
                 defaultRewardRisk={
                   accPayoff !== null ? new Decimal(accPayoff).toFixed(2) : null
                 }
-                currentLevel={passLevel}
                 empiricalBins={pnlHistogram}
               />
             </CardContent>
