@@ -6,6 +6,7 @@ import { ArrowLeft } from "lucide-react";
 import { auth } from "@/lib/auth";
 import { cn } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
+import { MacroDeskSectionNav } from "@/components/macro-desk/section-nav";
 import { MetricInfo } from "@/components/metric-info";
 import {
   Callout,
@@ -328,26 +329,29 @@ export default async function StagionalitaPage({
 
   return (
     <div className="flex flex-col gap-4">
-      <div>
-        <Link
-          href="/macro-desk"
-          className="mb-1 inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground"
-        >
-          <ArrowLeft className="size-4" />
-          Macro Desk
-        </Link>
-        <h1 className="page-title flex flex-wrap items-center gap-2.5">
-          Stagionalità
-          <Badge variant="outline">mercato, non i tuoi trade</Badge>
-        </h1>
-        <p className="page-subtitle">
-          Il comportamento storico degli strumenti: come si è mosso l&apos;oro a
-          settembre, quali settimane dell&apos;anno hanno prodotto il movimento
-          dell&apos;S&amp;P, dove sta il VIX a gennaio. Ogni numero porta con sé
-          media, mediana, deviazione standard, quota di casi favorevoli e
-          numerosità del campione — perché una media da sola non dice se quella
-          regolarità esiste davvero.
-        </p>
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div className="min-w-0">
+          <Link
+            href="/macro-desk"
+            className="mb-1 inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground"
+          >
+            <ArrowLeft className="size-4" />
+            Macro Desk
+          </Link>
+          <h1 className="page-title flex flex-wrap items-center gap-2.5">
+            Stagionalità
+            <Badge variant="outline">mercato, non i tuoi trade</Badge>
+          </h1>
+          <p className="page-subtitle">
+            Il comportamento storico degli strumenti: come si è mosso l&apos;oro a
+            settembre, quali settimane dell&apos;anno hanno prodotto il movimento
+            dell&apos;S&amp;P, dove sta il VIX a gennaio. Ogni numero porta con sé
+            media, mediana, deviazione standard, quota di casi favorevoli e
+            numerosità del campione — perché una media da sola non dice se quella
+            regolarità esiste davvero.
+          </p>
+        </div>
+        <MacroDeskSectionNav active="stagionalita" />
       </div>
 
       <div
