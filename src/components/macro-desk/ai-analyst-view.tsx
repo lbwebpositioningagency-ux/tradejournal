@@ -4,7 +4,10 @@ import { Chip, ChipGroup } from "@/components/seasonality/controls";
 import { AI_ANALYST_LIST } from "@/lib/ai-analyst/instruments";
 import type { AiAnalystInstrument } from "@/lib/ai-analyst/instruments";
 import { LIMITI_FISSI, dataIt } from "@/lib/ai-analyst/frasi";
-import type { SintesiAiAnalyst } from "@/lib/ai-analyst/sintesi";
+import {
+  MOTIVO_DETERMINISTICO,
+  type SintesiAiAnalyst,
+} from "@/lib/ai-analyst/sintesi";
 import {
   ETICHETTA_ASSENZA,
   ETICHETTA_CARATTERE,
@@ -202,10 +205,16 @@ export function AiAnalystView({
             {sintesi.datoPiuVecchio ? dataIt(sintesi.datoPiuVecchio) : "—"}
           </strong>
         </p>
+        {/* Tre casi diversi, e la differenza conta per chi legge: testo del
+            modello · testo dai dati PER SCELTA · testo dai dati perché il
+            modello non c'era. Il secondo non è un ripiego e non va scritto
+            come se lo fosse. */}
         <p className="text-2xs leading-relaxed text-[var(--md-muted)]">
           {sintesi.origine === "modello"
             ? "Testo scritto da un modello linguistico a partire da questi dati, e passato da due controlli automatici che vietano il linguaggio direzionale."
-            : `Testo generato senza modello linguistico, direttamente dai dati${sintesi.motivoFallback ? ` (${sintesi.motivoFallback})` : ""}. I numeri e il giudizio sono gli stessi: cambia solo la scrittura.`}
+            : sintesi.motivoFallback === MOTIVO_DETERMINISTICO
+              ? "Testo composto direttamente dai dati, senza modelli linguistici: a parità di numeri la pagina dice sempre le stesse parole."
+              : `Testo generato senza modello linguistico, direttamente dai dati${sintesi.motivoFallback ? ` (${sintesi.motivoFallback})` : ""}. I numeri e il giudizio sono gli stessi: cambia solo la scrittura.`}
         </p>
       </Riquadro>
     </div>

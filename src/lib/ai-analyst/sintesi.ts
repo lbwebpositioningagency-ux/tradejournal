@@ -173,6 +173,15 @@ function assembla(
   };
 }
 
+/**
+ * Motivo speciale: non è un guasto, è la scelta della release v1.0 — la pagina
+ * genera sempre e solo dai template e non chiama nessun modello. Va distinto
+ * dagli altri motivi perché a schermo la differenza conta: «senza modello per
+ * scelta» e «senza modello perché non risponde» non sono la stessa cosa da
+ * dire a chi legge.
+ */
+export const MOTIVO_DETERMINISTICO = "sezione deterministica per scelta";
+
 export function sintesiFallback(
   d: Dossier,
   motivo: string,

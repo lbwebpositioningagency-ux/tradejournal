@@ -9,9 +9,10 @@ import { Badge } from "@/components/ui/badge";
 import { AiAnalystView } from "@/components/macro-desk/ai-analyst-view";
 import { buildDossier } from "@/lib/ai-analyst/dossier";
 import { parseAiAnalystInstrument } from "@/lib/ai-analyst/instruments";
-import { generaJsonGemini } from "@/lib/ai-analyst/gemini";
-import { sintesiDelGiorno } from "@/lib/ai-analyst/sintesi";
-import { cancelloSemanticoGemini } from "@/lib/cot-contesto-gemini";
+import {
+  MOTIVO_DETERMINISTICO,
+  sintesiFallback,
+} from "@/lib/ai-analyst/sintesi";
 import {
   caricaFontiCondivise,
   caricaLetture,
@@ -49,12 +50,30 @@ export default async function AiAnalystPage({
   const letture = await caricaLetture(strumento, giorno, fonti);
   const dossier = buildDossier(strumento, giorno, letture);
 
-  // La cache in memoria a chiave (giorno, strumento) sta dentro
-  // `sintesiDelGiorno`: riaprire la pagina non richiama il modello.
-  const sintesi = await sintesiDelGiorno(dossier, {
-    generaJson: generaJsonGemini,
-    cancelloSemantico: cancelloSemanticoGemini,
-  });
+  /* VERSIONE DETERMINISTICA — decisione della release v1.0.
+   *
+   * Questa pagina NON chiama nessun modello linguistico. Il testo viene dai
+   * template di `frasi.ts`, gli stessi numeri e lo stesso verdetto del
+   * percorso col modello: cambia solo chi scrive le frasi.
+   *
+   * Perché: due giri di prova con la chiave vera (9 agosto 2026, log in
+   * AI_ANALYST_LOG.md) hanno misurato che il modello non aggiungeva valore —
+   * col prompt che gli dava la formulazione di riferimento la ricopiava (5
+   * righe di differenza su 210); togliendogliela, su 29 generazioni non ha
+   * prodotto un solo collegamento genuino fra fattori, e sullo stesso dossier
+   * rispondeva in modo opposto da un giro all'altro.
+   *
+   * Conseguenze volute: zero chiamate di rete, zero varianza, nessuno stato di
+   * caricamento da attendere, e la chiave del modello del tutto irrilevante
+   * per questa pagina: il client non viene nemmeno importato, e c'è un test
+   * sul sorgente che lo verifica.
+   *
+   * Il percorso col modello NON è stato cancellato: l'orchestratore e i due
+   * cancelli restano nel codice, con i loro test, pronti per il giorno in cui
+   * si decidesse di riaccenderlo. Riaccenderlo significa passare qui delle
+   * dipendenze vere — una riga — e nient'altro.
+   */
+  const sintesi = sintesiFallback(dossier, MOTIVO_DETERMINISTICO);
 
   return (
     <div className="flex flex-col gap-4">
