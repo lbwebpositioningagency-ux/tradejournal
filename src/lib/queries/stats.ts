@@ -360,6 +360,39 @@ export async function getNetPnlBefore(
   return rows[0].netPnl;
 }
 
+/** Un bin dell'istogramma dei P&L per trade, in nodi di griglia. */
+export interface PnlBinRow {
+  /** Indice del nodo: ROUND(netPnl / passo-in-valuta). */
+  bin: number;
+  count: number;
+}
+
+/**
+ * Istogramma dei P&L per trade espressi in % del capitale INIZIALE, già
+ * binnato sulla griglia della probabilità di passaggio (Fase «Probabilità di
+ * passaggio»).
+ *
+ * Il binning sta in SQL come tutto il resto: in JS arrivano al massimo poche
+ * centinaia di righe (bin distinti), mai i trade. `capitalStep` è il valore
+ * IN VALUTA di un nodo di griglia (capitale iniziale × passo% / 100): un
+ * trade da +250 € su 100.000 € di capitale con passo 0,05% finisce nel bin 5
+ * (+0,25%).
+ */
+export async function getPnlPercentHistogram(
+  filter: StatsFilter,
+  capitalStep: string,
+): Promise<PnlBinRow[]> {
+  return prisma.$queryRaw<PnlBinRow[]>(Prisma.sql`
+    SELECT
+      ROUND(t."netPnl" / ${capitalStep}::numeric)::int AS "bin",
+      COUNT(*)::int                                    AS "count"
+    ${FROM_TRADES}
+    WHERE ${whereClosedTrades(filter)}
+    GROUP BY 1
+    ORDER BY 1 ASC
+  `);
+}
+
 /**
  * Somma dei saldi iniziali dei conti considerati: base della curva di equity
  * per il calcolo del drawdown percentuale.
