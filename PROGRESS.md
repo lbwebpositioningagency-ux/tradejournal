@@ -1315,199 +1315,30 @@ diventata `/macro-desk/stagionalita` per coerenza con loro. La vecchia
 `/stagionalita` resta come `permanentRedirect` — era pubblicata, i segnalibri
 non devono rompersi. Contenuto, dati, API e job notturno invariati.
 
-## Probabilità di passaggio (challenge prop firm) · 09/08/2026
+## Rimossa "Probabilità di passaggio" · 09/08/2026
 
-Nuovo pannello dentro **Analytics**, accanto all'equity curve simulator: là
-«cosa succede se», qui «quanto è probabile che ce la faccia». Risponde alla
-domanda vera di chi ha una challenge in corso — probabilità di toccare
-+target prima di −drawdown, con le due barriere **statiche sul capitale
-iniziale** (regola delle prop firm), non sull'equity corrente.
+Il pannello introdotto nei Round 18-21 (curva a orizzonte illimitato, fan
+chart per numero di trade, distribuzione empirica di default, block
+bootstrap + rischio di percorso) è stato **rimosso su decisione dell'utente**,
+non solo nascosto.
 
-**Motore** (`src/lib/metrics/absorption.ts`): catena di Markov assorbente
-risolta ESATTAMENTE, non simulata. I livelli fra le barriere diventano stati
-transienti su una griglia da 0,05 punti percentuali (~400 stati su un range
-di 20 punti); si partiziona in Q (transiente→transiente) e R (→ Pass/Fail) e
-si risolve (I − Q)·x = R con eliminazione di Gauss e pivoting parziale. Una
-sola risoluzione dà la probabilità da OGNI livello — cioè la curva intera da
-disegnare, non il solo punto attuale — in ~2,5 ms (24 ms nel caso peggiore
-con distribuzione empirica larga): niente errore Monte Carlo, e premere due
-volte il pulsante dà lo stesso numero (nessun seed, a differenza del
-simulatore accanto).
+Rimozione via `git checkout 611f043 -- page.tsx stats.ts PROGRESS.md` (il
+commit immediatamente precedente al primo del pannello) più `git rm` dei file
+nati per la feature — pulita perché tutta la catena `7b78163..8c26935` era
+isolata: nessun altro lavoro su Analytics si era interlacciato nel frattempo,
+verificato con `git log --graph`.
 
-**Validazione numerica** (22 test): gambler's ruin simmetrico → p(0) = 0,5
-esatto; random walk sbilanciato → coincide con la formula chiusa
-(1−rⁱ)/(1−rᴺ) a 9 decimali su tutti i 19 livelli interni; edge zero → curva
-lineare entro 1 punto percentuale; convergenza di griglia → dimezzando il
-passo p(0) si sposta di meno di 0,1 punti (verificato con salti NON multipli
-del passo, dove l'arrotondamento conta davvero); barriere fuori griglia →
-errore esplicito, mai un risultato silenziosamente sbagliato. Blindato anche
-l'**overshoot**: con salti grandi la curva non è la retta del gambler's ruin
-continuo perché chi sfonda il max loss è fuori, di quanto non conta — è la
-regola reale, e il test la fissa con la formula del martingala.
+Tolti: il componente `pass-probability.tsx`, il motore `absorption.ts` (catena
+di Markov assorbente) coi suoi test, il simulatore `challenge-sim.ts`
+(parametrica/empirica/block bootstrap) coi suoi test, le due query aggiunte
+in `stats.ts` (`getPnlPercentHistogram`, `getPnlPercentSequence`) e il pezzo
+di `page.tsx` che le orchestrava — card, pillola «Passaggio» nella mappa di
+sezione, promise del pannello nel `Promise.all`. Verificato PRIMA di
+cancellare che nessuno dei due moduli e nessuna delle due query fosse riusata
+altrove: zero risultati per `absorption`, `challenge-sim`, `PassProbability`
+fuori dai loro stessi file. `accWinRate`/`accPayoff` (Kelly, risk of ruin)
+restano: erano condivisi, non introdotti per questo pannello.
 
-**Due sorgenti per la distribuzione.** Parametrica (default): win rate e
-Avg Win/Avg Loss REALI del conto — le stesse grandezze che alimentano Kelly e
-risk of ruin, non ricalcolate — più un rischio per trade di scenario (0,5%
-fisso, editabile). Empirica: istogramma vero dei P&L per trade in % del
-capitale iniziale, **binnato in SQL** (`getPnlPercentHistogram`, nessun trade
-caricato in JS), con avviso di bassa confidenza sotto i 100 trade e menzione
-della soglia dei 30 (quella di SQN e Optimal f). Target e drawdown sempre
-editabili in entrambe le modalità (default 10%/10%: alcune firm usano 8%/5%).
-
-**UI**: curva probability(level) in Recharts con marker verticale sull'equity
-attuale, etichetta disegnata a mano dentro l'area (il `label position:"top"`
-di Recharts finiva tagliato quando il marker sta su una barriera) che si
-ribalta di lato nella metà destra. Nessuna tabella nuova, nessuna migrazione,
-nessuna voce di sidebar: solo una pillola in più nella mappa di sezione della
-pagina. Disclaimer in chiaro sull'ipotesi di indipendenza fra i trade.
-Gate verde: 1708 test, lint, typecheck, build.
-
-### Fix (09/08/2026): la posizione sulla curva non è il P&L storico
-
-Nella prima versione il marker veniva posizionato con `netPnl` cumulativo ÷
-capitale iniziale del conto: la posizione nella challenge era, di fatto,
-TUTTA la storia del journal. Sono due grandezze diverse — una challenge
-riparte da 0 a ogni tentativo — e sui conti demo (+65/+143% di storico) il
-pannello finiva sempre a 100% col marker sul bordo: non un caso limite dei
-dati, la fonte sbagliata.
-
-Rimossa ogni dipendenza dal P&L cumulativo nel pannello (query, calcolo, UI):
-il livello di partenza è ora un campo del form, **«Equity attuale nella
-challenge (%)», default 0**, validato dentro `[−drawdown, +target]` con i
-limiti che seguono i valori digitati in quel momento per le due barriere.
-Restano derivati dalle statistiche reali del conto — come devono — win rate,
-reward/risk e l'istogramma della distribuzione empirica: il bug era nel punto
-di posizionamento, non negli input del modello.
-
-Le card sono state riviste di conseguenza: «Probabilità di passaggio»,
-«Probabilità di fallire», «Margine al target», «Margine al max loss» (spariti
-«Probabilità da zero», che al default era un doppione della prima, ed «Equity
-attuale», che è la grandezza sbagliata). Regressione verificata sui tre conti
-demo: col default il marker cade al centro esatto della curva (frazione 0,523
-della larghezza del grafico, identica sui tre conti nonostante storici molto
-diversi); a +3% si sposta a 0,663; a +25% la validazione rifiuta e il grafico
-resta sull'ultimo stato valido.
-
-### Round 19 (09/08/2026): fan chart per numero di trade
-
-La curva probabilità-vs-livello è un LIMITE: dice dove si va a finire con
-trade illimitati, e proprio per questo nasconde la cosa che a chi sta facendo
-una challenge interessa di più — nel breve la varianza può chiudere il
-tentativo anche con un edge positivo. Seconda vista, stessa catena, stessa
-filosofia (esatta, non simulata).
-
-**Calcolo.** `computeAbsorptionHorizon` propaga v₀ (massa 1 sullo stato di
-partenza) con vₙ = vₙ₋₁·P, assorbenti con self-loop 1: un tentativo chiuso
-resta congelato sulla sua barriera e continua a contare nei percentili come
-equity ferma lì. Da ogni vₙ si estraggono i percentili 10/25/50/75/90 su TUTTO
-lo spazio degli stati, i due atomi compresi. La copertura delle bande è
-MISURATA e scritta in legenda: con due atomi sui muri i percentili teorici
-gaussiani non hanno alcun senso, e infatti a orizzonte lungo la banda non si
-allarga — collassa contro la barriera dove si è accumulata la massa.
-
-Refactoring minimo per non ricostruire tre volte la stessa matrice:
-`buildAbsorptionChain` una volta, poi `absorptionCurveFromChain`,
-`expectedTradesFromChain` (t = N·1, sottoprodotto gratuito, esposto come card
-«Trade attesi per chiudere») e l'orizzonte. Orizzonte di default = 2× i trade
-attesi arrotondato a 50/100/200 (il ×2 perché la distribuzione del tempo di
-assorbimento ha la coda lunga a destra); campo numerico editabile, vuoto =
-automatico. Niente Brush/zoom, coerente con la decisione già presa.
-
-**Test** (+15, totale 1723): E[durata] = i·(N−i) del gambler's ruin equo a 8
-decimali; massa tutta sul punto di partenza a n = 0; conservazione della
-probabilità a OGNI passo; convergenza di pass+fail al limite già validato
-entro 0,1 punti; edge forte che non crolla a n piccolo ed edge debole in cui
-il fallimento corre più veloce del successo; percentili ordinati e dentro le
-barriere; copertura ≥ nominale; partenza da una barriera che resta congelata.
-
-**Autocontrollo visivo.** Tre difetti trovati e corretti: i tre numeri del
-readout in hover sommavano a 99,9% per arrotondamento indipendente (ora metodo
-dei resti maggiori, somma esatta 100,0%); mancava lo spazio dopo due tag
-inline nel testo esplicativo («risolta— matrice», «misuratesulla»); «Questa è
-il limite» concordava col genere sbagliato. Il dente di sega delle bande in
-modalità parametrica NON è un difetto — è il reticolo grossolano di un modello
-a due soli esiti, verificato che sparisce in modalità storica, e ora la
-didascalia lo dice.
-
-### Round 20 (09/08/2026): la distribuzione storica diventa il default
-
-Il modello parametrico è pulito per costruzione — ogni vincita vale
-esattamente +R, ogni perdita esattamente −1 — e quella pulizia cancella
-proprio ciò che decide una challenge: le perdite più grandi della media, gli
-stop saltati, lo slippage. Il pannello ora apre sulla distribuzione VERA dei
-trade del conto; la parametrica resta nel selettore per gli scenari ipotetici.
-Unica eccezione: conto senza storico, dove l'istogramma non esiste e aprire su
-una modalità che può solo dire «nessun trade» sarebbe un vicolo cieco.
-
-Motore INVARIATO (`absorption.ts` non toccato): cambia solo quale
-distribuzione gli arriva di default.
-
-**Verifica «nessun taglio delle code»** (richiesta esplicita, 4 test nuovi).
-`getPnlPercentHistogram` non filtra outlier: ogni trade chiuso entra per il
-suo valore pieno. L'unico limite è il clamp del Round 18, a ±100.000 nodi =
-±5.000% del capitale — due ordini di grandezza oltre la barriera massima
-ammessa dal pannello (90%), quindi in una zona dove il salto è assorbente
-comunque e nessun risultato può cambiare. I test blindano che un bin estremo
-sopravviva intatto alla normalizzazione, che una singola perdita anomala
-sposti il risultato di punti percentuali (a parità di campione e di somma
-P&L: se un cap la trattasse da outlier, le due distribuzioni darebbero lo
-stesso numero), e che un esito oltre la barriera resti nella distribuzione
-invece di sparire.
-
-**Prova che legge davvero i dati veri**, sui tre conti demo: forex 98,9% vs
-100,0% parametrica (trade attesi 14 vs 28), futures 99,9% vs 100,0% (11 vs
-19), SIM1 95,0% vs 99,9% (43 vs 73). Sempre più basso della versione
-idealizzata, che è il punto. Periodo con 8 soli trade: default empirico,
-avviso di bassa confidenza con entrambe le soglie (100 e 30).
-
-**Testo aggiornato**: la modalità storica usa la dispersione reale, ma resta
-un'ipotesi di indipendenza — cattura QUANTO possono essere brutti i trade
-negativi, non QUANDO arrivano; i periodi in cui si raggruppano restano fuori
-dal modello. Corretti nell'autocontrollo visivo: spazio mangiato da JSX in
-«vera dei tuoi trade» e concordanza «tutti i 8» → «tutti e 8 i».
-
-### Round 21 (09/08/2026): block bootstrap + rischio di percorso
-
-Terzo modello nel selettore e due tabelle che la matrice non può produrre.
-Motore nuovo in `src/lib/metrics/challenge-sim.ts`, separato da
-`absorption.ts` (che resta intatto e viene usato solo come termine di
-paragone).
-
-**Perché una simulazione, se la matrice dà la risposta esatta.** Due motivi,
-entrambi strutturali. La catena sa dire *come va a finire*, non *quanto male
-si è messa nel frattempo*: equity minima toccata e serie di perdite più lunga
-sono grandezze di TRAIETTORIA, e due tentativi che passano entrambi possono
-aver fatto passare notti diversissime. E la catena assume trade indipendenti
-per costruzione: il **block bootstrap** ricampiona blocchi di trade
-CONSECUTIVI (circolari, default 20, editabile) e quindi conserva i grappoli —
-è l'unico dei tre modelli che vede la dipendenza temporale.
-
-Sul conto SIM1 la differenza si misura: **95,0% i.i.d. contro 89,5% con
-blocchi da 20**, e il rischio di scendere sotto −5% passa da 20,7% a 28,1%.
-Cinque punti e mezzo è il prezzo dei grappoli, sulla stessa identica
-distribuzione di esiti.
-
-**Il cross-check ha fatto il suo mestiere al primo giro.** Per le modalità
-i.i.d. il tasso simulato deve coincidere con quello della matrice: alla prima
-esecuzione in pagina la console ha strillato «simulato 48,02%, esatto 94,96%,
-scarto 46,94 punti». Non era rumore — passavo alla simulazione gli INDICI DI
-BIN invece dei punti percentuali, così un bin 20 (+1%) veniva letto come +20%
-e sfondava ogni barriera al primo trade. Corretto; ora la console tace. È
-esattamente il tipo di bug che i 20 test unitari non avevano preso, perché
-lì la conversione la facevo giusta a mano.
-
-**Test** (+20, totale 1747): blocco = 1 degenera nell'empirica i.i.d. entro
-1 punto; cross-check simulato-vs-esatto sotto 0,5 punti su 20.000 percorsi per
-entrambe le modalità i.i.d.; conservazione pass/fail/non-risolto sui conteggi
-interi; con edge fortissimo P(streak ≥ 10) piccola ma MAI zero; due storici
-con gli stessi valori e le stesse frequenze, uno a grappoli e uno alternato,
-indistinguibili per l'i.i.d. e diversissimi per il block bootstrap.
-
-**UI**: la simulazione parte solo DOPO il mount (niente 100-200 ms aggiunti a
-ogni render server di /analytics) e passa da `startTransition`, così lo stato
-di attesa si dipinge prima del blocco. Seed fisso: il pannello promette
-riproducibilità e una simulazione ballerina la romperebbe. In modalità block
-il numero di testa viene dalla simulazione — la catena non sa rappresentare i
-blocchi — e grafici e legenda lo dichiarano come modello i.i.d. invece di
-fingere. Corretto nell'autocontrollo visivo: i tre titoli della nuova sezione
-avevano tutti lo stesso peso tipografico.
+Suite tornata a 1686 test (1747 − 61, esattamente i test aggiunti nei quattro
+round del pannello): nessun test esterno dipendeva da questi moduli. Build,
+typecheck e lint verdi; nessun riferimento orfano nel codice.
