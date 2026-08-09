@@ -12,14 +12,7 @@ import {
   YAxis,
 } from "recharts";
 import { CHART } from "@/components/charts/chart-spec";
-import {
-  domainFromValues,
-  useChartZoom,
-} from "@/components/charts/use-chart-zoom";
-import {
-  ChartZoomControls,
-  ZoomBrush,
-} from "@/components/charts/chart-zoom";
+import { domainFromValues } from "@/components/charts/use-chart-zoom";
 import { useChartAnimation } from "@/components/charts/use-chart-animation";
 import {
   SIM_MAX_LINES,
@@ -311,26 +304,14 @@ export function EquitySimulator({
 
   // Copertura EMPIRICA delle bande, contata sull'equity FINALE dei percorsi
   // (il dato che conta; per la distribuzione passo per passo c'è il tooltip).
-  /* Zoom sulla visualizzazione: non tocca la simulazione, che resta quella
-     calcolata. In scala LOG lo zoom verticale resta spento (vedi
-     `yEnabled`): l'asse è già logaritmico e stringerlo aritmeticamente
-     mentirebbe sulle distanze. */
-  const zoom = useChartZoom({
-    dataLength: rows.length,
-    base: domainFromValues(
-      rows.flatMap((r) => [
-        typeof r.lo === "number" ? r.lo : null,
-        typeof r.hi === "number" ? r.hi : null,
-      ]),
-    ),
-    yEnabled: scale !== "log",
-  });
-  const xDomain: [number, number | "dataMax"] = zoom.range
-    ? [
-        Number(rows[zoom.range.startIndex]?.trade ?? 0),
-        Number(rows[zoom.range.endIndex]?.trade ?? 0),
-      ]
-    : [0, "dataMax"];
+  // Dominio Y arrotondato a un passo "umano" (vedi domainFromValues): il
+  // grafico mostra SEMPRE l'intero range di trade simulati, nessuno zoom.
+  const yDomain = domainFromValues(
+    rows.flatMap((r) => [
+      typeof r.lo === "number" ? r.lo : null,
+      typeof r.hi === "number" ? r.hi : null,
+    ]),
+  );
 
   const finalBand = bands.length > 0 ? bands[bands.length - 1] : null;
   const lines = result?.paths.length ?? 0;
@@ -480,16 +461,12 @@ export function EquitySimulator({
         </p>
       ) : (
         <>
-          <div className="flex justify-end">
-            <ChartZoomControls zoom={zoom} />
-          </div>
           <ResponsiveContainer width="100%" height={348}>
             <ComposedChart data={rows} margin={CHART.margin}>
               <XAxis
                 dataKey="trade"
                 type="number"
-                domain={xDomain}
-                allowDataOverflow
+                domain={[0, "dataMax"]}
                 tick={CHART.axisTick}
                 tickLine={false}
                 axisLine={false}
@@ -497,7 +474,7 @@ export function EquitySimulator({
               />
               <YAxis
                 scale={scale === "log" ? "log" : "linear"}
-                domain={scale === "log" ? ["auto", "auto"] : zoom.yDomain}
+                domain={scale === "log" ? ["auto", "auto"] : yDomain}
                 tick={CHART.axisTick}
                 tickLine={false}
                 axisLine={false}
@@ -599,11 +576,6 @@ export function EquitySimulator({
                 dot={false}
                 connectNulls={false}
                 isAnimationActive={animate}
-              />
-              <ZoomBrush
-                zoom={zoom}
-                dataKey="trade"
-                tickFormatter={((v: number) => `#${v}`) as never}
               />
             </ComposedChart>
           </ResponsiveContainer>
