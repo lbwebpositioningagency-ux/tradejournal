@@ -14,7 +14,7 @@
  * Output: docs/ai-analyst/anteprima-<strumento>.html
  */
 
-import "dotenv/config";
+import "./ai-analyst-env";
 import { mkdirSync, readFileSync, readdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { renderToStaticMarkup } from "react-dom/server";

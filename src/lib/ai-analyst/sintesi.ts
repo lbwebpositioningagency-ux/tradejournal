@@ -220,6 +220,26 @@ export function testoDaControllare(testi: {
   ].join("\n");
 }
 
+/**
+ * La prima riga che fa scattare il cancello, accorciata. Senza questo, il
+ * tracciato dice quale REGOLA è scattata ma non su cosa, e non si distingue
+ * un blocco giusto da un falso positivo del cancello: è precisamente la
+ * domanda che ci si pone leggendo il log.
+ */
+export function rigaIncriminata(
+  testo: string,
+  controlla: (t: string) => string[],
+  massimo = 120,
+): string | null {
+  for (const riga of testo.split("\n")) {
+    if (riga.trim() === "") continue;
+    if (controlla(riga).length > 0) {
+      return riga.length > massimo ? `${riga.slice(0, massimo)}…` : riga;
+    }
+  }
+  return null;
+}
+
 /* ── orchestratore ───────────────────────────────────────────────────── */
 
 export interface DipendenzeSintesi {
@@ -276,7 +296,10 @@ export async function generaSintesi(
 
     const violazioni = controlloLessicaleAnalyst(testo);
     if (violazioni.length > 0) {
-      ultimoMotivo = `cancello lessicale: ${violazioni.join("; ")}`;
+      const riga = rigaIncriminata(testo, controlloLessicaleAnalyst);
+      ultimoMotivo =
+        `cancello lessicale: ${violazioni.join("; ")}` +
+        (riga ? ` — nella frase «${riga}»` : "");
       eventi.push(`tentativo ${tentativo}: ${ultimoMotivo}`);
       console.error(`[ai-analyst] ${d.strumento} — ${ultimoMotivo}`);
       continue;

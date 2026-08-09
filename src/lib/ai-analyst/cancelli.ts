@@ -74,6 +74,18 @@ const REGOLE_AI_ANALYST: ReadonlyArray<{ etichetta: string; regex: RegExp }> = [
     etichetta: "contesto/quadro qualificato come positivo o negativo",
     regex: /\b(contesto|scenario|quadro|momento|giornata|seduta|fase)\b[^.\n]{0,20}\b(positiv\w+|negativ\w+|buon[oa]|cattiv\w+|promettent\w+|preoccupant\w+)\b/i,
   },
+  // ── impalcatura interna che trapela ──
+  // OSSERVATA DAL VERO il 09/08/2026, al primo giro con la chiave vera: il
+  // modello riceve i fattori con i loro id (`F1`…`F12`) e li ha citati dentro
+  // il testo a schermo («Alcuni dati sui fattori F5 e F6 risultano
+  // invecchiati», «la volatilità implicita di F4 e F9»). Non è direzionale, ma
+  // è la nostra impalcatura: per chi legge non vuol dire niente e fa sembrare
+  // la sezione un pannello di debug. L'intervallo è limitato a F1-F12, cioè
+  // agli id che esistono davvero, per non prendere sigle o codici altrui.
+  {
+    etichetta: "identificatore interno di fattore (F1…F12) nel testo",
+    regex: /(?<![A-Za-z])F(?:[1-9]|1[0-2])(?![0-9A-Za-z])/,
+  },
   // ── probabilità travestite ──
   {
     etichetta: "probabilità attribuita alla giornata di oggi",

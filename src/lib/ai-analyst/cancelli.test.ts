@@ -68,6 +68,56 @@ describe("cancello lessicale — esche che devono essere fermate", () => {
 });
 
 /**
+ * ESCHE RACCOLTE DAL VERO — frasi che Gemini ha davvero prodotto nel primo
+ * giro con la chiave vera (09/08/2026), copiate verbatim dall'output. Non
+ * sono inventate: sono il buco osservato.
+ *
+ * Il modello cita gli identificatori INTERNI dei fattori («F5 e F6», «F4 e
+ * F9») dentro il testo che va a schermo. Non è linguaggio direzionale, ma è
+ * comunque roba che non deve arrivare a chi legge: quegli id sono la nostra
+ * impalcatura, per l'utente non vogliono dire niente e fanno sembrare la
+ * sezione un pannello di debug.
+ */
+const ESCHE_DAL_VERO: ReadonlyArray<[string, string]> = [
+  [
+    "id interni dei fattori (F5 e F6) — osservata il 09/08/2026",
+    "Alcuni dati sui fattori F5 e F6 risultano invecchiati essendo stati rilevati il 2026-07-21.",
+  ],
+  [
+    "id interni dei fattori (F4 e F9) — osservata il 09/08/2026",
+    "Il dato sulla volatilità implicita di F4 e F9 fa riferimento a un indice di un altro mercato.",
+  ],
+  [
+    "id interno singolo",
+    "Il fattore F1 non è disponibile in questa lettura.",
+  ],
+  [
+    "id interno a due cifre",
+    "Anche F10 e F12 poggiano su rilevazioni più vecchie.",
+  ],
+];
+
+describe("cancello lessicale — esche raccolte dalla prosa vera del modello", () => {
+  for (const [etichetta, testo] of ESCHE_DAL_VERO) {
+    it(`ferma: ${etichetta}`, () => {
+      expect(controlloLessicaleAnalyst(testo).length).toBeGreaterThan(0);
+    });
+  }
+
+  it("non confonde con gli id un testo che parla di numeri o sigle vere", () => {
+    // Falsi positivi da evitare: qui non c'è nessun identificatore interno.
+    for (const buono of [
+      "Il GVZ sta a 24,86 e il VIX a 15,15.",
+      "Il campione copre 20 anni, dal 2006 al 2025.",
+      "La fascia va da F a G nella scala della fonte.",
+      "Nel 2026 la finestra si allarga.",
+    ]) {
+      expect(controlloLessicaleAnalyst(buono), buono).toEqual([]);
+    }
+  });
+});
+
+/**
  * TESTI PULITI che devono passare: se il cancello li fermasse, la sezione non
  * potrebbe dire nemmeno le cose che ha il diritto di dire.
  */

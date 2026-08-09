@@ -14,7 +14,7 @@
  * giorno). L'anteprima lo dichiara a caratteri cubitali: è una SIMULAZIONE.
  */
 
-import "dotenv/config";
+import "./ai-analyst-env";
 import { buildDossier } from "@/lib/ai-analyst/dossier";
 import { AI_ANALYST_LIST } from "@/lib/ai-analyst/instruments";
 import type { Dossier, FattorePresente } from "@/lib/ai-analyst/types";

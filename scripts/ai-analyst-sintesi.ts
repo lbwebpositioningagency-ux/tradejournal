@@ -9,7 +9,7 @@
  *   npx tsx scripts/ai-analyst-sintesi.ts --senza-modello   # solo fallback
  */
 
-import "dotenv/config";
+import "./ai-analyst-env";
 import { buildDossier } from "@/lib/ai-analyst/dossier";
 import { AI_ANALYST_LIST } from "@/lib/ai-analyst/instruments";
 import { generaJsonGemini, haChiaveGemini } from "@/lib/ai-analyst/gemini";
@@ -31,9 +31,33 @@ import { prisma } from "@/lib/db";
 const reportFresco = process.argv.includes("--report-fresco");
 const senzaModello = process.argv.includes("--senza-modello");
 
+/**
+ * Pausa fra uno strumento e l'altro. Il tier gratuito limita le richieste al
+ * MINUTO, e una sintesi ne fa tre (generazione + le due domande del cancello
+ * semantico): senza pausa quattro strumenti di fila sfiorerebbero il limite e
+ * un 429 verrebbe scambiato per «il modello non è raggiungibile», falsando
+ * proprio la misura che questo script serve a fare. Vive solo qui: l'app
+ * genera uno strumento alla volta, su richiesta.
+ */
+const PAUSA_MS = 12_000;
+const attendi = (ms: number) => new Promise((r) => setTimeout(r, ms));
+
+/** Contatore e cronometro delle chiamate reali: servono al verbale (§4 e §5). */
+const chiamate: { tipo: string; ms: number }[] = [];
+
+async function cronometra<T>(tipo: string, fn: () => Promise<T>): Promise<T> {
+  const t0 = Date.now();
+  try {
+    return await fn();
+  } finally {
+    chiamate.push({ tipo, ms: Date.now() - t0 });
+  }
+}
+
 const depsReali: DipendenzeSintesi = {
-  generaJson: generaJsonGemini,
-  cancelloSemantico: cancelloSemanticoGemini,
+  generaJson: (p) => cronometra("generazione", () => generaJsonGemini(p)),
+  cancelloSemantico: (d, t) =>
+    cronometra("cancello", () => cancelloSemanticoGemini(d, t)),
 };
 
 const depsSenzaModello: DipendenzeSintesi = {
@@ -107,14 +131,38 @@ async function main() {
     `\n[modello: ${senzaModello ? "disattivato da riga di comando" : haChiaveGemini() ? "Gemini flash-lite, chiave presente" : "nessuna chiave, si userà il fallback"}]`,
   );
 
+  let primo = true;
   for (const def of AI_ANALYST_LIST) {
+    if (!primo && !senzaModello) await attendi(PAUSA_MS);
+    primo = false;
     const letture = await caricaLetture(def.code, giorno, fonti);
     const dossier = buildDossier(def.code, giorno, letture);
+    const t0 = Date.now();
     const sintesi = await generaSintesi(
       dossier,
       senzaModello ? depsSenzaModello : depsReali,
     );
+    const durata = Date.now() - t0;
     stampa(sintesi, `${def.label} (${def.ticker})`);
+    console.log(`  [tempo totale della sintesi: ${(durata / 1000).toFixed(1)} s]`);
+  }
+
+  if (chiamate.length > 0) {
+    const perTipo = new Map<string, number[]>();
+    for (const c of chiamate) {
+      const l = perTipo.get(c.tipo) ?? [];
+      l.push(c.ms);
+      perTipo.set(c.tipo, l);
+    }
+    console.log("");
+    console.log("── CHIAMATE REALI AL MODELLO ──");
+    for (const [tipo, ms] of perTipo) {
+      const somma = ms.reduce((a, b) => a + b, 0);
+      console.log(
+        `  ${tipo}: ${ms.length} chiamate · media ${(somma / ms.length / 1000).toFixed(2)} s · min ${(Math.min(...ms) / 1000).toFixed(2)} s · max ${(Math.max(...ms) / 1000).toFixed(2)} s`,
+      );
+    }
+    console.log(`  TOTALE: ${chiamate.length} chiamate in questa esecuzione`);
   }
   console.log("");
 }
