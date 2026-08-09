@@ -72,19 +72,12 @@ import { equitySimulatorInfo } from "@/lib/metrics/equity-simulator";
 import {
   getRMultiples,
   getDailyPnl,
-  getPnlPercentHistogram,
-  getPnlPercentSequence,
   getStartingBalance,
   getLifetimeNetPnl,
   getNetPnlBefore,
   getTradeAggregates,
 } from "@/lib/queries/stats";
-import {
-  ABSORPTION_GRID_STEP,
-  passProbabilityInfo,
-} from "@/lib/metrics/absorption";
 import { EquitySimulator } from "@/components/analytics/equity-simulator";
-import { PassProbability } from "@/components/analytics/pass-probability";
 import {
   RollingRatioChart,
   RollingTradeChart,
@@ -315,26 +308,6 @@ export default async function AnalyticsPage({
     const window = pickWindow(TRADE_WINDOWS, Number(params.rt), cov.total);
     return window ? getRollingTradeWindow(filter, user.timezone, window) : [];
   });
-  // §1b — istogramma dei P&L per trade in % del capitale INIZIALE, per la
-  // modalità empirica della probabilità di passaggio. Il passo di griglia in
-  // valuta dipende dal capitale iniziale: unica dipendenza vera, agganciata
-  // alla promise del saldo (stesso pattern della rolling window a trade).
-  const startBalancePromise = getStartingBalance(filter);
-  const capitalStepPromise = startBalancePromise.then((balance) =>
-    new Decimal(balance).times(ABSORPTION_GRID_STEP).div(100),
-  );
-  const pnlHistogramPromise = capitalStepPromise.then((capitalStep) =>
-    capitalStep.gt(0)
-      ? getPnlPercentHistogram(accountFilter, capitalStep.toFixed(8))
-      : [],
-  );
-  // Sequenza ORDINATA per il block bootstrap (Round 21): l'istogramma perde
-  // l'ordine, che lì è esattamente il dato che serve.
-  const pnlSequencePromise = capitalStepPromise.then((capitalStep) =>
-    capitalStep.gt(0)
-      ? getPnlPercentSequence(accountFilter, capitalStep.toFixed(8))
-      : [],
-  );
   const [
     coverage,
     bucketRows,
@@ -358,8 +331,6 @@ export default async function AnalyticsPage({
     streakRuns,
     concentrationRow,
     rollingRows,
-    pnlHistogram,
-    pnlSequence,
   ] = await Promise.all([
     coveragePromise,
     getTargetRBuckets(filter),
@@ -370,7 +341,7 @@ export default async function AnalyticsPage({
     getDurationPerformance(filter, DURATION_BUCKETS),
     getRMultiples(filter),
     getDailyPnl(filter, user.timezone),
-    startBalancePromise,
+    getStartingBalance(filter),
     getLifetimeNetPnl(filter),
     // Equity a INIZIO periodo per i ritorni rolling (vedi §2 sotto).
     getNetPnlBefore({ userId, accountId, currency: currencyScope.active }, period.from),
@@ -380,8 +351,6 @@ export default async function AnalyticsPage({
     getStreakRuns(filter),
     getTopConcentration(filter),
     rollingRowsPromise,
-    pnlHistogramPromise,
-    pnlSequencePromise,
   ]);
   timing.mark("queries");
   timing.flush();
@@ -599,7 +568,6 @@ export default async function AnalyticsPage({
               [
                 ["Distribuzioni", "#distribuzioni"],
                 ["Simulatore", "#simulatore"],
-                ["Passaggio", "#probabilita-passaggio"],
                 ["Rolling", "#rolling"],
                 ["Rischio", "#rischio"],
                 ["Timing", "#timing"],
@@ -754,41 +722,6 @@ export default async function AnalyticsPage({
                 non-vincita perde l&apos;intero rischio. Non è un consiglio
                 finanziario.
               </p>
-            </CardContent>
-          </Card>
-
-          {/* §1b — probabilità di passaggio: il gemello del simulatore. Là
-              «cosa succede se», qui «quanto è probabile che ce la faccia». */}
-          <Card id="probabilita-passaggio" className="scroll-mt-20">
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2 text-base">
-                Probabilità di passaggio
-                <MetricInfo info={passProbabilityInfo} />
-              </CardTitle>
-              <CardDescription>
-                La probabilità di toccare il profit target prima del max loss,
-                con le due soglie fissate sul capitale iniziale come in una
-                challenge prop firm. Parte dalla distribuzione{" "}
-                <strong>vera</strong>{" "}
-                dei tuoi trade, code comprese; il
-                tentativo parte da 0% — una challenge riparte da zero, non dal
-                P&amp;L storico del journal — e il marker si sposta solo se
-                dichiari a che punto sei.
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <PassProbability
-                defaultWinRate={
-                  accWinRate !== null
-                    ? new Decimal(accWinRate).times(100).toFixed(1)
-                    : null
-                }
-                defaultRewardRisk={
-                  accPayoff !== null ? new Decimal(accPayoff).toFixed(2) : null
-                }
-                empiricalBins={pnlHistogram}
-                empiricalSequence={pnlSequence}
-              />
             </CardContent>
           </Card>
 
