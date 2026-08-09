@@ -33,8 +33,57 @@ const reportDateKey = z
     return isValidCalendarDate(year, month, day);
   }, "Data del report inesistente");
 
+/**
+ * Il desk è un generatore esterno che evolve, e un 400 qui NON è un errore
+ * recuperabile: il ponte non ritenta, quindi il report del giorno è perso e
+ * la pagina resta ferma al giorno prima senza che nessuno se ne accorga.
+ * Cinque run su quindici sono morte così. Perciò il confine normalizza le
+ * forme interpretabili SENZA ambiguità, e rifiuta solo l'indecidibile.
+ */
+
+/** `+02:00`, `+0200`, `Z`: la forma con offset che JS sa interpretare. */
+const ISTANTE_CON_FUSO =
+  /^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2}):(\d{2})(\.\d+)?(Z|[+-]\d{2}:?\d{2})$/;
+
+/**
+ * Porta in ISO UTC un istante con offset esplicito (`2026-08-02T09:00:00+02:00`
+ * → `2026-08-02T07:00:00.000Z`), tipico di `datetime.now(tz).isoformat()`.
+ * Un istante GIÀ in `Z` resta byte per byte quello ricevuto.
+ *
+ * Un input senza fuso (`2026-08-02T09:00:00`) NON viene indovinato: l'istante
+ * sarebbe ambiguo e sbaglieremmo il bucket giornaliero. Torna com'è e la
+ * regex a valle lo rifiuta con un messaggio azionabile.
+ *
+ * La validità di calendario si controlla PRIMA della conversione: `new Date`
+ * fa rollover silenzioso (31/02 → 03/03) e senza questo controllo una data
+ * inesistente entrerebbe convertita in una valida.
+ */
+function normalizzaIstante(value: unknown): unknown {
+  if (typeof value !== "string") return value;
+  const raw = value.trim();
+  const m = ISTANTE_CON_FUSO.exec(raw);
+  if (!m) return value;
+
+  const [, y, mo, d, h, mi, s, , offset] = m;
+  const dataReale =
+    isValidCalendarDate(Number(y), Number(mo), Number(d)) &&
+    Number(h) <= 23 &&
+    Number(mi) <= 59 &&
+    Number(s) <= 59;
+  if (!dataReale) return value;
+
+  if (offset === "Z") return raw;
+
+  // `+0200` senza due punti: forma legale ISO 8601 ma fuori dallo standard
+  // ECMAScript, quindi la si normalizza prima di darla a `new Date`.
+  const conDuePunti =
+    offset.length === 5 ? `${offset.slice(0, 3)}:${offset.slice(3)}` : offset;
+  const istante = new Date(raw.slice(0, raw.length - offset.length) + conDuePunti);
+  return Number.isNaN(istante.getTime()) ? value : istante.toISOString();
+}
+
 /** ISO UTC con secondi (frazioni opzionali), data di calendario reale. */
-const isoUtc = z
+const isoUtcStretto = z
   .string()
   .regex(
     /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d+)?Z$/,
@@ -55,6 +104,33 @@ const isoUtc = z
     );
   }, "generatedAt inesistente");
 
+const isoUtc = z.preprocess(normalizzaIstante, isoUtcStretto);
+
+/** Testo del summary dopo la normalizzazione, o `undefined` se non ne resta. */
+const SUMMARY_MAX = 2000;
+const SUMMARY_SEP = " · ";
+
+/**
+ * Il desk manda `summary` ora come stringa, ora come array di righe (una per
+ * asset). Le righe si uniscono in un paragrafo — la pagina lo rende in un solo
+ * `<p>`. Un summary troppo lungo si tronca invece di far fallire il report:
+ * è una sintesi accessoria, il report no.
+ */
+function normalizzaSummary(value: unknown): unknown {
+  let testo: string;
+  if (typeof value === "string") {
+    testo = value.trim();
+  } else if (Array.isArray(value) && value.every((r) => typeof r === "string")) {
+    testo = (value as string[]).map((r) => r.trim()).filter(Boolean).join(SUMMARY_SEP);
+  } else {
+    return value;
+  }
+  if (testo === "") return undefined;
+  return testo.length > SUMMARY_MAX
+    ? `${testo.slice(0, SUMMARY_MAX - 1)}…`
+    : testo;
+}
+
 export const macroDeskReportSchema = z.object({
   type: z.enum(MACRO_REPORT_TYPES),
   reportDate: reportDateKey,
@@ -64,7 +140,10 @@ export const macroDeskReportSchema = z.object({
     wti: assetOutlook,
     idx: assetOutlook,
   }),
-  summary: z.string().trim().max(2000, "Sintesi troppo lunga").optional(),
+  summary: z.preprocess(
+    normalizzaSummary,
+    z.string().max(SUMMARY_MAX, "Sintesi troppo lunga").optional(),
+  ),
   // Il report completo: qualsiasi JSON, obbligatorio (è il dettaglio in pagina).
   payload: z
     .unknown()

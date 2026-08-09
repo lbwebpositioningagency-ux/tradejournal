@@ -66,6 +66,86 @@ describe("macroDeskReportSchema", () => {
   });
 });
 
+/**
+ * Tolleranza del confine (09/08/2026). Cinque run su quindici del ponte
+ * `macro-desk-bridge` sono morte con HTTP 400 su forme che il desk emette
+ * legittimamente, e un 400 qui equivale a perdere il report del giorno:
+ * non c'è retry a valle. Stessa logica già scelta per `payload` e per i
+ * blocchi v2 — si normalizza ciò che è interpretabile senza ambiguità, si
+ * rifiuta solo ciò che è davvero indecidibile.
+ */
+describe("macroDeskReportSchema — normalizzazione degli input del desk", () => {
+  it("accetta generatedAt con offset esplicito e lo porta in UTC", () => {
+    const cases: [string, string][] = [
+      ["2026-08-02T09:00:00+02:00", "2026-08-02T07:00:00.000Z"],
+      ["2026-08-02T09:00:00+00:00", "2026-08-02T09:00:00.000Z"],
+      ["2026-08-02T09:00:00-04:00", "2026-08-02T13:00:00.000Z"],
+      ["2026-08-02T09:00:00.123+02:00", "2026-08-02T07:00:00.123Z"],
+    ];
+    for (const [input, expected] of cases) {
+      const result = macroDeskReportSchema.safeParse({
+        ...validBody(),
+        generatedAt: input,
+      });
+      expect(result.success, input).toBe(true);
+      if (result.success) expect(result.data.generatedAt).toBe(expected);
+    }
+  });
+
+  it("lascia intatto un generatedAt già in ISO UTC", () => {
+    const result = macroDeskReportSchema.safeParse(validBody());
+    expect(result.success).toBe(true);
+    if (result.success) expect(result.data.generatedAt).toBe("2026-07-21T06:30:00Z");
+  });
+
+  it("rifiuta un generatedAt senza fuso: l'istante sarebbe ambiguo", () => {
+    for (const bad of ["2026-08-02T09:00:00", "2026-08-02", "ieri mattina"]) {
+      expect(
+        macroDeskReportSchema.safeParse({ ...validBody(), generatedAt: bad }).success,
+        bad,
+      ).toBe(false);
+    }
+  });
+
+  it("accetta summary come array di righe e lo unisce", () => {
+    const result = macroDeskReportSchema.safeParse({
+      ...validBody(),
+      summary: ["Oro sostenuto.", "  ", "WTI in glut.", ""],
+    });
+    expect(result.success).toBe(true);
+    if (result.success) expect(result.data.summary).toBe("Oro sostenuto. · WTI in glut.");
+  });
+
+  it("un summary vuoto o di sole righe vuote diventa assente", () => {
+    for (const empty of [[], ["", "   "], "   "]) {
+      const result = macroDeskReportSchema.safeParse({ ...validBody(), summary: empty });
+      expect(result.success, JSON.stringify(empty)).toBe(true);
+      if (result.success) expect(result.data.summary).toBeUndefined();
+    }
+  });
+
+  it("tronca un summary troppo lungo invece di rifiutare il report", () => {
+    const result = macroDeskReportSchema.safeParse({
+      ...validBody(),
+      summary: "a".repeat(2500),
+    });
+    expect(result.success).toBe(true);
+    if (result.success) {
+      expect(result.data.summary).toHaveLength(2000);
+      expect(result.data.summary?.endsWith("…")).toBe(true);
+    }
+  });
+
+  it("rifiuta comunque un summary che non è testo", () => {
+    for (const bad of [42, { a: 1 }, [1, 2]]) {
+      expect(
+        macroDeskReportSchema.safeParse({ ...validBody(), summary: bad }).success,
+        JSON.stringify(bad),
+      ).toBe(false);
+    }
+  });
+});
+
 describe("isAuthorizedMacroRequest", () => {
   it("accetta il Bearer token corretto", () => {
     expect(isAuthorizedMacroRequest(`Bearer ${SECRET}`, SECRET)).toBe(true);
