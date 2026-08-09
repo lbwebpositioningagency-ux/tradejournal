@@ -6,6 +6,7 @@ import {
   ChartSpline,
   ChevronRight,
   Globe,
+  Sparkles,
   Target,
 } from "lucide-react";
 import { auth } from "@/lib/auth";
@@ -176,6 +177,12 @@ export default async function MacroDeskPage() {
             <Link href="/macro-desk/stagionalita">
               <CalendarRange className="size-4" />
               Stagionalità
+            </Link>
+          </Button>
+          <Button asChild variant="outline">
+            <Link href="/macro-desk/ai-analyst">
+              <Sparkles className="size-4" />
+              AI Analyst
             </Link>
           </Button>
         </div>
