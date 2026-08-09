@@ -410,6 +410,47 @@ export async function getPnlPercentHistogram(
 }
 
 /**
+ * Tetto ai trade caricati per la SEQUENZA ordinata. Qui l'ordine è il dato
+ * (serve al block bootstrap), quindi non si può aggregare in SQL come per
+ * l'istogramma: arrivano interi, uno per trade. Diecimila è oltre ogni conto
+ * realistico e tiene il payload RSC sotto i ~50 KB; oltre, si prendono i più
+ * RECENTI, che sono anche i più rappresentativi del sistema attuale.
+ */
+export const PNL_SEQUENCE_LIMIT = 10_000;
+
+/**
+ * P&L per trade in ordine CRONOLOGICO, in nodi di griglia (stessa scala di
+ * `getPnlPercentHistogram`).
+ *
+ * Serve al block bootstrap, che ricampiona blocchi di trade CONSECUTIVI: un
+ * istogramma butta via proprio l'informazione che a quella modalità serve.
+ * Stesse regole dell'istogramma — nessun filtro sugli outlier, stesso clamp
+ * innocuo a ±PNL_BIN_LIMIT nodi.
+ */
+export async function getPnlPercentSequence(
+  filter: StatsFilter,
+  capitalStep: string,
+  limit: number = PNL_SEQUENCE_LIMIT,
+): Promise<number[]> {
+  const rows = await prisma.$queryRaw<{ bin: number }[]>(Prisma.sql`
+    SELECT "bin" FROM (
+      SELECT
+        LEAST(GREATEST(
+          ROUND(t."netPnl" / ${capitalStep}::numeric),
+          ${-PNL_BIN_LIMIT}), ${PNL_BIN_LIMIT})::int AS "bin",
+        t."closedAt" AS "closedAt",
+        t."id"       AS "id"
+      ${FROM_TRADES}
+      WHERE ${whereClosedTrades(filter)}
+      ORDER BY t."closedAt" DESC, t."id" DESC
+      LIMIT ${limit}
+    ) AS recenti
+    ORDER BY "closedAt" ASC, "id" ASC
+  `);
+  return rows.map((row) => row.bin);
+}
+
+/**
  * Somma dei saldi iniziali dei conti considerati: base della curva di equity
  * per il calcolo del drawdown percentuale.
  */
