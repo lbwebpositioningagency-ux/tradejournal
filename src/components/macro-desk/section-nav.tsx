@@ -101,11 +101,21 @@ export type MacroDeskSectionKey = (typeof MACRO_DESK_SECTIONS)[number]["key"];
 /**
  * Barra di salto fra sezioni, in alto a destra nelle PAGINE DI SEZIONE.
  *
- * Otto voci non stanno su una riga: da `sm` in su la fila va a capo (due righe,
- * allineate a destra), sotto `sm` resta su una riga sola che scorre in
- * orizzontale. In nessuno dei due casi un'etichetta viene troncata — le pillole
- * sono `shrink-0` e `whitespace-nowrap` — né la fila sborda dalla pagina,
- * perché il contenitore è `min-w-0` dentro un header flex.
+ * Da 720px in su è una GRIGLIA FISSA 4×2, non un wrap naturale: quattro pillole
+ * per riga sempre, qualunque sia la larghezza. Il wrap naturale mandava a capo
+ * un numero variabile di voci e lasciava "Report" orfano in fondo a sinistra.
+ * Le quattro colonne sono `1fr` dentro un contenitore `w-fit`, quindi larghe
+ * quanto la pillola più larga: il blocco resta uniforme e allineato a destra.
+ *
+ * Sotto 720px il comportamento resta quello di prima — una riga sola che scorre
+ * in orizzontale — perché a quelle larghezze quattro colonne non ci starebbero
+ * senza schiacciare "Posizionamento", che è l'etichetta più lunga. La soglia è
+ * 720 e non `md` (768) perché a 768 esatti il viewport utile scende sotto la
+ * soglia e la griglia non scattava proprio alla larghezza da verificare.
+ *
+ * In nessuno dei due casi un'etichetta viene troncata (le pillole sono
+ * `whitespace-nowrap`) né la fila sborda dalla pagina, perché il contenitore è
+ * `min-w-0` dentro un header flex.
  */
 export function MacroDeskSectionNav({
   active,
@@ -116,12 +126,12 @@ export function MacroDeskSectionNav({
   return (
     <nav
       aria-label="Sezioni del Macro Desk"
-      className="w-full min-w-0 lg:w-auto lg:max-w-3xl"
+      className="w-full min-w-0 min-[720px]:ml-auto min-[720px]:w-fit"
     >
       {/* La utility `scrollbar-none` del progetto è scoped a `.macro-report`, e
           questa barra vive fuori dal terminale: la barra di scorrimento si
           nasconde qui, senza toccare i token globali. */}
-      <ul className="flex flex-nowrap gap-2 overflow-x-auto pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden sm:flex-wrap sm:overflow-x-visible sm:pb-0 lg:justify-end">
+      <ul className="flex flex-nowrap gap-2 overflow-x-auto pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden min-[720px]:grid min-[720px]:grid-cols-4 min-[720px]:overflow-x-visible min-[720px]:pb-0">
         {MACRO_DESK_SECTIONS.map((section) => {
           const isActive = section.key === active;
           const Icon = section.icon;
@@ -131,6 +141,9 @@ export function MacroDeskSectionNav({
                 asChild
                 size="sm"
                 variant={isActive ? "secondary" : "outline"}
+                /* In griglia la pillola riempie la sua cella: quattro colonne
+                   uguali invece di quattro larghezze diverse. */
+                className="min-[720px]:w-full"
               >
                 <Link
                   href={section.href}
