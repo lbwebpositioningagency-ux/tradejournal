@@ -1361,3 +1361,29 @@ ribalta di lato nella metà destra. Nessuna tabella nuova, nessuna migrazione,
 nessuna voce di sidebar: solo una pillola in più nella mappa di sezione della
 pagina. Disclaimer in chiaro sull'ipotesi di indipendenza fra i trade.
 Gate verde: 1708 test, lint, typecheck, build.
+
+### Fix (09/08/2026): la posizione sulla curva non è il P&L storico
+
+Nella prima versione il marker veniva posizionato con `netPnl` cumulativo ÷
+capitale iniziale del conto: la posizione nella challenge era, di fatto,
+TUTTA la storia del journal. Sono due grandezze diverse — una challenge
+riparte da 0 a ogni tentativo — e sui conti demo (+65/+143% di storico) il
+pannello finiva sempre a 100% col marker sul bordo: non un caso limite dei
+dati, la fonte sbagliata.
+
+Rimossa ogni dipendenza dal P&L cumulativo nel pannello (query, calcolo, UI):
+il livello di partenza è ora un campo del form, **«Equity attuale nella
+challenge (%)», default 0**, validato dentro `[−drawdown, +target]` con i
+limiti che seguono i valori digitati in quel momento per le due barriere.
+Restano derivati dalle statistiche reali del conto — come devono — win rate,
+reward/risk e l'istogramma della distribuzione empirica: il bug era nel punto
+di posizionamento, non negli input del modello.
+
+Le card sono state riviste di conseguenza: «Probabilità di passaggio»,
+«Probabilità di fallire», «Margine al target», «Margine al max loss» (spariti
+«Probabilità da zero», che al default era un doppione della prima, ed «Equity
+attuale», che è la grandezza sbagliata). Regressione verificata sui tre conti
+demo: col default il marker cade al centro esatto della curva (frazione 0,523
+della larghezza del grafico, identica sui tre conti nonostante storici molto
+diversi); a +3% si sposta a 0,663; a +25% la validazione rifiuta e il grafico
+resta sull'ultimo stato valido.

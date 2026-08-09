@@ -51,6 +51,13 @@ import {
  * il motore è deterministico (catena di Markov risolta esattamente), quindi
  * premere due volte con gli stessi numeri dà lo stesso risultato: non c'è
  * nessun seed da rigenerare.
+ *
+ * COSA VIENE DAL CONTO E COSA NO. Dal conto arrivano solo i parametri del
+ * MODELLO: win rate, Avg Win/Avg Loss, e in modalità empirica l'istogramma
+ * dei P&L per trade. La POSIZIONE sulla curva no — quella è un input del
+ * form che parte da 0, perché una challenge riparte da zero a ogni tentativo
+ * e il P&L cumulativo del journal è un'altra grandezza (v.
+ * DEFAULT_CHALLENGE_EQUITY).
  */
 
 type Mode = "parametric" | "empirical";
@@ -62,6 +69,7 @@ interface FormState {
   riskPerTrade: string;
   target: string;
   drawdown: string;
+  challengeEquity: string;
 }
 
 const parseNum = parseLocaleNumber;
@@ -72,6 +80,18 @@ const DEFAULT_RISK_PER_TRADE = "0,5";
 /** Barriere di default: la challenge "classica" 10%/10%, comunque editabile. */
 const DEFAULT_TARGET = "10";
 const DEFAULT_DRAWDOWN = "10";
+
+/**
+ * Punto di partenza sulla curva: SEMPRE 0, cioè un tentativo appena aperto.
+ *
+ * Qui stava il bug della prima versione: il marker veniva posizionato con il
+ * P&L cumulativo del conto diviso il capitale iniziale, cioè con TUTTA la
+ * storia del journal. Ma una challenge riparte da zero ogni volta — un conto
+ * a +130% di storico non è "già passato", è semplicemente un altro concetto.
+ * Il livello è un parametro di scenario che scrive l'utente, mai un dato
+ * derivato dalle statistiche del conto.
+ */
+const DEFAULT_CHALLENGE_EQUITY = "0";
 
 /** Limite difensivo sulle barriere (coerente con ABSORPTION_MAX_STATES). */
 const MAX_BARRIER = 90;
@@ -103,7 +123,8 @@ type FieldKey =
   | "rewardRisk"
   | "riskPerTrade"
   | "target"
-  | "drawdown";
+  | "drawdown"
+  | "challengeEquity";
 
 /**
  * Validazione PER CAMPO al submit, come nel simulatore accanto: l'input
@@ -148,6 +169,21 @@ function validateForm(form: FormState): Partial<Record<FieldKey, string>> {
       1e-9 * Math.max(1, value / ABSORPTION_GRID_STEP)
     ) {
       errors[key] = `Deve essere un multiplo di ${fmtSpan(ABSORPTION_GRID_STEP)} (es. 8 o 5,25).`;
+    }
+  }
+
+  // L'equity del tentativo deve stare DENTRO le barriere che si stanno
+  // simulando: fuori non è uno scenario, è una challenge già chiusa. Gli
+  // estremi restano ammessi (sono gli stati assorbenti: 0% e 100%). I limiti
+  // seguono i valori digitati ORA per target e drawdown, non quelli applicati.
+  const equity = parseNum(form.challengeEquity);
+  if (!Number.isFinite(equity)) {
+    errors.challengeEquity = "Serve un numero (0 = tentativo appena aperto).";
+  } else if (errors.target === undefined && errors.drawdown === undefined) {
+    const target = parseNum(form.target);
+    const drawdown = parseNum(form.drawdown);
+    if (equity > target || equity < -drawdown) {
+      errors.challengeEquity = `Deve stare fra ${fmtLevel(-drawdown, 2)} e ${fmtLevel(target, 2)}.`;
     }
   }
   return errors;
@@ -263,13 +299,10 @@ function MarkerLabel({
 
 interface Computed {
   curve: AbsorptionPoint[];
-  /** Probabilità letta al livello di equity attuale (o a 0 se non noto). */
+  /** Probabilità letta al livello dichiarato dall'utente per il tentativo. */
   atCurrent: number;
-  atStart: number;
-  /** Livello del marker, agganciato al range se l'equity è fuori dalle barriere. */
+  /** Livello del marker: l'equity DENTRO la challenge, 0 = tentativo appena aperto. */
   markerLevel: number;
-  /** true se l'equity reale sta fuori dalle due barriere. */
-  clamped: boolean;
   target: number;
   drawdown: number;
   sample: number | null;
@@ -279,18 +312,12 @@ interface Computed {
 export function PassProbability({
   defaultWinRate,
   defaultRewardRisk,
-  currentLevel,
   empiricalBins,
 }: {
   /** Win rate reale del conto in % ("52.5"); null se non calcolabile. */
   defaultWinRate: string | null;
   /** Avg Win / Avg Loss reale ("1.58"); null se non calcolabile. */
   defaultRewardRisk: string | null;
-  /**
-   * Equity attuale in punti percentuali sul capitale INIZIALE (+3,2 = il
-   * conto è sopra del 3,2%). null se il capitale iniziale non è noto.
-   */
-  currentLevel: number | null;
   /** Istogramma dei P&L per trade, già binnato in SQL sul passo di griglia. */
   empiricalBins: { bin: number; count: number }[];
 }) {
@@ -302,6 +329,7 @@ export function PassProbability({
     riskPerTrade: DEFAULT_RISK_PER_TRADE,
     target: DEFAULT_TARGET,
     drawdown: DEFAULT_DRAWDOWN,
+    challengeEquity: DEFAULT_CHALLENGE_EQUITY,
   });
   const [applied, setApplied] = useState<FormState>(() => ({ ...form }));
   const [errors, setErrors] = useState<Partial<Record<FieldKey, string>>>({});
@@ -311,13 +339,14 @@ export function PassProbability({
     (value: string) =>
       setForm((f) => ({ ...f, [key]: value }));
 
-  const level = currentLevel ?? 0;
-
   // La risoluzione della catena costa qualche millisecondo: si rifà solo
   // quando i parametri APPLICATI cambiano, non a ogni tasto premuto nel form.
   const computed = useMemo<Computed | { error: string }>(() => {
     const target = parseNum(applied.target);
     const drawdown = parseNum(applied.drawdown);
+    // Il livello di partenza è un INPUT del form, mai un dato derivato dal
+    // conto: una challenge riparte da 0 ogni volta (vedi nota in testa al file).
+    const level = parseNum(applied.challengeEquity);
     try {
       let distribution;
       let sample: number | null = null;
@@ -344,14 +373,13 @@ export function PassProbability({
         drawdown,
         gridStep: ABSORPTION_GRID_STEP,
       });
-      const clamped = level < -drawdown || level > target;
+      // Il campo è validato dentro [−drawdown, +target] prima di arrivare
+      // qui: il clamp è una cintura, non una correzione di dati sballati.
       const markerLevel = Math.min(target, Math.max(-drawdown, level));
       return {
         curve,
-        atCurrent: absorptionAt(curve, level) ?? 0,
-        atStart: absorptionAt(curve, 0) ?? 0,
+        atCurrent: absorptionAt(curve, markerLevel) ?? 0,
         markerLevel,
-        clamped,
         target,
         drawdown,
         sample,
@@ -365,7 +393,7 @@ export function PassProbability({
             : "Parametri non calcolabili con questo modello.",
       };
     }
-  }, [applied, empiricalBins, level]);
+  }, [applied, empiricalBins]);
 
   const empiricalSample = empiricalBins.reduce((sum, row) => sum + row.count, 0);
   const lowSample = empiricalSample < ABSORPTION_GOOD_SAMPLE;
@@ -464,6 +492,21 @@ export function PassProbability({
             />
           )}
         </Field>
+        <Field
+          label="Equity attuale nella challenge (%)"
+          error={errors.challengeEquity}
+        >
+          {(id, invalid) => (
+            <Input
+              id={id}
+              inputMode="decimal"
+              aria-invalid={invalid || undefined}
+              className={cn(invalid && "border-destructive")}
+              value={form.challengeEquity}
+              onChange={(e) => set("challengeEquity")(e.target.value)}
+            />
+          )}
+        </Field>
         <div className="flex items-end">
           <Button type="submit" className="w-full">
             Calcola probabilità
@@ -502,48 +545,32 @@ export function PassProbability({
               label="Probabilità di passaggio"
               value={fmtProbability(computed.atCurrent)}
               sub={
-                currentLevel === null
-                  ? "dal livello di partenza (capitale iniziale ignoto)"
-                  : `dall'equity attuale (${fmtLevel(currentLevel, 2)})`
+                computed.markerLevel === 0
+                  ? "da un tentativo appena aperto"
+                  : `dal livello ${fmtLevel(computed.markerLevel, 2)} del tentativo`
               }
               tone={computed.atCurrent >= 0.5 ? "profit" : "loss"}
               info={passProbabilityInfo}
             />
             <MiniStat
-              label="Probabilità da zero"
-              value={fmtProbability(computed.atStart)}
-              sub="ripartendo dal capitale iniziale"
-            />
-            <MiniStat
-              label="Equity attuale"
-              value={currentLevel === null ? "—" : fmtLevel(currentLevel, 2)}
-              sub={
-                currentLevel === null
-                  ? "capitale iniziale non impostato"
-                  : `barriere a ${fmtLevel(computed.target, 2)} e ${fmtLevel(-computed.drawdown, 2)}`
-              }
-              tone={
-                currentLevel === null
-                  ? undefined
-                  : currentLevel >= 0
-                    ? "profit"
-                    : "loss"
-              }
+              label="Probabilità di fallire"
+              value={fmtProbability(1 - computed.atCurrent)}
+              sub={`prima si tocca ${fmtLevel(-computed.drawdown, 2)}`}
+              tone={computed.atCurrent >= 0.5 ? undefined : "loss"}
             />
             <MiniStat
               label="Margine al target"
-              value={
-                computed.clamped
-                  ? "—"
-                  : fmtSpan(Number((computed.target - level).toFixed(2)))
-              }
-              sub={
-                computed.clamped
-                  ? level > computed.target
-                    ? "target già superato dall'equity attuale"
-                    : "max loss già sfondato dall'equity attuale"
-                  : `al max loss mancano ${fmtSpan(Number((level + computed.drawdown).toFixed(2)))}`
-              }
+              value={fmtSpan(
+                Number((computed.target - computed.markerLevel).toFixed(2)),
+              )}
+              sub={`profit target a ${fmtLevel(computed.target, 2)}`}
+            />
+            <MiniStat
+              label="Margine al max loss"
+              value={fmtSpan(
+                Number((computed.markerLevel + computed.drawdown).toFixed(2)),
+              )}
+              sub={`max loss a ${fmtLevel(-computed.drawdown, 2)}`}
             />
           </div>
 
@@ -620,7 +647,8 @@ export function PassProbability({
                 activeDot={{ r: 3 }}
                 isAnimationActive={animate}
               />
-              {/* MARKER "sei qui": linea verticale piena + pallino sulla
+              {/* MARKER del tentativo in corso (0 = appena aperto): linea
+                  verticale piena + pallino sulla
                   curva con alone del colore di sfondo, così resta leggibile
                   anche dove l'area è più satura e nei due temi. */}
               <ReferenceLine
@@ -664,10 +692,7 @@ export function PassProbability({
                 className="inline-block h-3.5 w-0.5 rounded"
                 style={{ background: "var(--foreground)" }}
               />
-              Equity attuale
-              {computed.clamped
-                ? ` (${fmtLevel(level, 2)}, fuori dalle barriere: il marker è agganciato al bordo)`
-                : ""}
+              Equity nella challenge ({fmtLevel(computed.markerLevel, 2)})
             </span>
           </div>
 
@@ -682,7 +707,12 @@ export function PassProbability({
             sono statiche sul capitale iniziale (regola delle challenge) e il
             rischio non scala con l&apos;equity corrente: il modello è additivo.
             Griglia da {fmtSpan(ABSORPTION_GRID_STEP)}: ogni esito viene
-            agganciato al nodo più vicino.{" "}
+            agganciato al nodo più vicino. Il punto di partenza è{" "}
+            <strong className="text-foreground">0% per default</strong>: una
+            challenge riparte da zero a ogni tentativo, quindi il P&amp;L
+            storico del conto non ti posiziona sulla curva — win rate e
+            reward/risk sì, quelli vengono dai tuoi trade veri. Se sei già
+            dentro un tentativo, scrivi tu a che punto sei.{" "}
             <strong className="text-foreground">Il limite.</strong> Il modello
             assume trade <em>indipendenti</em>: nessuna autocorrelazione fra
             vincite e perdite consecutive, nessun cambio di comportamento sotto
