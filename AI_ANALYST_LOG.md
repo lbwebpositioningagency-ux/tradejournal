@@ -1,4 +1,211 @@
-# AI Analyst — RESOCONTO FINALE
+# Giro reale con Gemini — FERMATO AL PUNTO 0
+
+> 9 agosto 2026, secondo giro. Branch `feature/ai-analyst`, worktree
+> `C:\wt\ai-analyst`. Nessun push, nessun deploy, Neon mai toccato.
+> Il resoconto del giro precedente e il diario cronologico stanno più sotto,
+> intatti.
+
+## Esito in una riga
+
+**Il test reale col modello non si è potuto fare: non esiste una chiave Gemini
+utilizzabile su questa macchina.** Punti 1-6 saltati come da istruzione. Il
+punto 7 (file estraneo) è stato fatto ed è nella §3.
+
+---
+
+## 1. Punto 0 — dove ho cercato la chiave, e cosa ho trovato
+
+Ho controllato ogni posto plausibile, senza mai stampare un valore:
+
+| Dove | Esito |
+|---|---|
+| `$GEMINI_API_KEY` già esportata nella shell | assente |
+| `$GOOGLE_API_KEY` nella shell | assente |
+| Variabili d'ambiente Windows, scope **User** e **Machine** (`GEMINI_API_KEY`, `GOOGLE_API_KEY`, `GOOGLE_GENAI_API_KEY`, `GEMINI_KEY`) | nessuna impostata |
+| `.env.local` — worktree, working copy principale, home, altri worktree | **non esiste da nessuna parte** |
+| `.env` del worktree e della working copy | non contengono la chiave |
+| Altri progetti in `C:\Users\chenn\progetti` (`template-sito-locale`, `tz-score-wt`) | nessun `.env`, nessun riferimento a Gemini |
+| Progetto `regime_detection` (citato nei commenti del termometro) | non presente su questa macchina |
+| `.env.production.local` | **c'è, ma è redatta** |
+
+Sulla riga di `.env.production.local` ho fatto una verifica programmatica invece
+di fidarmi dell'occhio:
+
+```
+lunghezza: 11 | è la stringa "[SENSITIVE]": true | forma AIza…: false
+```
+
+Undici caratteri, il valore letterale `[SENSITIVE]`. È il comportamento noto di
+`vercel env pull`, che redige le variabili marcate come sensibili. Nel giro
+precedente la stessa stringa era già stata provata contro l'API e aveva
+risposto `400 API_KEY_INVALID`.
+
+Non ho tentato di rigenerare la chiave né di toccare la configurazione Vercel,
+come da istruzione — e comunque il CLI di Vercel non è installato su questa
+macchina.
+
+## 2. COSA MI SERVE DA TE — richiesta esatta
+
+Incolla la chiave vera in un file **nuovo** nel worktree:
+
+```
+C:\wt\ai-analyst\.env.local
+```
+
+con dentro una sola riga:
+
+```
+GEMINI_API_KEY=AIza…
+```
+
+Dettagli che contano:
+
+- **`.env.local`, non `.env`.** Il `.env` del worktree lo riscrivo io fra un
+  giro e l'altro; `.env.local` no, e resta comunque fuori da git
+  (`.gitignore` copre `.env*`). È anche il posto dove il progetto ha già
+  cercato la chiave in passato: lo dice il commento in
+  `scripts/cot-contesto-once.ts`.
+- **Il valore vero comincia con `AIza`** ed è lungo ~39 caratteri. Se incolli
+  di nuovo `[SENSITIVE]` non cambia niente.
+- **Niente virgolette** attorno al valore, e nessuno spazio prima o dopo l'`=`.
+- La stessa chiave che usa il job del box COT in produzione va benissimo: è la
+  stessa API, stesso modello, stesso tier gratuito.
+
+In alternativa, se preferisci non lasciarla su disco, esportala nella shell da
+cui lanci la sessione:
+
+```bash
+export GEMINI_API_KEY=AIza…
+```
+
+Appena c'è, i punti 1-6 di questo prompt si eseguono così come sono scritti:
+niente da cambiare nel codice, gli script sono già pronti
+(`scripts/ai-analyst-sintesi.ts`, `scripts/ai-analyst-preview.ts`, e il test
+reale `AI_ANALYST_LIVE=1 npx vitest run src/lib/ai-analyst/sintesi.live.test.ts`).
+
+## 3. Punto 7 — le modifiche estranee nella working copy principale
+
+**Fatto solo in lettura.** Ho usato `git --no-optional-locks` per non prendere
+nemmeno il lock dell'indice, visto che su quella copia lavora un'altra sessione.
+Non ho modificato, committato o messo in stash niente.
+
+### Cosa sono
+
+Due file modificati e non committati, su `main`:
+
+```
+ M src/lib/validations/macro-desk.ts        +83 −2
+ M src/lib/validations/macro-desk.test.ts   +80 −0
+```
+
+Rendono **tollerante il confine di ingresso** del report Macro Desk
+(`macroDeskReportSchema`, cioè `POST /api/macro-desk`):
+
+1. **`generatedAt` con offset esplicito** viene normalizzato in ISO UTC
+   (`2026-08-02T09:00:00+02:00` → `2026-08-02T07:00:00.000Z`), incluse le forme
+   `+0200` senza due punti. Un istante **senza** fuso resta rifiutato di
+   proposito: sarebbe ambiguo e sbaglierebbe il bucket giornaliero. La validità
+   di calendario è controllata **prima** della conversione, per non farsi
+   ingannare dal rollover silenzioso di `new Date` (31/02 → 03/03).
+2. **`summary` accettato anche come array di righe**, unite con ` · `; vuoto o
+   di sole righe vuote diventa assente; troppo lungo viene **troncato a 2000
+   con `…`** invece di far fallire il report. Un summary che non è testo resta
+   rifiutato.
+
+Gli 80 righi di test coprono tutti e sette i casi, compresi quelli negativi.
+
+### Chi le ha prodotte, e se sono vive
+
+Non sono ricostruibili dalla history di git — non sono committate: gli ultimi
+due commit su quel file sono `67493ae` (Scorecard EM) e `dab8c76` (endpoint
+originale), entrambi vecchi. La provenienza si ricostruisce da altro:
+
+- **timestamp su disco: 09/08/2026 11:52:36 e 11:53:27**, cioè dentro la
+  finestra in cui io stavo facendo gli screenshot di P3 nel worktree;
+- i commenti citano per nome **`macro-desk-bridge`**, che esiste in quella
+  working copy come **repository git separato e gitignorato**
+  (`.gitignore:51`), con `README.md` e `scripts/` modificati alle **11:55-11:56**,
+  cioè subito dopo.
+
+Quindi: **lavoro in corso di una sessione parallela**, non roba abbandonata —
+l'ordine dei timestamp (prima il confine nell'app, poi il ponte) descrive
+qualcuno che stava sistemando entrambi i lati della stessa catena mentre io
+lavoravo. Il commento nel test dà anche il movente, con un numero:
+
+> «Cinque run su quindici del ponte `macro-desk-bridge` sono morte con HTTP 400
+> su forme che il desk emette legittimamente, e un 400 qui equivale a perdere il
+> report del giorno: non c'è retry a valle.»
+
+Dal README del ponte: inoltra i report a
+`https://tradejournal-red-zeta.vercel.app/api/macro-desk` via GitHub Actions,
+per aggirare il limite di 2 cron del piano Hobby.
+
+### Toccano qualcosa che l'AI Analyst legge?
+
+**Direttamente no.** L'AI Analyst legge dal report soltanto `reportDate` (per
+la freschezza), `payload.volPanel.items` (le chiusure degli indici di
+volatilità implicita, che alimentano il termometro) e `biasRecord` (le chiusure
+di prezzo, per convertire l'ampiezza in valuta). Le due modifiche riguardano
+`generatedAt` e `summary`, che l'AI Analyst **non usa affatto** — e per scelta:
+`summary` è la sintesi direzionale del desk esterno, classificata **(c)
+vietata** nella spec.
+
+**Indirettamente sì, e parecchio.** Quel «cinque run su quindici morte con 400»
+è esattamente il meccanismo che lascia il desk senza report: e senza report
+fresco il termometro di volatilità — l'unica misura dell'AI Analyst validata
+fuori campione — viene scartato, il carattere della giornata si decide sul solo
+indice di Trends e la fiducia scende a «bassa». È lo stato che si vede negli
+output del giro precedente. Una precisazione per non attribuire colpe sbagliate:
+il ponte fa POST verso **la produzione**, non verso il database locale, quindi
+la staleness dell'archivio locale (22/07) è una cosa a sé; ma il meccanismo di
+perdita è lo stesso e in produzione morde davvero.
+
+**Se quelle modifiche entrano, per me non cambia niente:** nessun conflitto col
+mio branch (`feature/ai-analyst` non tocca `src/lib/validations/`, verificato),
+e `generatedAt` normalizzato non influenza né il bucketing né la freschezza,
+che passano da `reportDate`.
+
+**Cosa NON ho verificato:** che quelle modifiche compilino e che i loro test
+passino. Avrei dovuto lanciare `typecheck`/`vitest` in quella working copy, e
+il mandato era lettura e basta. Se la sessione parallela è ancora aperta, lo sa
+già lei.
+
+## 4. Gate
+
+Niente da committare sul codice in questo giro: nessuna riga di codice
+applicativo è cambiata. Ho comunque rilanciato il gate per certificare che il
+branch è rimasto verde: **test 1665 + 1 saltato · typecheck · lint · build**,
+tutti verdi.
+
+## 5. La domanda che mi hai fatto — «la prosa è abbastanza buona?»
+
+**Non posso rispondere, e non voglio inventare una risposta.** La prosa vera di
+Gemini non l'ho mai vista: tutto ciò che c'è nel log è del fallback
+deterministico. Rispondere adesso significherebbe giudicare il modello sulla
+base di un testo che ha scritto il mio codice.
+
+Quello che posso dire, e che vale la pena tenere a mente quando la vedremo:
+
+- **la parte deterministica è già leggibile e specifica.** Le righe dei fattori
+  dicono numeri, campioni e periodi («ampia nel 75% dei casi, contro il 55% di
+  una giornata qualsiasi: 19,7 punti di differenza, su 570 giornate»). Non è
+  prosa elegante, ma non è nemmeno vaga;
+- **il rischio vero non è che il modello scriva male: è che scriva di più.** Il
+  prompt gli dà il verdetto già deciso e la formulazione di riferimento già
+  approvata, e gli chiede di renderla scorrevole. Se il valore aggiunto si
+  riduce a sinonimi, la domanda «serve il modello?» diventa legittima — e la
+  risposta potrebbe essere no, con la sezione che resta tutta deterministica e
+  gratuita;
+- **l'aggiunta che giustificherebbe il modello** è il collegamento fra fattori:
+  «la volatilità implicita è alta *e nello stesso tempo* i contratti aperti sono
+  ai minimi, due cose che spingono nella stessa direzione sull'ampiezza». Il
+  fallback questo non lo fa: elenca. È lì che guarderò per primo.
+
+Rispondo per davvero appena la chiave c'è.
+
+---
+
+# Resoconto del primo giro (P0-P3)
 
 > Scritto il **9 agosto 2026**. Tutto è sul branch locale `feature/ai-analyst`
 > nel worktree `C:\wt\ai-analyst`. **Niente push, niente deploy, Neon mai toccato.**
