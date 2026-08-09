@@ -758,10 +758,12 @@ export default async function AnalyticsPage({
               <CardDescription>
                 La probabilità di toccare il profit target prima del max loss,
                 con le due soglie fissate sul capitale iniziale come in una
-                challenge prop firm. Win rate e reward/risk partono dalle
-                statistiche reali del conto; il tentativo parte da 0% — una
-                challenge riparte da zero, non dal P&amp;L storico del journal
-                — e il marker si sposta solo se dichiari a che punto sei.
+                challenge prop firm. Parte dalla distribuzione{" "}
+                <strong>vera</strong>{" "}
+                dei tuoi trade, code comprese; il
+                tentativo parte da 0% — una challenge riparte da zero, non dal
+                P&amp;L storico del journal — e il marker si sposta solo se
+                dichiari a che punto sei.
               </CardDescription>
             </CardHeader>
             <CardContent>
