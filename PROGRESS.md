@@ -1314,3 +1314,50 @@ terzo pulsante del Macro Desk, accanto a Trends e Scorecard, e la rotta è
 diventata `/macro-desk/stagionalita` per coerenza con loro. La vecchia
 `/stagionalita` resta come `permanentRedirect` — era pubblicata, i segnalibri
 non devono rompersi. Contenuto, dati, API e job notturno invariati.
+
+## Probabilità di passaggio (challenge prop firm) · 09/08/2026
+
+Nuovo pannello dentro **Analytics**, accanto all'equity curve simulator: là
+«cosa succede se», qui «quanto è probabile che ce la faccia». Risponde alla
+domanda vera di chi ha una challenge in corso — probabilità di toccare
++target prima di −drawdown, con le due barriere **statiche sul capitale
+iniziale** (regola delle prop firm), non sull'equity corrente.
+
+**Motore** (`src/lib/metrics/absorption.ts`): catena di Markov assorbente
+risolta ESATTAMENTE, non simulata. I livelli fra le barriere diventano stati
+transienti su una griglia da 0,05 punti percentuali (~400 stati su un range
+di 20 punti); si partiziona in Q (transiente→transiente) e R (→ Pass/Fail) e
+si risolve (I − Q)·x = R con eliminazione di Gauss e pivoting parziale. Una
+sola risoluzione dà la probabilità da OGNI livello — cioè la curva intera da
+disegnare, non il solo punto attuale — in ~2,5 ms (24 ms nel caso peggiore
+con distribuzione empirica larga): niente errore Monte Carlo, e premere due
+volte il pulsante dà lo stesso numero (nessun seed, a differenza del
+simulatore accanto).
+
+**Validazione numerica** (22 test): gambler's ruin simmetrico → p(0) = 0,5
+esatto; random walk sbilanciato → coincide con la formula chiusa
+(1−rⁱ)/(1−rᴺ) a 9 decimali su tutti i 19 livelli interni; edge zero → curva
+lineare entro 1 punto percentuale; convergenza di griglia → dimezzando il
+passo p(0) si sposta di meno di 0,1 punti (verificato con salti NON multipli
+del passo, dove l'arrotondamento conta davvero); barriere fuori griglia →
+errore esplicito, mai un risultato silenziosamente sbagliato. Blindato anche
+l'**overshoot**: con salti grandi la curva non è la retta del gambler's ruin
+continuo perché chi sfonda il max loss è fuori, di quanto non conta — è la
+regola reale, e il test la fissa con la formula del martingala.
+
+**Due sorgenti per la distribuzione.** Parametrica (default): win rate e
+Avg Win/Avg Loss REALI del conto — le stesse grandezze che alimentano Kelly e
+risk of ruin, non ricalcolate — più un rischio per trade di scenario (0,5%
+fisso, editabile). Empirica: istogramma vero dei P&L per trade in % del
+capitale iniziale, **binnato in SQL** (`getPnlPercentHistogram`, nessun trade
+caricato in JS), con avviso di bassa confidenza sotto i 100 trade e menzione
+della soglia dei 30 (quella di SQN e Optimal f). Target e drawdown sempre
+editabili in entrambe le modalità (default 10%/10%: alcune firm usano 8%/5%).
+
+**UI**: curva probability(level) in Recharts con marker verticale sull'equity
+attuale, etichetta disegnata a mano dentro l'area (il `label position:"top"`
+di Recharts finiva tagliato quando il marker sta su una barriera) che si
+ribalta di lato nella metà destra. Nessuna tabella nuova, nessuna migrazione,
+nessuna voce di sidebar: solo una pillola in più nella mappa di sezione della
+pagina. Disclaimer in chiaro sull'ipotesi di indipendenza fra i trade.
+Gate verde: 1708 test, lint, typecheck, build.
