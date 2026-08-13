@@ -21,6 +21,7 @@ import type {
   DriverCardPayload,
   RelationStability,
 } from "@/lib/driver-desk/cards";
+import { todayKeyInZone } from "@/lib/dates";
 import { fmtIt } from "@/lib/driver-desk/cards";
 import type { DriverDeskData } from "@/lib/queries/driver-desk";
 import type { DriverBanda } from "@/lib/driver-desk/engine";
@@ -255,7 +256,14 @@ function SchedaStrumento({
 
 /* ═══════════════ Pannello ═══════════════ */
 
-export function DriverDeskPanel({ data }: { data: DriverDeskData }) {
+export function DriverDeskPanel({
+  data,
+  timeZone,
+}: {
+  data: DriverDeskData;
+  /** Fuso dell'utente: `updatedAt` è un istante, non una chiave-giorno. */
+  timeZone: string;
+}) {
   const { cards, coverage, empty } = data;
 
   /* Unico messaggio rimasto in tutto il modulo, e non riguarda un componente
@@ -295,7 +303,7 @@ export function DriverDeskPanel({ data }: { data: DriverDeskData }) {
         Fonti: {fontiUniche.join(", ")} — la fonte esatta di ogni serie è
         registrata insieme al dato.
         {ultimoIngest
-          ? ` Ultimo aggiornamento dati: ${ultimoIngest.slice(0, 10)}.`
+          ? ` Ultimo aggiornamento dati: ${todayKeyInZone(timeZone, new Date(ultimoIngest))}.`
           : ""}{" "}
         Le bande verbali usano le stesse soglie del pannello di posizionamento
         (10/30/70/90).

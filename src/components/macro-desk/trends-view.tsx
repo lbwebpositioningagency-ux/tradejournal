@@ -516,12 +516,12 @@ function SeriesCard({
   view,
   horizon,
   recessions,
-  generatedAt,
+  generatedDayKey,
 }: {
   view: TrendsSeriesView;
   horizon: Horizon;
   recessions: RecessionBand[];
-  generatedAt: string;
+  generatedDayKey: string;
 }) {
   const def = view.def;
   const color = SECTION_COLOR[def.section];
@@ -538,7 +538,7 @@ function SeriesCard({
           <p className="text-xs leading-relaxed" style={{ color: "var(--md-muted)" }}>
             Dato non disponibile — ultimo tentativo{" "}
             <span className="md-mono">
-              {obsDateLabel(generatedAt.slice(0, 10))}
+              {obsDateLabel(generatedDayKey)}
             </span>
             . La sezione prosegue senza questa serie.
           </p>
@@ -747,13 +747,13 @@ function TrendsSectionPanel({
   seriesPromise,
   recessionsPromise,
   horizon,
-  generatedAt,
+  generatedDayKey,
 }: {
   sectionId: TrendsSectionId;
   seriesPromise: Promise<TrendsSeriesView[]>;
   recessionsPromise: Promise<RecessionBand[]>;
   horizon: Horizon;
-  generatedAt: string;
+  generatedDayKey: string;
 }) {
   const sectionSeries = use(seriesPromise);
   const recessions = use(recessionsPromise);
@@ -782,7 +782,7 @@ function TrendsSectionPanel({
             view={view}
             horizon={horizon}
             recessions={recessions}
-            generatedAt={generatedAt}
+            generatedDayKey={generatedDayKey}
           />
         ))}
       </div>
@@ -802,7 +802,7 @@ function TrendsSectionPanel({
                 view={view}
                 horizon={horizon}
                 recessions={recessions}
-                generatedAt={generatedAt}
+                generatedDayKey={generatedDayKey}
               />
             ))}
           </div>
@@ -828,13 +828,13 @@ function TrendsSectionFallback() {
 }
 
 export function TrendsView({
-  generatedAt,
+  generatedDayKey,
   keyless,
   sections,
   allSeries,
   recessions,
 }: {
-  generatedAt: string;
+  generatedDayKey: string;
   keyless: boolean;
   /** P-05 — una promise per sezione: l'unità di streaming della pagina. */
   sections: Record<TrendsSectionId, Promise<TrendsSeriesView[]>>;
@@ -938,7 +938,7 @@ export function TrendsView({
           seriesPromise={sections[section]}
           recessionsPromise={recessions}
           horizon={horizon}
-          generatedAt={generatedAt}
+          generatedDayKey={generatedDayKey}
         />
       </Suspense>
 

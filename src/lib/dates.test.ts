@@ -3,6 +3,7 @@ import {
   formatDateTime,
   formatDayKey,
   formatDurationSec,
+  todayKeyInZone,
   utcToZonedInput,
   zonedInputToUtc,
 } from "./dates";
@@ -100,5 +101,31 @@ describe("formatDateTime", () => {
     const date = new Date("2026-07-15T12:30:00.000Z");
     expect(formatDateTime(date, ROME)).toContain("14:30");
     expect(formatDateTime(date, NY)).toContain("08:30");
+  });
+
+  it("a cavallo di mezzanotte cambia anche il GIORNO, non solo l'ora", () => {
+    // 23:30 UTC = l'01:30 del giorno dopo a Roma.
+    const date = new Date("2026-08-12T23:30:00.000Z");
+    expect(formatDateTime(date, ROME)).toContain("13/08");
+    expect(formatDateTime(date, NY)).toContain("12/08");
+  });
+});
+
+/**
+ * `todayKeyInZone` è la chiave-giorno di un ISTANTE nel fuso dell'utente.
+ * Serve ovunque si mostri "quando è successo": renderla dall'ISO UTC
+ * (`toISOString().slice(0,10)`) mostra il giorno sbagliato per metà giornata.
+ */
+describe("todayKeyInZone", () => {
+  it("dà il giorno civile del fuso, non quello UTC", () => {
+    const tardaSera = new Date("2026-08-12T23:30:00.000Z");
+    expect(todayKeyInZone(ROME, tardaSera)).toBe("2026-08-13");
+    expect(tardaSera.toISOString().slice(0, 10)).toBe("2026-08-12"); // la lettura sbagliata
+  });
+
+  it("funziona anche nei fusi indietro rispetto a UTC", () => {
+    const primoMattino = new Date("2026-08-13T02:00:00.000Z");
+    expect(todayKeyInZone(ROME, primoMattino)).toBe("2026-08-13");
+    expect(todayKeyInZone(NY, primoMattino)).toBe("2026-08-12");
   });
 });

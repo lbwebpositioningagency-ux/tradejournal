@@ -4,6 +4,7 @@ import { redirect } from "next/navigation";
 import { Inter, JetBrains_Mono } from "next/font/google";
 import { ArrowLeft } from "lucide-react";
 import { auth } from "@/lib/auth";
+import { prisma } from "@/lib/db";
 import { getDriverDeskData } from "@/lib/queries/driver-desk";
 import { cn } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
@@ -37,7 +38,13 @@ export default async function MacroDriverPage() {
   const session = await auth();
   if (!session?.user?.id) redirect("/login");
 
-  const data = await getDriverDeskData();
+  const [data, user] = await Promise.all([
+    getDriverDeskData(),
+    prisma.user.findUniqueOrThrow({
+      where: { id: session.user.id },
+      select: { timezone: true },
+    }),
+  ]);
 
   return (
     <div className="flex flex-col gap-4">
@@ -72,7 +79,7 @@ export default async function MacroDriverPage() {
         )}
         style={{ borderColor: "var(--md-border)" }}
       >
-        <DriverDeskPanel data={data} />
+        <DriverDeskPanel data={data} timeZone={user.timezone} />
       </div>
     </div>
   );
