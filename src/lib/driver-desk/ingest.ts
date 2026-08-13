@@ -65,9 +65,16 @@ function sourceLabel(ref: DriverSourceRef): string {
 
 const DUKASCOPY_FLOOR = new Date("1990-01-01T00:00:00Z");
 
+/**
+ * `from` è un'OTTIMIZZAZIONE, non un filtro: la rispetta solo Dukascopy, che
+ * scarica la storia a blocchi e con un `from` recente evita di rifare il
+ * 1990-oggi. FRED, Yahoo e Bundesbank rispondono comunque con la serie intera
+ * in una singola HTTP — il taglio alla finestra lo fa il chiamante.
+ */
 async function fetchFrom(
   ref: DriverSourceRef,
   now: Date,
+  from: Date = DUKASCOPY_FLOOR,
 ): Promise<{ source: string; obs: DriverObservation[] }> {
   switch (ref.provider) {
     case "fred": {
@@ -85,7 +92,7 @@ async function fetchFrom(
       };
     }
     case "dukascopy": {
-      const bars = await fetchDukascopyDaily(ref.symbol, DUKASCOPY_FLOOR, now);
+      const bars = await fetchDukascopyDaily(ref.symbol, from, now);
       return {
         source: sourceLabel(ref),
         obs: bars.map((b) => ({ date: b.date, value: b.close })),
@@ -227,6 +234,162 @@ async function writeSeries(
     },
     { timeout: 60_000 },
   );
+}
+
+/* ── Ingest DELTA (cron notturno) ─────────────────────────────────────── */
+
+/**
+ * Finestra del delta in giorni civili. Copre le revisioni recenti delle fonti
+ * (FRED rivede gli ultimi valori) e i ponti lunghi, restando piccola: ogni
+ * notte la coda viene riscritta e ogni imprecisione si autocorregge entro la
+ * finestra.
+ */
+export const DELTA_WINDOW_DAYS = 14;
+
+/** "YYYY-MM-DD" di inizio finestra: `lastDate` meno DELTA_WINDOW_DAYS. */
+export function deltaWindowStart(lastDate: string): string {
+  const t = Date.parse(`${lastDate}T00:00:00Z`) - DELTA_WINDOW_DAYS * MS_PER_DAY;
+  return new Date(t).toISOString().slice(0, 10);
+}
+
+export interface DriverDeskDeltaEsito {
+  results: SeriesIngestResult[];
+  /** False se il budget è finito prima di provare tutte le serie. */
+  completo: boolean;
+  elapsedMs: number;
+}
+
+/**
+ * Riscrive la sola CODA della serie: le barre dalla finestra in poi vengono
+ * sostituite, lo storico non si tocca. Il fallimento di un fetch non arriva
+ * mai qui: si scrive solo con osservazioni in mano, quindi un'esecuzione
+ * andata male lascia i dati della notte prima intatti.
+ */
+async function writeSeriesDelta(
+  prisma: PrismaClient,
+  series: DriverDeskSeries,
+  source: string,
+  obs: DriverObservation[],
+  windowStart: string,
+): Promise<void> {
+  const dallaFinestra = { gte: new Date(`${windowStart}T00:00:00Z`) };
+  await prisma.$transaction(
+    async (tx) => {
+      await tx.driverDeskBar.deleteMany({ where: { series, date: dallaFinestra } });
+      await tx.driverDeskBar.createMany({
+        data: obs.map((o) => ({
+          series,
+          date: new Date(`${o.date}T00:00:00Z`),
+          value: dec(o.value),
+        })),
+      });
+      const rows = await tx.driverDeskBar.count({ where: { series } });
+      await tx.driverDeskCoverage.update({
+        where: { series },
+        data: {
+          source,
+          lastDate: new Date(`${obs[obs.length - 1].date}T00:00:00Z`),
+          rows,
+          note: null,
+        },
+      });
+    },
+    { timeout: 60_000 },
+  );
+}
+
+/**
+ * Ingest DELTA di tutte le serie già popolate, pensato per il cron notturno
+ * (riparazione del 13/08/2026: prima nessun job scriveva DriverDeskBar e i
+ * dati erano fermi al backfill manuale del 04/08).
+ *
+ * Regole:
+ * - una serie MAI popolata si salta dichiarandolo: il primo caricamento
+ *   resta agli script di backfill manuali (è pesante e va dosato);
+ * - a budget esaurito le serie restanti si rinviano alla prossima esecuzione
+ *   (`completo: false`) — la finestra di 14 giorni assorbe senza buchi anche
+ *   più notti saltate;
+ * - un fallimento di fetch non tocca né barre né coverage: restano i dati
+ *   della notte precedente, e l'errore finisce nei results della risposta.
+ */
+export async function runDriverDeskDeltaIngest(
+  prisma: PrismaClient,
+  options: {
+    budgetMs?: number;
+    now?: Date;
+    onProgress?: (msg: string) => void;
+  } = {},
+): Promise<DriverDeskDeltaEsito> {
+  const inizio = Date.now();
+  const budgetMs = options.budgetMs ?? 120_000;
+  const now = options.now ?? new Date();
+  const log = options.onProgress ?? (() => {});
+  const coverage = await prisma.driverDeskCoverage.findMany();
+  const results: SeriesIngestResult[] = [];
+  let completo = true;
+
+  for (const def of DRIVER_SERIES) {
+    if (Date.now() - inizio > budgetMs) {
+      completo = false;
+      results.push({
+        series: def.code,
+        ok: false,
+        error: "budget esaurito: rinviata alla prossima esecuzione",
+        qa: [],
+      });
+      continue;
+    }
+    const cov = coverage.find((c) => c.series === def.code);
+    const lastDate = cov?.lastDate?.toISOString().slice(0, 10) ?? null;
+    if (!lastDate) {
+      results.push({
+        series: def.code,
+        ok: false,
+        error:
+          "serie mai popolata: il primo caricamento resta al backfill manuale",
+        qa: [],
+      });
+      continue;
+    }
+
+    const windowStart = deltaWindowStart(lastDate);
+    const from = new Date(`${windowStart}T00:00:00Z`);
+    const errors: string[] = [];
+    let done = false;
+    for (const ref of def.daily) {
+      try {
+        log(`${def.code}: delta da ${sourceLabel(ref)} (dal ${windowStart})…`);
+        const { source, obs: raw } = await fetchFrom(ref, now, from);
+        const finestra = normalizeObservations(
+          raw,
+          def.transform === "logret",
+        ).filter((o) => o.date >= windowStart);
+        if (finestra.length === 0) {
+          errors.push(`${sourceLabel(ref)}: nessuna osservazione nella finestra`);
+          continue;
+        }
+        const qa = qaSeries(def, finestra);
+        await writeSeriesDelta(prisma, def.code, source, finestra, windowStart);
+        results.push({
+          series: def.code,
+          ok: true,
+          source,
+          rows: finestra.length,
+          firstDate: finestra[0].date,
+          lastDate: finestra[finestra.length - 1].date,
+          qa,
+        });
+        done = true;
+        break;
+      } catch (error) {
+        errors.push(`${sourceLabel(ref)}: ${String(error)}`);
+      }
+    }
+    if (!done) {
+      results.push({ series: def.code, ok: false, error: errors.join(" · "), qa: [] });
+    }
+  }
+  return { results, completo, elapsedMs: Date.now() - inizio };
 }
 
 /**
