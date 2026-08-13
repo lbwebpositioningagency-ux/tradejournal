@@ -15,6 +15,8 @@
  */
 
 import tabellaJson from "@/data/termometro-volatilita.json";
+import { parseWeeklyBiasRecord } from "@/lib/macro-desk-bias-record";
+import type { ScorecardAsset } from "@/lib/macro-desk-scorecard";
 
 export type StatoVolatilita = "ESPANSA" | "COMPRESSA";
 
@@ -401,6 +403,13 @@ export function estraiIvDaVolPanel(
  * porta `px`, aggiornato dai report giornalieri. È l'unica fonte numerica di prezzo
  * presente nel Macro Desk — il payload del report contiene solo stringhe.
  *
+ * Il record grezzo passa da `parseWeeklyBiasRecord`, che è l'UNICO parser del
+ * campo nel progetto (stessa strada della scorecard): `assets` è un dizionario
+ * per chiave asset e qualunque forma non riconosciuta degrada a nessuna
+ * chiusura, mai a un lancio. La versione precedente aveva un parsing proprio
+ * che si aspettava un array mai esistito in produzione, ed è il guasto che ha
+ * spento AI Analyst e Volatilità dal 10 al 13/08/2026.
+ *
  * `idx` è l'S&P 500 (`ASSET_LABELS.idx === "Indici (S&P 500)"`), verificato anche sulla
  * narrativa del desk ("i cash USA: S&P 7.509 · Nasdaq comp 25.837 · Dow 52.225"). Va
  * quindi su SP500 e **non** su GER40: usarlo per il DAX scalerebbe l'ampiezza su un
@@ -408,31 +417,20 @@ export function estraiIvDaVolPanel(
  * seconda linea di difesa se la sorgente cambiasse unità.
  */
 export function estraiChiusureDaBiasRecord(
-  record:
-    | {
-        assets?: ReadonlyArray<{
-          asset?: string;
-          path?: ReadonlyArray<{ date?: string; px?: number }>;
-        }>;
-      }
-    | null
-    | undefined,
+  record: unknown,
 ): Record<string, number> {
-  const perSimbolo: Record<string, string> = {
+  const perSimbolo: Record<ScorecardAsset, string> = {
     xau: "XAUUSD",
     wti: "WTICOUSD",
     idx: "SP500",
   };
   const fuori: Record<string, number> = {};
-  for (const a of record?.assets ?? []) {
-    const simbolo = a.asset ? perSimbolo[a.asset] : undefined;
-    if (!simbolo) continue;
-    const validi = (a.path ?? []).filter(
-      (p) => typeof p.px === "number" && Number.isFinite(p.px) && p.px > 0 && p.date,
-    );
+  for (const a of parseWeeklyBiasRecord(record)?.assets ?? []) {
+    // Il path esce dal parser già ordinato per data; i punti senza prezzo
+    // portano px = NaN e si scartano qui.
+    const validi = a.path.filter((p) => Number.isFinite(p.px) && p.px > 0);
     if (validi.length === 0) continue;
-    const ultimo = validi.reduce((acc, p) => ((p.date ?? "") > (acc.date ?? "") ? p : acc));
-    fuori[simbolo] = ultimo.px as number;
+    fuori[perSimbolo[a.asset]] = validi[validi.length - 1].px;
   }
   return fuori;
 }
@@ -444,7 +442,8 @@ export function estraiChiusureDaBiasRecord(
  */
 export function componiIngressi(input: {
   volItems?: ReadonlyArray<{ k: string; v?: string }>;
-  biasRecord?: Parameters<typeof estraiChiusureDaBiasRecord>[0];
+  /** Weekly Bias Record grezzo dal DB: lo interpreta `parseWeeklyBiasRecord`. */
+  biasRecord?: unknown;
 }): Record<string, IngressoTermometro> {
   const ingressi = estraiIvDaVolPanel(input.volItems);
   const chiusure = estraiChiusureDaBiasRecord(input.biasRecord);

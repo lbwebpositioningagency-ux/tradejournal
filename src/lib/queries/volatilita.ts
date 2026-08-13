@@ -35,32 +35,37 @@ export interface VolatilitaData {
 }
 
 /**
- * DIFENSIVA: qualunque errore (database giù, tabella non migrata) degrada a
- * `null` con log — la pagina mostra lo stato vuoto invece di cadere.
+ * DIFENSIVA: qualunque errore — database giù, tabella non migrata, ma anche
+ * un report i cui blocchi non si lasciano comporre — degrada a `null` con
+ * log: la pagina mostra lo stato vuoto invece di cadere. La composizione sta
+ * DENTRO lo stesso catch della query di proposito: il 10-13/08/2026 un
+ * `biasRecord` di forma inattesa componeva fuori dal catch e la pagina
+ * finiva in error boundary.
  */
 export const getVolatilitaData = cache(
   async (): Promise<VolatilitaData | null> => {
-    const row = await prisma.macroDeskReport
-      .findFirst({ where: { type: "DAILY" }, orderBy: { reportDate: "desc" } })
-      .catch((e: unknown) => {
-        console.error("[volatilita] report non caricato:", e);
-        return null;
+    try {
+      const row = await prisma.macroDeskReport.findFirst({
+        where: { type: "DAILY" },
+        orderBy: { reportDate: "desc" },
       });
-    if (!row) return null;
+      if (!row) return null;
 
-    const vol = parseMacroPayload(row.payload).volPanel;
-    return {
-      ingressi: componiIngressi({
-        volItems: vol?.items,
-        biasRecord: row.biasRecord as Parameters<
-          typeof componiIngressi
-        >[0]["biasRecord"],
-      }),
-      items: vol?.items ?? [],
-      reading: vol?.reading,
-      asOf: vol?.asOf,
-      reportId: row.id,
-      reportDate: row.reportDate,
-    };
+      const vol = parseMacroPayload(row.payload).volPanel;
+      return {
+        ingressi: componiIngressi({
+          volItems: vol?.items,
+          biasRecord: row.biasRecord,
+        }),
+        items: vol?.items ?? [],
+        reading: vol?.reading,
+        asOf: vol?.asOf,
+        reportId: row.id,
+        reportDate: row.reportDate,
+      };
+    } catch (e: unknown) {
+      console.error("[volatilita] report non caricato:", e);
+      return null;
+    }
   },
 );
