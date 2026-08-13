@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { isAuthorizedMacroRequest } from "@/lib/macro-desk";
+import { BIAS_RECORD_DAILY_REALE } from "@/lib/termometro-volatilita.fixture";
 import { macroDeskReportSchema } from "./macro-desk";
 
 const SECRET = "test-secret-abc123";
@@ -142,6 +143,97 @@ describe("macroDeskReportSchema — normalizzazione degli input del desk", () =>
         macroDeskReportSchema.safeParse({ ...validBody(), summary: bad }).success,
         JSON.stringify(bad),
       ).toBe(false);
+    }
+  });
+});
+
+/**
+ * Confine d'ingresso di `biasRecord` (P1 della riparazione del 13/08/2026):
+ * lo schema accetta le forme note, NORMALIZZA alla forma canonica (assets
+ * come dizionario per chiave asset) e rifiuta con messaggio esplicito ciò
+ * che nessun lettore a valle saprebbe interpretare. Prima era z.unknown() e
+ * un dict inatteso è arrivato fino alle pagine, spegnendole.
+ */
+describe("macroDeskReportSchema — biasRecord al confine", () => {
+  it("accetta biasRecord assente o null (report v1)", () => {
+    expect(macroDeskReportSchema.safeParse(validBody()).success).toBe(true);
+    expect(
+      macroDeskReportSchema.safeParse({ ...validBody(), biasRecord: null }).success,
+    ).toBe(true);
+  });
+
+  it("accetta la forma canonica reale (assets dict) e la conserva intatta", () => {
+    const result = macroDeskReportSchema.safeParse({
+      ...validBody(),
+      biasRecord: BIAS_RECORD_DAILY_REALE,
+    });
+    expect(result.success).toBe(true);
+    if (result.success) {
+      // Conservazione integrale: il desk evolve, le chiavi extra non si perdono.
+      expect(result.data.biasRecord).toEqual(BIAS_RECORD_DAILY_REALE);
+    }
+  });
+
+  it("normalizza la forma nota ad array in dizionario canonico", () => {
+    const result = macroDeskReportSchema.safeParse({
+      ...validBody(),
+      biasRecord: {
+        weekStart: "2026-08-09",
+        assets: [
+          { asset: "xau", bias: "RIALZISTA", path: [] },
+          { asset: "idx", bias: "NEUTRALE", path: [] },
+        ],
+      },
+    });
+    expect(result.success).toBe(true);
+    if (result.success) {
+      const record = result.data.biasRecord as {
+        assets: Record<string, { asset?: string; bias?: string }>;
+      };
+      expect(Object.keys(record.assets).sort()).toEqual(["idx", "xau"]);
+      expect(record.assets.xau.bias).toBe("RIALZISTA");
+      // La chiave discriminante non resta dentro la voce: nella forma
+      // canonica l'asset sta nella chiave del dizionario.
+      expect(record.assets.xau.asset).toBeUndefined();
+    }
+  });
+
+  it("rifiuta un biasRecord che non è un oggetto, con messaggio esplicito", () => {
+    for (const bad of ["stringa", 42, true, ["x"]]) {
+      const result = macroDeskReportSchema.safeParse({
+        ...validBody(),
+        biasRecord: bad,
+      });
+      expect(result.success, JSON.stringify(bad)).toBe(false);
+      if (!result.success) {
+        expect(result.error.issues[0].message).toContain("biasRecord");
+      }
+    }
+  });
+
+  it("rifiuta assets irriconoscibile: né dizionario né array di voci {asset,…}", () => {
+    for (const assets of ["niente", 7, { ger40: {} }, [{ senzaAsset: true }]]) {
+      const result = macroDeskReportSchema.safeParse({
+        ...validBody(),
+        biasRecord: { weekStart: "2026-08-09", assets },
+      });
+      expect(result.success, JSON.stringify(assets)).toBe(false);
+      if (!result.success) {
+        expect(result.error.issues[0].message).toContain("assets");
+      }
+    }
+  });
+
+  it("rifiuta weekStart mancante o malformato: il record non sarebbe collocabile", () => {
+    for (const weekStart of [undefined, "", "09/08/2026", "2026-13-40"]) {
+      const result = macroDeskReportSchema.safeParse({
+        ...validBody(),
+        biasRecord: { weekStart, assets: { xau: { bias: "RIALZISTA" } } },
+      });
+      expect(result.success, String(weekStart)).toBe(false);
+      if (!result.success) {
+        expect(result.error.issues[0].message).toContain("weekStart");
+      }
     }
   });
 });

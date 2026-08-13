@@ -131,6 +131,114 @@ function normalizzaSummary(value: unknown): unknown {
     : testo;
 }
 
+/** Chiavi asset riconosciute nel Weekly Bias Record (le stesse della scorecard). */
+const BIAS_ASSET_KEYS = ["xau", "wti", "idx"] as const;
+
+function isPlainObject(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+/** "YYYY-MM-DD" di calendario reale, stessa disciplina di reportDate. */
+function isDateKey(value: unknown): value is string {
+  return (
+    typeof value === "string" &&
+    /^\d{4}-\d{2}-\d{2}$/.test(value) &&
+    isValidCalendarDate(
+      Number(value.slice(0, 4)),
+      Number(value.slice(5, 7)),
+      Number(value.slice(8, 10)),
+    )
+  );
+}
+
+type EsitoBiasRecord =
+  | { ok: true; valore: unknown }
+  | { ok: false; messaggio: string };
+
+/**
+ * Confine d'ingresso del Weekly Bias Record (riparazione del 13/08/2026: un
+ * `assets` di forma inattesa è passato da z.unknown() fino alle pagine,
+ * spegnendo AI Analyst e Volatilità).
+ *
+ * Si valida la STRUTTURA, non il contenuto: forma canonica `assets` come
+ * dizionario per chiave asset; la forma ad array di voci `{asset, …}` è
+ * riconosciuta e NORMALIZZATA al dizionario. I campi interni delle voci
+ * restano liberi (il desk evolve; l'interpretazione fine resta al parser
+ * difensivo `parseWeeklyBiasRecord`). Il rifiuto è riservato a ciò che
+ * nessun lettore a valle saprebbe interpretare: rifiutare qui, con un 400 e
+ * un messaggio azionabile, è meglio che salvare un record illeggibile.
+ */
+function normalizzaBiasRecord(value: unknown): EsitoBiasRecord {
+  if (value === undefined || value === null) return { ok: true, valore: value };
+  if (!isPlainObject(value)) {
+    return {
+      ok: false,
+      messaggio: "biasRecord deve essere un oggetto (Weekly Bias Record) o null",
+    };
+  }
+
+  if (!isDateKey(value.weekStart)) {
+    return {
+      ok: false,
+      messaggio:
+        "biasRecord.weekStart mancante o non valido (atteso YYYY-MM-DD): senza la settimana di emissione il record non è collocabile",
+    };
+  }
+
+  let assets = value.assets;
+  if (Array.isArray(assets)) {
+    const dizionario: Record<string, unknown> = {};
+    for (const voce of assets) {
+      if (
+        !isPlainObject(voce) ||
+        typeof voce.asset !== "string" ||
+        !(BIAS_ASSET_KEYS as readonly string[]).includes(voce.asset)
+      ) {
+        return {
+          ok: false,
+          messaggio: `biasRecord.assets: voce dell'array senza chiave asset riconoscibile (attese: ${BIAS_ASSET_KEYS.join(", ")})`,
+        };
+      }
+      const { asset, ...resto } = voce;
+      dizionario[asset] = resto;
+    }
+    assets = dizionario;
+  }
+
+  if (!isPlainObject(assets)) {
+    return {
+      ok: false,
+      messaggio:
+        "biasRecord.assets deve essere un dizionario per asset (xau/wti/idx) o un array di voci {asset, …}",
+    };
+  }
+  const assetsDict = assets;
+  if (!BIAS_ASSET_KEYS.some((k) => isPlainObject(assetsDict[k]))) {
+    return {
+      ok: false,
+      messaggio:
+        "biasRecord.assets non contiene nessun asset riconoscibile (xau/wti/idx)",
+    };
+  }
+
+  return {
+    ok: true,
+    valore: assets === value.assets ? value : { ...value, assets },
+  };
+}
+
+const biasRecordSchema = z
+  .unknown()
+  .transform((value, ctx) => {
+    const esito = normalizzaBiasRecord(value);
+    if (!esito.ok) {
+      ctx.addIssue({ code: "custom", message: esito.messaggio });
+      return z.NEVER;
+    }
+    return esito.valore;
+  })
+  .optional();
+
 export const macroDeskReportSchema = z.object({
   type: z.enum(MACRO_REPORT_TYPES),
   reportDate: reportDateKey,
@@ -150,13 +258,13 @@ export const macroDeskReportSchema = z.object({
     .refine((v) => v !== undefined && v !== null, "payload obbligatorio"),
 
   // ───── Campi v2 (scorecard a Expected Move) ─────
-  // Tutti OPZIONALI: un report v1 resta valido e non li invia. I blocchi
-  // strutturati (`biasRecord`, `resolved`, `monitor`) NON si validano campo
-  // per campo qui di proposito — il desk è un sistema esterno che evolve, e
-  // rifiutare un report intero per una chiave inattesa perderebbe il dato.
-  // Si accettano come JSON, si conservano interi, e la lettura passa da un
-  // parser difensivo (src/lib/macro-desk-bias-record.ts) che scarta il
-  // malformato e tiene il valido. Stessa scelta già fatta per `payload`.
+  // Tutti OPZIONALI: un report v1 resta valido e non li invia. `biasRecord`
+  // valida la sola STRUTTURA e normalizza alla forma canonica (vedi
+  // `normalizzaBiasRecord`); i campi interni delle voci e i blocchi
+  // `resolved`/`monitor` restano JSON liberi — il desk è un sistema esterno
+  // che evolve, e l'interpretazione fine resta ai parser difensivi
+  // (src/lib/macro-desk-bias-record.ts) che scartano il malformato e
+  // tengono il valido. Stessa scelta già fatta per `payload`.
   schemaVersion: z
     .number()
     .int("schemaVersion deve essere un intero")
@@ -164,7 +272,7 @@ export const macroDeskReportSchema = z.object({
     .optional(),
   scorecardEligible: z.boolean().optional(),
   trackRecordStart: z.boolean().optional(),
-  biasRecord: z.unknown().optional(),
+  biasRecord: biasRecordSchema,
   resolved: z.unknown().optional(),
   monitor: z.unknown().optional(),
 });
