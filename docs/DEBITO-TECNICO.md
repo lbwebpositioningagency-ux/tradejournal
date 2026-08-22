@@ -56,3 +56,34 @@ tutte cose **registrate, non risolte**.
   rigenerare **da solo**, in un intervento separato da quello sulle metriche:
   cambiare dataset e formule insieme rende impossibile attribuire i delta.
   → `prisma/seed.ts`
+- **Il seed chiude i trade a mercato chiuso.** Nella stessa rigenerazione: il
+  generatore deve chiudere le posizioni SOLO in sedute valide. Oggi apre nei
+  giorni feriali (`weekdaysBetween`) ma lascia la durata libera fino allo
+  swing multi-giorno, quindi un trade aperto venerdì chiude di sabato; e
+  `closedAt` è UTC mentre il bucketing è in `Europe/Rome`, così un venerdì
+  sera scivola al sabato. Da lì nascono i **41 trade e 37 sedute fantasma** di
+  SIM1 (23 sabati + 14 domeniche), su CL/ES/GC/NQ — futures, con sabato e
+  domenica chiusi. Sono anche il motivo per cui la serie di SIM1 vale ~285
+  osservazioni/anno invece di 252.
+  → `src/lib/demo/sim1-dataset.ts` (`weekdaysBetween`, `holdMinutes`, `closedAt`)
+
+## Da rivedere se cambia il perimetro
+
+- **Conti su strumenti 24/7 (crypto): l'annualizzazione ×√252 non regge.**
+  Oggi Sortino e Sharpe annualizzano su 252 sedute e la serie giornaliera
+  riempie a zero i soli giorni feriali, tenendo però i non-feriali con trade
+  (`dailyReturns`, deliberato: un weekend con P&L reale è un fatto). Con
+  strumenti che scambiano sette giorni su sette le sedute sono ~365 l'anno e
+  i weekend sono osservazioni **legittime**, non rumore: il fattore fisso
+  sottostimerebbe i rapporti.
+  La strada in quel caso è l'**opzione C — annualizzare sul conteggio reale**
+  di osservazioni per anno (`√(osservazioni ÷ anni coperti)`) invece che su
+  √252. Impatto già misurato su SIM1, che con 285,2 osservazioni/anno è il
+  caso peggiore disponibile: Sortino 5,8687 → 6,2437 e Sharpe 2,9672 →
+  3,1568, cioè **+6,4%** su entrambi; sui conti demo forex/futures (260,9
+  oss./anno) sarebbe +1,7%.
+  Attenzione al costo nascosto: un fattore che dipende dai dati rende le
+  soglie fisse 1/2 non più direttamente confrontabili fra conti, ed è
+  esattamente il motivo per cui le soglie derivate erano state tolte. Da
+  affrontare solo quando un conto crypto esiste davvero, non prima.
+  → `src/lib/metrics/daily-series.ts`, `sortino.ts`, `sharpe.ts`
