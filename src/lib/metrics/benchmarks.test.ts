@@ -5,9 +5,10 @@ import {
   CALMAR_BENCHMARK,
   CALMAR_MIN_DAYS,
   CALMAR_RELIABLE_DAYS,
-  SORTINO_ANNUALIZATION,
+  sortinoBenchmark,
   SORTINO_ANNUAL_THRESHOLDS,
-  SORTINO_BENCHMARK,
+  SORTINO_SCALE_MIN_ACTIVE_DAYS,
+  SORTINO_SCALE_MIN_COVERED_DAYS,
   SQN_BENCHMARK,
   SQN_MIN_TRADES,
   ULCER_BENCHMARK,
@@ -19,10 +20,16 @@ import {
  * restino BEN FORMATE (bande contigue, che coprono tutta la retta, senza
  * sovrapposizioni) e che la risoluzione della fascia sia corretta sugli
  * estremi — dove un < al posto di un ≤ sposterebbe l'etichetta.
+ *
+ * Sul Sortino c'è in più la derivazione del fattore: le soglie NON sono
+ * costanti, si tarano sulle osservazioni annue del conto.
  */
 
+/** Un Sortino "tipico": 42 giorni operativi in 288 di storico. */
+const SORTINO_TYPICAL = sortinoBenchmark(42, 288).benchmark;
+
 const ALL: [string, MetricBenchmark][] = [
-  ["sortino", SORTINO_BENCHMARK],
+  ["sortino", SORTINO_TYPICAL],
   ["calmar", CALMAR_BENCHMARK],
   ["sqn", SQN_BENCHMARK],
   ["ulcer", ULCER_BENCHMARK],
@@ -49,7 +56,7 @@ describe("benchmark: forma delle scale", () => {
   });
 
   it("ordina dalla peggiore alla migliore, invertendo solo Ulcer", () => {
-    expect(SORTINO_BENCHMARK.bands.map((b) => b.tier)).toEqual([
+    expect(SORTINO_TYPICAL.bands.map((b) => b.tier)).toEqual([
       "SCARSO",
       "MEDIO",
       "OTTIMO",
@@ -84,22 +91,6 @@ describe("benchmarkTier", () => {
     expect(benchmarkTier(CALMAR_BENCHMARK, "3")).toBe("OTTIMO");
   });
 
-  it("Sortino: soglie sulla scala GIORNALIERA calcolata dall'app", () => {
-    expect(benchmarkTier(SORTINO_BENCHMARK, "0.0549")).toBe("SCARSO");
-    expect(benchmarkTier(SORTINO_BENCHMARK, "0.06")).toBe("MEDIO");
-    expect(benchmarkTier(SORTINO_BENCHMARK, "0.13")).toBe("OTTIMO");
-  });
-
-  it("la fascia segue il valore ARROTONDATO come nella card", () => {
-    // 0,0551 si legge "0,06" a schermo: la scala non può dire "< 0,06"
-    expect(benchmarkTier(SORTINO_BENCHMARK, "0.0551")).toBe("MEDIO");
-    // 2,497 si legge "2,5": fascia OTTIMO, coerente col numero mostrato
-    expect(benchmarkTier(SQN_BENCHMARK, "2.497")).toBe("OTTIMO");
-    // sull'Ulcer l'arrotondamento è a 4 decimali (2 sulla percentuale)
-    expect(benchmarkTier(ULCER_BENCHMARK, "0.04999")).toBe("MEDIO");
-    expect(benchmarkTier(ULCER_BENCHMARK, "0.049949")).toBe("OTTIMO");
-  });
-
   it("Ulcer: scala invertita, il valore è una frazione 0-1", () => {
     // 4% → OTTIMO, 7% → MEDIO, 12% → SCARSO
     expect(benchmarkTier(ULCER_BENCHMARK, "0.0400")).toBe("OTTIMO");
@@ -107,21 +98,111 @@ describe("benchmarkTier", () => {
     expect(benchmarkTier(ULCER_BENCHMARK, "0.1000")).toBe("SCARSO");
     expect(benchmarkTier(ULCER_BENCHMARK, "0.0000")).toBe("OTTIMO");
   });
+
+  it("la fascia segue il valore ARROTONDATO come nella card", () => {
+    // 2,497 si legge "2,5": fascia OTTIMO, coerente col numero mostrato
+    expect(benchmarkTier(SQN_BENCHMARK, "2.497")).toBe("OTTIMO");
+    // sull'Ulcer l'arrotondamento è a 4 decimali (2 sulla percentuale)
+    expect(benchmarkTier(ULCER_BENCHMARK, "0.04999")).toBe("MEDIO");
+    expect(benchmarkTier(ULCER_BENCHMARK, "0.049949")).toBe("OTTIMO");
+  });
 });
 
-describe("derivazione delle soglie Sortino", () => {
-  it("le soglie giornaliere sono quelle annuali ÷ √252 (arrotondate a 2 dec.)", () => {
-    const cuts = SORTINO_BENCHMARK.bands
-      .map((b) => b.min)
-      .filter((min): min is number => min !== null);
-    expect(cuts).toHaveLength(SORTINO_ANNUAL_THRESHOLDS.length);
-    cuts.forEach((cut, i) => {
-      const expected = new Decimal(SORTINO_ANNUAL_THRESHOLDS[i])
-        .div(SORTINO_ANNUALIZATION)
+describe("sortinoBenchmark: soglie tarate sulle osservazioni reali", () => {
+  /** Soglie attese: annuale ÷ √(giorni con trade × 365 / giorni coperti). */
+  function expected(activeDays: number, coveredDays: number) {
+    const f = new Decimal(activeDays).times(365).div(coveredDays).sqrt();
+    return SORTINO_ANNUAL_THRESHOLDS.map((t) =>
+      new Decimal(t)
+        .div(f)
         .toDecimalPlaces(2, Decimal.ROUND_HALF_UP)
-        .toNumber();
-      expect(cut).toBe(expected);
-    });
+        .toNumber(),
+    );
+  }
+
+  it("divide le soglie annuali per la radice delle osservazioni annue", () => {
+    // 120 giorni operativi su un anno pieno → f = √120 ≈ 10,95
+    const scale = sortinoBenchmark(120, 365);
+    expect(scale.estimated).toBe(true);
+    expect(scale.observationsPerYear).toBe(120);
+    const [medio, ottimo] = expected(120, 365);
+    expect(medio).toBe(0.09); // il caso citato: 0,09, non 0,06
+    expect(scale.benchmark.bands[1].min).toBe(medio);
+    expect(scale.benchmark.bands[2].min).toBe(ottimo);
+  });
+
+  it("un conto più rado ha soglie PIÙ ALTE (√252 sarebbe ottimista)", () => {
+    const rado = sortinoBenchmark(60, 365).benchmark.bands[1].min!;
+    const fitto = sortinoBenchmark(240, 365).benchmark.bands[1].min!;
+    expect(rado).toBeGreaterThan(fitto);
+    // e la vecchia costante 0,06 (tarata su 252) sottostimava già a 240 giorni
+    expect(fitto).toBeGreaterThanOrEqual(0.06);
+  });
+
+  it("OTTIMO è sempre il doppio di MEDIO (soglie annuali 1 e 2)", () => {
+    for (const [active, covered] of [
+      [42, 288],
+      [120, 365],
+      [200, 400],
+      [20, 90],
+    ]) {
+      const bands = sortinoBenchmark(active, covered).benchmark.bands;
+      const [medio, ottimo] = expected(active, covered);
+      expect(bands[1].min).toBe(medio);
+      expect(bands[2].min).toBe(ottimo);
+      expect(bands[1].min!).toBeLessThan(bands[2].min!);
+    }
+  });
+
+  it("le osservazioni annue non superano i 365 giorni di calendario", () => {
+    // ogni giorno operativo è anche un giorno di calendario: il rapporto è ≤ 1
+    expect(sortinoBenchmark(300, 300).observationsPerYear).toBe(365);
+  });
+
+  it("campione insufficiente → scala provvisoria, non stimata", () => {
+    const pochiGiorni = sortinoBenchmark(
+      SORTINO_SCALE_MIN_ACTIVE_DAYS - 1,
+      365,
+    );
+    expect(pochiGiorni.estimated).toBe(false);
+    expect(pochiGiorni.observationsPerYear).toBeNull();
+
+    const storicoCorto = sortinoBenchmark(
+      50,
+      SORTINO_SCALE_MIN_COVERED_DAYS - 1,
+    );
+    expect(storicoCorto.estimated).toBe(false);
+
+    // al limite esatto la stima è ammessa
+    expect(
+      sortinoBenchmark(
+        SORTINO_SCALE_MIN_ACTIVE_DAYS,
+        SORTINO_SCALE_MIN_COVERED_DAYS,
+      ).estimated,
+    ).toBe(true);
+  });
+
+  it("il ripiego dichiara i 252 e non finge una taratura", () => {
+    const scale = sortinoBenchmark(3, 10);
+    expect(scale.benchmark.bands[1].min).toBe(0.06); // 1/√252
+    expect(scale.benchmark.calibration).toContain("252");
+    expect(scale.benchmark.calibration).toContain("provvisoria");
+  });
+
+  it("dichiara sempre il fattore e su cosa è stimato", () => {
+    const scale = sortinoBenchmark(42, 288);
+    expect(scale.benchmark.calibration).toContain("giorni operativi/anno");
+    expect(scale.benchmark.calibration).toContain("42");
+    expect(scale.benchmark.calibration).toContain("288");
+  });
+
+  it("le fasce derivate restano contigue e classificano sugli estremi", () => {
+    const benchmark = sortinoBenchmark(77, 200).benchmark;
+    expect(benchmark.bands[0].max).toBe(benchmark.bands[1].min);
+    expect(benchmark.bands[1].max).toBe(benchmark.bands[2].min);
+    const medio = benchmark.bands[1].min!;
+    expect(benchmarkTier(benchmark, String(medio))).toBe("MEDIO");
+    expect(benchmarkTier(benchmark, String(medio - 0.01))).toBe("SCARSO");
   });
 });
 
