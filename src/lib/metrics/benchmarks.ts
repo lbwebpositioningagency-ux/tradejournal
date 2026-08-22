@@ -46,6 +46,13 @@ export interface MetricBenchmark {
   decimals: number;
   /** true = più basso è meglio (Ulcer Index): la UI deve dichiararlo. */
   lowerIsBetter?: boolean;
+  /**
+   * Come sono state TARATE le soglie su QUESTO campione, quando non sono
+   * costanti (Sortino): il lettore deve poter vedere il fattore usato e su
+   * quante osservazioni è stimato, altrimenti una scala derivata dai dati è
+   * indistinguibile da una scala di manuale.
+   */
+  calibration?: string;
   /** Una riga: unità del confronto e provenienza delle soglie. */
   source: string;
 }
@@ -77,41 +84,128 @@ export function benchmarkTier(
   return null;
 }
 
-/**
- * Sortino Ratio — il modulo lo calcola sui rendimenti GIORNALIERI e NON lo
- * annualizza (v. sortino.ts), mentre la scala di letteratura (1 = sufficiente,
- * 2 = ottimo) è riferita al Sortino ANNUALIZZATO. Non si riscala la metrica:
- * si riportano le soglie alla scala giornaliera dividendo per √252, lo stesso
- * fattore di annualizzazione già adottato dai rolling ratio (rolling.ts).
- *
- *   1 / √252 = 0,063 → 0,06     2 / √252 = 0,126 → 0,13
- *
- * Arrotondate a 2 decimali perché è la precisione con cui la card mostra il
- * numero: soglia e valore visibile restano confrontabili a occhio.
- */
-export const SORTINO_BENCHMARK: MetricBenchmark = {
-  decimals: 2,
-  bands: [
-    { tier: "SCARSO", min: null, max: 0.06, range: "< 0,06" },
-    { tier: "MEDIO", min: 0.06, max: 0.13, range: "0,06 – 0,13" },
-    { tier: "OTTIMO", min: 0.13, max: null, range: "> 0,13" },
-  ],
-  source:
-    "Scala del Sortino annualizzato (1 / 2), riportata alla scala giornaliera dell'app ÷ √252.",
-};
+/** Numero in notazione italiana, per i range e i fattori mostrati in UI. */
+function it(value: Decimal | number, decimals: number): string {
+  const dec = value instanceof Decimal ? value : new Decimal(value);
+  return new Intl.NumberFormat("it-IT", {
+    minimumFractionDigits: decimals,
+    maximumFractionDigits: decimals,
+  }).format(dec.toDecimalPlaces(decimals, Decimal.ROUND_HALF_UP).toNumber());
+}
 
-/** Soglie annualizzate da cui derivano quelle giornaliere (usate dai test). */
+/** Soglie della scala di letteratura, sul Sortino ANNUALIZZATO. */
 export const SORTINO_ANNUAL_THRESHOLDS = [1, 2] as const;
 
-/** Fattore di conversione annuale → giornaliero: √252. */
-export const SORTINO_ANNUALIZATION = new Decimal(TRADING_DAYS_PER_YEAR).sqrt();
+/**
+ * Campione minimo per stimare le osservazioni annue in modo non ridicolo.
+ *
+ * Il rapporto giorni-operativi/anno si estrapola da `giorni con trade` su
+ * `giorni di calendario coperti`: su due settimane di storico una singola
+ * settimana intensa (o una di ferie) sposta la stima del doppio. Sotto un
+ * trimestre di copertura — o sotto 20 giornate operative — la stima non è
+ * abbastanza stabile per tararci sopra una scala, e la UI mostra le fasce
+ * attenuate come fa l'SQN sotto i 30 trade.
+ */
+export const SORTINO_SCALE_MIN_ACTIVE_DAYS = 20;
+export const SORTINO_SCALE_MIN_COVERED_DAYS = 90;
+
+export interface SortinoScale {
+  benchmark: MetricBenchmark;
+  /** false = fattore non stimabile dal campione: scala provvisoria, attenuata. */
+  estimated: boolean;
+  /** Giorni operativi per anno stimati; null quando non è stimabile. */
+  observationsPerYear: number | null;
+}
+
+/**
+ * Sortino Ratio — soglie DERIVATE dal campione, non costanti.
+ *
+ * Il modulo calcola il Sortino sui rendimenti giornalieri e NON lo annualizza
+ * (v. sortino.ts), mentre la scala di letteratura (1 = sufficiente, 2 = ottimo)
+ * è riferita al Sortino ANNUALIZZATO. La conversione richiede la radice delle
+ * osservazioni per anno — e le osservazioni qui NON sono le 252 sedute di
+ * borsa: la serie `getDailyPnl` contiene SOLO i giorni con almeno un trade
+ * chiuso. Un conto che opera 120 giorni l'anno ha fattore √120 = 11, non
+ * √252 = 15,9, e usare 252 abbassa le soglie di un terzo — un errore
+ * sistematicamente ottimista, che promuove a OTTIMO conti mediocri.
+ *
+ *   osservazioni/anno = giorni con trade × 365 / giorni di calendario coperti
+ *   f = √(osservazioni/anno)
+ *   soglia MEDIO = 1 / f     soglia OTTIMO = 2 / f
+ *
+ * Le osservazioni/anno non possono superare 365 (un giorno operativo è un
+ * giorno di calendario): il clamp è difensivo, non una correzione.
+ *
+ * Il Sortino NON viene toccato: cambia solo il metro con cui lo si legge.
+ */
+export function sortinoBenchmark(
+  activeDays: number,
+  coveredDays: number,
+): SortinoScale {
+  const estimated =
+    activeDays >= SORTINO_SCALE_MIN_ACTIVE_DAYS &&
+    coveredDays >= SORTINO_SCALE_MIN_COVERED_DAYS;
+
+  const obs = estimated
+    ? Decimal.min(new Decimal(activeDays).times(365).div(coveredDays), 365)
+    : // campione insufficiente: scala PROVVISORIA sulla convenzione di borsa,
+      // dichiarata come tale e mostrata attenuata
+      new Decimal(TRADING_DAYS_PER_YEAR);
+
+  const f = obs.sqrt();
+  const [annualMedio, annualOttimo] = SORTINO_ANNUAL_THRESHOLDS;
+  const medio = new Decimal(annualMedio)
+    .div(f)
+    .toDecimalPlaces(2, Decimal.ROUND_HALF_UP)
+    .toNumber();
+  const ottimo = new Decimal(annualOttimo)
+    .div(f)
+    .toDecimalPlaces(2, Decimal.ROUND_HALF_UP)
+    .toNumber();
+
+  const obsRounded = obs.toDecimalPlaces(0, Decimal.ROUND_HALF_UP).toNumber();
+
+  return {
+    estimated,
+    observationsPerYear: estimated ? obsRounded : null,
+    benchmark: {
+      decimals: 2,
+      bands: [
+        { tier: "SCARSO", min: null, max: medio, range: `< ${it(medio, 2)}` },
+        {
+          tier: "MEDIO",
+          min: medio,
+          max: ottimo,
+          range: `${it(medio, 2)} – ${it(ottimo, 2)}`,
+        },
+        { tier: "OTTIMO", min: ottimo, max: null, range: `> ${it(ottimo, 2)}` },
+      ],
+      calibration: estimated
+        ? `Scala tarata su ${obsRounded} giorni operativi/anno (${activeDays} giorni con trade in ${coveredDays} di storico): fattore √${obsRounded} = ${it(f, 1)}.`
+        : `Campione troppo piccolo per stimare i giorni operativi/anno (servono almeno ${SORTINO_SCALE_MIN_ACTIVE_DAYS} giorni con trade e ${SORTINO_SCALE_MIN_COVERED_DAYS} di storico): scala provvisoria sulla convenzione di ${TRADING_DAYS_PER_YEAR} sedute.`,
+      source:
+        "L'app non annualizza il Sortino: le soglie annuali 1 / 2 sono divise per la radice delle osservazioni annue di QUESTO conto, non per √252.",
+    },
+  };
+}
 
 /**
  * Calmar Ratio — scala di letteratura standard (MAR ratio): sotto 1 il
- * rendimento non ripaga il drawdown, oltre 3 è eccellente. Applicabile così
- * com'è perché il modulo annualizza davvero il numeratore (v. calmar.ts);
- * unica differenza dal manuale, l'annualizzazione è LINEARE (× 365/giorni) e
- * non composta, e il denominatore è già il Max DD in frazione del picco.
+ * rendimento non ripaga il drawdown, oltre 3 è eccellente. Applicabile perché
+ * il modulo annualizza davvero il numeratore (v. calmar.ts), ma con DUE
+ * differenze dal manuale che vanno dette, non minimizzate:
+ *
+ * 1. l'annualizzazione è LINEARE (× 365/giorni), non composta. Sui rendimenti
+ *    piccoli le due coincidono, su quelli grandi no: +71% in 288 giorni fa
+ *    ~90% lineare contro ~97% composto, cioè ~7 punti di rendimento annuo e
+ *    altrettanti sul Calmar. Il segno dello scarto cambia col periodo — sotto
+ *    l'anno la lineare SOTTOSTIMA, sopra l'anno SOVRASTIMA — quindi non è un
+ *    bias correggibile a occhio;
+ * 2. numeratore e denominatore hanno basi diverse: il rendimento è rapportato
+ *    al SALDO INIZIALE (base fissa), il drawdown al PICCO DI EQUITY raggiunto
+ *    (base mobile). Su un conto molto cresciuto il denominatore si misura su
+ *    un capitale più grande del numeratore, e il rapporto risulta più
+ *    generoso di un Calmar calcolato su basi omogenee.
  */
 export const CALMAR_BENCHMARK: MetricBenchmark = {
   decimals: 2,
@@ -121,7 +215,7 @@ export const CALMAR_BENCHMARK: MetricBenchmark = {
     { tier: "OTTIMO", min: 3, max: null, range: "> 3" },
   ],
   source:
-    "Scala standard del Calmar/MAR ratio; qui l'annualizzazione è lineare.",
+    "Scala standard del Calmar/MAR ratio. Qui l'annualizzazione è lineare e non composta: sui rendimenti alti le due divergono parecchio (+71% in 288 giorni fa ~90% lineare contro ~97% composto). Il rendimento è calcolato sul saldo iniziale, il drawdown sul picco di equity: basi diverse.",
 };
 
 /**

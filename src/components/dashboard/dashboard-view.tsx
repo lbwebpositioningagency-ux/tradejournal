@@ -56,7 +56,7 @@ import {
   CALMAR_MIN_DAYS,
   CALMAR_BENCHMARK,
   CALMAR_RELIABLE_DAYS,
-  SORTINO_BENCHMARK,
+  sortinoBenchmark,
   SQN_BENCHMARK,
   ULCER_BENCHMARK,
   streaksInfo,
@@ -555,6 +555,10 @@ export function DashboardView({ data }: { data: DashboardData }) {
   // interpretazione del popover condividono la STESSA stringa e la stessa
   // fonte — la fascia evidenziata non può divergere dal numero letto a schermo.
   const sortinoValue = ratio(data.sortino);
+  // Le soglie del Sortino NON sono costanti: la serie contiene solo i giorni
+  // con trade chiusi, quindi il fattore di annualizzazione va stimato su
+  // QUESTO conto (v. benchmarks.ts). Il calcolo del Sortino resta intatto.
+  const sortinoScale = sortinoBenchmark(data.dayCount, data.daysCovered);
   const calmarShort = data.daysCovered < CALMAR_MIN_DAYS;
   const calmarValue = calmarShort ? "—" : ratio(data.calmar);
   const sqnShort = data.rCount < SQN_MIN_TRADES;
@@ -802,9 +806,10 @@ export function DashboardView({ data }: { data: DashboardData }) {
             label="Sortino Ratio"
             info={sortinoInfo}
             scale={{
-              benchmark: SORTINO_BENCHMARK,
+              benchmark: sortinoScale.benchmark,
               value: data.sortino,
               display: sortinoValue,
+              muted: !sortinoScale.estimated,
             }}
             value={sortinoValue}
             sub={

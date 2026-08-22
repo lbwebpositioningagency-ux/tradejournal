@@ -48,14 +48,16 @@ export {
   BENCHMARK_DISCLAIMER,
   CALMAR_BENCHMARK,
   CALMAR_RELIABLE_DAYS,
-  SORTINO_ANNUALIZATION,
+  sortinoBenchmark,
   SORTINO_ANNUAL_THRESHOLDS,
-  SORTINO_BENCHMARK,
+  SORTINO_SCALE_MIN_ACTIVE_DAYS,
+  SORTINO_SCALE_MIN_COVERED_DAYS,
   SQN_BENCHMARK,
   ULCER_BENCHMARK,
   type BenchmarkBand,
   type BenchmarkTier,
   type MetricBenchmark,
+  type SortinoScale,
 } from "./benchmarks";
 export { sortinoRatio, sortinoInfo } from "./sortino";
 export { sharpeRatio, sharpeInfo } from "./sharpe";
