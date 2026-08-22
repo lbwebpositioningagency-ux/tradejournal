@@ -1,6 +1,11 @@
 import { describe, expect, it } from "vitest";
-import { DRIVER_SERIES_BY_CODE } from "@/lib/driver-desk/catalog";
-import { normalizeObservations, qaSeries } from "@/lib/driver-desk/ingest";
+import { DRIVER_SERIES, DRIVER_SERIES_BY_CODE } from "@/lib/driver-desk/catalog";
+import {
+  deltaWindowStart,
+  normalizeObservations,
+  qaSeries,
+  runDriverDeskDeltaIngest,
+} from "@/lib/driver-desk/ingest";
 
 const DFII10 = DRIVER_SERIES_BY_CODE.get("DFII10")!;
 const XAUUSD = DRIVER_SERIES_BY_CODE.get("XAUUSD")!;
@@ -78,5 +83,46 @@ describe("qaSeries — segnala, non corregge", () => {
       { date: "2024-01-03", value: 100.2 },
     ];
     expect(qaSeries(XAUUSD, obs)).toEqual([]);
+  });
+});
+
+/**
+ * Ingest DELTA (riparazione del 13/08/2026): dal 04/08 il Driver Desk era
+ * fermo perché nessun job scriveva DriverDeskBar — il popolamento era stato
+ * un backfill manuale una tantum. Il delta gira nel cron notturno: riscrive
+ * solo la coda recente della serie e non tocca mai lo storico.
+ */
+describe("deltaWindowStart", () => {
+  it("arretra di DELTA_WINDOW_DAYS giorni civili dall'ultima data", () => {
+    expect(deltaWindowStart("2026-08-04")).toBe("2026-07-21");
+  });
+
+  it("attraversa i confini di mese e anno senza rollover", () => {
+    expect(deltaWindowStart("2026-01-05")).toBe("2025-12-22");
+  });
+});
+
+describe("runDriverDeskDeltaIngest — comportamenti senza rete", () => {
+  const coverageVuota = {
+    driverDeskCoverage: { findMany: async () => [] },
+  } as unknown as Parameters<typeof runDriverDeskDeltaIngest>[0];
+
+  it("una serie mai popolata si salta dichiarandolo: il primo carico resta manuale", async () => {
+    const esito = await runDriverDeskDeltaIngest(coverageVuota);
+    expect(esito.completo).toBe(true);
+    expect(esito.results).toHaveLength(DRIVER_SERIES.length);
+    for (const r of esito.results) {
+      expect(r.ok).toBe(false);
+      expect(r.error).toContain("mai popolata");
+    }
+  });
+
+  it("a budget esaurito le serie restanti sono rinviate e completo è false", async () => {
+    const esito = await runDriverDeskDeltaIngest(coverageVuota, { budgetMs: -1 });
+    expect(esito.completo).toBe(false);
+    for (const r of esito.results) {
+      expect(r.ok).toBe(false);
+      expect(r.error).toContain("budget");
+    }
   });
 });

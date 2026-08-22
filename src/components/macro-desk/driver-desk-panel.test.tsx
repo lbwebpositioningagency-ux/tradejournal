@@ -93,7 +93,9 @@ function buildData(
   };
 }
 
-const html = renderToStaticMarkup(<DriverDeskPanel data={buildData()} />);
+const html = renderToStaticMarkup(
+  <DriverDeskPanel data={buildData()} timeZone="Europe/Rome" />,
+);
 
 describe("DriverDeskPanel — parole vietate", () => {
   // Lessico predittivo e direzionale: il modulo è descrittivo per contratto.
@@ -146,7 +148,7 @@ describe("DriverDeskPanel — nessun messaggio di assenza", () => {
     const series = { ...SERIES };
     delete series.GER40;
     const markup = renderToStaticMarkup(
-      <DriverDeskPanel data={buildData(series)} />,
+      <DriverDeskPanel data={buildData(series)} timeZone="Europe/Rome" />,
     );
     expect(markup).not.toContain("GER40");
     expect(markup.toLowerCase()).not.toContain("scheda dax");
@@ -239,7 +241,7 @@ describe("DriverDeskPanel — chiave di lettura per scheda (R7)", () => {
     const series = { ...SERIES };
     delete series.BRENT; // decade anche lo spread
     const markup = renderToStaticMarkup(
-      <DriverDeskPanel data={buildData(series)} />,
+      <DriverDeskPanel data={buildData(series)} timeZone="Europe/Rome" />,
     );
     const schedaWti = markup.split("Petrolio WTI")[1]?.split("Chiave di lettura")[1] ?? "";
     expect(schedaWti).not.toContain("Brent");
@@ -297,8 +299,42 @@ describe("DriverDeskPanel — modulo senza dati", () => {
     const vuoto = renderToStaticMarkup(
       <DriverDeskPanel
         data={{ cards: [], errors: [], coverage: [], empty: true }}
+        timeZone="Europe/Rome"
       />,
     );
     expect(vuoto).toContain("nessuna serie in tabella");
+  });
+});
+
+/**
+ * `updatedAt` è un ISTANTE, non una chiave-giorno: va reso nel fuso
+ * dell'utente. Preso dall'ISO UTC (`slice(0,10)`), un ingest delle 01:30
+ * italiane si legge col giorno prima — ed è proprio la finestra in cui gira
+ * il cron notturno.
+ */
+describe("DriverDeskPanel — data dell'ultimo aggiornamento", () => {
+  function conIngestAlle(iso: string, timeZone: string): string {
+    const data = buildData();
+    return renderToStaticMarkup(
+      <DriverDeskPanel
+        data={{
+          ...data,
+          coverage: data.coverage.map((c) => ({ ...c, updatedAt: iso })),
+        }}
+        timeZone={timeZone}
+      />,
+    );
+  }
+
+  it("usa il giorno del fuso utente, non quello UTC", () => {
+    // 23:30 UTC del 12 = l'01:30 del 13 a Roma: per l'utente è il 13.
+    const html = conIngestAlle("2026-08-12T23:30:00.000Z", "Europe/Rome");
+    expect(html).toContain("Ultimo aggiornamento dati: 2026-08-13");
+    expect(html).not.toContain("2026-08-12");
+  });
+
+  it("in un fuso indietro rispetto a UTC mostra il giorno precedente", () => {
+    const html = conIngestAlle("2026-08-13T02:00:00.000Z", "America/New_York");
+    expect(html).toContain("Ultimo aggiornamento dati: 2026-08-12");
   });
 });

@@ -1,4 +1,5 @@
 import { prisma } from "@/lib/db";
+import { runDriverDeskDeltaIngest } from "@/lib/driver-desk/ingest";
 import { isAuthorizedMacroRequest } from "@/lib/macro-desk";
 import { BUDGET_DEFAULT_MS, runSeasonalityDailyJob } from "@/lib/seasonality/job";
 
@@ -6,11 +7,15 @@ import { BUDGET_DEFAULT_MS, runSeasonalityDailyJob } from "@/lib/seasonality/job
 export const maxDuration = 300;
 
 /**
- * GET /api/seasonality-sync — job della Stagionalità.
+ * GET /api/seasonality-sync — DISPATCHER del cron notturno (03:30 UTC, vedi
+ * vercel.json): prima il job della Stagionalità, poi l'ingest DELTA del
+ * Driver Desk. Due lavori in un solo cron, di proposito: il piano resta a
+ * due cron e il Driver Desk smette di dipendere da rilanci manuali
+ * (riparazione del 13/08/2026 — dati fermi al backfill del 04/08).
  *
- * È **sia** il cron notturno (03:30 UTC, vedi vercel.json) **sia** il trigger
- * manuale: dopo un deploy si può richiamare a mano per avviare il primo
- * caricamento senza aspettare la notte.
+ * È **sia** il cron notturno **sia** il trigger manuale: dopo un deploy si
+ * può richiamare a mano per avviare il primo caricamento senza aspettare la
+ * notte.
  *
  * ── Il job è a BUDGET e converge su più invocazioni ───────────────────────
  *
@@ -46,6 +51,7 @@ export async function GET(request: Request) {
     return Response.json({ error: "Non autorizzato" }, { status: 401 });
   }
 
+  const inizio = Date.now();
   const url = new URL(request.url);
   const budgetParam = Number(url.searchParams.get("budget"));
   /* Il budget richiesto viene comunque limitato: un valore assurdo porterebbe
@@ -61,8 +67,33 @@ export async function GET(request: Request) {
     forceDaily: url.searchParams.get("force") === "1",
   });
 
+  /* ── Driver Desk: ingest delta col tempo che resta ────────────────────
+     La stagionalità ha la precedenza; al driver va il residuo della
+     funzione meno un margine di sicurezza. Misurato il 13/08/2026 su dati
+     di produzione: 4,8 s per tutte e 13 le serie (max per serie 1,3 s,
+     Bundesbank) — contro i ~230 s tipicamente residui, quindi nessun
+     cursore persistente: se una notte il tempo non bastasse, il delta
+     rinvia le serie restanti (`completo: false`) e la finestra di 14
+     giorni ricuce alla notte dopo. */
+  const margineMs = 20_000;
+  const residuoMs = maxDuration * 1000 - (Date.now() - inizio) - margineMs;
+  const driverDesk =
+    residuoMs < 15_000
+      ? {
+          saltato: true as const,
+          motivo: "tempo residuo insufficiente dopo la stagionalità",
+        }
+      : await runDriverDeskDeltaIngest(prisma, { budgetMs: residuoMs }).catch(
+          (e: unknown) => {
+            /* Il delta non deve mai spegnere il cron della stagionalità. */
+            console.error("[driver-desk] delta fallito:", e);
+            return { saltato: true as const, motivo: String(e) };
+          },
+        );
+
   return Response.json({
     ...esito,
+    driverDesk,
     // Istruzione esplicita al chiamante: nessuno deve dedurla dai campi.
     richiamare: !esito.completo,
   });

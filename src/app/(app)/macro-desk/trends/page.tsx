@@ -4,6 +4,8 @@ import { redirect } from "next/navigation";
 import { Inter, JetBrains_Mono } from "next/font/google";
 import { ArrowLeft } from "lucide-react";
 import { auth } from "@/lib/auth";
+import { todayKeyInZone } from "@/lib/dates";
+import { prisma } from "@/lib/db";
 import { hasFredApiKey } from "@/lib/fred";
 import {
   getTrendsRecessions,
@@ -50,7 +52,13 @@ export default async function MacroTrendsPage() {
    * non cambia: stesse serie, stessa cache, stesso Promise.allSettled
    * dentro le sezioni (una serie che fallisce è una card in errore).
    */
-  const generatedAt = new Date().toISOString();
+  /* Giorno del tentativo nel fuso dell'utente. Preso dall'ISO UTC, chi apriva
+     la pagina fra mezzanotte e le 02:00 italiane leggeva la data di ieri. */
+  const user = await prisma.user.findUniqueOrThrow({
+    where: { id: session.user.id },
+    select: { timezone: true },
+  });
+  const generatedDayKey = todayKeyInZone(user.timezone);
   const keyless = !hasFredApiKey();
   const recessionsPromise = getTrendsRecessions();
   const sectionPromises = Object.fromEntries(
@@ -100,7 +108,7 @@ export default async function MacroTrendsPage() {
         style={{ borderColor: "var(--md-border)" }}
       >
         <TrendsView
-          generatedAt={generatedAt}
+          generatedDayKey={generatedDayKey}
           keyless={keyless}
           sections={sectionPromises}
           allSeries={allSeriesPromise}

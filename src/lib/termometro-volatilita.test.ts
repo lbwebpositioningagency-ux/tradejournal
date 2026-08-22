@@ -11,6 +11,10 @@ import {
   percentileDaGriglia,
   strumentoVisibile,
 } from "@/lib/termometro-volatilita";
+import {
+  BIAS_RECORD_DAILY_REALE,
+  VOL_ITEMS_DAILY_REALI,
+} from "@/lib/termometro-volatilita.fixture";
 
 /* Il JSON è eterogeneo per costruzione (strumenti con griglia 0-100 e strumenti con sole
    ancore), quindi qui si accede in modo lasco: i tipi stretti vivono nella libreria. */
@@ -477,22 +481,32 @@ describe("estraiIvDaVolPanel", () => {
 });
 
 describe("estraiChiusureDaBiasRecord", () => {
+  // Forma REALE: `assets` come dizionario per chiave asset (vedi
+  // parseWeeklyBiasRecord). La vecchia versione di questo fixture usava un
+  // array mai esistito in produzione.
   const record = {
-    assets: [
-      {
-        asset: "xau",
+    weekStart: "2026-07-26",
+    assets: {
+      xau: {
+        bias: "RIALZISTA",
         path: [
-          { date: "2026-07-24", px: 4048.9 },
-          { date: "2026-07-27", px: 4076.4 },
-          { date: "2026-07-23", px: 4010.0 },
+          { date: "2026-07-24", px: 4048.9, move_EM: 0.1 },
+          { date: "2026-07-27", px: 4076.4, move_EM: 0.2 },
+          { date: "2026-07-23", px: 4010.0, move_EM: 0 },
         ],
       },
-      { asset: "wti", path: [{ date: "2026-07-27", px: 64.93 }] },
-      { asset: "idx", path: [{ date: "2026-07-27", px: 7509 }] },
-    ],
+      wti: {
+        bias: "NEUTRALE",
+        path: [{ date: "2026-07-27", px: 64.93, move_EM: 0 }],
+      },
+      idx: {
+        bias: "RIALZISTA",
+        path: [{ date: "2026-07-27", px: 7509, move_EM: 0 }],
+      },
+    },
   };
 
-  it("prende l'ultimo punto del percorso, non il primo dell'array", () => {
+  it("prende l'ultimo punto per data, non l'ultimo dell'array", () => {
     expect(estraiChiusureDaBiasRecord(record).XAUUSD).toBeCloseTo(4076.4, 6);
   });
 
@@ -512,12 +526,24 @@ describe("estraiChiusureDaBiasRecord", () => {
   it("ignora punti senza prezzo utilizzabile", () => {
     expect(
       estraiChiusureDaBiasRecord({
-        assets: [{ asset: "xau", path: [{ date: "2026-07-27", px: Number.NaN }] }],
+        weekStart: "2026-07-26",
+        assets: {
+          xau: {
+            bias: "RIALZISTA",
+            path: [{ date: "2026-07-27", px: Number.NaN, move_EM: 0 }],
+          },
+        },
       }),
     ).toEqual({});
     expect(
       estraiChiusureDaBiasRecord({
-        assets: [{ asset: "xau", path: [{ date: "2026-07-27", px: 0 }] }],
+        weekStart: "2026-07-26",
+        assets: {
+          xau: {
+            bias: "RIALZISTA",
+            path: [{ date: "2026-07-27", px: 0, move_EM: 0 }],
+          },
+        },
       }),
     ).toEqual({});
     expect(estraiChiusureDaBiasRecord(null)).toEqual({});
@@ -531,11 +557,22 @@ describe("componiIngressi", () => {
     { k: "OVX · vol petrolio", v: "60,62" },
     { k: "VIX · vol S&P500", v: "18,65" },
   ];
+  // Forma REALE del Weekly Bias Record: `assets` è un dizionario per chiave
+  // asset, come lo invia il desk e come lo accetta parseWeeklyBiasRecord.
+  // La vecchia versione di questo fixture usava un array di {asset, path}
+  // mai esistito in produzione: i test erano verdi contro una forma finta.
   const biasRecord = {
-    assets: [
-      { asset: "xau", path: [{ date: "2026-07-27", px: 4076.4 }] },
-      { asset: "idx", path: [{ date: "2026-07-27", px: 7509 }] },
-    ],
+    weekStart: "2026-07-26",
+    assets: {
+      xau: {
+        bias: "RIALZISTA",
+        path: [{ date: "2026-07-27", px: 4076.4, move_EM: 0 }],
+      },
+      idx: {
+        bias: "NEUTRALE",
+        path: [{ date: "2026-07-27", px: 7509, move_EM: 0 }],
+      },
+    },
   };
 
   it("unisce volatilità implicita e chiusura quando ci sono entrambe", () => {
@@ -560,5 +597,54 @@ describe("componiIngressi", () => {
     const l = leggiTermometro("SP500", componiIngressi({ volItems, biasRecord }).SP500)!;
     expect(l.ampiezzaValuta).not.toBeNull();
     expect(l.ampiezzaValuta!.mediana).toBeCloseTo(l.ampiezzaRelativa.mediana * 7509, 6);
+  });
+});
+
+/**
+ * REGRESSIONE del guasto in produzione del 10-13/08/2026 (AI Analyst e
+ * Volatilità in error boundary): il primo report DAILY con `biasRecord`
+ * valorizzato portava `assets` come dizionario e il vecchio parsing ad hoc
+ * (`for…of` su un oggetto) lanciava TypeError. Il fixture è il biasRecord
+ * VERO di quel report, non una ricostruzione.
+ */
+describe("estraiChiusureDaBiasRecord — report DAILY reale (12/08/2026)", () => {
+  it("non lancia e ricava le chiusure più recenti dal dict assets", () => {
+    const chiusure = estraiChiusureDaBiasRecord(
+      BIAS_RECORD_DAILY_REALE as Parameters<typeof estraiChiusureDaBiasRecord>[0],
+    );
+    expect(chiusure).toEqual({
+      XAUUSD: 4404.7,
+      WTICOUSD: 84,
+      SP500: 7746.69,
+    });
+  });
+
+  it("componiIngressi unisce IV del pannello reale e chiusure reali", () => {
+    const ingressi = componiIngressi({
+      volItems: VOL_ITEMS_DAILY_REALI as unknown as { k: string; v?: string }[],
+      biasRecord: BIAS_RECORD_DAILY_REALE as Parameters<
+        typeof componiIngressi
+      >[0]["biasRecord"],
+    });
+    expect(ingressi.XAUUSD).toEqual({ iv: 26, close: 4404.7 });
+    expect(ingressi.WTICOUSD).toEqual({ iv: 55, close: 84 });
+    expect(ingressi.SP500).toEqual({ iv: 15.3, close: 7746.69 });
+  });
+
+  it("un biasRecord irriconoscibile degrada a nessuna chiusura, mai un lancio", () => {
+    for (const spazzatura of [
+      { assets: "non-un-contenitore" },
+      { assets: 42 },
+      { weekStart: "2026-08-09", assets: { xau: "stringa" } },
+      "stringa",
+      12,
+      [{ asset: "xau" }],
+    ]) {
+      expect(() =>
+        estraiChiusureDaBiasRecord(
+          spazzatura as Parameters<typeof estraiChiusureDaBiasRecord>[0],
+        ),
+      ).not.toThrow();
+    }
   });
 });

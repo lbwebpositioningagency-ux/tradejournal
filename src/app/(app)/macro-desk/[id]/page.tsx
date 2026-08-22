@@ -4,6 +4,7 @@ import { notFound, redirect } from "next/navigation";
 import { Inter, JetBrains_Mono } from "next/font/google";
 import { ArrowLeft } from "lucide-react";
 import { auth } from "@/lib/auth";
+import { formatDateTime } from "@/lib/dates";
 import { prisma } from "@/lib/db";
 import { parseMacroPayload } from "@/lib/macro-desk-payload";
 import { cn } from "@/lib/utils";
@@ -45,15 +46,21 @@ export default async function MacroReportPage({
   if (!session?.user?.id) redirect("/login");
 
   const { id } = await params;
-  const report = await prisma.macroDeskReport.findUnique({ where: { id } });
+  const [report, user] = await Promise.all([
+    prisma.macroDeskReport.findUnique({ where: { id } }),
+    prisma.user.findUniqueOrThrow({
+      where: { id: session.user.id },
+      select: { timezone: true },
+    }),
+  ]);
   if (!report) notFound();
 
   const payload = parseMacroPayload(report.payload);
-  const generatedLabel = new Intl.DateTimeFormat("it-IT", {
-    dateStyle: "short",
-    timeStyle: "short",
-    timeZone: "UTC",
-  }).format(report.generatedAt);
+  /* `generatedAt` è un ISTANTE (quando il desk ha prodotto il report), non la
+     chiave-giorno `reportDate`: va letto nel fuso dell'utente. Reso in UTC
+     mostrava un'ora sfasata, e per i report generati dopo la mezzanotte
+     italiana anche il giorno sbagliato. */
+  const generatedLabel = formatDateTime(report.generatedAt, user.timezone);
 
   return (
     <div className="flex flex-col gap-4">

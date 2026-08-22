@@ -71,9 +71,6 @@ function iso(date: Date): string {
 /** Chiavi del registry Trends che servono all'AI Analyst. */
 const CHIAVI_TRENDS = ["vix", "gvz", "ovx", "nfci", "hy-oas"] as const;
 
-/** Forma accettata da `componiIngressi` per il Weekly Bias Record grezzo. */
-type BiasRecordInput = Parameters<typeof componiIngressi>[0]["biasRecord"];
-
 /* ── sorgenti condivise fra gli strumenti ────────────────────────────── */
 
 export interface FontiCondivise {
@@ -105,9 +102,24 @@ export const caricaFontiCondivise = cache(async (): Promise<FontiCondivise> => {
     (CHIAVI_TRENDS as readonly string[]).includes(d.key),
   );
 
-  const [reportRow, cot, driver, coverage, viste] = await Promise.all([
+  const [report, cot, driver, coverage, viste] = await Promise.all([
+    /* La COMPOSIZIONE sta nello stesso catch della query, di proposito: il
+       10-13/08/2026 un `biasRecord` di forma inattesa componeva fuori dal
+       catch e l'intera pagina finiva in error boundary invece che nello
+       stato "fonte non disponibile". */
     prisma.macroDeskReport
       .findFirst({ where: { type: "DAILY" }, orderBy: { reportDate: "desc" } })
+      .then((row): FontiCondivise["report"] =>
+        row
+          ? {
+              reportDate: iso(row.reportDate),
+              ingressi: componiIngressi({
+                volItems: parseMacroPayload(row.payload).volPanel?.items,
+                biasRecord: row.biasRecord,
+              }),
+            }
+          : null,
+      )
       .catch((e: unknown) => {
         console.error("[ai-analyst] report non caricato:", e);
         return null;
@@ -127,21 +139,7 @@ export const caricaFontiCondivise = cache(async (): Promise<FontiCondivise> => {
   const trends = new Map<string, TrendsSeriesView>();
   for (const vista of viste) trends.set(vista.def.key, vista);
 
-  return {
-    report: reportRow
-      ? {
-          reportDate: iso(reportRow.reportDate),
-          ingressi: componiIngressi({
-            volItems: parseMacroPayload(reportRow.payload).volPanel?.items,
-            biasRecord: reportRow.biasRecord as BiasRecordInput,
-          }),
-        }
-      : null,
-    cot,
-    driver,
-    coverage,
-    trends,
-  };
+  return { report, cot, driver, coverage, trends };
 });
 
 /* ── letture che richiedono una query per strumento ──────────────────── */
