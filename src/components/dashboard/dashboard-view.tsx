@@ -54,6 +54,11 @@ import {
   sqnInfo,
   SQN_MIN_TRADES,
   CALMAR_MIN_DAYS,
+  CALMAR_BENCHMARK,
+  CALMAR_RELIABLE_DAYS,
+  SORTINO_BENCHMARK,
+  SQN_BENCHMARK,
+  ULCER_BENCHMARK,
   streaksInfo,
   tradeCountInfo,
   ulcerInfo,
@@ -72,7 +77,7 @@ import {
 import { formatDayKey, formatDurationSec } from "@/lib/dates";
 import { sessionsInfo, type SessionPoint } from "@/lib/sessions";
 import { weekdaysInfo, type WeekdayPoint } from "@/lib/weekdays";
-import { MetricInfo } from "@/components/metric-info";
+import { MetricInfo, type MetricScaleData } from "@/components/metric-info";
 import { CHART } from "@/components/charts/chart-spec";
 import { EmptyState } from "@/components/empty-state";
 import type { TradeSequencePointView } from "@/components/charts/trade-sequence-chart";
@@ -299,6 +304,7 @@ function drawdownPctLabel(pct: string | null): string {
 function StatCard({
   label,
   info,
+  scale,
   value,
   valueClass,
   size = "md",
@@ -308,6 +314,8 @@ function StatCard({
 }: {
   label: string;
   info?: MetricInfoData;
+  /** Scala SCARSO/MEDIO/OTTIMO nel popover: soglie da metrics/benchmarks.ts. */
+  scale?: MetricScaleData;
   value: React.ReactNode;
   valueClass?: string;
   /** sm = coppie di valori · md = standard · hero = Net P&L/Saldo */
@@ -328,7 +336,7 @@ function StatCard({
       <CardHeader className="px-4">
         <CardTitle className="stat-label flex items-center gap-1">
           {label}
-          {info ? <MetricInfo info={info} /> : null}
+          {info ? <MetricInfo info={info} scale={scale} /> : null}
         </CardTitle>
       </CardHeader>
       <CardContent className="min-w-0 px-4">
@@ -543,6 +551,20 @@ export function DashboardView({ data }: { data: DashboardData }) {
   const dayData = inR ? data.daysR : data.days;
   const dayRunsData = inR ? data.dayRunsR : data.dayRuns;
   const ddForView = inR ? data.ddR : data.dd;
+  // Metriche avanzate (FASE 9): il valore mostrato nella card e la scala di
+  // interpretazione del popover condividono la STESSA stringa e la stessa
+  // fonte — la fascia evidenziata non può divergere dal numero letto a schermo.
+  const sortinoValue = ratio(data.sortino);
+  const calmarShort = data.daysCovered < CALMAR_MIN_DAYS;
+  const calmarValue = calmarShort ? "—" : ratio(data.calmar);
+  const sqnShort = data.rCount < SQN_MIN_TRADES;
+  const sqnValue = sqnShort ? "—" : ratio(data.sqn);
+  const ulcerValue =
+    data.ulcer !== null
+      ? new Decimal(data.ulcer).gte(1)
+        ? "> 100%"
+        : formatPercent(data.ulcer)
+      : "—";
   // Importo di una giornata coerente col toggle: in R è già la somma R del
   // giorno (dayData = daysR), altrimenti valuta/percentuale via money().
   const dayAmount = (value: string, signed = true) =>
@@ -779,7 +801,12 @@ export function DashboardView({ data }: { data: DashboardData }) {
           <StatCard
             label="Sortino Ratio"
             info={sortinoInfo}
-            value={ratio(data.sortino)}
+            scale={{
+              benchmark: SORTINO_BENCHMARK,
+              value: data.sortino,
+              display: sortinoValue,
+            }}
+            value={sortinoValue}
             sub={
               <span className="flex items-center gap-1">
                 Giornaliero · Sharpe {ratio(data.sharpe)}
@@ -792,9 +819,20 @@ export function DashboardView({ data }: { data: DashboardData }) {
           <StatCard
             label="Calmar Ratio"
             info={calmarInfo}
-            value={data.daysCovered < CALMAR_MIN_DAYS ? "—" : ratio(data.calmar)}
+            scale={{
+              benchmark: CALMAR_BENCHMARK,
+              value: calmarShort ? null : data.calmar,
+              display: calmarValue,
+              muted: calmarShort,
+              note: calmarShort
+                ? `Campione insufficiente: ${data.daysCovered} giorni di storico sui ${CALMAR_MIN_DAYS} minimi.`
+                : data.daysCovered < CALMAR_RELIABLE_DAYS
+                  ? `Storico di ${data.daysCovered} giorni, meno di 12 mesi: il drawdown massimo non è ancora rappresentativo e il valore resta statisticamente poco affidabile.`
+                  : undefined,
+            }}
+            value={calmarValue}
             sub={
-              data.daysCovered < CALMAR_MIN_DAYS
+              calmarShort
                 ? `Dati insufficienti (${data.daysCovered}/${CALMAR_MIN_DAYS} giorni di storico)`
                 : "Rendimento annualizzato / |Max DD %|"
             }
@@ -804,9 +842,18 @@ export function DashboardView({ data }: { data: DashboardData }) {
           <StatCard
             label="SQN"
             info={sqnInfo}
-            value={data.rCount < SQN_MIN_TRADES ? "—" : ratio(data.sqn)}
+            scale={{
+              benchmark: SQN_BENCHMARK,
+              value: sqnShort ? null : data.sqn,
+              display: sqnValue,
+              muted: sqnShort,
+              note: sqnShort
+                ? `Campione insufficiente: ${data.rCount} trade con rischio definito sui ${SQN_MIN_TRADES} minimi.`
+                : undefined,
+            }}
+            value={sqnValue}
             sub={
-              data.rCount < SQN_MIN_TRADES
+              sqnShort
                 ? `Dati insufficienti (${data.rCount}/${SQN_MIN_TRADES} trade con rischio)`
                 : `Van Tharp · su ${data.rCount} trade con rischio`
             }
@@ -816,13 +863,12 @@ export function DashboardView({ data }: { data: DashboardData }) {
           <StatCard
             label="Ulcer Index"
             info={ulcerInfo}
-            value={
-              data.ulcer !== null
-                ? new Decimal(data.ulcer).gte(1)
-                  ? "> 100%"
-                  : formatPercent(data.ulcer)
-                : "—"
-            }
+            scale={{
+              benchmark: ULCER_BENCHMARK,
+              value: data.ulcer,
+              display: ulcerValue,
+            }}
+            value={ulcerValue}
             sub="Drawdown pesato per profondità e durata"
           />
         ) : null}

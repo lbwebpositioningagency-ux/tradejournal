@@ -43,6 +43,20 @@ export {
   type RadarScoreInput,
   type ScoreFactorKey,
 } from "./score";
+export {
+  benchmarkTier,
+  BENCHMARK_DISCLAIMER,
+  CALMAR_BENCHMARK,
+  CALMAR_RELIABLE_DAYS,
+  SORTINO_ANNUALIZATION,
+  SORTINO_ANNUAL_THRESHOLDS,
+  SORTINO_BENCHMARK,
+  SQN_BENCHMARK,
+  ULCER_BENCHMARK,
+  type BenchmarkBand,
+  type BenchmarkTier,
+  type MetricBenchmark,
+} from "./benchmarks";
 export { sortinoRatio, sortinoInfo } from "./sortino";
 export { sharpeRatio, sharpeInfo } from "./sharpe";
 export { sqn, sqnInfo, SQN_MIN_TRADES } from "./sqn";
