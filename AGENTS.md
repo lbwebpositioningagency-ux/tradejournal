@@ -17,6 +17,7 @@ Next.js 16 App Router · TypeScript strict · PostgreSQL + Prisma 7 (driver adap
 - **Aggregazioni** pesanti in SQL/Prisma (`groupBy`, raw query) — mai caricare tutti i trade in memoria JS.
 - **Colori P&L** coerenti ovunque: verde profitto (`text-profit`), rosso perdita (`text-loss`), grigio breakeven (`text-breakeven`) — variabili in `globals.css`. Accento primario: blu.
 - **Sicurezza dati**: ogni query su dati utente filtra per `userId` (vedi pattern `updateMany({ where: { id, userId } })` in `src/server/accounts.ts`).
+- **Script che scrivono sul DB** (seed, backfill, cleanup, sonde di scrittura): la connection string si prende SOLO da `src/lib/db-guard.ts` (`guardedPgAdapter` / `resolveWritableDatabaseUrl`). Mai `new PrismaPg({ connectionString: process.env.DATABASE_URL })` diretto, mai un fallback hardcoded: se l'host non è locale lo script deve morire, a meno di `ALLOW_REMOTE_DB=1` esplicito da chi lancia il comando.
 - Le metriche (FASE 4) vanno in `src/lib/metrics/` come modulo puro con unit test per ogni formula (inclusi divisione per zero, zero trade, tutti loss).
 
 ## Struttura

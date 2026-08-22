@@ -23,7 +23,7 @@
 
 import "dotenv/config";
 import { PrismaClient } from "../src/generated/prisma/client";
-import { PrismaPg } from "@prisma/adapter-pg";
+import { guardedPgAdapter } from "../src/lib/db-guard";
 import { runSeasonalityDailyJob } from "../src/lib/seasonality/job";
 
 async function main() {
@@ -43,7 +43,7 @@ async function main() {
     (a, i) => !a.startsWith("-") && !(iBudget >= 0 && i === iBudget + 1),
   );
 
-  const adapter = new PrismaPg({ connectionString: process.env.DATABASE_URL });
+  const adapter = guardedPgAdapter("backfill stagionalità");
   const prisma = new PrismaClient({ adapter });
 
   console.log(

@@ -1,6 +1,11 @@
 import "dotenv/config";
-import { PrismaPg } from "@prisma/adapter-pg";
 import { PrismaClient } from "../src/generated/prisma/client";
+import { PrismaPg } from "@prisma/adapter-pg";
+import {
+  isLocalDatabaseHost,
+  maskDatabaseUrl,
+  resolveWritableDatabaseUrl,
+} from "../src/lib/db-guard";
 import { cotSyncDbPrisma, runCotSync, STRUMENTI_COT } from "../src/lib/cot-sync";
 
 /**
@@ -15,14 +20,13 @@ import { cotSyncDbPrisma, runCotSync, STRUMENTI_COT } from "../src/lib/cot-sync"
  * "gia_aggiornato" con 0 inserite).
  */
 
-const url = process.env.DATABASE_URL;
-if (!url) {
-  console.error("Manca DATABASE_URL.");
-  process.exit(1);
-}
-const target = url.replace(/\/\/[^@]*@/, "//***@");
-console.log(`Database di destinazione: ${target}`);
-console.log(/localhost|127\.0\.0\.1/.test(url) ? "(locale)" : "(REMOTO — non è il database locale)");
+const url = resolveWritableDatabaseUrl("sync COT una tantum");
+console.log(`Database di destinazione: ${maskDatabaseUrl(url)}`);
+console.log(
+  isLocalDatabaseHost(new URL(url).hostname)
+    ? "(locale)"
+    : "(REMOTO — autorizzato da ALLOW_REMOTE_DB=1)",
+);
 
 const prisma = new PrismaClient({ adapter: new PrismaPg({ connectionString: url }) });
 

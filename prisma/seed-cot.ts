@@ -1,8 +1,13 @@
 import "dotenv/config";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
-import { PrismaPg } from "@prisma/adapter-pg";
 import { PrismaClient } from "../src/generated/prisma/client";
+import { PrismaPg } from "@prisma/adapter-pg";
+import {
+  isLocalDatabaseHost,
+  maskDatabaseUrl,
+  resolveWritableDatabaseUrl,
+} from "../src/lib/db-guard";
 import { parseCsvStoricoCot, STRUMENTI_COT } from "../src/lib/cot-sync";
 
 /**
@@ -17,15 +22,13 @@ import { parseCsvStoricoCot, STRUMENTI_COT } from "../src/lib/cot-sync";
  *     sync, che così ha una settimana vera da scaricare dall'API e inserire.
  */
 
-const url = process.env.DATABASE_URL;
-if (!url) {
-  console.error("Manca DATABASE_URL.");
-  process.exit(1);
-}
-const target = url.replace(/\/\/[^@]*@/, "//***@");
-const isLocal = /localhost|127\.0\.0\.1/.test(url);
-console.log(`Database di destinazione: ${target}`);
-console.log(isLocal ? "(locale)" : "(REMOTO — non è il database locale)");
+const url = resolveWritableDatabaseUrl("seed storico COT");
+console.log(`Database di destinazione: ${maskDatabaseUrl(url)}`);
+console.log(
+  isLocalDatabaseHost(new URL(url).hostname)
+    ? "(locale)"
+    : "(REMOTO — autorizzato da ALLOW_REMOTE_DB=1)",
+);
 
 const escludiUltima = process.argv.includes("--escludi-ultima-settimana");
 

@@ -1,8 +1,13 @@
 import "dotenv/config";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
-import { PrismaPg } from "@prisma/adapter-pg";
 import { PrismaClient } from "../src/generated/prisma/client";
+import { PrismaPg } from "@prisma/adapter-pg";
+import {
+  isLocalDatabaseHost,
+  maskDatabaseUrl,
+  resolveWritableDatabaseUrl,
+} from "../src/lib/db-guard";
 import { eseguiJobContestoCot } from "../src/lib/cot-contesto-job";
 
 // dotenv carica solo .env; la GEMINI_API_KEY sta in .env.local (come per il
@@ -28,12 +33,13 @@ if (!process.env.GEMINI_API_KEY) {
  * Richiede ANTHROPIC_API_KEY nell'ambiente (.env.local va bene).
  */
 
-const url = process.env.DATABASE_URL;
-if (!url) {
-  console.error("Manca DATABASE_URL.");
-  process.exit(1);
-}
-console.log(`Database di destinazione: ${url.replace(/\/\/[^@]*@/, "//***@")}`);
+const url = resolveWritableDatabaseUrl("contesto COT una tantum");
+console.log(`Database di destinazione: ${maskDatabaseUrl(url)}`);
+console.log(
+  isLocalDatabaseHost(new URL(url).hostname)
+    ? "(locale)"
+    : "(REMOTO — autorizzato da ALLOW_REMOTE_DB=1)",
+);
 
 const anteprima = process.argv.includes("--anteprima");
 const prisma = new PrismaClient({ adapter: new PrismaPg({ connectionString: url }) });

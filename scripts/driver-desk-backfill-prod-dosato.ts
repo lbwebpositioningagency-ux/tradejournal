@@ -33,7 +33,7 @@ if (loaded.error) {
 console.log(`Variabili caricate da: ${ENV_FILE}`);
 
 import { PrismaClient } from "../src/generated/prisma/client";
-import { PrismaPg } from "@prisma/adapter-pg";
+import { guardedPgAdapter, REMOTE_DB_OVERRIDE } from "../src/lib/db-guard";
 import { DRIVER_SERIES } from "../src/lib/driver-desk/catalog";
 import { runDriverDeskIngest } from "../src/lib/driver-desk/ingest";
 
@@ -44,6 +44,10 @@ function sleep(ms: number) {
 }
 
 async function main() {
+  // Questo script scrive DELIBERATAMENTE in produzione: la guardia comune
+  // (src/lib/db-guard.ts) lo lascia passare solo con ALLOW_REMOTE_DB=1, che è
+  // il consenso esplicito di chi lancia il comando. Il controllo su
+  // "neon.tech" resta in aggiunta, perché qui l'host remoto ATTESO è uno solo.
   const url = process.env.DATABASE_URL ?? "";
   if (!url.includes("neon.tech") && !process.argv.includes("--force-non-neon")) {
     console.error(
@@ -52,8 +56,14 @@ async function main() {
     );
     process.exit(1);
   }
+  if (process.env[REMOTE_DB_OVERRIDE] !== "1") {
+    console.error(
+      `STOP: backfill di PRODUZIONE. Rilancia con ${REMOTE_DB_OVERRIDE}=1 per confermare.`,
+    );
+    process.exit(1);
+  }
 
-  const adapter = new PrismaPg({ connectionString: url });
+  const adapter = guardedPgAdapter("backfill Driver Desk produzione");
   const prisma = new PrismaClient({ adapter });
 
   console.log(`Driver Desk — backfill DOSATO verso produzione, ${DRIVER_SERIES.length} serie, pausa ${PAUSA_MS}ms fra una e l'altra\n`);
