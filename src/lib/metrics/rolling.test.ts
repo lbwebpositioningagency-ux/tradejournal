@@ -7,6 +7,8 @@ import {
   TRADING_DAYS_PER_YEAR,
   type DailyReturn,
 } from "./rolling";
+import { validReturnWindow } from "./daily-series";
+import { sortinoRatio } from "./sortino";
 
 /**
  * §2 — rolling metrics. Le proprietà che questi test tengono ferme sono le
@@ -245,5 +247,62 @@ describe("rollingTradePoints", () => {
     expect(points[0].avgR).toBe("0.3000");
     // 30 trade non sono un campione ridotto: la soglia è 5.
     expect(points[0].smallSample).toBe(false);
+  });
+});
+
+describe("validReturnWindow", () => {
+  const p = (ret: string | null, day = "2026-01-01") => ({
+    day,
+    netPnl: "0",
+    equityStart: "0",
+    ret,
+  });
+
+  it("serie tutta definita: finestra intera, niente scartato", () => {
+    const serie = [p("0.01"), p("-0.02"), p("0.03")];
+    expect(validReturnWindow(serie)).toEqual({
+      window: serie,
+      skipped: 0,
+      undefinedDays: 0,
+    });
+  });
+
+  it("tiene il tratto DOPO l'ultimo giorno indefinito: il conto ripreso torna leggibile", () => {
+    const serie = [p("0.01"), p(null), p("0.02"), p("0.03")];
+    const res = validReturnWindow(serie);
+    expect(res.window).toHaveLength(2);
+    expect(res.window.every((x) => x.ret !== null)).toBe(true);
+    expect(res.skipped).toBe(2);
+    expect(res.undefinedDays).toBe(1);
+  });
+
+  it("conta TUTTI i giorni indefiniti, non solo l'ultimo", () => {
+    const res = validReturnWindow([p(null), p("0.01"), p(null), p("0.02")]);
+    expect(res.undefinedDays).toBe(2);
+    expect(res.window).toHaveLength(1);
+    expect(res.skipped).toBe(3);
+  });
+
+  it("indefinito in ULTIMA posizione: nessuna finestra utilizzabile", () => {
+    const res = validReturnWindow([p("0.01"), p("0.02"), p(null)]);
+    expect(res.window).toHaveLength(0);
+    expect(res.skipped).toBe(3);
+    expect(res.undefinedDays).toBe(1);
+  });
+
+  it("serie vuota → finestra vuota, nessun indefinito", () => {
+    expect(validReturnWindow([])).toEqual({
+      window: [],
+      skipped: 0,
+      undefinedDays: 0,
+    });
+  });
+
+  it("sulla finestra restituita i rapporti tornano calcolabili", () => {
+    const serie = [p("0.05"), p(null), p("0.02"), p("-0.01"), p("0.03")];
+    // sull'intera serie il buco la rende non calcolabile...
+    expect(sortinoRatio(serie)).toBeNull();
+    // ...ma sul tratto valido no: è tutto il senso della finestra
+    expect(sortinoRatio(validReturnWindow(serie).window)).not.toBeNull();
   });
 });

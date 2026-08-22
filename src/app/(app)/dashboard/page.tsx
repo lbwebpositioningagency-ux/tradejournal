@@ -23,6 +23,7 @@ import {
   calmarRatio,
   coveredDays,
   dailyReturns,
+  validReturnWindow,
   classifyOutcome,
   radarScore,
   underwaterSeries,
@@ -308,6 +309,12 @@ export default async function DashboardPage({
     "0",
   );
 
+  // I rapporti sui RITORNI si calcolano sul tratto finale con tutti i ritorni
+  // definiti: un conto passato per equity ≤ 0 e poi ripreso non deve perdere
+  // Sortino e Sharpe per sempre. Il drawdown e l'ulcer restano sull'intera
+  // serie — leggono il P&L, che è sempre definito.
+  const ratioWindow = validReturnWindow(dailySeries);
+
   const dd = maxDrawdown(dailySeries, equityStart);
   const ddR = maxDrawdown(dailySeriesR, "0");
   const aWin = avgWin(agg.winSum, agg.wins);
@@ -390,9 +397,14 @@ export default async function DashboardPage({
     dayWins,
     dayCount: daily.length,
     daysCovered: coveredDays(daily),
-    // Osservazioni EFFETTIVE della serie dei ratio: sedute feriali dal primo
-    // giorno con trade all'ultimo, non la durata del periodo selezionato.
-    ratioObservations: dailySeries.length,
+    // Finestra EFFETTIVA dei ratio: sedute feriali dal primo giorno con trade
+    // all'ultimo (non la durata del periodo), meno l'eventuale tratto
+    // iniziale con equity ≤ 0.
+    ratioWindow: {
+      observations: ratioWindow.window.length,
+      skipped: ratioWindow.skipped,
+      undefinedDays: ratioWindow.undefinedDays,
+    },
     profitFactor: profitFactor(agg.winSum, agg.lossSum),
     expectancy: expectancy(agg),
     expectancyR,
@@ -427,8 +439,8 @@ export default async function DashboardPage({
     weekdays: fillWeekdaySeries(weekdayRows),
     // Metriche avanzate (FASE 9): ratio adimensionali sulla stessa serie
     // giornaliera del drawdown e sugli aggregati R già in SQL.
-    sortino: sortinoRatio(dailySeries),
-    sharpe: sharpeRatio(dailySeries),
+    sortino: sortinoRatio(ratioWindow.window),
+    sharpe: sharpeRatio(ratioWindow.window),
     calmar: calmarRatio(daily, equityStart, dd.maxDrawdownPct),
     sqn: sqn(agg.rCount, agg.rSum, agg.rSumSq),
     ulcer: ulcerIndex(dailySeries, equityStart),

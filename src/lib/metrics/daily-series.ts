@@ -93,16 +93,51 @@ export function dailyReturns(
  * REGOLA UNICA SUI GIORNI A RITORNO NON DEFINITO (`ret === null`, cioè equity
  * a inizio giornata ≤ 0).
  *
- * I rapporti che vivono sui RITORNI (Sortino, Sharpe, rolling) restituiscono
- * `null` se anche un solo giorno della serie non ha ritorno definito: non si
- * scarta il giorno (bucherebbe una serie che deve essere a cadenza costante,
- * ed è proprio il difetto che stiamo togliendo) e non lo si tratta come zero
- * (uno zero è "giornata piatta", non "misura impossibile"). È la stessa
- * regola che `rollingRatios` applica alla finestra.
+ * Un giorno del genere non ha un rendimento: dividere per un conto azzerato
+ * non produce una misura. Non si scarta (bucherebbe una serie che deve stare
+ * a cadenza costante, ed è il difetto che stiamo togliendo) e non si tratta
+ * come zero (uno zero è "giornata piatta", non "misura impossibile").
  *
- * Le metriche che vivono sull'EQUITY in valuta (Max Drawdown, Underwater,
- * Ulcer) non passano di qui: leggono `netPnl`, che è sempre definito, e
- * hanno già la loro gestione del picco ≤ 0.
+ * Ma il perimetro è la FINESTRA VALIDA, non tutto lo storico: un conto che ha
+ * toccato lo zero una volta e si è ripreso deve poter mostrare di nuovo i
+ * suoi rapporti. `validReturnWindow` restituisce il tratto contiguo FINALE
+ * con tutti i ritorni definiti — cioè da dopo l'ultimo giorno indefinito
+ * fino alla fine della serie — e quante osservazioni sono state lasciate
+ * fuori, perché la UI lo deve dire invece di mostrare un trattino muto.
+ */
+export interface ValidReturnWindow {
+  /** Tratto finale con tutti i ritorni definiti (può essere vuoto). */
+  window: DailyReturn[];
+  /** Osservazioni escluse perché precedono l'ultimo giorno indefinito. */
+  skipped: number;
+  /** Giorni a ritorno non definito nella serie ricevuta. */
+  undefinedDays: number;
+}
+
+export function validReturnWindow(series: DailyReturn[]): ValidReturnWindow {
+  let lastUndefined = -1;
+  let undefinedDays = 0;
+  for (let i = 0; i < series.length; i++) {
+    if (series[i].ret === null) {
+      lastUndefined = i;
+      undefinedDays += 1;
+    }
+  }
+  if (lastUndefined === -1) {
+    return { window: series, skipped: 0, undefinedDays: 0 };
+  }
+  return {
+    window: series.slice(lastUndefined + 1),
+    skipped: lastUndefined + 1,
+    undefinedDays,
+  };
+}
+
+/**
+ * true se la serie contiene almeno un ritorno non definito. Lo usano i
+ * rapporti per rifiutare una finestra già delimitata (una finestra rolling,
+ * o il tratto valido restituito qui sopra): a quel punto il tratto è quello
+ * che è, e un buco dentro lo rende non calcolabile.
  */
 export function hasUndefinedReturn(series: Pick<DailyReturn, "ret">[]): boolean {
   return series.some((point) => point.ret === null);
