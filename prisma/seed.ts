@@ -1,7 +1,7 @@
 import "dotenv/config";
 import bcrypt from "bcryptjs";
-import { PrismaPg } from "@prisma/adapter-pg";
 import { PrismaClient } from "../src/generated/prisma/client";
+import { guardedPgAdapter } from "../src/lib/db-guard";
 import { computeTrade, type ExecutionInput } from "../src/lib/trade-compute";
 import { seedSim1 } from "./seed-sim1";
 import { DEMO_ACCOUNT_NAME, DEMO_USER_EMAIL } from "../src/lib/constants";
@@ -18,7 +18,7 @@ import { DEMO_ACCOUNT_NAME, DEMO_USER_EMAIL } from "../src/lib/constants";
  * usati solo per generare prezzi sintetici, mai per i calcoli monetari.
  */
 
-const adapter = new PrismaPg({ connectionString: process.env.DATABASE_URL });
+const adapter = guardedPgAdapter("seed demo");
 const prisma = new PrismaClient({ adapter });
 
 const DEMO_EMAIL = "demo@tradejournal.local";

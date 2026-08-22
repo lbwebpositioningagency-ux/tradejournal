@@ -11,12 +11,12 @@
 
 import "dotenv/config";
 import { PrismaClient } from "../src/generated/prisma/client";
-import { PrismaPg } from "@prisma/adapter-pg";
+import { guardedPgAdapter } from "../src/lib/db-guard";
 import { runDriverDeskIngest } from "../src/lib/driver-desk/ingest";
 
 async function main() {
   const only = process.argv.slice(2).filter((a) => !a.startsWith("-"));
-  const adapter = new PrismaPg({ connectionString: process.env.DATABASE_URL });
+  const adapter = guardedPgAdapter("backfill Driver Desk");
   const prisma = new PrismaClient({ adapter });
 
   console.log(
