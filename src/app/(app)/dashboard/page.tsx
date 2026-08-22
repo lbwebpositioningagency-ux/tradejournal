@@ -22,6 +22,7 @@ import {
   avgWin,
   calmarRatio,
   coveredDays,
+  dailyReturns,
   classifyOutcome,
   radarScore,
   underwaterSeries,
@@ -290,11 +291,25 @@ export default async function DashboardPage({
   const equityStart = new Decimal(baseBalance)
     .plus(pnlBeforePeriod)
     .toFixed(2);
-  const dd = maxDrawdown(daily, equityStart);
-  const ddR = maxDrawdown(
-    daily.map((d) => ({ ...d, netPnl: d.rSum })),
+  // LA serie giornaliera del periodo (daily-series.ts): sedute feriali, le
+  // giornate senza trade a P&L 0. Tutte le metriche per-giornata della
+  // dashboard passano di qui — prima ognuna rimasticava i bucket grezzi di
+  // getDailyPnl, che contengono i soli giorni con trade, e lo stesso Sortino
+  // valeva una cosa qui e un'altra su /analytics.
+  // Attenzione: parte dal primo giorno CON TRADE del periodo filtrato, non
+  // dall'inizio del periodo. `dailySeries.length` è il numero di osservazioni
+  // vero, ed è quello che va mostrato.
+  const dailySeries = dailyReturns(daily, equityStart);
+  // Gemella in R: stessi giorni, P&L sostituito dall'R della giornata. La
+  // base è "0" perché in R non esiste un'equity — `ret` resta null e infatti
+  // qui serve solo il drawdown, che legge netPnl.
+  const dailySeriesR = dailyReturns(
+    daily.map((d) => ({ day: d.day, netPnl: d.rSum })),
     "0",
   );
+
+  const dd = maxDrawdown(dailySeries, equityStart);
+  const ddR = maxDrawdown(dailySeriesR, "0");
   const aWin = avgWin(agg.winSum, agg.wins);
   const aLoss = avgLoss(agg.lossSum, agg.losses);
 
@@ -375,6 +390,9 @@ export default async function DashboardPage({
     dayWins,
     dayCount: daily.length,
     daysCovered: coveredDays(daily),
+    // Osservazioni EFFETTIVE della serie dei ratio: sedute feriali dal primo
+    // giorno con trade all'ultimo, non la durata del periodo selezionato.
+    ratioObservations: dailySeries.length,
     profitFactor: profitFactor(agg.winSum, agg.lossSum),
     expectancy: expectancy(agg),
     expectancyR,
@@ -409,11 +427,11 @@ export default async function DashboardPage({
     weekdays: fillWeekdaySeries(weekdayRows),
     // Metriche avanzate (FASE 9): ratio adimensionali sulla stessa serie
     // giornaliera del drawdown e sugli aggregati R già in SQL.
-    sortino: sortinoRatio(daily),
-    sharpe: sharpeRatio(daily),
+    sortino: sortinoRatio(dailySeries),
+    sharpe: sharpeRatio(dailySeries),
     calmar: calmarRatio(daily, equityStart, dd.maxDrawdownPct),
     sqn: sqn(agg.rCount, agg.rSum, agg.rSumSq),
-    ulcer: ulcerIndex(daily, equityStart),
+    ulcer: ulcerIndex(dailySeries, equityStart),
     tradeStreak: currentStreak(outcomes),
     dayStreak: currentDayStreak([...daily].reverse()),
     // Score a 6 fattori per il radar (peso uguale 100/6, v. lib/metrics/score.ts).
@@ -421,7 +439,7 @@ export default async function DashboardPage({
     // F32 — istogramma R (bin 0,5R + colonna BE) da aggregato SQL completo.
     rDistribution: fillRDistribution(rDistributionRows, BE_BIN),
     // W4 — underwater sulla stessa serie del cumulativo.
-    underwater: underwaterSeries(daily, equityStart),
+    underwater: underwaterSeries(dailySeries, equityStart),
     daily: daily.map((d) => ({ day: d.day, netPnl: d.netPnl, rSum: d.rSum })),
     recent: recentTrades.map((t) => ({
       id: t.id,

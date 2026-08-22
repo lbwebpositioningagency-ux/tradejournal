@@ -1,5 +1,12 @@
 import Decimal from "decimal.js";
-import { addDays } from "@/lib/calendar";
+import {
+  dailyReturns,
+  hasUndefinedReturn,
+  TRADING_DAYS_PER_YEAR,
+  type DailyReturn,
+} from "./daily-series";
+import { sharpeRatio } from "./sharpe";
+import { sortinoRatio } from "./sortino";
 import {
   segmentMetrics,
   type SegmentAggregates,
@@ -32,18 +39,17 @@ import type { MetricInfoData } from "./types";
  * aritmetica duplicata.
  */
 
-/** Convenzione standard: 252 sedute in un anno. */
-export const TRADING_DAYS_PER_YEAR = 252;
-
-/** Fattore di annualizzazione dei rapporti giornalieri: √252. */
-const ANNUALIZATION = new Decimal(TRADING_DAYS_PER_YEAR).sqrt();
-
 /**
  * Finestre in giorni. 252 è quella richiesta (un anno di sedute); le due più
  * corte esistono perché un conto aperto da sei mesi non ha nemmeno una
  * finestra piena da 252 e senza alternative vedrebbe solo un messaggio di
  * "dati insufficienti" — che è onesto ma inutile.
  */
+// La serie giornaliera e il fattore di annualizzazione vivono in
+// daily-series.ts (li usano anche le card di dashboard): qui si ri-esportano
+// perché i consumatori del rolling li importano storicamente da "./rolling".
+export { dailyReturns, TRADING_DAYS_PER_YEAR, type DailyReturn };
+
 export const DAY_WINDOWS = [60, 120, 252] as const;
 export type DayWindow = (typeof DAY_WINDOWS)[number];
 
@@ -71,67 +77,6 @@ export const FEW_WINDOWS_THRESHOLD = 20;
 
 // ── ① ritorni giornalieri ───────────────────────────────────────────────
 
-export interface DailyReturn {
-  /** "YYYY-MM-DD" nel fuso dell'utente. */
-  day: string;
-  netPnl: string;
-  /** Equity a INIZIO giornata: il denominatore del ritorno. */
-  equityStart: string;
-  /**
-   * Ritorno della giornata come frazione (scala 8); null se l'equity a
-   * inizio giornata non è positiva — dividere per un conto azzerato non
-   * produce una misura, produce un numero.
-   */
-  ret: string | null;
-}
-
-/** Sabato e domenica: giorni non operativi salvo P&L effettivo (vedi sotto). */
-function isWeekday(day: string): boolean {
-  const weekday = new Date(`${day}T00:00:00Z`).getUTCDay();
-  return weekday !== 0 && weekday !== 6;
-}
-
-/**
- * Serie dei ritorni giornalieri a partire dai P&L per giornata.
- *
- * ASSUNZIONE, dichiarata anche in pagina: `ritorno = P&L del giorno / equity
- * a inizio giornata`. È l'unica definizione ricavabile dai dati che abbiamo
- * (non registriamo il saldo intraday né i versamenti), e rende il ritorno
- * confrontabile fra conti di dimensione diversa.
- *
- * I giorni SENZA trade entrano con ritorno 0: sono la maggior parte delle
- * sedute e ignorarli gonfierebbe la volatilità misurata, quindi
- * abbasserebbe lo Sharpe di chi opera di rado. Si riempiono però solo i
- * giorni FERIALI — l'annualizzazione ×√252 presuppone sedute, non giorni di
- * calendario. Un sabato o una domenica con P&L reale (crypto, weekend gap)
- * non viene mai scartato: quello è un fatto, non un riempimento.
- */
-export function dailyReturns(
-  days: { day: string; netPnl: string }[],
-  startingEquity: string,
-): DailyReturn[] {
-  if (days.length === 0) return [];
-
-  const byDay = new Map(days.map((d) => [d.day, d.netPnl]));
-  const last = days[days.length - 1].day;
-  const out: DailyReturn[] = [];
-
-  let equity = new Decimal(startingEquity);
-  for (let day = days[0].day; day <= last; day = addDays(day, 1)) {
-    const traded = byDay.get(day);
-    if (traded === undefined && !isWeekday(day)) continue;
-
-    const netPnl = traded ?? "0";
-    out.push({
-      day,
-      netPnl,
-      equityStart: equity.toFixed(2),
-      ret: equity.gt(0) ? new Decimal(netPnl).div(equity).toFixed(8) : null,
-    });
-    equity = equity.plus(netPnl);
-  }
-  return out;
-}
 
 // ── ② Sharpe / Sortino rolling e annualizzati ───────────────────────────
 
@@ -172,47 +117,24 @@ export function rollingRatios(
 ): RollingRatioPoint[] {
   if (window < 2 || returns.length < window) return [];
 
-  const mar = new Decimal(options.riskFree ?? "0").div(TRADING_DAYS_PER_YEAR);
-  const size = new Decimal(window);
+  const riskFree = options.riskFree ?? "0";
   const points: RollingRatioPoint[] = [];
 
+  // Nessuna formula duplicata: la finestra è una serie giornaliera come le
+  // altre, quindi passa per gli STESSI sortinoRatio/sharpeRatio delle card.
+  // Erano due implementazioni separate, ed è così che dashboard e analytics
+  // avevano finito per mostrare due Sortino diversi per lo stesso conto.
   for (let end = window - 1; end < returns.length; end++) {
     const slice = returns.slice(end - window + 1, end + 1);
     const day = returns[end].day;
-
-    if (slice.some((r) => r.ret === null)) {
+    if (hasUndefinedReturn(slice)) {
       points.push({ day, sharpe: null, sortino: null });
       continue;
     }
-
-    let sum = new Decimal(0);
-    for (const r of slice) sum = sum.plus(r.ret!);
-    const mean = sum.div(size);
-    const excess = mean.minus(mar);
-
-    let squares = new Decimal(0);
-    let downsideSquares = new Decimal(0);
-    for (const r of slice) {
-      const value = new Decimal(r.ret!);
-      const spread = value.minus(mean);
-      squares = squares.plus(spread.times(spread));
-      const deviation = value.minus(mar);
-      if (deviation.lt(0)) {
-        downsideSquares = downsideSquares.plus(deviation.times(deviation));
-      }
-    }
-
-    const stdDev = squares.div(size).sqrt();
-    const downside = downsideSquares.div(size).sqrt();
-
     points.push({
       day,
-      sharpe: stdDev.isZero()
-        ? null
-        : excess.div(stdDev).times(ANNUALIZATION).toFixed(4),
-      sortino: downside.isZero()
-        ? null
-        : excess.div(downside).times(ANNUALIZATION).toFixed(4),
+      sharpe: sharpeRatio(slice, riskFree),
+      sortino: sortinoRatio(slice, riskFree),
     });
   }
 

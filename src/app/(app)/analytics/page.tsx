@@ -138,12 +138,19 @@ function StatBox({
   sub,
   tone,
   info,
+  accountScoped = false,
 }: {
   label: string;
   value: string;
   sub?: string;
   tone?: "profit" | "loss";
   info?: React.ComponentProps<typeof MetricInfo>["info"];
+  /**
+   * true = metrica di CONTO con un filtro strumento/direzione ATTIVO: va
+   * detto sulla card, altrimenti il numero che non si muove sembra un bug e
+   * non una scelta. Lo decide il chiamante, che conosce i filtri.
+   */
+  accountScoped?: boolean;
 }) {
   return (
     <div className="rounded-lg border p-3">
@@ -161,7 +168,27 @@ function StatBox({
         {value}
       </div>
       {sub ? <div className="stat-sub mt-0.5">{sub}</div> : null}
+      {accountScoped ? <AccountScopeNote className="mt-1.5" /> : null}
     </div>
+  );
+}
+
+/**
+ * Avviso "metrica di conto". Il flag viaggia come prop e MAI come stato di
+ * modulo: la pagina è un server component e più richieste convivono nello
+ * stesso processo — una variabile condivisa mostrerebbe l'avviso di un utente
+ * nella pagina di un altro.
+ */
+function AccountScopeNote({ className }: { className?: string }) {
+  return (
+    <p
+      className={cn(
+        "rounded border border-dashed px-1.5 py-1 text-2xs text-muted-foreground",
+        className,
+      )}
+    >
+      Metrica di conto: non filtrata per simbolo/direzione.
+    </p>
   );
 }
 
@@ -279,6 +306,11 @@ export default async function AnalyticsPage({
       : undefined;
   const direction =
     params.dir === "LONG" || params.dir === "SHORT" ? params.dir : undefined;
+
+  // Le metriche di CONTO (rolling, R², Kelly, risk of ruin, simulatore)
+  // leggono l'equity intera e non possono rispettare un filtro strumento o
+  // direzione. Con un filtro attivo lo dichiarano sulla card.
+  const instrumentFilterActive = symbol !== undefined || direction !== undefined;
 
   const filter: AnalyticsFilter = {
     ...base,
@@ -675,6 +707,9 @@ export default async function AnalyticsPage({
               <CardTitle className="flex items-center gap-2 text-base">
                 Equity curve simulator
                 <MetricInfo info={equitySimulatorInfo} />
+                {instrumentFilterActive ? (
+                  <AccountScopeNote className="ml-2 inline-block" />
+                ) : null}
               </CardTitle>
               <CardDescription>
                 Ogni linea colorata è un percorso possibile con i parametri del
@@ -738,9 +773,11 @@ export default async function AnalyticsPage({
                   : "Servono almeno 60 sedute nel periodo selezionato."}{" "}
                 Ritorno di una giornata = P&amp;L del giorno ÷ equity a inizio
                 giornata; le sedute senza trade entrano a ritorno 0 e il
-                risk-free è 0. Il calcolo è sull&apos;intero conto: i filtri
-                strumento e direzione non si applicano qui, perché
+                risk-free è 0. Il calcolo è sull&apos;intero conto, perché
                 l&apos;equity non è di un singolo strumento.
+                {instrumentFilterActive ? (
+                  <AccountScopeNote className="mt-2" />
+                ) : null}
               </CardDescription>
             </CardHeader>
             <CardContent className="flex flex-col gap-4">
@@ -881,6 +918,7 @@ export default async function AnalyticsPage({
                         : "loss"
                   }
                   info={equityFitInfo}
+                  accountScoped={instrumentFilterActive}
                 />
                 <StatBox
                   label="Kelly"
@@ -891,6 +929,7 @@ export default async function AnalyticsPage({
                       : "optimal f: servono 30 trade con rischio"
                   }
                   info={kellyInfo}
+                  accountScoped={instrumentFilterActive}
                 />
                 <StatBox
                   label="Risk of ruin (analitico)"
@@ -903,6 +942,7 @@ export default async function AnalyticsPage({
                       : undefined
                   }
                   info={riskOfRuinAnalyticInfo}
+                  accountScoped={instrumentFilterActive}
                 />
               </div>
 

@@ -153,8 +153,8 @@ describe("radarScore — normalizzazione dei singoli fattori", () => {
     // Regressione ereditata dal compositeScore: pct null "indefinibile"
     // non è pct "0.0000" (nessun drawdown, fattore pieno).
     const dd = maxDrawdown([
-      { day: "2026-07-01", netPnl: "-100", trades: 1 },
-      { day: "2026-07-02", netPnl: "-200", trades: 1 },
+      { day: "2026-07-01", netPnl: "-100" },
+      { day: "2026-07-02", netPnl: "-200" },
     ]);
     expect(dd.maxDrawdownPct).toBeNull();
     const result = radarScore({
@@ -167,8 +167,8 @@ describe("radarScore — normalizzazione dei singoli fattori", () => {
   it("sole giornate positive: nessun drawdown → fattore DD pieno", () => {
     const dd = maxDrawdown(
       [
-        { day: "2026-07-01", netPnl: "200", trades: 2 },
-        { day: "2026-07-02", netPnl: "100", trades: 1 },
+        { day: "2026-07-01", netPnl: "200" },
+        { day: "2026-07-02", netPnl: "100" },
       ],
       "10000",
     );

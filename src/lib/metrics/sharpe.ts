@@ -1,47 +1,62 @@
 import Decimal from "decimal.js";
-import type { DailyPnl } from "./types";
+import {
+  ANNUALIZATION,
+  hasUndefinedReturn,
+  TRADING_DAYS_PER_YEAR,
+  type DailyReturn,
+} from "./daily-series";
+import type { MetricInfoData } from "./types";
 
 /**
- * Sharpe Ratio classico sui rendimenti GIORNALIERI:
+ * Sharpe Ratio ANNUALIZZATO sui ritorni giornalieri della serie unica
+ * (daily-series.ts):
  *
- *   (rendimento medio − risk free) / deviazione standard dei rendimenti
+ *   √252 × (rendimento medio − risk-free giornaliero) / deviazione standard
  *
- * Deviazione standard di POPOLAZIONE (÷N, due passate su una serie già
- * ridotta dal SQL), risk free default 0, non annualizzato: stesse convenzioni
- * del Sortino, di cui è la metrica di CONFRONTO (penalizza anche la
- * volatilità positiva, quindi è meno rappresentativo per un trader retail).
+ * Stessa serie e stesse convenzioni del Sortino (v. sortino.ts): ritorni come
+ * frazione dell'equity di inizio giornata, sedute feriali senza trade a
+ * ritorno 0, deviazione standard di popolazione sugli scarti dalla media.
  *
- * null se: nessun giorno, oppure deviazione standard zero (tutti i
- * rendimenti uguali: rapporto non definito).
+ * `riskFreeAnnual` è un tasso ANNUO e viene diviso per 252 prima di essere
+ * sottratto alla media giornaliera. Prima non lo era: chiunque avesse passato
+ * un 4% annuo se lo sarebbe visto sottrarre per intero da una media
+ * giornaliera, con uno Sharpe sbagliato di ordini di grandezza. Nessun
+ * chiamante lo usava, ma la firma era una trappola armata.
+ *
+ * null se: serie vuota, un giorno con ritorno non definito (v. la regola in
+ * daily-series.ts), oppure deviazione standard zero.
  */
 export function sharpeRatio(
-  days: Pick<DailyPnl, "netPnl">[],
-  riskFree = "0",
+  returns: Pick<DailyReturn, "ret">[],
+  riskFreeAnnual = "0",
 ): string | null {
-  if (days.length === 0) return null;
+  if (returns.length === 0) return null;
+  if (hasUndefinedReturn(returns)) return null;
 
-  const n = new Decimal(days.length);
+  const riskFree = new Decimal(riskFreeAnnual).div(TRADING_DAYS_PER_YEAR);
+  const n = new Decimal(returns.length);
   let sum = new Decimal(0);
-  for (const day of days) {
-    sum = sum.plus(day.netPnl);
+  for (const point of returns) {
+    sum = sum.plus(point.ret!);
   }
   const mean = sum.div(n);
 
   let squares = new Decimal(0);
-  for (const day of days) {
-    const deviation = new Decimal(day.netPnl).minus(mean);
+  for (const point of returns) {
+    const deviation = new Decimal(point.ret!).minus(mean);
     squares = squares.plus(deviation.times(deviation));
   }
   const stdDev = squares.div(n).sqrt();
   if (stdDev.isZero()) return null;
 
-  return mean.minus(riskFree).div(stdDev).toFixed(4);
+  return mean.minus(riskFree).div(stdDev).times(ANNUALIZATION).toFixed(4);
 }
 
 /** Testo per <MetricInfo>: tenuto accanto alla formula (vedi sopra). */
-export const sharpeInfo = {
-  label: "Sharpe Ratio",
+export const sharpeInfo: MetricInfoData = {
+  label: "Sharpe Ratio (annualizzato)",
   description:
-    "Rendimento medio giornaliero rapportato alla volatilità TOTALE (anche quella positiva): metrica classica di confronto, meno rappresentativa del Sortino per un trader discrezionale.",
-  formula: "Sharpe = media rendimenti / deviazione standard dei rendimenti giornalieri",
+    "Rendimento medio giornaliero rapportato alla volatilità TOTALE, anche quella positiva: metrica classica di confronto, meno rappresentativa del Sortino per un trader discrezionale. Stessa serie del Sortino: sedute feriali, giornate senza trade a rendimento 0.",
+  formula:
+    "Sharpe = √252 × (media ritorni − risk-free) / dev. std dei ritorni · risk-free = 0 · r = P&L giorno / equity inizio giornata",
 };

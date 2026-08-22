@@ -2,8 +2,11 @@ import Decimal from "decimal.js";
 import type { DailyPnl } from "./types";
 
 /**
- * Ulcer Index sulla curva di equity GIORNALIERA (stessa di maxDrawdown):
- * misura profondità E durata dei drawdown, non solo il punto peggiore.
+ * Ulcer Index sulla curva di equity GIORNALIERA (serie unica di
+ * daily-series.ts, la stessa di maxDrawdown): misura profondità E durata dei
+ * drawdown, non solo il punto peggiore. Le sedute feriali senza trade entrano
+ * a P&L 0: contano nel denominatore N, perché "quanto a lungo resti
+ * sott'acqua" si misura sul calendario di borsa, non sui soli giorni operativi.
  *
  *   UI = √( Σ dd%² / N )   con   dd% = (picco storico − equity) / picco
  *
