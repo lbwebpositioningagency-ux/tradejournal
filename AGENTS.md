@@ -19,6 +19,8 @@ Next.js 16 App Router · TypeScript strict · PostgreSQL + Prisma 7 (driver adap
 - **Sicurezza dati**: ogni query su dati utente filtra per `userId` (vedi pattern `updateMany({ where: { id, userId } })` in `src/server/accounts.ts`).
 - **Script che scrivono sul DB** (seed, backfill, cleanup, sonde di scrittura): la connection string si prende SOLO da `src/lib/db-guard.ts` (`guardedPgAdapter` / `resolveWritableDatabaseUrl`). Mai `new PrismaPg({ connectionString: process.env.DATABASE_URL })` diretto, mai un fallback hardcoded: se l'host non è locale lo script deve morire, a meno di `ALLOW_REMOTE_DB=1` esplicito da chi lancia il comando.
 - Le metriche (FASE 4) vanno in `src/lib/metrics/` come modulo puro con unit test per ogni formula (inclusi divisione per zero, zero trade, tutti loss).
+- **Una sola serie giornaliera**: `dailyReturns()` in `src/lib/metrics/daily-series.ts` (sedute feriali, giornate senza trade a P&L 0). Ogni metrica per-giornata — Sortino, Sharpe, Ulcer, Max Drawdown, Underwater, rolling — consuma quella. Non ricostruire serie temporali dai bucket grezzi di `getDailyPnl`: contengono i soli giorni con trade, ed è così che lo stesso Sortino era arrivato a valere due cose diverse in due pagine.
+- **Debito tecnico noto** in `docs/DEBITO-TECNICO.md`: leggerlo prima di toccare metriche o seed, per non riscoprire problemi già registrati (in particolare il generatore di `prisma/seed.ts`, che produce serie troppo regolari e va rigenerato in un intervento a sé).
 
 ## Struttura
 - `src/server/*.ts` — server actions ("use server"): solo export di funzioni async; le costanti condivise stanno in `src/lib/constants.ts`.

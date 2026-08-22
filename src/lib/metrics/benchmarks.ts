@@ -1,5 +1,4 @@
 import Decimal from "decimal.js";
-import { TRADING_DAYS_PER_YEAR } from "./rolling";
 
 /**
  * Scale di interpretazione a 3 fasce (SCARSO / MEDIO / OTTIMO) per le metriche
@@ -46,13 +45,6 @@ export interface MetricBenchmark {
   decimals: number;
   /** true = più basso è meglio (Ulcer Index): la UI deve dichiararlo. */
   lowerIsBetter?: boolean;
-  /**
-   * Come sono state TARATE le soglie su QUESTO campione, quando non sono
-   * costanti (Sortino): il lettore deve poter vedere il fattore usato e su
-   * quante osservazioni è stimato, altrimenti una scala derivata dai dati è
-   * indistinguibile da una scala di manuale.
-   */
-  calibration?: string;
   /** Una riga: unità del confronto e provenienza delle soglie. */
   source: string;
 }
@@ -84,110 +76,38 @@ export function benchmarkTier(
   return null;
 }
 
-/** Numero in notazione italiana, per i range e i fattori mostrati in UI. */
-function it(value: Decimal | number, decimals: number): string {
-  const dec = value instanceof Decimal ? value : new Decimal(value);
-  return new Intl.NumberFormat("it-IT", {
-    minimumFractionDigits: decimals,
-    maximumFractionDigits: decimals,
-  }).format(dec.toDecimalPlaces(decimals, Decimal.ROUND_HALF_UP).toNumber());
-}
-
-/** Soglie della scala di letteratura, sul Sortino ANNUALIZZATO. */
-export const SORTINO_ANNUAL_THRESHOLDS = [1, 2] as const;
-
 /**
- * Campione minimo per stimare le osservazioni annue in modo non ridicolo.
+ * Sortino e Sharpe — scala di letteratura APPLICATA ALLA LETTERA, perché ora
+ * le due metriche sono annualizzate (√252) e calcolate su rendimenti in
+ * frazione dell'equity, cioè esattamente la grandezza cui la scala si
+ * riferisce. Sotto 1 il rendimento non ripaga la volatilità, oltre 2 è
+ * ottimo.
  *
- * Il rapporto giorni-operativi/anno si estrapola da `giorni con trade` su
- * `giorni di calendario coperti`: su due settimane di storico una singola
- * settimana intensa (o una di ferie) sposta la stima del doppio. Sotto un
- * trimestre di copertura — o sotto 20 giornate operative — la stima non è
- * abbastanza stabile per tararci sopra una scala, e la UI mostra le fasce
- * attenuate come fa l'SQN sotto i 30 trade.
+ * Erano soglie DERIVATE dal campione, perché la serie conteneva solo i giorni
+ * con trade e il fattore di annualizzazione andava stimato conto per conto.
+ * Con la serie unica a sedute feriali quel problema non esiste più: il
+ * fattore è √252 per costruzione, e una scala fissa è più leggibile di una
+ * che cambia sotto i piedi al variare del filtro periodo.
  */
-export const SORTINO_SCALE_MIN_ACTIVE_DAYS = 20;
-export const SORTINO_SCALE_MIN_COVERED_DAYS = 90;
+const RATIO_BANDS = [
+  { tier: "SCARSO", min: null, max: 1, range: "< 1" },
+  { tier: "MEDIO", min: 1, max: 2, range: "1 – 2" },
+  { tier: "OTTIMO", min: 2, max: null, range: "> 2" },
+] as const satisfies readonly BenchmarkBand[];
 
-export interface SortinoScale {
-  benchmark: MetricBenchmark;
-  /** false = fattore non stimabile dal campione: scala provvisoria, attenuata. */
-  estimated: boolean;
-  /** Giorni operativi per anno stimati; null quando non è stimabile. */
-  observationsPerYear: number | null;
-}
+export const SORTINO_BENCHMARK: MetricBenchmark = {
+  decimals: 2,
+  bands: RATIO_BANDS,
+  source:
+    "Scala classica del Sortino annualizzato, applicabile perché la metrica è annualizzata ×√252 su rendimenti in frazione dell'equity.",
+};
 
-/**
- * Sortino Ratio — soglie DERIVATE dal campione, non costanti.
- *
- * Il modulo calcola il Sortino sui rendimenti giornalieri e NON lo annualizza
- * (v. sortino.ts), mentre la scala di letteratura (1 = sufficiente, 2 = ottimo)
- * è riferita al Sortino ANNUALIZZATO. La conversione richiede la radice delle
- * osservazioni per anno — e le osservazioni qui NON sono le 252 sedute di
- * borsa: la serie `getDailyPnl` contiene SOLO i giorni con almeno un trade
- * chiuso. Un conto che opera 120 giorni l'anno ha fattore √120 = 11, non
- * √252 = 15,9, e usare 252 abbassa le soglie di un terzo — un errore
- * sistematicamente ottimista, che promuove a OTTIMO conti mediocri.
- *
- *   osservazioni/anno = giorni con trade × 365 / giorni di calendario coperti
- *   f = √(osservazioni/anno)
- *   soglia MEDIO = 1 / f     soglia OTTIMO = 2 / f
- *
- * Le osservazioni/anno non possono superare 365 (un giorno operativo è un
- * giorno di calendario): il clamp è difensivo, non una correzione.
- *
- * Il Sortino NON viene toccato: cambia solo il metro con cui lo si legge.
- */
-export function sortinoBenchmark(
-  activeDays: number,
-  coveredDays: number,
-): SortinoScale {
-  const estimated =
-    activeDays >= SORTINO_SCALE_MIN_ACTIVE_DAYS &&
-    coveredDays >= SORTINO_SCALE_MIN_COVERED_DAYS;
-
-  const obs = estimated
-    ? Decimal.min(new Decimal(activeDays).times(365).div(coveredDays), 365)
-    : // campione insufficiente: scala PROVVISORIA sulla convenzione di borsa,
-      // dichiarata come tale e mostrata attenuata
-      new Decimal(TRADING_DAYS_PER_YEAR);
-
-  const f = obs.sqrt();
-  const [annualMedio, annualOttimo] = SORTINO_ANNUAL_THRESHOLDS;
-  const medio = new Decimal(annualMedio)
-    .div(f)
-    .toDecimalPlaces(2, Decimal.ROUND_HALF_UP)
-    .toNumber();
-  const ottimo = new Decimal(annualOttimo)
-    .div(f)
-    .toDecimalPlaces(2, Decimal.ROUND_HALF_UP)
-    .toNumber();
-
-  const obsRounded = obs.toDecimalPlaces(0, Decimal.ROUND_HALF_UP).toNumber();
-
-  return {
-    estimated,
-    observationsPerYear: estimated ? obsRounded : null,
-    benchmark: {
-      decimals: 2,
-      bands: [
-        { tier: "SCARSO", min: null, max: medio, range: `< ${it(medio, 2)}` },
-        {
-          tier: "MEDIO",
-          min: medio,
-          max: ottimo,
-          range: `${it(medio, 2)} – ${it(ottimo, 2)}`,
-        },
-        { tier: "OTTIMO", min: ottimo, max: null, range: `> ${it(ottimo, 2)}` },
-      ],
-      calibration: estimated
-        ? `Scala tarata su ${obsRounded} giorni operativi/anno (${activeDays} giorni con trade in ${coveredDays} di storico): fattore √${obsRounded} = ${it(f, 1)}.`
-        : `Campione troppo piccolo per stimare i giorni operativi/anno (servono almeno ${SORTINO_SCALE_MIN_ACTIVE_DAYS} giorni con trade e ${SORTINO_SCALE_MIN_COVERED_DAYS} di storico): scala provvisoria sulla convenzione di ${TRADING_DAYS_PER_YEAR} sedute.`,
-      source:
-        "L'app non annualizza il Sortino: le soglie annuali 1 / 2 sono divise per la radice delle osservazioni annue di QUESTO conto, non per √252.",
-    },
-  };
-}
+export const SHARPE_BENCHMARK: MetricBenchmark = {
+  decimals: 2,
+  bands: RATIO_BANDS,
+  source:
+    "Scala classica dello Sharpe annualizzato. Sulla stessa serie lo Sharpe è sempre ≤ al Sortino: penalizza anche le giornate buone.",
+};
 
 /**
  * Calmar Ratio — scala di letteratura standard (MAR ratio): sotto 1 il

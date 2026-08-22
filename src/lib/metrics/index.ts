@@ -48,17 +48,21 @@ export {
   BENCHMARK_DISCLAIMER,
   CALMAR_BENCHMARK,
   CALMAR_RELIABLE_DAYS,
-  sortinoBenchmark,
-  SORTINO_ANNUAL_THRESHOLDS,
-  SORTINO_SCALE_MIN_ACTIVE_DAYS,
-  SORTINO_SCALE_MIN_COVERED_DAYS,
+  SHARPE_BENCHMARK,
+  SORTINO_BENCHMARK,
   SQN_BENCHMARK,
   ULCER_BENCHMARK,
   type BenchmarkBand,
   type BenchmarkTier,
   type MetricBenchmark,
-  type SortinoScale,
 } from "./benchmarks";
+export {
+  dailyReturns,
+  hasUndefinedReturn,
+  ANNUALIZATION,
+  TRADING_DAYS_PER_YEAR,
+  type DailyReturn,
+} from "./daily-series";
 export { sortinoRatio, sortinoInfo } from "./sortino";
 export { sharpeRatio, sharpeInfo } from "./sharpe";
 export { sqn, sqnInfo, SQN_MIN_TRADES } from "./sqn";
@@ -129,7 +133,6 @@ export {
   type StreakRun,
 } from "./streak-distribution";
 export {
-  dailyReturns,
   rollingRatios,
   rollingTradePoints,
   seriesRange,
@@ -139,8 +142,6 @@ export {
   TRADE_WINDOWS,
   FEW_WINDOWS_THRESHOLD,
   ROLLING_TRADE_METRICS,
-  TRADING_DAYS_PER_YEAR,
-  type DailyReturn,
   type DayWindow,
   type TradeWindow,
   type RollingRatioPoint,

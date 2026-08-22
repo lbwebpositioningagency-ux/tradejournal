@@ -56,7 +56,8 @@ import {
   CALMAR_MIN_DAYS,
   CALMAR_BENCHMARK,
   CALMAR_RELIABLE_DAYS,
-  sortinoBenchmark,
+  SHARPE_BENCHMARK,
+  SORTINO_BENCHMARK,
   SQN_BENCHMARK,
   ULCER_BENCHMARK,
   streaksInfo,
@@ -191,6 +192,12 @@ export interface DashboardData {
   dayCount: number;
   /** Giorni di calendario coperti dalla serie (gate del Calmar, F8). */
   daysCovered: number;
+  /**
+   * Osservazioni EFFETTIVE della serie giornaliera dei ratio (sedute feriali
+   * dal primo giorno con trade all'ultimo). NON è la durata del periodo
+   * selezionato: con "ultimi 30 giorni" e un solo trade la serie è lunga 3.
+   */
+  ratioObservations: number;
   profitFactor: string | null;
   expectancy: string | null;
   expectancyR: string | null;
@@ -555,10 +562,14 @@ export function DashboardView({ data }: { data: DashboardData }) {
   // interpretazione del popover condividono la STESSA stringa e la stessa
   // fonte — la fascia evidenziata non può divergere dal numero letto a schermo.
   const sortinoValue = ratio(data.sortino);
-  // Le soglie del Sortino NON sono costanti: la serie contiene solo i giorni
-  // con trade chiusi, quindi il fattore di annualizzazione va stimato su
-  // QUESTO conto (v. benchmarks.ts). Il calcolo del Sortino resta intatto.
-  const sortinoScale = sortinoBenchmark(data.dayCount, data.daysCovered);
+  const sharpeValue = ratio(data.sharpe);
+  // Il numero di osservazioni è quello della SERIE, non del periodo: con
+  // "ultimi 30 giorni" e un trade solo la serie è lunga 3, non 30. Dirlo è
+  // l'unico modo perché il lettore sappia su quanto poggia il rapporto.
+  const ratioSeriesNote =
+    data.ratioObservations > 0
+      ? `Serie di ${data.ratioObservations} sedute: dalla prima all'ultima giornata con trade del periodo, giorni feriali senza trade inclusi a rendimento 0.`
+      : "Nessuna seduta nella serie del periodo selezionato.";
   const calmarShort = data.daysCovered < CALMAR_MIN_DAYS;
   const calmarValue = calmarShort ? "—" : ratio(data.calmar);
   const sqnShort = data.rCount < SQN_MIN_TRADES;
@@ -803,19 +814,27 @@ export function DashboardView({ data }: { data: DashboardData }) {
       >
         {show("sortino") ? (
           <StatCard
-            label="Sortino Ratio"
+            label="Sortino Ratio (ann.)"
             info={sortinoInfo}
             scale={{
-              benchmark: sortinoScale.benchmark,
+              benchmark: SORTINO_BENCHMARK,
               value: data.sortino,
               display: sortinoValue,
-              muted: !sortinoScale.estimated,
+              note: ratioSeriesNote,
             }}
             value={sortinoValue}
             sub={
               <span className="flex items-center gap-1">
-                Giornaliero · Sharpe {ratio(data.sharpe)}
-                <MetricInfo info={sharpeInfo} />
+                Sharpe (ann.) {sharpeValue}
+                <MetricInfo
+                  info={sharpeInfo}
+                  scale={{
+                    benchmark: SHARPE_BENCHMARK,
+                    value: data.sharpe,
+                    display: sharpeValue,
+                    note: ratioSeriesNote,
+                  }}
+                />
               </span>
             }
           />

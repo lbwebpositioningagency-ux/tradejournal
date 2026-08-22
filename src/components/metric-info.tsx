@@ -121,25 +121,10 @@ export function MetricScale({
             {" → fascia "}
             <span className={cn("font-bold", TIER_TEXT[tier])}>{tier}</span>
           </>
-        ) : value !== null ? (
-          // il valore c'è, è la TARATURA a non reggere il campione: dirlo,
-          // invece di far credere che manchi il numero
-          <>
-            Valore attuale{" "}
-            <span className="font-semibold tabular-nums text-foreground">
-              {display}
-            </span>
-            {" — nessuna fascia dichiarata: la scala non è tarabile su questo campione."}
-          </>
         ) : (
           "Nessun valore da collocare: la scala resta come riferimento."
         )}
       </p>
-      {/* come è tarata la scala su QUESTO campione: sta sopra la nota perché
-          spiega i numeri delle fasce appena lette, non il valore */}
-      {benchmark.calibration ? (
-        <p className="text-2xs text-muted-foreground">{benchmark.calibration}</p>
-      ) : null}
       {note ? (
         <p className="text-xs font-medium text-muted-foreground">{note}</p>
       ) : null}

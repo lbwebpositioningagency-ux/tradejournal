@@ -1,12 +1,14 @@
 import Decimal from "decimal.js";
-import type { DailyPnl, DrawdownResult } from "./types";
+import type { DrawdownResult } from "./types";
 
 /**
  * Max Drawdown sulla curva di equity GIORNALIERA:
  * equity(g) = saldo iniziale + P&L netto cumulato fino al giorno g.
  *
- * La scansione avviene sulla serie dei giorni (≤ ~365 punti), non sui singoli
- * trade: la serie arriva già aggregata dal SQL (getDailyPnl).
+ * Consuma la serie giornaliera unica (daily-series.ts), quella con le sedute
+ * feriali senza trade a P&L 0. Lo zero-fill NON cambia il risultato — un
+ * giorno a P&L 0 non muove l'equity, quindi né il picco né la profondità —
+ * ma tiene una sola serie nel repo invece di due.
  *
  * - maxDrawdown: distanza massima dal picco precedente ($, positiva);
  * - maxDrawdownPct: frazione del picco di equity al momento del picco.
@@ -20,7 +22,7 @@ import type { DailyPnl, DrawdownResult } from "./types";
  * `days` deve essere in ordine cronologico crescente.
  */
 export function maxDrawdown(
-  days: DailyPnl[],
+  days: { day: string; netPnl: string }[],
   startingBalance = "0",
 ): DrawdownResult {
   let equity = new Decimal(startingBalance);

@@ -264,57 +264,102 @@ describe("currentStreak", () => {
 
 // ───────────────────────── FASE 9 — metriche avanzate ─────────────────────────
 
+/**
+ * Sortino e Sharpe consumano la SERIE DEI RITORNI (daily-series.ts) e sono
+ * ANNUALIZZATI: i valori attesi sono quelli grezzi × √252 (15.87450…).
+ * `r()` costruisce la serie minima che le due funzioni leggono.
+ */
+/** Serie in P&L per le metriche che leggono l'equity (Ulcer, drawdown). */
 const d = (values: string[]) => values.map((netPnl) => ({ netPnl }));
 
-describe("sortinoRatio", () => {
-  it("caso noto a mano: [100, -50, 50] → 1.1547", () => {
-    // media = 100/3; downside dev = √(2500/3) = 28.8675…; ratio = 1.15470…
-    expect(sortinoRatio(d(["100", "-50", "50"]))).toBe("1.1547");
+const ANN = Math.sqrt(252);
+const r = (values: (string | null)[]) => values.map((ret) => ({ ret }));
+/** Atteso annualizzato, arrotondato come lo restituisce il modulo. */
+const ann = (raw: number) => (raw * ANN).toFixed(4);
+
+describe("sortinoRatio (annualizzato)", () => {
+  it("caso noto a mano: [0.1, -0.05, 0.05] → 1.1547 × √252", () => {
+    // media = 0.1/3; downside dev = √(0.0025/3) = 0.0288675…; grezzo 1.15470…
+    expect(sortinoRatio(r(["0.1", "-0.05", "0.05"]))).toBe(ann(1.1547005383792515));
   });
 
-  it("il MAR sposta sia il numeratore sia le deviazioni: MAR=10 → 0.6736", () => {
-    // (100/3 − 10) / √(3600/3) = 23.3333… / 34.6410… = 0.67357…
-    expect(sortinoRatio(d(["100", "-50", "50"]), "10")).toBe("0.6736");
+  it("il MAR è ANNUO e viene diviso per 252 prima del confronto", () => {
+    // MAR annuo 2.52 → 0.01 al giorno: (0.0333… − 0.01) / √(0.0036/3)
+    const atteso = ((0.1 / 3 - 0.01) / Math.sqrt(0.0036 / 3)) * ANN;
+    expect(sortinoRatio(r(["0.1", "-0.05", "0.05"]), "2.52")).toBe(atteso.toFixed(4));
   });
 
   it("nessun rendimento sotto il MAR (downside dev zero) → null, mai infinito", () => {
-    expect(sortinoRatio(d(["100", "0", "50"]))).toBeNull();
+    expect(sortinoRatio(r(["0.1", "0", "0.05"]))).toBeNull();
   });
 
   it("serie tutta negativa: ratio negativo, non null", () => {
-    // media −50, downside dev 50 → −1
-    expect(sortinoRatio(d(["-50", "-50"]))).toBe("-1.0000");
+    expect(sortinoRatio(r(["-0.05", "-0.05"]))).toBe(ann(-1));
   });
 
   it("zero giorni → null", () => {
     expect(sortinoRatio([])).toBeNull();
   });
+
+  it("un solo giorno con ritorno non definito annulla TUTTA la serie", () => {
+    // regola unica di daily-series.ts: non si scarta il giorno e non lo si
+    // tratta come zero — la misura non esiste
+    expect(sortinoRatio(r(["0.1", null, "-0.05"]))).toBeNull();
+  });
+
+  it("le sedute piatte contano: aggiungerle abbassa il rapporto", () => {
+    const senza = Number(sortinoRatio(r(["0.1", "-0.05", "0.05"])));
+    const con = Number(sortinoRatio(r(["0.1", "-0.05", "0.05", "0", "0"])));
+    expect(con).toBeLessThan(senza);
+  });
 });
 
-describe("sharpeRatio", () => {
-  it("caso noto a mano: [100, -50, 50] → 0.5345", () => {
-    // media 100/3; dev std di popolazione √(105000/27) = 62.3609…; 0.53452…
-    expect(sharpeRatio(d(["100", "-50", "50"]))).toBe("0.5345");
+describe("sharpeRatio (annualizzato)", () => {
+  it("caso noto a mano: [0.1, -0.05, 0.05] → 0.5345 × √252", () => {
+    expect(sharpeRatio(r(["0.1", "-0.05", "0.05"]))).toBe(ann(0.5345224838248488));
   });
 
   it("penalizza anche la volatilità positiva: Sharpe < Sortino sulla stessa serie", () => {
-    const series = d(["100", "-50", "50"]);
-    expect(Number(sharpeRatio(series))).toBeLessThan(
-      Number(sortinoRatio(series)),
+    const series = r(["0.1", "-0.05", "0.05"]);
+    expect(Number(sharpeRatio(series))).toBeLessThan(Number(sortinoRatio(series)));
+  });
+
+  it("il risk-free è ANNUO e viene riscalato per seduta (A7/D2)", () => {
+    // 5.04 annuo = 0.02 al giorno. Se NON fosse riscalato, il 5.04 verrebbe
+    // sottratto per intero a una media di 0.0333 e lo Sharpe crollerebbe a
+    // circa −1265 invece di ≈ 3.4: è la trappola che il riscalamento chiude.
+    const media = 0.1 / 3;
+    const sd = Math.sqrt(
+      (Math.pow(0.1 - media, 2) + Math.pow(-0.05 - media, 2) + Math.pow(0.05 - media, 2)) / 3,
     );
+    const atteso = ((media - 0.02) / sd) * ANN;
+    expect(sharpeRatio(r(["0.1", "-0.05", "0.05"]), "5.04")).toBe(atteso.toFixed(4));
+    expect(Number(sharpeRatio(r(["0.1", "-0.05", "0.05"]), "5.04"))).toBeGreaterThan(0);
+  });
+
+  it("un risk-free annuo alto abbassa il rapporto, senza farlo esplodere", () => {
+    const senza = Number(sharpeRatio(r(["0.1", "-0.05", "0.05"])));
+    const con = Number(sharpeRatio(r(["0.1", "-0.05", "0.05"]), "5.04"));
+    expect(con).toBeLessThan(senza);
+    expect(con).toBeGreaterThan(-10);
   });
 
   it("rendimenti tutti uguali (dev std zero) → null", () => {
-    expect(sharpeRatio(d(["50", "50", "50"]))).toBeNull();
+    expect(sharpeRatio(r(["0.05", "0.05", "0.05"]))).toBeNull();
   });
 
   it("media negativa → ratio negativo", () => {
-    // media −50; devs ±50 e 0 → dev std √(5000/3) = 40.8248…; −1.22474…
-    expect(sharpeRatio(d(["-100", "0", "-50"]))).toBe("-1.2247");
+    const media = -0.05;
+    const sd = Math.sqrt((Math.pow(-0.1 - media, 2) + Math.pow(0 - media, 2) + 0) / 3);
+    expect(sharpeRatio(r(["-0.1", "0", "-0.05"]))).toBe(((media / sd) * ANN).toFixed(4));
   });
 
   it("zero giorni → null", () => {
     expect(sharpeRatio([])).toBeNull();
+  });
+
+  it("un solo giorno con ritorno non definito annulla TUTTA la serie", () => {
+    expect(sharpeRatio(r(["0.1", null, "-0.05"]))).toBeNull();
   });
 });
 

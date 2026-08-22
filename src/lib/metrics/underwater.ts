@@ -17,6 +17,11 @@ export interface UnderwaterPoint {
  * Serie underwater dalla stessa serie giornaliera del P&L cumulativo.
  * Picco ≤ 0 (equity mai positiva): percentuale non definibile → punto a
  * -1 (fondo scala), coerente con la convenzione "equity negativa" del Max DD.
+ *
+ * Consuma la serie giornaliera unica (daily-series.ts): le sedute feriali
+ * senza trade entrano a P&L 0 e disegnano il tratto piatto del periodo
+ * sott'acqua, che prima veniva compresso. Le PROFONDITÀ non cambiano — un
+ * giorno a P&L 0 non muove l'equity — cambia la densità dei punti.
  */
 export function underwaterSeries(
   daily: { day: string; netPnl: string }[],
