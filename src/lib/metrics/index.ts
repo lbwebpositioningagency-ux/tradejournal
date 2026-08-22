@@ -59,6 +59,8 @@ export {
 export {
   dailyReturns,
   hasUndefinedReturn,
+  validReturnWindow,
+  type ValidReturnWindow,
   ANNUALIZATION,
   TRADING_DAYS_PER_YEAR,
   type DailyReturn,

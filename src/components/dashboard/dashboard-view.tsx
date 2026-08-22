@@ -193,11 +193,18 @@ export interface DashboardData {
   /** Giorni di calendario coperti dalla serie (gate del Calmar, F8). */
   daysCovered: number;
   /**
-   * Osservazioni EFFETTIVE della serie giornaliera dei ratio (sedute feriali
-   * dal primo giorno con trade all'ultimo). NON è la durata del periodo
-   * selezionato: con "ultimi 30 giorni" e un solo trade la serie è lunga 3.
+   * Finestra su cui Sortino e Sharpe sono davvero calcolati. `observations`
+   * NON è la durata del periodo selezionato: la serie parte dal primo giorno
+   * con trade, quindi "ultimi 30 giorni" con un solo trade fa 3 sedute.
+   * `skipped` sono le sedute tagliate via perché precedono l'ultimo giorno a
+   * equity ≤ 0 — il rendimento lì non è definito e il tratto successivo resta
+   * comunque leggibile.
    */
-  ratioObservations: number;
+  ratioWindow: {
+    observations: number;
+    skipped: number;
+    undefinedDays: number;
+  };
   profitFactor: string | null;
   expectancy: string | null;
   expectancyR: string | null;
@@ -567,9 +574,32 @@ export function DashboardView({ data }: { data: DashboardData }) {
   // "ultimi 30 giorni" e un trade solo la serie è lunga 3, non 30. Dirlo è
   // l'unico modo perché il lettore sappia su quanto poggia il rapporto.
   const ratioSeriesNote =
-    data.ratioObservations > 0
-      ? `Serie di ${data.ratioObservations} sedute: dalla prima all'ultima giornata con trade del periodo, giorni feriali senza trade inclusi a rendimento 0.`
-      : "Nessuna seduta nella serie del periodo selezionato.";
+    data.ratioWindow.observations > 0
+      ? `Serie di ${data.ratioWindow.observations} ${data.ratioWindow.observations === 1 ? "seduta" : "sedute"}: dalla prima all'ultima giornata con trade del periodo, giorni feriali senza trade inclusi a rendimento 0.` +
+        (data.ratioWindow.skipped > 0
+          ? ` ${data.ratioWindow.skipped === 1 ? "Esclusa la seduta iniziale" : `Escluse le ${data.ratioWindow.skipped} sedute iniziali`}: fino a lì il conto era a equity ≤ 0 e il rendimento non è definito.`
+          : "")
+      : data.ratioWindow.undefinedDays > 0
+        ? `Nessuna seduta utilizzabile: tutte e ${data.ratioWindow.undefinedDays} le giornate del periodo hanno equity ≤ 0, dove il rendimento non è definito.`
+        : "Nessuna seduta nella serie del periodo selezionato.";
+
+  // Perché il numero manca: un trattino muto lascia credere a un guasto.
+  // Con la finestra già ripulita dai giorni indefiniti, l'unico altro motivo
+  // di "non calcolabile" è una volatilità nulla.
+  const ratioUnavailable = (() => {
+    if (data.sortino !== null && data.sharpe !== null) return null;
+    if (data.ratioWindow.observations === 0) {
+      return data.ratioWindow.undefinedDays > 0
+        ? "Non calcolabile: equity ≤ 0 in tutte le sedute del periodo."
+        : "Non calcolabile: nessuna seduta nel periodo.";
+    }
+    if (data.sortino === null && data.sharpe === null) {
+      return "Non calcolabile: rendimenti senza variabilità nel periodo.";
+    }
+    return data.sortino === null
+      ? "Sortino non calcolabile: nessuna seduta sotto il MAR nel periodo."
+      : "Sharpe non calcolabile: rendimenti tutti uguali nel periodo.";
+  })();
   const calmarShort = data.daysCovered < CALMAR_MIN_DAYS;
   const calmarValue = calmarShort ? "—" : ratio(data.calmar);
   const sqnShort = data.rCount < SQN_MIN_TRADES;
@@ -824,17 +854,22 @@ export function DashboardView({ data }: { data: DashboardData }) {
             }}
             value={sortinoValue}
             sub={
-              <span className="flex items-center gap-1">
-                Sharpe (ann.) {sharpeValue}
-                <MetricInfo
-                  info={sharpeInfo}
-                  scale={{
-                    benchmark: SHARPE_BENCHMARK,
-                    value: data.sharpe,
-                    display: sharpeValue,
-                    note: ratioSeriesNote,
-                  }}
-                />
+              <span className="flex flex-col gap-0.5">
+                <span className="flex items-center gap-1">
+                  Sharpe (ann.) {sharpeValue}
+                  <MetricInfo
+                    info={sharpeInfo}
+                    scale={{
+                      benchmark: SHARPE_BENCHMARK,
+                      value: data.sharpe,
+                      display: sharpeValue,
+                      note: ratioSeriesNote,
+                    }}
+                  />
+                </span>
+                {ratioUnavailable ? (
+                  <span className="text-muted-foreground">{ratioUnavailable}</span>
+                ) : null}
               </span>
             }
           />
