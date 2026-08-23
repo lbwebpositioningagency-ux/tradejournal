@@ -1,6 +1,7 @@
 import Decimal from "decimal.js";
 import { prisma } from "@/lib/db";
 import { zonedInputToUtc } from "@/lib/dates";
+import { isOutOfSessionClose } from "@/lib/out-of-session";
 import { computeTrade, TradeComputeError } from "@/lib/trade-compute";
 import { tradeInputSchema, type TradeInput } from "@/lib/validations/trade";
 
@@ -143,6 +144,12 @@ export interface PersistResult {
   /** Righe skippate perché il ticket era già presente sul conto. */
   duplicates: number;
   failed: { row: number; error: string }[];
+  /**
+   * Trade importati la cui CHIUSURA cade nella finestra in cui i mercati
+   * tradizionali sono chiusi (v. lib/out-of-session.ts). Il conteggio c'è
+   * sempre; se valga la pena mostrarlo lo decide `shouldWarnOutOfSession`.
+   */
+  outOfSession: number;
   /** Netto calcolato ≠ profit broker oltre tolleranza (importati comunque). */
   divergences: {
     row: number;
@@ -215,6 +222,7 @@ export async function persistTradeInputs(params: {
   const failed: PersistResult["failed"] = [];
   const divergences: PersistResult["divergences"] = [];
   let duplicates = 0;
+  let outOfSession = 0;
 
   rows.forEach((raw, index) => {
     const rowNumber = index + 1;
@@ -295,6 +303,13 @@ export async function persistTradeInputs(params: {
         }
       }
 
+      if (
+        computed.closedAt !== null &&
+        isOutOfSessionClose(computed.closedAt, data.assetClass)
+      ) {
+        outOfSession += 1;
+      }
+
       prepared.push({
         tradingAccountId,
         symbol: data.symbol,
@@ -343,5 +358,11 @@ export async function persistTradeInputs(params: {
     );
   }
 
-  return { imported: prepared.length, duplicates, failed, divergences };
+  return {
+    imported: prepared.length,
+    duplicates,
+    failed,
+    divergences,
+    outOfSession,
+  };
 }

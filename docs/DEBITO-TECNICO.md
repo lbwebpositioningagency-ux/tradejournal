@@ -67,6 +67,29 @@ tutte cose **registrate, non risolte**.
   osservazioni/anno invece di 252.
   → `src/lib/demo/sim1-dataset.ts` (`weekdaysBetween`, `holdMinutes`, `closedAt`)
 
+## Limiti dichiarati dei controlli di qualità dati
+
+- **Il rilevatore di chiusure fuori sessione vede solo il weekend.** Segnala
+  le chiusure fra sabato 00:00 UTC e domenica 20:59 UTC (esclusa `CRYPTO`):
+  è la sola finestra in cui *nessun* mercato tradizionale è aperto, e sta in
+  piedi senza calendari. Resta fuori, e va saputo:
+  - le **festività di borsa** — un trade chiuso il 25 dicembre o a
+    Thanksgiving passa liscio;
+  - le **pause infragiornaliere** — i futures CME chiudono un'ora al giorno
+    (22:00-23:00 UTC) e quella finestra non è controllata;
+  - gli **scarti di fuso di poche ore** che non portano nessuna chiusura
+    oltre il confine del weekend: su storici corti possono non emergere
+    affatto.
+  È un rilevatore di LOTTO ("questo import ha un problema sistematico?"), non
+  di singolo trade ("questo trade è valido?"), ed è per questo che scatta su
+  soglia e non sulla prima occorrenza.
+  Coprire festività e orari veri richiederebbe una mappatura
+  `simbolo → exchange` (oggi non c'è: `Trade.symbol` è testo libero e
+  `assetClass` è troppo grossolana) più un calendario di sedute per exchange
+  da aggiornare ogni anno. Scartato consapevolmente: costo di manutenzione
+  ricorrente sproporzionato al guadagno.
+  → `src/lib/out-of-session.ts`
+
 ## Da rivedere se cambia il perimetro
 
 - **Conti su strumenti 24/7 (crypto): l'annualizzazione ×√252 non regge.**

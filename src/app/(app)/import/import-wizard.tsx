@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import Papa from "papaparse";
 import { ArrowLeft, ArrowRight, FileUp, Save, Trash2, Upload } from "lucide-react";
 import { toast } from "sonner";
+import { shouldWarnOutOfSession } from "@/lib/out-of-session";
 import {
   buildTradeInput,
   BUILTIN_PRESETS,
@@ -110,6 +111,7 @@ export function ImportWizard({
     imported: number;
     duplicates: number;
     failed: { row: number; error: string }[];
+    outOfSession: number;
   } | null>(null);
   // F49 — drag&drop del file; F14 — duplicati rilevati in anteprima
   // (stato con le righe di riferimento: niente conteggi stale tra un
@@ -308,6 +310,7 @@ export function ImportWizard({
         imported: result.imported,
         duplicates: result.duplicates,
         failed: result.failed,
+        outOfSession: result.outOfSession ?? 0,
       });
       toast.success(`Importati ${result.imported} trade`);
       router.refresh();
@@ -320,6 +323,10 @@ export function ImportWizard({
   // ───────────────────────────────────────────────────────────────────────
 
   if (importResult) {
+    const outOfSessionWarning = shouldWarnOutOfSession(
+      importResult.outOfSession,
+      importResult.imported,
+    );
     return (
       <Card>
         <CardHeader>
@@ -332,9 +339,28 @@ export function ImportWizard({
             {importResult.failed.length > 0
               ? ` · ${importResult.failed.length} righe scartate`
               : ""}
+            {outOfSessionWarning
+              ? ` · ⚠ ${importResult.outOfSession} con chiusura fuori sessione`
+              : ""}
           </CardDescription>
         </CardHeader>
         <CardContent className="flex flex-col gap-4">
+          {/* Il riquadro riporta il FATTO osservato e lascia la diagnosi a
+              chi ha importato: la finestra dice che il mercato era chiuso,
+              non perché la chiusura sia finita lì. */}
+          {outOfSessionWarning ? (
+            <p className="rounded-md border border-dashed p-3 text-sm text-muted-foreground">
+              <strong className="text-foreground">
+                {importResult.outOfSession} trade su {importResult.imported}{" "}
+                hanno la chiusura in un momento in cui i mercati tradizionali
+                sono chiusi
+              </strong>{" "}
+              (dal sabato alla domenica sera, ora UTC). Le cause tipiche sono un
+              fuso orario sbagliato nell&apos;import o un orario di chiusura
+              mappato male dal broker. Il P&amp;L non ne risente; calendario,
+              statistiche per giorno della settimana e sessioni sì.
+            </p>
+          ) : null}
           {importResult.failed.length > 0 ? (
             <ul className="list-inside list-disc text-sm text-muted-foreground">
               {importResult.failed.slice(0, PREVIEW_ERRORS).map((f) => (
