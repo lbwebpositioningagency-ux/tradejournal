@@ -24,6 +24,13 @@ export type ImportResult =
       /** F14 — righe skippate perché identiche a trade già presenti. */
       duplicates: number;
       failed: { row: number; error: string }[];
+      /**
+       * Trade con chiusura nella finestra in cui i mercati tradizionali sono
+       * chiusi: segnalazione di qualità dati, non un errore di import
+       * (v. lib/out-of-session.ts). Il conteggio arriva sempre; mostrarlo o
+       * no lo decide la soglia lato client.
+       */
+      outOfSession: number;
     };
 
 async function requireUserId(): Promise<string> {
@@ -78,6 +85,7 @@ export async function importTradesAction(
     imported: result.imported,
     duplicates: result.duplicates,
     failed: result.failed,
+    outOfSession: result.outOfSession,
   };
 }
 
