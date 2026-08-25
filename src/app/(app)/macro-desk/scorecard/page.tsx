@@ -4,7 +4,9 @@ import { redirect } from "next/navigation";
 import { Inter, JetBrains_Mono } from "next/font/google";
 import { ArrowLeft } from "lucide-react";
 import { auth } from "@/lib/auth";
+import { getFreschezzaReport } from "@/lib/queries/macro-desk-freschezza";
 import { getScorecardSource } from "@/lib/queries/macro-scorecard-em";
+import { BandaFreschezza } from "@/components/macro-desk/banda-freschezza";
 import { resolveWeeks } from "@/lib/macro-desk-scorecard-em";
 import { cn } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
@@ -30,7 +32,10 @@ export default async function MacroScorecardPage() {
   const session = await auth();
   if (!session?.user?.id) redirect("/login");
 
-  const source = await getScorecardSource();
+  const [source, freschezza] = await Promise.all([
+    getScorecardSource(),
+    getFreschezzaReport(),
+  ]);
   const weeks = resolveWeeks(source.records);
 
   return (
@@ -56,6 +61,10 @@ export default async function MacroScorecardPage() {
         </div>
         <MacroDeskSectionNav active="scorecard" />
       </div>
+
+      {/* Questa sezione LEGGE dai report: se il report è fermo, i suoi numeri
+          sono fermi con lui, e va detto qui e non solo nell'indice. */}
+      {freschezza ? <BandaFreschezza esito={freschezza} /> : null}
 
       {/* Terminale: identità visiva propria, scoped a .macro-report */}
       <div

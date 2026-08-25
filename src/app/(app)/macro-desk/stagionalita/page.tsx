@@ -4,6 +4,8 @@ import { redirect } from "next/navigation";
 import { Inter, JetBrains_Mono } from "next/font/google";
 import { ArrowLeft } from "lucide-react";
 import { auth } from "@/lib/auth";
+import { prisma } from "@/lib/db";
+import { formatDateTime } from "@/lib/dates";
 import { cn } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
 import { MacroDeskSectionNav } from "@/components/macro-desk/section-nav";
@@ -133,6 +135,13 @@ export default async function StagionalitaPage({
 }) {
   const session = await auth();
   if (!session?.user?.id) redirect("/login");
+
+  // L'ora dell'ultimo calcolo è un ISTANTE, non una data-giorno: va resa nel
+  // fuso dell'utente. Era fissata a Europe/Rome nel markup.
+  const { timezone } = await prisma.user.findUniqueOrThrow({
+    where: { id: session.user.id },
+    select: { timezone: true },
+  });
 
   const params = await searchParams;
   const instrument = parseInstrument(params.s);
@@ -500,11 +509,7 @@ export default async function StagionalitaPage({
             {lastRun?.finishedAt ? (
               <span>
                 ultimo calcolo:{" "}
-                {lastRun.finishedAt.toLocaleString("it-IT", {
-                  dateStyle: "short",
-                  timeStyle: "short",
-                  timeZone: "Europe/Rome",
-                })}
+                {formatDateTime(lastRun.finishedAt, timezone)}
                 {lastRun.ok ? "" : " (con errori)"}
               </span>
             ) : null}
