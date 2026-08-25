@@ -9,6 +9,12 @@ import { Badge } from "@/components/ui/badge";
 import { MacroDeskSectionNav } from "@/components/macro-desk/section-nav";
 import { AiAnalystView } from "@/components/macro-desk/ai-analyst-view";
 import { buildDossier } from "@/lib/ai-analyst/dossier";
+import { AI_ANALYST_INSTRUMENTS } from "@/lib/ai-analyst/instruments";
+import { ordinaRighe, rigaSintesi } from "@/lib/ai-analyst/sintesi-tabella";
+import { AiAnalystSintesi } from "@/components/macro-desk/ai-analyst-sintesi";
+import { addDays } from "@/lib/calendar";
+import { formatDateTime } from "@/lib/dates";
+import { prisma } from "@/lib/db";
 import { parseAiAnalystInstrument } from "@/lib/ai-analyst/instruments";
 import {
   MOTIVO_DETERMINISTICO,
@@ -50,6 +56,34 @@ export default async function AiAnalystPage({
   const fonti = await caricaFontiCondivise();
   const letture = await caricaLetture(strumento, giorno, fonti);
   const dossier = buildDossier(strumento, giorno, letture);
+
+  /* ── SINTESI IN TESTA (F2) ────────────────────────────────────────────
+     La pagina rispondeva a «cosa dice il desk su UNO strumento»; la domanda
+     vera è «come mi posiziono oggi, e cosa mi fa cambiare idea». Per
+     rispondere servono tutti gli strumenti insieme, e il confronto con ieri.
+     Il costo è basso: `caricaFontiCondivise` è dietro la cache di richiesta
+     di React, quindi le query al database restano quelle di prima e qui si
+     rifà solo la composizione, che è aritmetica in memoria. */
+  const ieri = addDays(giorno, -1);
+  const righe = ordinaRighe(
+    await Promise.all(
+      AI_ANALYST_INSTRUMENTS.map(async (code) => {
+        const [oggiLetture, ieriLetture] = await Promise.all([
+          caricaLetture(code, giorno, fonti),
+          caricaLetture(code, ieri, fonti),
+        ]);
+        return rigaSintesi(
+          buildDossier(code, giorno, oggiLetture),
+          buildDossier(code, ieri, ieriLetture),
+        );
+      }),
+    ),
+  );
+
+  const { timezone } = await prisma.user.findUniqueOrThrow({
+    where: { id: session.user.id },
+    select: { timezone: true },
+  });
 
   /* VERSIONE DETERMINISTICA — decisione della release v1.0.
    *
@@ -109,6 +143,16 @@ export default async function AiAnalystPage({
         )}
         style={{ borderColor: "var(--md-border)" }}
       >
+        <div className="flex flex-col gap-4 p-4 sm:p-5">
+          <AiAnalystSintesi
+            righe={righe}
+            giorno={giorno}
+            generatoAlle={formatDateTime(new Date(), timezone)}
+          />
+        </div>
+        {/* Il discorsivo resta, ma SOTTO e subordinato: la tabella è il primo
+            oggetto della pagina, e questo ne è il dettaglio per lo strumento
+            scelto. */}
         <AiAnalystView sintesi={sintesi} strumento={strumento} />
       </div>
     </div>
