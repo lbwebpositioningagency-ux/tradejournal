@@ -31,6 +31,7 @@ function dossier(over: Partial<Dossier> = {}): Dossier {
     datiInsufficienti: false,
     motivoInsufficienza: null,
     discordanza: false,
+    termometroDegenere: false,
     carattereAtteso: "CONDIZIONI_DI_ESPANSIONE",
     confidenza: "BUONA",
     motivoConfidenza: "fonti concordi",
@@ -133,5 +134,80 @@ describe("ordinaRighe", () => {
     const copia = [...righe];
     ordinaRighe(righe);
     expect(righe).toEqual(copia);
+  });
+});
+
+describe("termometro degenerato: propagazione alla riga di sintesi", () => {
+  it("F1 smette di contare fra le misure decisive: la forza SCENDE", () => {
+    const intero = rigaSintesi(dossier(), null);
+    const ridotto = rigaSintesi(dossier({ termometroDegenere: true }), null);
+    expect(intero.forza).toEqual({ concordi: 2, disponibili: 2 });
+    expect(ridotto.forza).toEqual({ concordi: 1, disponibili: 1 });
+  });
+
+  it("la riduzione non è mai silenziosa: la riga dice cosa manca e perché", () => {
+    const r = rigaSintesi(dossier({ termometroDegenere: true }), null);
+    expect(r.segnaleIncompleto).not.toBeNull();
+    expect(r.segnaleIncompleto).toContain("non distingue più i due stati");
+    expect(r.segnaleIncompleto).toContain("non conta nella forza");
+  });
+
+  it("segnale intero → nessuna nota, nessun rumore", () => {
+    expect(rigaSintesi(dossier(), null).segnaleIncompleto).toBeNull();
+  });
+
+  it("degenerato E in conflitto: la forza non scende sotto zero", () => {
+    const r = rigaSintesi(
+      dossier({ termometroDegenere: true, discordanza: true }),
+      null,
+    );
+    expect(r.forza.disponibili).toBe(1);
+    expect(r.forza.concordi).toBeLessThanOrEqual(r.forza.disponibili);
+    expect(r.forza.concordi).toBeGreaterThanOrEqual(0);
+  });
+
+  it("senza F1 fra i fattori la forza non cambia: non si sottrae ciò che non c'è", () => {
+    const soloF4 = dossier({
+      termometroDegenere: true,
+      fattori: dossier().fattori.filter((f) => f.id === "F4"),
+    });
+    expect(rigaSintesi(soloF4, null).forza).toEqual({ concordi: 1, disponibili: 1 });
+  });
+
+  it("il caso reale: oro e WTI degenerati, S&P no", () => {
+    const righe = [
+      rigaSintesi(dossier({ strumento: "SP500" }), dossier({ strumento: "SP500" })),
+      rigaSintesi(
+        dossier({ strumento: "ORO", termometroDegenere: true }),
+        dossier({ strumento: "ORO", termometroDegenere: true }),
+      ),
+      rigaSintesi(
+        dossier({ strumento: "WTI", termometroDegenere: true }),
+        dossier({ strumento: "WTI", termometroDegenere: true }),
+      ),
+    ];
+    const conNota = righe.filter((r) => r.segnaleIncompleto).map((r) => r.strumento);
+    expect(conNota).toEqual(["ORO", "WTI"]);
+    // l'S&P resta intero: il verdetto è per strumento, non globale
+    expect(righe[0].segnaleIncompleto).toBeNull();
+    expect(righe[0].forza).toEqual({ concordi: 2, disponibili: 2 });
+  });
+
+  it("nessuno degenerato: nessuna riga porta la nota", () => {
+    const righe = ["ORO", "WTI", "SP500"].map((s) =>
+      rigaSintesi(dossier({ strumento: s as never }), null),
+    );
+    expect(righe.every((r) => r.segnaleIncompleto === null)).toBe(true);
+  });
+
+  it("il segnale incompleto sale nell'ordine, subito dopo i conflitti", () => {
+    const righe = [
+      rigaSintesi(dossier({ strumento: "SP500" }), dossier({ strumento: "SP500" })),
+      rigaSintesi(dossier({ strumento: "ORO", termometroDegenere: true }), null),
+      rigaSintesi(dossier({ strumento: "WTI", discordanza: true }), null),
+    ];
+    const ordine = ordinaRighe(righe).map((r) => r.strumento);
+    expect(ordine[0]).toBe("WTI"); // conflitto
+    expect(ordine[1]).toBe("ORO"); // segnale incompleto
   });
 });
