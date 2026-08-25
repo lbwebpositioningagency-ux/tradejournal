@@ -20,11 +20,16 @@ export function VolatilitaPanel({
   items,
   reading,
   asOf,
+  degenerazioni,
+  calibrazione,
 }: {
   ingressi: ReturnType<typeof componiIngressi>;
   items: MacroVolItem[];
   reading?: string;
   asOf?: string;
+  /** Per simbolo: la frase da mostrare quando il termometro non discrimina più. */
+  degenerazioni?: Partial<Record<string, string>>;
+  calibrazione?: { generatoIl: string; prossimoRicalcolo: string; giorniDallaTaratura: number };
 }) {
   return (
     <div className="flex flex-col gap-4">
@@ -34,6 +39,8 @@ export function VolatilitaPanel({
           GER40:
             "l'indice DV1X non è tra quelli raccolti dal report giornaliero: il termometro del DAX resta spento finché non verrà aggiunto",
         }}
+        degenerazioni={degenerazioni}
+        calibrazione={calibrazione}
       />
       {asOf ? (
         <p

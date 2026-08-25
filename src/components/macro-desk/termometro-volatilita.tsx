@@ -54,7 +54,17 @@ function testoPosizione(p: LetturaTermometro["posizione"]) {
     : `fra il ${p.da}° e il ${p.a}° percentile`;
 }
 
-function CartaStrumento({ lettura, indice }: { lettura: LetturaTermometro; indice: number }) {
+function CartaStrumento({
+  lettura,
+  indice,
+  degenere,
+}: {
+  lettura: LetturaTermometro;
+  indice: number;
+  /** Frase da mostrare AL POSTO della statistica condizionale; null se il
+      classificatore discrimina ancora. */
+  degenere: string | null;
+}) {
   const {
     etichetta,
     simbolo,
@@ -133,15 +143,32 @@ function CartaStrumento({ lettura, indice }: { lettura: LetturaTermometro; indic
         >
           {stato}
         </span>
-        <span className="text-xs leading-relaxed text-[var(--md-text-2)]">
-          giornata {affidabilita.esitoAtteso} nel{" "}
-          <span className="md-mono font-semibold">{pct(affidabilita.quota)}</span> dei casi
-          <span className="text-[var(--md-muted)]"> (n={affidabilita.n})</span>
-        </span>
+        {/* La percentuale condizionale si mostra SOLO se il gruppo di
+            confronto esiste ancora: "quando è ESPANSA la giornata è ampia nel
+            75% dei casi" è aritmeticamente vera anche quando COMPRESSA non
+            compare da mesi, e in quel caso non descrive più nulla da cui
+            distinguersi (v. lib/classificatore-degenere.ts). */}
+        {degenere ? null : (
+          <span className="text-xs leading-relaxed text-[var(--md-text-2)]">
+            giornata {affidabilita.esitoAtteso} nel{" "}
+            <span className="md-mono font-semibold">{pct(affidabilita.quota)}</span> dei casi
+            <span className="text-[var(--md-muted)]"> (n={affidabilita.n})</span>
+          </span>
+        )}
       </div>
-      <p className="md-mono -mt-1.5 text-[11px] text-[var(--md-muted)]">
-        Senza il termometro: {pct(affidabilita.baseRate)}
-      </p>
+      {degenere ? (
+        <p
+          role="status"
+          className="rounded-md border border-dashed px-2.5 py-2 text-[11px] leading-relaxed"
+          style={{ borderColor: "var(--md-warn)", color: "var(--md-text-2)" }}
+        >
+          {degenere}
+        </p>
+      ) : (
+        <p className="md-mono -mt-1.5 text-[11px] text-[var(--md-muted)]">
+          Senza il termometro: {pct(affidabilita.baseRate)}
+        </p>
+      )}
 
       {/* ampiezza attesa: la banda 25-75% accompagna sempre la mediana */}
       <div className="flex flex-col gap-0.5">
@@ -211,11 +238,17 @@ function CartaAssente({
 export function TermometroVolatilita({
   ingressi,
   motiviAssenza,
+  degenerazioni,
+  calibrazione,
 }: {
   /** Per simbolo: IV di ieri e (facoltativa) chiusura di ieri. */
   ingressi: Partial<Record<string, IngressoTermometro>>;
   /** Spiegazione per gli strumenti senza ingresso, es. indice non presente in pipeline. */
   motiviAssenza?: Partial<Record<string, string>>;
+  /** Per simbolo: la frase da mostrare quando il termometro non discrimina più. */
+  degenerazioni?: Partial<Record<string, string>>;
+  /** Età della taratura delle soglie, da dichiarare in pagina. */
+  calibrazione?: { generatoIl: string; prossimoRicalcolo: string; giorniDallaTaratura: number };
 }) {
   const meta = metaTermometro();
   // Filtro generico: qualunque strumento con visibile_in_ui=false nel JSON sparisce dalla
@@ -255,7 +288,12 @@ export function TermometroVolatilita({
       <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
         {letture.map(({ simbolo, lettura }, i) =>
           lettura ? (
-            <CartaStrumento key={simbolo} lettura={lettura} indice={i} />
+            <CartaStrumento
+              key={simbolo}
+              lettura={lettura}
+              indice={i}
+              degenere={degenerazioni?.[simbolo] ?? null}
+            />
           ) : (
             <CartaAssente
               key={simbolo}
@@ -271,6 +309,17 @@ export function TermometroVolatilita({
       </div>
 
       <p className="md-mono text-[11px] leading-relaxed text-[var(--md-muted)]">
+        {calibrazione ? (
+          <>
+            Soglia di classificazione tarata il{" "}
+            <span className="md-mono">{dataIt(calibrazione.generatoIl)}</span> (
+            {calibrazione.giorniDallaTaratura} giorni fa), prossimo ricalcolo atteso il{" "}
+            <span className="md-mono">{dataIt(calibrazione.prossimoRicalcolo)}</span>: è una
+            soglia assoluta e resta ferma fra un ricalcolo e l&apos;altro, quindi se il
+            mercato si sposta su un livello di volatilità diverso la classificazione lo
+            segue con ritardo.{" "}
+          </>
+        ) : null}
         Percentuali calcolate su tutta la storia disponibile, dal {dataIt(meta.affidabilitaDa)}{" "}
         al {dataIt(meta.affidabilitaFinoA)}: descrivono il comportamento passato, non sono una
         prova fuori campione. La verifica su periodo mai visto è stata fatta a parte, dal{" "}

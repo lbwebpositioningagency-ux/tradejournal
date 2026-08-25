@@ -130,3 +130,47 @@ Fuori perimetro e non registrato come debito: `MacroDeskReport` non ha un cron
 (i due slot Vercel sono occupati da cot-sync e seasonality-sync) e passa da un
 ponte GitHub Actions oggi bloccato. La risposta corretta lato app e la banda
 di freschezza, che ora c'e su indice, Report, Scorecard e Volatilita.
+
+## Termometro di volatilita: la soglia e scaduta (misurato 25/08/2026)
+
+**Lavoro di ricerca aperto, non un difetto da correggere in app.**
+
+La soglia che separa ESPANSA da COMPRESSA e assoluta e congelata: vive in
+`src/data/termometro-volatilita.json`, generato il **29/07/2026** dal progetto
+esterno `regime_detection` (`scripts_termometro/33_passo3_produzione.py`), con
+ricalcolo atteso il 29/01/2027. Coincide esattamente con la mediana della
+storia intera di riferimento: 17,40 per GVZ (oro, rif. 2008-2026) e 35,42 per
+OVX (WTI, rif. 2007-2026).
+
+Nel frattempo GVZ e OVX si sono spostati su un livello piu alto, e la
+classificazione e degenerata. Misurato sui dati reali di produzione:
+
+| | ESPANSA/COMPRESSA ultime 120 sedute | degenere dal | ultima COMPRESSA |
+|---|---|---|---|
+| Oro (GVZ) | 120 / 0 | 17/02/2026 | 19/09/2025 |
+| WTI (OVX) | 120 / 0 | 17/06/2026 | 07/01/2026 |
+| S&P 500 (VIX) | 61 / 59 | mai | corrente |
+
+Quota ESPANSA per anno solare, oro: 2023 16%, 2024 28%, 2025 60%, **2026
+100%**. Su WTI: 2024 29%, 2025 44%, **2026 98%**.
+
+Effetto sulla separazione, con proxy close-to-close sull'ultimo anno:
+su WTI **da 44,2 pp dichiarati a 15,0 pp misurati**; sull'oro non calcolabile,
+perche il gruppo di confronto non esiste piu.
+
+**Perche non si corregge qui.** Passare a una soglia mobile o ricalibrare
+quella statica significa cambiare la regola di classificazione dopo la
+validazione, cioe spedire un sistema mai validato al posto di uno scaduto. Il
+JSON stesso lo dice e rimanda la scelta a un ciclo futuro, quantificando il
+costo della soglia statica in ~8-9 punti percentuali di precisione su WTI e
+GER40. In piu la rivalidazione richiede l'**OHLC** degli strumenti, che in
+questo repo **non esiste**: `SeasonalityDailyBar` conserva solo `close`, e la
+definizione di giornata ampia del termometro e `(High-Low)/Close`.
+
+**Cosa e stato fatto invece**, che non richiede rivalidazione: la statistica
+condizionale sparisce quando il gruppo di confronto non c'e piu, la pagina
+dichiara l'eta della taratura, e un rilevatore accende l'allarme da solo
+(`src/lib/classificatore-degenere.ts`, `src/lib/queries/termometro-degrado.ts`).
+
+Quando il JSON verra rigenerato, il rilevatore continuera a valere: e tarato
+sulla forma del problema, non sui numeri di oggi.
