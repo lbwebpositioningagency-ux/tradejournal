@@ -239,6 +239,66 @@ const biasRecordSchema = z
   })
   .optional();
 
+/**
+ * `monitor` e `resolved`: confine d'ingresso, tarato sui record VERI di
+ * produzione letti il 25/08/2026 (9 report su 21 hanno `monitor`, 1 ha
+ * `resolved`), non su una forma immaginata.
+ *
+ *   monitor  → { xau|wti|idx: { state, move_EM, note } }
+ *   resolved → { assets: { xau|wti|idx: { …misure della settimana chiusa } } }
+ *
+ * Erano `z.unknown()`, cioè nessun confine: è esattamente il buco da cui il
+ * 13/08/2026 era passato un `biasRecord` malformato fino a spegnere due
+ * pagine. Come per il biasRecord si valida la STRUTTURA e non il contenuto —
+ * i campi interni restano liberi perché il desk evolve — ma le chiavi asset e
+ * il tipo dei numeri chiave sì: sono quelli che un lettore a valle userebbe
+ * per fare aritmetica, e un `move_EM` che è una stringa produce NaN silenzioso
+ * invece di un errore.
+ */
+const monitorVoce = z
+  .object({
+    state: z.string().optional(),
+    move_EM: z.number().optional(),
+    note: z.string().optional(),
+  })
+  .passthrough();
+
+const monitorSchema = z
+  .object({
+    xau: monitorVoce.optional(),
+    wti: monitorVoce.optional(),
+    idx: monitorVoce.optional(),
+  })
+  .passthrough()
+  .nullish();
+
+const resolvedVoce = z
+  .object({
+    bias: z.string().optional(),
+    outcome: z.string().optional(),
+    status: z.string().optional(),
+    em: z.number().optional(),
+    close_EM: z.number().optional(),
+    mfe_EM: z.number().optional(),
+    mae_EM: z.number().optional(),
+    confidence: z.number().optional(),
+  })
+  .passthrough();
+
+const resolvedSchema = z
+  .object({
+    assets: z
+      .object({
+        xau: resolvedVoce.optional(),
+        wti: resolvedVoce.optional(),
+        idx: resolvedVoce.optional(),
+      })
+      .passthrough()
+      .optional(),
+  })
+  .passthrough()
+  .nullish();
+
 export const macroDeskReportSchema = z.object({
   type: z.enum(MACRO_REPORT_TYPES),
   reportDate: reportDateKey,
@@ -273,8 +333,8 @@ export const macroDeskReportSchema = z.object({
   scorecardEligible: z.boolean().optional(),
   trackRecordStart: z.boolean().optional(),
   biasRecord: biasRecordSchema,
-  resolved: z.unknown().optional(),
-  monitor: z.unknown().optional(),
+  resolved: resolvedSchema,
+  monitor: monitorSchema,
 });
 
 export type MacroDeskReportInput = z.infer<typeof macroDeskReportSchema>;
