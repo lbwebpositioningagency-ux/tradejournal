@@ -110,3 +110,23 @@ tutte cose **registrate, non risolte**.
   esattamente il motivo per cui le soglie derivate erano state tolte. Da
   affrontare solo quando un conto crypto esiste davvero, non prima.
   → `src/lib/metrics/daily-series.ts`, `sortino.ts`, `sharpe.ts`
+
+## Macro Desk — scelto di non fare (audit 25/08/2026)
+
+- **Legenda del gergo del Report.** "STRESS +0,76 EM", "ramo b2", "k_break",
+  "MFE", "WBR" arrivano a schermo senza glossario. E il contenuto grezzo del
+  desk: riscriverlo non spetta all'app, ma una legenda a scomparsa varrebbe.
+  -> `src/app/(app)/macro-desk/report/page.tsx`
+- **La confidenza non dichiara la propria scala.** "Confidenza 44%" non dice
+  44% di cosa ne come e calcolata.
+- **VDAX visibile a catalogo senza fonte.** Scelta corretta (il giorno che una
+  fonte compare basta collegarla), ma va deciso se la voce debba restare a
+  schermo. -> `src/lib/seasonality/instruments.ts`
+- **L'harness CDP fotografa i grafici Recharts vuoti** in
+  `captureBeyondViewport`. Verificato via DOM che il rendering e corretto: chi
+  fa verifiche visive deve saperlo, o segnalera difetti inesistenti.
+
+Fuori perimetro e non registrato come debito: `MacroDeskReport` non ha un cron
+(i due slot Vercel sono occupati da cot-sync e seasonality-sync) e passa da un
+ponte GitHub Actions oggi bloccato. La risposta corretta lato app e la banda
+di freschezza, che ora c'e su indice, Report, Scorecard e Volatilita.
