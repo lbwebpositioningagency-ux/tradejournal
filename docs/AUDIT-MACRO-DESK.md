@@ -91,6 +91,33 @@ GitHub Actions esterno, oggi bloccato. Non è un difetto da correggere in
 questo audit: la risposta corretta è la banda di freschezza, che ora c'è
 sull'indice e sulle sezioni che dipendono dal report.
 
+## F1 — confini d'ingresso e fixture
+
+**`resolved` e `monitor` non sono più `z.unknown()`.** Erano l'ultimo punto
+senza confine del report, cioè lo stesso buco da cui il 13/08/2026 era passato
+un `biasRecord` malformato fino a spegnere AI Analyst e Volatilità. I nuovi
+schemi sono tarati sui record **veri** letti da Neon il 25/08/2026:
+
+- `monitor` → `{ xau|wti|idx: { state, move_EM, note } }` — valorizzato in
+  9 report su 21;
+- `resolved` → `{ assets: { xau|wti|idx: { P0, em, bias, ivUsed, mae_EM,
+  mfe_EM, status, outcome, close_EM, close_px, emSource, confidence } } }` —
+  valorizzato in 1 su 21.
+
+Come per il `biasRecord` si valida la struttura e non il contenuto: i campi
+sconosciuti passano (`passthrough`), perché il desk evolve. Ma i **numeri**
+sono numeri: un `move_EM` stringa produrrebbe NaN silenzioso in chi fa
+aritmetica a valle, e ora viene rifiutato all'ingresso con un messaggio.
+
+**Verificato che lo schema accetti la realtà, non un'idea della realtà:**
+tutti e **21 i report di produzione passano** la validazione; la controprova
+con `move_EM: "molto"` viene rifiutata.
+
+**I fixture corrispondono a record veri.** Quelli di `parseMonitor` usavano
+già la forma giusta. I sei test nuovi sullo schema partono da due blocchi
+**copiati da record di produzione**, non inventati — un fixture immaginato
+avrebbe blindato una realtà che non esiste, ed è già successo qui.
+
 ## Verifica di sicurezza sulla cache dell'AI Analyst
 
 La cache in `src/lib/ai-analyst/sintesi.ts` è una `Map` di modulo chiavata

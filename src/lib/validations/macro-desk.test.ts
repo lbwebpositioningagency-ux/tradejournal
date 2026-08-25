@@ -256,3 +256,93 @@ describe("isAuthorizedMacroRequest", () => {
     expect(isAuthorizedMacroRequest("Bearer ", "")).toBe(false);
   });
 });
+
+/**
+ * `monitor` e `resolved` erano `z.unknown()`: nessun confine. I due blocchi
+ * qui sotto sono COPIATI da record veri di produzione letti il 25/08/2026 —
+ * un fixture inventato avrebbe blindato una realtà che non esiste, ed è già
+ * successo in questo progetto.
+ */
+const MONITOR_REALE = {
+  idx: {
+    note: "Sulla linea del ramo b1 (<7.641) per il blow-out del 30Y; RIALZISTA in traiettoria di MISS, regge su VIX/OAS bassi.",
+    state: "stress",
+    move_EM: -0.978,
+  },
+  wti: {
+    note: "A un soffio dal ramo b2 (>88) sul premio Hormuz; close_EM oltre k_hit -> traiettoria di MISS del neutrale.",
+    state: "stress",
+    move_EM: 0.892,
+  },
+  xau: {
+    note: "MFE +1,02 EM oltre k_break dopo il balzo verificato del 19 ago.",
+    state: "stress",
+    move_EM: 0.763,
+  },
+} as const;
+
+const RESOLVED_REALE = {
+  assets: {
+    idx: {
+      P0: 7757.64, em: 159.97, bias: "RIALZISTA", ivUsed: 14.9,
+      mae_EM: -0.184, mfe_EM: 0.284, status: "resolved", outcome: "NULLO",
+      close_EM: 0.258, close_px: 7798.99, emSource: "iv", confidence: 55,
+    },
+    wti: {
+      P0: 78.18, em: 5.78, bias: "NEUTRALE", ivUsed: 53.45,
+      mae_EM: 0, mfe_EM: 1.007, status: "resolved", outcome: "MISS",
+      close_EM: 0.73, close_px: 82.4, emSource: "iv", confidence: 48,
+    },
+  },
+} as const;
+
+describe("monitor e resolved: confine d'ingresso", () => {
+  it("accetta la forma REALE di monitor", () => {
+    const esito = macroDeskReportSchema.safeParse({
+      ...validBody(),
+      monitor: MONITOR_REALE,
+    });
+    expect(esito.success).toBe(true);
+  });
+
+  it("accetta la forma REALE di resolved", () => {
+    const esito = macroDeskReportSchema.safeParse({
+      ...validBody(),
+      resolved: RESOLVED_REALE,
+    });
+    expect(esito.success).toBe(true);
+  });
+
+  it("i campi restano facoltativi: 20 report su 21 non hanno resolved", () => {
+    expect(macroDeskReportSchema.safeParse(validBody()).success).toBe(true);
+    expect(
+      macroDeskReportSchema.safeParse({ ...validBody(), monitor: null, resolved: null })
+        .success,
+    ).toBe(true);
+  });
+
+  it("rifiuta un move_EM che non è un numero: era il buco di z.unknown()", () => {
+    // una stringa qui produrrebbe NaN silenzioso in chi fa aritmetica a valle
+    const esito = macroDeskReportSchema.safeParse({
+      ...validBody(),
+      monitor: { xau: { state: "stress", move_EM: "molto" } },
+    });
+    expect(esito.success).toBe(false);
+  });
+
+  it("rifiuta un confidence non numerico dentro resolved", () => {
+    const esito = macroDeskReportSchema.safeParse({
+      ...validBody(),
+      resolved: { assets: { xau: { confidence: "alta" } } },
+    });
+    expect(esito.success).toBe(false);
+  });
+
+  it("lascia passare campi nuovi: il desk evolve", () => {
+    const esito = macroDeskReportSchema.safeParse({
+      ...validBody(),
+      monitor: { xau: { state: "stress", move_EM: 0.1, campoNuovo: 42 }, extra: {} },
+    });
+    expect(esito.success).toBe(true);
+  });
+});
