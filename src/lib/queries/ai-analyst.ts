@@ -16,6 +16,10 @@
 import { cache } from "react";
 import { prisma } from "@/lib/db";
 import {
+  getContestoVolatilita,
+  type RigaContestoVol,
+} from "@/lib/queries/volatilita-contesto";
+import {
   AI_ANALYST_DEFS,
   type AiAnalystInstrument,
 } from "@/lib/ai-analyst/instruments";
@@ -25,7 +29,9 @@ import {
   letturaCot,
   letturaDispersione,
   letturaIv,
+  letturaIvArchivio,
   letturaIvMese,
+  letturaMovimento,
   letturaLivelloTrends,
   letturaStabilita,
   letturaTermometro,
@@ -84,6 +90,14 @@ export interface FontiCondivise {
   coverage: CoverageView[];
   /** Serie Trends necessarie, per chiave di registry. */
   trends: Map<string, TrendsSeriesView>;
+  /**
+   * Fatti di volatilità dall'archivio giornaliero, per codice di indice IV.
+   * È la fonte di F1 e F2 dal 25/08/2026: sta QUI e non in `caricaLetture`
+   * perché serve a tutti e quattro gli strumenti e la query scandisce serie
+   * intere — farla una volta sola non è un'ottimizzazione, è la differenza
+   * fra una e otto scansioni.
+   */
+  contesto: Map<string, RigaContestoVol>;
 }
 
 const DRIVER_VUOTO: DriverDeskData = {
@@ -102,7 +116,7 @@ export const caricaFontiCondivise = cache(async (): Promise<FontiCondivise> => {
     (CHIAVI_TRENDS as readonly string[]).includes(d.key),
   );
 
-  const [report, cot, driver, coverage, viste] = await Promise.all([
+  const [report, cot, driver, coverage, contestoVol, viste] = await Promise.all([
     /* La COMPOSIZIONE sta nello stesso catch della query, di proposito: il
        10-13/08/2026 un `biasRecord` di forma inattesa componeva fuori dal
        catch e l'intera pagina finiva in error boundary invece che nello
@@ -133,13 +147,20 @@ export const caricaFontiCondivise = cache(async (): Promise<FontiCondivise> => {
       console.error("[ai-analyst] coverage stagionalità non caricata:", e);
       return [] as CoverageView[];
     }),
+    getContestoVolatilita(giornoRoma()).catch((e: unknown) => {
+      console.error("[ai-analyst] contesto volatilità non caricato:", e);
+      return { righe: [] as RigaContestoVol[], oggi: giornoRoma() };
+    }),
     getTrendsSection(defs),
   ]);
 
   const trends = new Map<string, TrendsSeriesView>();
   for (const vista of viste) trends.set(vista.def.key, vista);
 
-  return { report, cot, driver, coverage, trends };
+  const contesto = new Map<string, RigaContestoVol>();
+  for (const riga of contestoVol.righe) contesto.set(riga.indice, riga);
+
+  return { report, cot, driver, coverage, trends, contesto };
 });
 
 /* ── letture che richiedono una query per strumento ──────────────────── */
@@ -237,7 +258,11 @@ export async function caricaLetture(
       ? leggiTermometro(def.termometro, fonti.report.ingressi[def.termometro])
       : null;
 
+  const rigaContesto = fonti.contesto.get(def.seasonalityIv);
+
   return {
+    ivArchivio: letturaIvArchivio(strumento, rigaContesto),
+    movimento: letturaMovimento(rigaContesto),
     termometro: letturaTermometro(
       strumento,
       termometro,

@@ -14,7 +14,7 @@ function dossier(over: Partial<Dossier> = {}): Dossier {
     giorno: "2026-08-25",
     fattori: [
       {
-        id: "F1", nome: "Stato della volatilità implicita", classe: "a",
+        id: "F1", nome: "Volatilità implicita rispetto alla propria storia", classe: "a",
         peso: "ALTO", dataDato: "2026-08-24", giorniEta: 1,
         freschezza: "fresco", valore: { tipo: "iv" } as never,
       },
@@ -31,7 +31,7 @@ function dossier(over: Partial<Dossier> = {}): Dossier {
     datiInsufficienti: false,
     motivoInsufficienza: null,
     discordanza: false,
-    termometroDegenere: false,
+    termometroSenzaVerdetto: null,
     carattereAtteso: "CONDIZIONI_DI_ESPANSIONE",
     confidenza: "BUONA",
     motivoConfidenza: "fonti concordi",
@@ -39,6 +39,24 @@ function dossier(over: Partial<Dossier> = {}): Dossier {
     datoPiuVecchio: "2026-08-20",
     ...over,
   };
+}
+
+/**
+ * Dossier con il CANCELLO CHIUSO: cade F3, la statistica condizionale. F1
+ * resta fra i fattori — è il rango storico dell'indice, preso dall'archivio,
+ * e non dipende dalla classificazione. Un fixture che togliesse anche F1
+ * verificherebbe uno stato che `buildDossier` non produce.
+ */
+function senzaVerdetto(
+  motivo: NonNullable<Dossier["termometroSenzaVerdetto"]> = "classificatore_degenere",
+  over: Partial<Dossier> = {},
+): Dossier {
+  return dossier({
+    termometroSenzaVerdetto: motivo,
+    presenti: 11,
+    copertura: 11 / 12,
+    ...over,
+  });
 }
 
 describe("rigaSintesi", () => {
@@ -60,7 +78,7 @@ describe("rigaSintesi", () => {
     const r = rigaSintesi(dossier({ discordanza: true }), null);
     expect(r.forza).toEqual({ concordi: 1, disponibili: 2 });
     expect(r.conflitto).not.toBeNull();
-    expect(r.conflitto!.fra[0]).toContain("volatilità");
+    expect(r.conflitto!.fra[0].toLowerCase()).toContain("volatilità");
     expect(r.conflitto!.spiegazione).toContain("il contrario");
   });
 
@@ -137,63 +155,68 @@ describe("ordinaRighe", () => {
   });
 });
 
-describe("termometro degenerato: propagazione alla riga di sintesi", () => {
-  it("F1 smette di contare fra le misure decisive: la forza SCENDE", () => {
-    const intero = rigaSintesi(dossier(), null);
-    const ridotto = rigaSintesi(dossier({ termometroDegenere: true }), null);
-    expect(intero.forza).toEqual({ concordi: 2, disponibili: 2 });
-    expect(ridotto.forza).toEqual({ concordi: 1, disponibili: 1 });
+describe("termometro senza verdetto: propagazione alla riga di sintesi", () => {
+  it("la forza NON scende: le due misure decisive sono entrambe fatti", () => {
+    /* Prima del 25/08/2026 il cancello chiuso faceva cadere anche F1 e con
+       esso la forza, perché F1 ERA la classificazione. Ora F1 è il rango
+       storico dell'indice: quello che si perde è la statistica condizionale,
+       che nella forza non contava. Abbassare la forza qui sarebbe punire un
+       fatto per un difetto del verdetto. */
+    expect(rigaSintesi(senzaVerdetto(), null).forza).toEqual({
+      concordi: 2,
+      disponibili: 2,
+    });
   });
 
   it("la riduzione non è mai silenziosa: la riga dice cosa manca e perché", () => {
-    const r = rigaSintesi(dossier({ termometroDegenere: true }), null);
+    const r = rigaSintesi(senzaVerdetto(), null);
     expect(r.segnaleIncompleto).not.toBeNull();
     expect(r.segnaleIncompleto).toContain("non distingue più i due stati");
-    expect(r.segnaleIncompleto).toContain("non conta nella forza");
+    // dice anche cosa RESTA: sparire in silenzio e sparire del tutto sono due
+    // difetti diversi, e qui non deve succedere né l'uno né l'altro
+    expect(r.segnaleIncompleto).toContain("non è disponibile");
+    expect(r.segnaleIncompleto).toContain("restano");
+  });
+
+  it("i due motivi si distinguono a schermo: degenere ≠ non validato", () => {
+    const degenere = rigaSintesi(senzaVerdetto("classificatore_degenere"), null);
+    const nonValidato = rigaSintesi(senzaVerdetto("verdetto_non_validato"), null);
+    expect(degenere.segnaleIncompleto).toContain("non distingue più");
+    expect(nonValidato.segnaleIncompleto).toContain("prova fuori campione");
+    expect(degenere.segnaleIncompleto).not.toBe(nonValidato.segnaleIncompleto);
   });
 
   it("segnale intero → nessuna nota, nessun rumore", () => {
     expect(rigaSintesi(dossier(), null).segnaleIncompleto).toBeNull();
   });
 
-  it("degenerato E in conflitto: la forza non scende sotto zero", () => {
-    const r = rigaSintesi(
-      dossier({ termometroDegenere: true, discordanza: true }),
-      null,
-    );
-    expect(r.forza.disponibili).toBe(1);
+  it("senza verdetto E in conflitto: il conflitto conta, e la forza non va sotto zero", () => {
+    const r = rigaSintesi(senzaVerdetto("classificatore_degenere", { discordanza: true }), null);
     expect(r.forza.concordi).toBeLessThanOrEqual(r.forza.disponibili);
     expect(r.forza.concordi).toBeGreaterThanOrEqual(0);
+    expect(r.conflitto).not.toBeNull();
+    expect(r.segnaleIncompleto).not.toBeNull();
   });
 
-  it("senza F1 fra i fattori la forza non cambia: non si sottrae ciò che non c'è", () => {
-    const soloF4 = dossier({
-      termometroDegenere: true,
-      fattori: dossier().fattori.filter((f) => f.id === "F4"),
-    });
-    expect(rigaSintesi(soloF4, null).forza).toEqual({ concordi: 1, disponibili: 1 });
-  });
-
-  it("il caso reale: oro e WTI degenerati, S&P no", () => {
+  it("il caso reale: oro e WTI senza verdetto, S&P intero", () => {
     const righe = [
       rigaSintesi(dossier({ strumento: "SP500" }), dossier({ strumento: "SP500" })),
       rigaSintesi(
-        dossier({ strumento: "ORO", termometroDegenere: true }),
-        dossier({ strumento: "ORO", termometroDegenere: true }),
+        senzaVerdetto("classificatore_degenere", { strumento: "ORO" }),
+        senzaVerdetto("classificatore_degenere", { strumento: "ORO" }),
       ),
       rigaSintesi(
-        dossier({ strumento: "WTI", termometroDegenere: true }),
-        dossier({ strumento: "WTI", termometroDegenere: true }),
+        senzaVerdetto("classificatore_degenere", { strumento: "WTI" }),
+        senzaVerdetto("classificatore_degenere", { strumento: "WTI" }),
       ),
     ];
     const conNota = righe.filter((r) => r.segnaleIncompleto).map((r) => r.strumento);
     expect(conNota).toEqual(["ORO", "WTI"]);
     // l'S&P resta intero: il verdetto è per strumento, non globale
     expect(righe[0].segnaleIncompleto).toBeNull();
-    expect(righe[0].forza).toEqual({ concordi: 2, disponibili: 2 });
   });
 
-  it("nessuno degenerato: nessuna riga porta la nota", () => {
+  it("nessuno col cancello chiuso: nessuna riga porta la nota", () => {
     const righe = ["ORO", "WTI", "SP500"].map((s) =>
       rigaSintesi(dossier({ strumento: s as never }), null),
     );
@@ -203,7 +226,7 @@ describe("termometro degenerato: propagazione alla riga di sintesi", () => {
   it("il segnale incompleto sale nell'ordine, subito dopo i conflitti", () => {
     const righe = [
       rigaSintesi(dossier({ strumento: "SP500" }), dossier({ strumento: "SP500" })),
-      rigaSintesi(dossier({ strumento: "ORO", termometroDegenere: true }), null),
+      rigaSintesi(senzaVerdetto("classificatore_degenere", { strumento: "ORO" }), null),
       rigaSintesi(dossier({ strumento: "WTI", discordanza: true }), null),
     ];
     const ordine = ordinaRighe(righe).map((r) => r.strumento);

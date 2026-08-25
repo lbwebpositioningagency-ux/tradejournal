@@ -16,6 +16,9 @@ import { addDays } from "@/lib/calendar";
 import { formatDateTime } from "@/lib/dates";
 import { prisma } from "@/lib/db";
 import { getDegradoTermometro } from "@/lib/queries/termometro-degrado";
+import { leggiTermometro } from "@/lib/termometro-volatilita";
+import { valutaCancello } from "@/lib/termometro-cancello";
+import type { Dossier } from "@/lib/ai-analyst/types";
 import { AI_ANALYST_DEFS } from "@/lib/ai-analyst/instruments";
 import { parseAiAnalystInstrument } from "@/lib/ai-analyst/instruments";
 import {
@@ -57,16 +60,33 @@ export default async function AiAnalystPage({
 
   const fonti = await caricaFontiCondivise();
 
-  /* STESSA FONTE DI VERITÀ della sezione Volatilità: lo stesso modulo, la
-     stessa soglia, la stessa finestra. Due giudizi diversi sullo stesso
-     strumento in due pagine sarebbero peggio di nessun giudizio. */
+  /* STESSA FONTE DI VERITÀ della sezione Volatilità: lo stesso cancello, lo
+     stesso rilevatore, la stessa soglia. Due giudizi diversi sullo stesso
+     strumento in due pagine sarebbero peggio di nessun giudizio.
+
+     Il cancello ha bisogno dello STATO di oggi, non solo del rilevatore: la
+     prova fuori campione è per stato, e uno strumento può averla superata da
+     ESPANSA e non da COMPRESSA. Lo stato si rilegge dagli stessi ingressi che
+     il dossier userà, con la stessa funzione. */
   const degrado = await getDegradoTermometro();
-  const degeneri = new Set(
-    degrado.filter((d) => !d.esito.discrimina).map((d) => d.simbolo),
-  );
-  const termometroDegenere = (code: (typeof AI_ANALYST_INSTRUMENTS)[number]) => {
+  const senzaVerdetto = new Map<string, Dossier["termometroSenzaVerdetto"]>();
+  for (const d of degrado) {
+    const lettura = fonti.report
+      ? leggiTermometro(d.simbolo, fonti.report.ingressi[d.simbolo])
+      : null;
+    if (!lettura) continue;
+    const esito = valutaCancello(d.simbolo, lettura.stato, d.esito.discrimina);
+    if (esito.aperto) continue;
+    senzaVerdetto.set(
+      d.simbolo,
+      esito.motivo === "degenere" ? "classificatore_degenere" : "verdetto_non_validato",
+    );
+  }
+  const cancelloChiuso = (
+    code: (typeof AI_ANALYST_INSTRUMENTS)[number],
+  ): Dossier["termometroSenzaVerdetto"] => {
     const simbolo = AI_ANALYST_DEFS[code].termometro;
-    return simbolo !== null && degeneri.has(simbolo);
+    return simbolo === null ? null : (senzaVerdetto.get(simbolo) ?? null);
   };
 
   const letture = await caricaLetture(strumento, giorno, fonti);
@@ -74,7 +94,7 @@ export default async function AiAnalystPage({
     strumento,
     giorno,
     letture,
-    termometroDegenere(strumento),
+    cancelloChiuso(strumento),
   );
 
   /* ── SINTESI IN TESTA (F2) ────────────────────────────────────────────
@@ -92,10 +112,10 @@ export default async function AiAnalystPage({
           caricaLetture(code, giorno, fonti),
           caricaLetture(code, ieri, fonti),
         ]);
-        const degenere = termometroDegenere(code);
+        const chiuso = cancelloChiuso(code);
         return rigaSintesi(
-          buildDossier(code, giorno, oggiLetture, degenere),
-          buildDossier(code, ieri, ieriLetture, degenere),
+          buildDossier(code, giorno, oggiLetture, chiuso),
+          buildDossier(code, ieri, ieriLetture, chiuso),
         );
       }),
     ),

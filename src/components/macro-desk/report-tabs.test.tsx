@@ -43,7 +43,11 @@ describe("tab con il sample completo", () => {
     expect(html).toContain("Disclaimer");
     expect(html).toContain("[minor]"); // dataIssues con sev
     expect(html).toContain("403 Forbidden sul tunnel");
-    expect((html.match(/Confidenza \d+%/g) ?? []).length).toBe(3); // 3 gauge
+    // la scala è dichiarata accanto al numero: «44/100», non «44%», che
+    // lascerebbe credere a una probabilità
+    expect((html.match(/Confidenza \d+\/100/g) ?? []).length).toBe(3); // 3 gauge
+    expect(html).not.toMatch(/Confidenza \d+%/);
+    expect((html.match(/non una probabilità/g) ?? []).length).toBe(3);
     expect(html).toContain("XAUUSD");
     expect(html).toContain("Radar rischi");
     expect(html).toContain("FOMC 29 lug"); // dentro risks (HTML reso)
@@ -94,7 +98,7 @@ describe("tab con il sample completo", () => {
     expect(html).toContain("186.682"); // valore CoT nel testo
   });
 
-  it("Volatilità (sezione autonoma): asOf, tessere con valore/chg e lettura", () => {
+  it("Volatilità (sezione autonoma): asOf, tessere con valore/chg e commento", () => {
     const vol = full.volPanel;
     const html = renderToStaticMarkup(
       <VolatilitaPanel
@@ -102,6 +106,9 @@ describe("tab con il sample completo", () => {
         items={vol?.items ?? []}
         reading={vol?.reading}
         asOf={vol?.asOf}
+        cancelli={{}}
+        contesto={{ righe: [], oggi: "2026-08-25" }}
+        giornoReport="2026-07-21"
       />,
     );
     expect(html).toContain("Saxo Options Brief"); // asOf
@@ -110,8 +117,28 @@ describe("tab con il sample completo", () => {
     }
     expect(html).toContain("102.82");
     expect(html).toContain("+3.4%"); // chg OVX
-    expect(html).toContain("Lettura della struttura vol");
     expect(html).toContain("VIX1D 13,4"); // reading
+  });
+
+  it("i valori del report sono ETICHETTATI come tali, con la data del report", () => {
+    const vol = full.volPanel;
+    const html = renderToStaticMarkup(
+      <VolatilitaPanel
+        ingressi={componiIngressi({ volItems: vol?.items })}
+        items={vol?.items ?? []}
+        reading={vol?.reading}
+        asOf={vol?.asOf}
+        cancelli={{}}
+        contesto={{ righe: [], oggi: "2026-08-25" }}
+        giornoReport="2026-07-21"
+      />,
+    );
+    // provenienza e vintage dichiarati: nessun numero senza fonte in pagina
+    expect(html).toContain("Indici dal report giornaliero del 21/07/2026");
+    expect(html).toContain("Commento del report del 21/07/2026");
+    expect(html).toContain("si aggiornano");
+    // la prosa del report è marcata come prosa, non come misura
+    expect(html).toContain("Prosa scritta dal report giornaliero");
   });
 
   it("Panoramica: la lettura vol del report NON si perde con la rimozione del tab", () => {

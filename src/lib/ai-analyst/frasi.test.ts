@@ -22,6 +22,8 @@ import {
   dossierInsufficiente,
   lettureComplete,
   lettureVuote,
+  ivArchivioFixture,
+  movimentoFixture,
   termometroFixture,
 } from "@/lib/ai-analyst/fixtures";
 import { AI_ANALYST_INSTRUMENTS } from "@/lib/ai-analyst/instruments";
@@ -88,22 +90,21 @@ function matriceDossier(): { etichetta: string; dossier: Dossier }[] {
     dossier: buildDossier(
       "ORO",
       GIORNO_FIXTURE,
-      lettureComplete(GIORNO_FIXTURE, termometroFixture("COMPRESSA", 8)),
+      lettureComplete(GIORNO_FIXTURE, termometroFixture("COMPRESSA"), {
+        ivArchivio: ivArchivioFixture(8),
+      }),
     ),
   });
 
   casi.push({
-    etichetta: "termometro senza valuta e con finestra corta",
+    etichetta: "movimento senza cifra in valuta, termometro senza persistenza",
     dossier: buildDossier(
       "ORO",
       GIORNO_FIXTURE,
       lettureComplete(
         GIORNO_FIXTURE,
-        termometroFixture("ESPANSA", 91, {
-          valuta: false,
-          finestraCorta: true,
-          persistenza: false,
-        }),
+        termometroFixture("ESPANSA", { persistenza: false }),
+        { ivArchivio: ivArchivioFixture(91), movimento: movimentoFixture({ valuta: false }) },
       ),
     ),
   });
@@ -156,7 +157,8 @@ function matriceDossier(): { etichetta: string; dossier: Dossier }[] {
 
   const discorde = lettureComplete(
     GIORNO_FIXTURE,
-    termometroFixture("COMPRESSA", 12),
+    termometroFixture("COMPRESSA"),
+    { ivArchivio: ivArchivioFixture(12) },
   );
   discorde.iv = letturaOk({ ...IV_FIXTURE, pct1: 92 }, GIORNO_FIXTURE);
   casi.push({

@@ -73,6 +73,9 @@ interface VoceStrumento {
     periodo_da: string;
     periodo_a: string;
     n_totale: number;
+    /** Le due condizionate misurate FUORI campione, stato per stato. */
+    ESPANSA?: CellaAffidabilita;
+    COMPRESSA?: CellaAffidabilita;
   };
   persistenza: { quota_giorni_invariati: number; durata_media_giorni: number } | null;
 }

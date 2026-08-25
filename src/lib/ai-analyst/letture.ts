@@ -16,13 +16,16 @@ import {
   type AiAnalystInstrument,
 } from "@/lib/ai-analyst/instruments";
 import type { TermometroReading } from "@/lib/ai-analyst/dossier";
+import type { RigaContestoVol } from "@/lib/queries/volatilita-contesto";
 import {
   letturaAssente,
   letturaOk,
   type CotValore,
   type DispersioneValore,
+  type IvArchivioValore,
   type IvMeseValore,
   type IvValore,
+  type MovimentoRecenteValore,
   type Lettura,
   type LivelloTrendsValore,
   type StabilitaValore,
@@ -45,6 +48,13 @@ export function mediana(valori: number[]): number {
 
 /* ── termometro ──────────────────────────────────────────────────────── */
 
+/**
+ * Solo la STATISTICA CONDIZIONALE (F3) passa ancora dal termometro. Lo stato e
+ * l'ampiezza condizionata a esso hanno lasciato il dossier il 25/08/2026:
+ * al loro posto ci sono due fatti presi dall'archivio giornaliero
+ * (`letturaIvArchivio` e `letturaMovimento`), che non dipendono da una soglia
+ * tarata una volta e mai più.
+ */
 export function letturaTermometro(
   strumento: AiAnalystInstrument,
   lettura: LetturaTermometro | null,
@@ -60,26 +70,6 @@ export function letturaTermometro(
   }
   return letturaOk<TermometroReading>(
     {
-      stato: {
-        tipo: "termometro_stato",
-        simbolo: lettura.simbolo,
-        indiceIv: lettura.indiceIv,
-        iv: lettura.iv,
-        decimaliIv: lettura.decimaliIv,
-        stato: lettura.stato,
-        posizione: lettura.posizione,
-        finestraSchermo: lettura.finestraSchermo,
-        finestraCorta: lettura.finestraCorta,
-      },
-      ampiezza: {
-        tipo: "termometro_ampiezza",
-        stato: lettura.stato,
-        relativa: lettura.ampiezzaRelativa,
-        valuta: lettura.ampiezzaValuta,
-        motivoValutaAssente: lettura.motivoValutaAssente,
-        unita: lettura.unita,
-        decimaliPrezzo: lettura.decimaliPrezzo,
-      },
       affidabilita: {
         tipo: "termometro_affidabilita",
         stato: lettura.stato,
@@ -96,6 +86,78 @@ export function letturaTermometro(
     // `volPanel.asOf` è testo libero e non si parsa in modo affidabile: la data
     // del dato è quella del report che lo ha portato.
     dataReport,
+  );
+}
+
+/* ── fatti dall'archivio giornaliero ─────────────────────────────────── */
+
+/**
+ * F1 — livello dell'indice di volatilità implicita e suo rango storico, presi
+ * dall'archivio aggiornato ogni notte. Sostituisce la classificazione
+ * ESPANSA/COMPRESSA: stesso dato, dichiarazione diversa.
+ */
+export function letturaIvArchivio(
+  strumento: AiAnalystInstrument,
+  riga: RigaContestoVol | undefined,
+): Lettura<IvArchivioValore> {
+  const def = AI_ANALYST_DEFS[strumento];
+  if (!riga || riga.iv === null || riga.iv.rango === null) {
+    return letturaAssente("fonte_non_disponibile");
+  }
+  const iv = riga.iv;
+  return letturaOk<IvArchivioValore>(
+    {
+      tipo: "iv_archivio",
+      indice: def.indiceIv,
+      proxy: def.indiceIvProxy,
+      livello: iv.livello,
+      decimali: riga.decimaliIv,
+      percentile: iv.rango!.percentile,
+      n: iv.rango!.n,
+      primoAnno: iv.rango!.primoGiorno.slice(0, 4),
+      variazioni: iv.variazioni.map((v) => ({
+        sedute: v.sedute,
+        assoluta: v.assoluta,
+        relativa: v.relativa,
+      })),
+      fonte: iv.fonte,
+    },
+    iv.giorno,
+  );
+}
+
+/**
+ * F2 — distribuzione del movimento giornaliero delle ultime sedute. Si prende
+ * la finestra più corta disponibile (20 sedute): è quella che descrive
+ * l'ambiente in cui si opera oggi, non la media dell'ultimo trimestre.
+ */
+export const SEDUTE_MOVIMENTO = 20;
+
+export function letturaMovimento(
+  riga: RigaContestoVol | undefined,
+): Lettura<MovimentoRecenteValore> {
+  const m = riga?.movimento.find((x) => x.sedute === SEDUTE_MOVIMENTO);
+  if (!riga || !m || riga.prezzo === null) {
+    return letturaAssente("fonte_non_disponibile");
+  }
+  const c = riga.ultimaChiusura;
+  return letturaOk<MovimentoRecenteValore>(
+    {
+      tipo: "movimento_recente",
+      sedute: m.sedute,
+      mediana: m.mediana,
+      q25: m.q25,
+      q75: m.q75,
+      massimo: m.massimo,
+      n: m.n,
+      valuta:
+        c !== null
+          ? { mediana: m.mediana * c, q25: m.q25 * c, q75: m.q75 * c }
+          : null,
+      chiusura: c,
+      giornoChiusura: riga.prezzo.giorno,
+    },
+    riga.prezzo.giorno,
   );
 }
 

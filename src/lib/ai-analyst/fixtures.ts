@@ -11,8 +11,10 @@ import {
   type CotValore,
   type Dossier,
   type DispersioneValore,
+  type IvArchivioValore,
   type IvMeseValore,
   type IvValore,
+  type MovimentoRecenteValore,
   type LivelloTrendsValore,
   type StabilitaValore,
 } from "@/lib/ai-analyst/types";
@@ -20,35 +22,54 @@ import type { StatoVolatilita } from "@/lib/termometro-volatilita";
 
 export const GIORNO_FIXTURE = "2026-08-04";
 
+/**
+ * F1 e F2 vengono dall'ARCHIVIO dal 25/08/2026: sono fatti, non una
+ * classificazione con la sua distribuzione condizionata. Le fixture li
+ * riflettono, altrimenti i test verificherebbero una forma che il codice non
+ * produce più.
+ */
+export function ivArchivioFixture(percentile = 87.5): IvArchivioValore {
+  return {
+    tipo: "iv_archivio",
+    indice: "GVZ",
+    proxy: false,
+    livello: 25.37,
+    decimali: 2,
+    percentile,
+    n: 4586,
+    primoAnno: "2008",
+    variazioni: [
+      { sedute: 5, assoluta: 1.2, relativa: 0.05 },
+      { sedute: 20, assoluta: 2.5, relativa: 0.11 },
+      { sedute: 60, assoluta: -1.1, relativa: -0.04 },
+    ],
+    fonte: "CBOE Global Markets via FRED",
+  };
+}
+
+export function movimentoFixture(
+  over: { valuta?: boolean } = {},
+): MovimentoRecenteValore {
+  return {
+    tipo: "movimento_recente",
+    sedute: 20,
+    mediana: 0.0088,
+    q25: 0.0047,
+    q75: 0.0162,
+    massimo: 0.0505,
+    n: 20,
+    valuta:
+      over.valuta === false ? null : { mediana: 41.24, q25: 22.0, q75: 75.8 },
+    chiusura: over.valuta === false ? null : 4679.55,
+    giornoChiusura: over.valuta === false ? null : "2026-08-04",
+  };
+}
+
 export function termometroFixture(
   stato: StatoVolatilita = "ESPANSA",
-  percentile = 87.5,
-  over: { valuta?: boolean; finestraCorta?: boolean; persistenza?: boolean } = {},
+  over: { persistenza?: boolean } = {},
 ): TermometroReading {
   return {
-    stato: {
-      tipo: "termometro_stato",
-      simbolo: "XAUUSD",
-      indiceIv: "GVZ",
-      iv: 25.37,
-      decimaliIv: 2,
-      stato,
-      posizione: { modalita: "puntuale", percentile },
-      finestraSchermo: "2008 → 2026",
-      finestraCorta: over.finestraCorta ?? false,
-    },
-    ampiezza: {
-      tipo: "termometro_ampiezza",
-      stato,
-      relativa: { mediana: 0.0161, q25: 0.0121, q75: 0.0225 },
-      valuta:
-        over.valuta === false
-          ? null
-          : { mediana: 64.4, q25: 48.4, q75: 90.0 },
-      motivoValutaAssente: over.valuta === false ? "chiusura_assente" : null,
-      unita: "$",
-      decimaliPrezzo: 2,
-    },
     affidabilita: {
       tipo: "termometro_affidabilita",
       stato,
@@ -163,8 +184,11 @@ export const HY_FIXTURE: LivelloTrendsValore = {
 export function lettureComplete(
   data = GIORNO_FIXTURE,
   termometro = termometroFixture(),
+  fatti: { ivArchivio?: IvArchivioValore; movimento?: MovimentoRecenteValore } = {},
 ): DossierReadings {
   return {
+    ivArchivio: letturaOk(fatti.ivArchivio ?? ivArchivioFixture(), data),
+    movimento: letturaOk(fatti.movimento ?? movimentoFixture(), data),
     termometro: letturaOk(termometro, data),
     iv: letturaOk(IV_FIXTURE, data),
     cotPartecipazione: letturaOk(COT_PARTECIPAZIONE_FIXTURE, data),
@@ -181,6 +205,8 @@ export function lettureComplete(
 export function lettureVuote(): DossierReadings {
   const assente = () => letturaAssente<never>("fonte_non_disponibile");
   return {
+    ivArchivio: assente(),
+    movimento: assente(),
     termometro: assente(),
     iv: assente(),
     cotPartecipazione: assente(),
