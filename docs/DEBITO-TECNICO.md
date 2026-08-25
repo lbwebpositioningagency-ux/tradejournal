@@ -174,3 +174,74 @@ dichiara l'eta della taratura, e un rilevatore accende l'allarme da solo
 
 Quando il JSON verra rigenerato, il rilevatore continuera a valere: e tarato
 sulla forma del problema, non sui numeri di oggi.
+
+## Il metro del terminale: cosa NON e stato fatto (25/08/2026)
+
+Contesto: la sezione Volatilita e passata da verdetto a fatti, e il verdetto
+binario e stato messo dietro un cancello (`src/lib/termometro-cancello.ts`).
+Quello che segue e cio che si e scelto di **non** fare, e perche.
+
+### Il termometro a finestra mobile non e stato importato
+
+Esiste, fuori da questo repo, una variante del termometro con soglia a
+finestra mobile che ha superato una prova pre-registrata su **WTI (+30,5 pp)**
+e su **S&P 500 (+47,1 pp)**, ma non sull'oro (+23,5 contro una soglia di 25).
+Non e stata portata qui, e non e una dimenticanza:
+
+- la tabella che serve non esiste in questo repo. `src/data/termometro-volatilita.json`
+  contiene la variante a **soglia statica**, con numeri fuori campione diversi
+  (oro +5,3 pp su ESPANSA, WTI +14,1 pp). Importare la variante mobile
+  significa rigenerarla dal progetto `regime_detection` e sostituire il file
+  per intero, non modificarlo;
+- il JSON attuale registra da se che il confronto statica-contro-mobile
+  **non va riaperto adesso** (`candidato_per_un_ciclo_futuro`), perche
+  cambiare la regola di classificazione dopo la validazione significa
+  spedire un sistema mai validato al posto di uno scaduto.
+
+Quando quella tabella arrivera, il cancello la accogliera senza modifiche:
+legge `validazione_out_of_sample` per stato e la confronta con la soglia che
+la tabella stessa dichiara nei propri criteri (15 pp). Se la variante mobile
+supera quella soglia su WTI e S&P, i due verdetti ricompaiono da soli.
+
+### L'escursione vera della giornata resta non misurabile qui
+
+La sezione Volatilita mostra il movimento **chiusura-chiusura**, non
+`(High-Low)/Close`. Sottostima l'ampiezza reale della giornata e la pagina lo
+dichiara, ma resta una misura piu povera di quella giusta.
+
+Causa: `SeasonalityDailyBar` conserva **solo `close`**. Aggiungere OHLC
+significa una migrazione, un ingest che riempia lo storico su quattro
+strumenti e la verifica che le fonti (Dukascopy, Yahoo, FRED) diano OHLC
+coerente. E lo stesso ostacolo che rende il termometro non rivalidabile in
+questo repo, ed e il prerequisito della strada B in
+`docs/macro-desk/EXPECTED-MOVE-PROPOSTA.md`.
+
+### La scorecard non e stata toccata
+
+Le hit-rate della Scorecard sono percentuali, ma sono la **misura retrospettiva
+di quello che il desk ha gia dichiarato**, con denominatori separati per tipo
+di bias, esclusioni dichiarate e soppressione sotto il campione minimo. Non
+affermano nulla sul futuro: sono il registro di responsabilita del desk, ed e
+esattamente cio che un terminale mostra. Restano come sono.
+
+Quello che resta aperto la dentro non e la percentuale, e il **campione**: il
+campo `resolved` dei report e valorizzato in 1 report su 21, quindi il track
+record e quasi vuoto. E una dipendenza dal ponte esterno, non un difetto di
+questa pagina.
+
+### La confidenza del report non e stata ricalibrata
+
+Ora dichiara la propria scala (`44/100`, non `44%`) e dice cosa non e (non una
+probabilita). **Non** e stata resa una probabilita calibrata: per farlo
+servirebbe una calibrazione sul track record, e il track record ha un campione
+troppo piccolo (sopra). La correlazione fra confidenza dichiarata ed esito
+resta misurata nella Scorecard, che e il posto giusto.
+
+### Il ritardo del report resta una dipendenza esterna
+
+Tre sezioni su otto leggono da `MacroDeskReport`, che nessun cron produce (i
+due slot Vercel sono occupati). Dopo questo intervento la Volatilita **non e
+piu** fra quelle tre per la parte di contesto: livello, rango, variazione e
+movimento arrivano da `SeasonalityDailyBar`, aggiornata ogni notte. Restano
+dal report gli indici che solo lui porta (VVIX, SKEW, put/call, MOVE) e il
+commento del giorno, entrambi etichettati come tali con la data del report.

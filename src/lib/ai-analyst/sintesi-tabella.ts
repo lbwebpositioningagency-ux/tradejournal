@@ -87,19 +87,15 @@ export interface RigaSintesi {
  */
 function forzaDelSegnale(d: Dossier): { concordi: number; disponibili: number } {
   const decisivi = d.fattori.filter((f) => f.id === "F1" || f.id === "F4");
-  let disponibili = decisivi.length;
+  const disponibili = decisivi.length;
   // In discordanza le due misure si annullano: concorde ne resta una sola.
-  let concordi = d.discordanza ? 1 : disponibili;
+  const concordi = d.discordanza ? 1 : disponibili;
 
-  /* Termometro degenerato: F1 poggia su una classificazione che non separa
-     più nulla su questo strumento, quindi smette di contare fra le misure
-     decisive. Il conteggio SCENDE — e la riga lo dichiara nella colonna
-     dedicata: abbassare la forza in silenzio sarebbe lo stesso difetto che
-     stiamo togliendo, con un numero al posto di una frase. */
-  if (d.termometroDegenere && decisivi.some((f) => f.id === "F1")) {
-    disponibili = Math.max(0, disponibili - 1);
-    concordi = Math.min(concordi, disponibili);
-  }
+  /* Termometro senza verdetto: F1 non è fra i fattori presenti, quindi
+     `decisivi` lo ha già escluso e il conteggio SCENDE da solo. La riga lo
+     dichiara nella colonna dedicata: abbassare la forza in silenzio sarebbe
+     lo stesso difetto che stiamo togliendo, con un numero al posto di una
+     frase. */
   return { concordi, disponibili };
 }
 
@@ -167,9 +163,12 @@ export function rigaSintesi(oggi: Dossier, ieri: Dossier | null): RigaSintesi {
     cambiato,
     cambiatoTesto: testo,
     copertura: { presenti: oggi.presenti, attesi: oggi.attesiApplicabili },
-    segnaleIncompleto: oggi.termometroDegenere
-      ? "il termometro di volatilità non distingue più i due stati su questo strumento: la sua statistica di affidabilità non è disponibile e non conta nella forza"
-      : null,
+    segnaleIncompleto:
+      oggi.termometroSenzaVerdetto === "classificatore_degenere"
+        ? "il termometro di volatilità non distingue più i due stati su questo strumento: la sua statistica di affidabilità non è disponibile. Livello, rango e movimento osservato restano, e vengono dall'archivio"
+        : oggi.termometroSenzaVerdetto === "verdetto_non_validato"
+          ? "per lo stato in cui si trova oggi questo strumento il termometro non ha una prova fuori campione sufficiente: la sua statistica di affidabilità non è disponibile. Livello, rango e movimento osservato restano, e vengono dall'archivio"
+          : null,
     etaDato:
       oggi.datoPiuVecchio === null
         ? null

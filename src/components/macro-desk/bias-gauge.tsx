@@ -50,7 +50,7 @@ export function BiasGauge({
         viewBox="0 0 140 78"
         className="w-full max-w-[170px]"
         role="img"
-        aria-label={`Bias ${biasLabel}${conf !== undefined ? `, confidenza ${conf}%` : ""}`}
+        aria-label={`Bias ${biasLabel}${conf !== undefined ? `, confidenza dichiarata dal report ${conf} su 100` : ""}`}
       >
         {/* Tre segmenti semantici: ribassista · neutrale · rialzista */}
         <path d={arcPath(cx, cy, r, -88, -32)} fill="none" stroke="var(--md-down)" strokeOpacity={tone === "down" ? 0.9 : 0.22} strokeWidth={7} strokeLinecap="round" />
@@ -88,8 +88,14 @@ export function BiasGauge({
               style={{ width: `${conf}%`, backgroundColor: color }}
             />
           </div>
+          {/* La SCALA va dichiarata accanto al numero: «44%» non dice 44%
+              di cosa. Non è una probabilità — è quanto il report si fida
+              della propria lettura, su scala 0-100. */}
           <p className="md-mono mt-1 text-center text-2xs text-[var(--md-muted)]">
-            Confidenza {conf}%{confLabel ? ` · ${confLabel}` : ""}
+            Confidenza {conf}/100{confLabel ? ` · ${confLabel}` : ""}
+          </p>
+          <p className="mt-0.5 text-center text-[10px] leading-tight text-[var(--md-muted)]">
+            quanto il report si fida di questa lettura, non una probabilità
           </p>
         </div>
       ) : null}

@@ -102,6 +102,22 @@ function LatestReportCard({
                 );
               })}
             </div>
+            {/* LA SCALA VA DICHIARATA. «Confidenza 44%» non dice 44% di cosa:
+                non è una probabilità e non è calibrata su nulla che questa
+                pagina mostri. È un giudizio del sistema che scrive il report,
+                su scala 0-100 — e l'unico luogo dove si vede se quei giudizi
+                hanno poi retto è la Scorecard, che li confronta con l'esito
+                della settimana. */}
+            <p className="text-xs text-muted-foreground">
+              Bias e confidenza sono dichiarati dal report giornaliero, su scala
+              0-100. La confidenza non è una probabilità e non è calibrata: dice
+              quanto il report si fida della propria lettura. Quanto quelle
+              letture abbiano poi retto è misurato, settimana per settimana, nella{" "}
+              <Link href="/macro-desk/scorecard" className="underline underline-offset-2">
+                Scorecard
+              </Link>
+              .
+            </p>
             {report.summary ? (
               <p className="text-sm text-muted-foreground">{report.summary}</p>
             ) : null}

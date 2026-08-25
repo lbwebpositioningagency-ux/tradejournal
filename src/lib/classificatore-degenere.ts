@@ -150,6 +150,12 @@ export function valutaClassificatore(
   };
 }
 
+/** ISO → gg/mm/aaaa: in pagina le date si leggono all'italiana, non ISO. */
+function dataIt(iso: string): string {
+  const [a, m, g] = iso.split("-");
+  return g && m && a ? `${g}/${m}/${a}` : iso;
+}
+
 /**
  * Frase per la pagina, scritta per chi non è statistico: cosa non funziona,
  * da quanto, e la conseguenza pratica. `null` quando non c'è nulla da dire.
@@ -160,7 +166,7 @@ export function testoDegenerazione(
 ): string | null {
   if (esito.discrimina) return null;
   const quando = esito.ultimaVoltaMinoritario
-    ? `l'ultima volta è stato il ${esito.ultimaVoltaMinoritario}`
+    ? `l'ultima volta è stato il ${dataIt(esito.ultimaVoltaMinoritario)}`
     : "non è mai successo nello storico disponibile";
   return (
     `Su questo strumento il termometro non sta più distinguendo: nelle ultime ` +

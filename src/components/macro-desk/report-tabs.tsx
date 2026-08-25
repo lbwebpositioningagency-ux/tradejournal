@@ -285,8 +285,9 @@ function HorizonBlock({
                   style={{ width: `${conf}%`, backgroundColor: TONE_COLOR[tone] }}
                 />
               </span>
+              {/* scala dichiarata accanto al numero, come in bias-gauge */}
               <span className="md-mono text-2xs text-[var(--md-muted)]">
-                {conf}%{horizon.confLabel ? ` · ${horizon.confLabel}` : ""}
+                {conf}/100{horizon.confLabel ? ` · ${horizon.confLabel}` : ""}
               </span>
             </span>
           ) : null}

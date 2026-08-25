@@ -114,7 +114,8 @@ describe("testoDegenerazione", () => {
     ];
     const t = testoDegenerazione(valutaClassificatore(storia, GRUPPI), "compressa")!;
     expect(t).toContain("non sta più distinguendo");
-    expect(t).toContain("2025-09-19");
+    // la data si legge all'italiana in pagina, non in ISO
+    expect(t).toContain("19/09/2025");
     expect(t).toContain("non va usato per decidere");
     // niente gergo statistico: la frase deve reggere per chi non è statistico
     expect(t).not.toMatch(/intervallo di confidenza|p-value|errore standard/i);

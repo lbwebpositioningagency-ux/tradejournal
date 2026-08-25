@@ -1,16 +1,24 @@
 /**
- * Termometro di volatilità — resa per la sezione Volatilità del Macro Desk.
+ * Termometro di volatilità — l'unico VERDETTO rimasto nella sezione
+ * Volatilità, e solo dove ha diritto di stare.
  *
- * Contestualizza la volatilità implicita di ieri sulla sua storia e la traduce
- * nell'ampiezza attesa della giornata. Non è una previsione propria: la volatilità
- * implicita è già la previsione del mercato, qui viene solo resa leggibile.
+ * Il resto della sezione è fatti (`contesto-volatilita.tsx`): livello, rango,
+ * variazione, implicita contro realizzata, movimento osservato. Qui c'è una
+ * classificazione — ESPANSA/COMPRESSA — e una statistica condizionale, cioè
+ * esattamente il genere di cosa che può degenerare in silenzio, come è
+ * successo su oro e WTI per otto mesi senza che nulla lo segnalasse.
  *
- * Il valore in valuta è calcolato a runtime (ampiezza relativa × chiusura di ieri):
- * l'ampiezza in punti non è stazionaria rispetto al livello di prezzo e non va
- * mai congelata in tabella.
+ * Per questo il componente non decide da sé cosa mostrare: riceve l'esito del
+ * CANCELLO (`lib/termometro-cancello.ts`), che apre solo dove la
+ * classificazione ha superato una prova fuori campione E dove un rilevatore
+ * misurato sulle ultime 120 sedute dice che sta ancora separando qualcosa.
+ * Dove il cancello è chiuso lo strumento NON compare qui: comparirebbe
+ * ripetendo dei fatti che il pannello di contesto ha già dato meglio. Compare
+ * invece nella nota in fondo, con scritto perché.
  *
- * Gli strumenti con ruolo "contesto_macro" (S&P 500) sono resi in modo visibilmente
- * diverso: non sono strumenti tradati, sono sfondo per leggere gli altri.
+ * COSA DICHIARA il verdetto quando c'è: quanto larga tende a essere la
+ * giornata, cioè un aiuto al DIMENSIONAMENTO — stop e size. Mai una direzione:
+ * non è quello che questo modello sa fare.
  */
 
 import {
@@ -20,6 +28,11 @@ import {
   type IngressoTermometro,
   type LetturaTermometro,
 } from "@/lib/termometro-volatilita";
+import {
+  SOGLIA_SPREAD_OOS_PP,
+  type EsitoCancello,
+} from "@/lib/termometro-cancello";
+import { FINESTRA_SEDUTE } from "@/lib/classificatore-degenere";
 import { Callout, PanelLabel } from "./primitives";
 
 function fade(index: number) {
@@ -54,16 +67,23 @@ function testoPosizione(p: LetturaTermometro["posizione"]) {
     : `fra il ${p.da}° e il ${p.a}° percentile`;
 }
 
+/** Per simbolo: l'esito del cancello e, quando è degenere, la frase estesa. */
+export interface CancelloPerSimbolo {
+  esito: EsitoCancello;
+  /** Frase del rilevatore di degrado; presente solo nel caso `degenere`. */
+  testoDegenere?: string | null;
+  /** Frase del cancello negli altri casi di chiusura. */
+  testoChiusura?: string | null;
+}
+
 function CartaStrumento({
   lettura,
   indice,
-  degenere,
+  cancello,
 }: {
   lettura: LetturaTermometro;
   indice: number;
-  /** Frase da mostrare AL POSTO della statistica condizionale; null se il
-      classificatore discrimina ancora. */
-  degenere: string | null;
+  cancello: EsitoCancello;
 }) {
   const {
     etichetta,
@@ -86,15 +106,14 @@ function CartaStrumento({
   } = lettura;
 
   const fp = nf(decimaliPrezzo);
+  const v = cancello.validazione;
 
   return (
     <div
       className="md-card md-card-hover md-fade flex flex-col gap-3 p-4"
       style={{
         ...fade(indice + 1),
-        ...(soloContesto
-          ? { borderStyle: "dashed", opacity: 0.92 }
-          : {}),
+        ...(soloContesto ? { borderStyle: "dashed", opacity: 0.92 } : {}),
       }}
     >
       <div className="flex flex-wrap items-baseline justify-between gap-x-2 gap-y-1">
@@ -120,7 +139,7 @@ function CartaStrumento({
       {soloContesto ? (
         <p className="-mt-1.5 text-[11px] leading-relaxed text-[var(--md-muted)]">
           Non è uno strumento tradato: serve a leggere l&apos;ambiente di rischio azionario
-          alle spalle degli altri tre.
+          alle spalle degli altri.
         </p>
       ) : null}
 
@@ -135,7 +154,7 @@ function CartaStrumento({
         </span>
       </div>
 
-      {/* Stato + esito atteso: si legge come "COMPRESSA — giornata stretta nel 79% dei casi" */}
+      {/* Stato + esito atteso: si legge come "COMPRESSA — giornata stretta nel 74% dei casi" */}
       <div className="flex flex-wrap items-baseline gap-x-2 gap-y-1">
         <span
           className="md-mono rounded px-2 py-0.5 text-xs font-bold"
@@ -143,32 +162,15 @@ function CartaStrumento({
         >
           {stato}
         </span>
-        {/* La percentuale condizionale si mostra SOLO se il gruppo di
-            confronto esiste ancora: "quando è ESPANSA la giornata è ampia nel
-            75% dei casi" è aritmeticamente vera anche quando COMPRESSA non
-            compare da mesi, e in quel caso non descrive più nulla da cui
-            distinguersi (v. lib/classificatore-degenere.ts). */}
-        {degenere ? null : (
-          <span className="text-xs leading-relaxed text-[var(--md-text-2)]">
-            giornata {affidabilita.esitoAtteso} nel{" "}
-            <span className="md-mono font-semibold">{pct(affidabilita.quota)}</span> dei casi
-            <span className="text-[var(--md-muted)]"> (n={affidabilita.n})</span>
-          </span>
-        )}
+        <span className="text-xs leading-relaxed text-[var(--md-text-2)]">
+          giornata {affidabilita.esitoAtteso} nel{" "}
+          <span className="md-mono font-semibold">{pct(affidabilita.quota)}</span> dei casi
+          <span className="text-[var(--md-muted)]"> (n={affidabilita.n})</span>
+        </span>
       </div>
-      {degenere ? (
-        <p
-          role="status"
-          className="rounded-md border border-dashed px-2.5 py-2 text-[11px] leading-relaxed"
-          style={{ borderColor: "var(--md-warn)", color: "var(--md-text-2)" }}
-        >
-          {degenere}
-        </p>
-      ) : (
-        <p className="md-mono -mt-1.5 text-[11px] text-[var(--md-muted)]">
-          Senza il termometro: {pct(affidabilita.baseRate)}
-        </p>
-      )}
+      <p className="md-mono -mt-1.5 text-[11px] text-[var(--md-muted)]">
+        Senza il termometro: {pct(affidabilita.baseRate)}
+      </p>
 
       {/* ampiezza attesa: la banda 25-75% accompagna sempre la mediana */}
       <div className="flex flex-col gap-0.5">
@@ -197,7 +199,27 @@ function CartaStrumento({
               : "chiusura di ieri non disponibile: valore mostrato in percentuale del prezzo"}
           </span>
         )}
+        <span className="text-[11px] leading-relaxed text-[var(--md-muted)]">
+          Serve a dimensionare stop e size: è quanto larga tende a essere la
+          giornata, non dove va il prezzo.
+        </span>
       </div>
+
+      {/* La prova che tiene aperto il cancello, dichiarata in chiaro. */}
+      {v ? (
+        <p
+          className="border-t pt-2 text-[11px] leading-relaxed text-[var(--md-muted)]"
+          style={{ borderColor: "var(--md-border)" }}
+        >
+          Validato su dati mai visti dal {dataIt(v.periodoDa)} al {dataIt(v.periodoA)}:
+          in questo stato la separazione misurata è stata{" "}
+          <span className="md-mono">
+            {nf(1).format(v.guadagnoPp)} punti percentuali
+          </span>{" "}
+          (n={v.n}), contro i {SOGLIA_SPREAD_OOS_PP} richiesti dai criteri della
+          tabella.
+        </p>
+      ) : null}
 
       {persistenza || finestraCorta ? (
         <p
@@ -217,96 +239,103 @@ function CartaStrumento({
   );
 }
 
-function CartaAssente({
-  simbolo,
-  motivo,
-  indice,
-}: {
-  simbolo: string;
-  motivo: string;
-  indice: number;
-}) {
-  return (
-    <div className="md-card md-fade flex flex-col gap-1.5 p-4 opacity-70" style={fade(indice + 1)}>
-      <PanelLabel>{simbolo}</PanelLabel>
-      <span className="md-mono text-sm text-[var(--md-muted)]">dato non disponibile</span>
-      <p className="text-[11px] leading-relaxed text-[var(--md-muted)]">{motivo}</p>
-    </div>
-  );
-}
-
 export function TermometroVolatilita({
   ingressi,
-  motiviAssenza,
-  degenerazioni,
+  cancelli,
   calibrazione,
 }: {
   /** Per simbolo: IV di ieri e (facoltativa) chiusura di ieri. */
   ingressi: Partial<Record<string, IngressoTermometro>>;
-  /** Spiegazione per gli strumenti senza ingresso, es. indice non presente in pipeline. */
-  motiviAssenza?: Partial<Record<string, string>>;
-  /** Per simbolo: la frase da mostrare quando il termometro non discrimina più. */
-  degenerazioni?: Partial<Record<string, string>>;
+  /** Per simbolo: se il verdetto può comparire, e la frase quando non può. */
+  cancelli: Partial<Record<string, CancelloPerSimbolo>>;
   /** Età della taratura delle soglie, da dichiarare in pagina. */
   calibrazione?: { generatoIl: string; prossimoRicalcolo: string; giorniDallaTaratura: number };
 }) {
   const meta = metaTermometro();
-  // Filtro generico: qualunque strumento con visibile_in_ui=false nel JSON sparisce dalla
-  // resa, senza un branch dedicato al singolo simbolo. I suoi dati restano in tabella
-  // intatti — riattivarlo è girare quel flag, non toccare questo componente.
+  // Filtro generico: qualunque strumento con visibile_in_ui=false nel JSON
+  // sparisce dalla resa, senza un branch dedicato al singolo simbolo.
   const letture = meta.simboli
     .filter(strumentoVisibile)
-    .map((s) => ({
-      simbolo: s,
-      lettura: leggiTermometro(s, ingressi[s]),
+    .map((simbolo) => ({
+      simbolo,
+      lettura: leggiTermometro(simbolo, ingressi[simbolo]),
+      cancello: cancelli[simbolo],
     }));
-  const disponibili = letture.filter((x) => x.lettura !== null);
-  const durataNota =
-    Number.isFinite(meta.durataMinGiorni) && Number.isFinite(meta.durataMaxGiorni)
-      ? `${nf(0).format(meta.durataMinGiorni)}-${nf(0).format(meta.durataMaxGiorni)}`
-      : null;
 
-  if (disponibili.length === 0) {
-    return (
-      <div className="md-card p-4 text-xs text-[var(--md-muted)]">
-        Termometro di volatilità non disponibile: manca la chiusura di ieri degli indici di
-        volatilità implicita.
-      </div>
-    );
-  }
+  const aperti = letture.filter(
+    (
+      x,
+    ): x is {
+      simbolo: string;
+      lettura: LetturaTermometro;
+      cancello: CancelloPerSimbolo;
+    } => x.lettura !== null && x.cancello?.esito.aperto === true,
+  );
+
+  /* Gli esclusi si dichiarano UNO PER UNO con la propria ragione: un elenco
+     senza motivi sarebbe la stessa opacità che questa sezione sta togliendo. */
+  const esclusi = letture
+    .filter((x) => !aperti.some((a) => a.simbolo === x.simbolo))
+    .map((x) => ({
+      simbolo: x.simbolo,
+      motivo:
+        x.lettura === null
+          ? "l'indice di volatilità implicita non è fra quelli raccolti dal report giornaliero"
+          : (x.cancello?.testoDegenere ??
+            x.cancello?.testoChiusura ??
+            "nessuna prova fuori campione disponibile per lo stato di oggi"),
+    }));
 
   return (
     <div className="flex flex-col gap-3">
       <Callout label="Termometro di volatilità" color="var(--md-info)" className="md-card p-4">
-        Dove sta la volatilità implicita di ieri rispetto alla propria storia, e quanto è ampia
-        di solito la giornata in quel contesto. È un contesto lento, non un segnale giornaliero:
-        {durataNota ? ` lo stato resta lo stesso per ${durataNota} giorni in media, a seconda dello strumento.` : ""}{" "}
-        La volatilità implicita è la previsione del mercato — qui viene solo contestualizzata,
-        non battuta.
+        L&apos;unica classificazione rimasta in questa sezione, e solo dove ha
+        superato una prova su dati mai visti <em>e</em> dove sta ancora
+        separando due gruppi nelle ultime {FINESTRA_SEDUTE} sedute. Dice quanto larga tende
+        a essere la giornata — quindi stop e size — mai in che direzione va il
+        prezzo. Dove una delle due condizioni non regge, lo strumento esce da
+        qui e restano i suoi fatti, qui sopra.
       </Callout>
 
-      <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-        {letture.map(({ simbolo, lettura }, i) =>
-          lettura ? (
+      {aperti.length > 0 ? (
+        <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+          {aperti.map(({ simbolo, lettura, cancello }, i) => (
             <CartaStrumento
               key={simbolo}
               lettura={lettura}
               indice={i}
-              degenere={degenerazioni?.[simbolo] ?? null}
+              cancello={cancello.esito}
             />
-          ) : (
-            <CartaAssente
-              key={simbolo}
-              simbolo={simbolo}
-              indice={i}
-              motivo={
-                motiviAssenza?.[simbolo] ??
-                "indice di volatilità implicita non presente nel report di oggi"
-              }
-            />
-          ),
-        )}
-      </div>
+          ))}
+        </div>
+      ) : (
+        <div className="md-card p-4 text-xs leading-relaxed text-[var(--md-text-2)]">
+          Oggi nessuno strumento ha una classificazione da mostrare: per
+          ciascuno manca la prova fuori campione sullo stato corrente, oppure il
+          rilevatore ha visto un solo gruppo nelle ultime sedute. I fatti di
+          volatilità restano tutti qui sopra.
+        </div>
+      )}
+
+      {esclusi.length > 0 ? (
+        <div
+          role="status"
+          className="md-card flex flex-col gap-1.5 p-4"
+          style={{ borderStyle: "dashed" }}
+        >
+          <PanelLabel>Senza classificazione oggi</PanelLabel>
+          <ul className="flex flex-col gap-1.5">
+            {esclusi.map((e) => (
+              <li key={e.simbolo} className="text-[11px] leading-relaxed text-[var(--md-text-2)]">
+                <span className="md-mono font-semibold text-[var(--md-text)]">
+                  {e.simbolo}
+                </span>{" "}
+                — {e.motivo}
+              </li>
+            ))}
+          </ul>
+        </div>
+      ) : null}
 
       <p className="md-mono text-[11px] leading-relaxed text-[var(--md-muted)]">
         {calibrazione ? (
@@ -314,17 +343,17 @@ export function TermometroVolatilita({
             Soglia di classificazione tarata il{" "}
             <span className="md-mono">{dataIt(calibrazione.generatoIl)}</span> (
             {calibrazione.giorniDallaTaratura} giorni fa), prossimo ricalcolo atteso il{" "}
-            <span className="md-mono">{dataIt(calibrazione.prossimoRicalcolo)}</span>: è una
-            soglia assoluta e resta ferma fra un ricalcolo e l&apos;altro, quindi se il
+            <span className="md-mono">{dataIt(calibrazione.prossimoRicalcolo)}</span>:{" "}
+            è una soglia assoluta e resta ferma fra un ricalcolo e l&apos;altro, quindi se il
             mercato si sposta su un livello di volatilità diverso la classificazione lo
-            segue con ritardo.{" "}
+            segue con ritardo — ed è la ragione per cui esiste il cancello qui sopra.{" "}
           </>
         ) : null}
-        Percentuali calcolate su tutta la storia disponibile, dal {dataIt(meta.affidabilitaDa)}{" "}
-        al {dataIt(meta.affidabilitaFinoA)}: descrivono il comportamento passato, non sono una
-        prova fuori campione. La verifica su periodo mai visto è stata fatta a parte, dal{" "}
-        {dataIt(meta.validazioneDa)} al {dataIt(meta.validazioneA)}. Tabella di riferimento
-        aggiornata il {dataIt(meta.generatoIl)}; prossimo rinfresco previsto entro il{" "}
+        Le percentuali a schermo sono calcolate su tutta la storia disponibile, dal{" "}
+        {dataIt(meta.affidabilitaDa)} al {dataIt(meta.affidabilitaFinoA)}, e descrivono
+        il comportamento passato. La prova su periodo mai visto è quella dichiarata su
+        ogni carta, congelata e mai ricalcolata. Tabella di riferimento aggiornata il{" "}
+        {dataIt(meta.generatoIl)}; prossimo rinfresco previsto entro il{" "}
         {dataIt(meta.prossimoRicalcolo)}.
       </p>
     </div>

@@ -58,11 +58,6 @@ export function frasePosizione(
     : `più ${basso} che nel ${Math.round(100 - percentile)}% ${riferimento}`;
 }
 
-const NOME_STATO: Record<string, string> = {
-  ESPANSA: "espansa",
-  COMPRESSA: "compressa",
-};
-
 /**
  * «il» o «l'» davanti a una sigla, secondo come la si legge ad alta voce:
  * l'OVX (o-vu-ics), il GVZ (gi-vu-zeta). Regola pratica: le consonanti che in
@@ -73,60 +68,67 @@ export function articolo(sigla: string): string {
   return /^[AEIOUFLMNRS]/i.test(sigla) ? "L'" : "Il ";
 }
 
-/** «circa l'1,61%» invece di «circa il 1,61%». */
-export function conArticolo(numero: string): string {
-  return numero.startsWith("1") ? `l'${numero}` : `il ${numero}`;
-}
-
 /**
- * L'etichetta della finestra del termometro arriva come «rif. 2008-2026»:
- * il prefisso è buono per un chip, non dentro una frase.
+ * Articolo determinativo davanti a un numero, secondo come si legge ad alta
+ * voce: «l'1,61%» (l'uno virgola…), «lo 0,88%» (lo zero virgola…), «l'8%»
+ * (l'otto), «il 5,05%». Senza questa distinzione uscivano frasi come «circa
+ * il 0,88%», che si legge male e fa sembrare sciatto un numero corretto.
  */
-function periodo(finestra: string): string {
-  return finestra.replace(/^rif\.\s*/i, "");
+export function conArticolo(numero: string): string {
+  if (numero.startsWith("0")) return `lo ${numero}`;
+  if (/^(1[18]?|8)(?!\d)/.test(numero)) return `l'${numero}`;
+  return `il ${numero}`;
 }
 
 /* ── una riga per fattore ────────────────────────────────────────────── */
 
-function rigaTermometroStato(
-  v: Extract<ValoreFattore, { tipo: "termometro_stato" }>,
+/**
+ * F1 — il rango dell'indice, non un'etichetta. «GVZ sta a 27,29: più alto del
+ * 91% delle sedute dal 2008» è una riga che resta vera domani; «condizione
+ * espansa» dipendeva da una soglia ferma al 29/07/2026.
+ */
+function rigaIvArchivio(
+  v: Extract<ValoreFattore, { tipo: "iv_archivio" }>,
   strumento: string,
 ): string {
-  const rif = periodo(v.finestraSchermo);
-  const dove =
-    v.posizione.modalita === "puntuale"
-      ? frasePosizione(v.posizione.percentile, `delle sedute del periodo ${rif}`)
-      : `fra il ${v.posizione.da}° e il ${v.posizione.a}° gradino della propria storia (${rif})`;
-  const corta = v.finestraCorta
-    ? " La storia di riferimento per questo strumento è corta."
+  const dove = frasePosizione(v.percentile, `delle sedute dal ${v.primoAnno}`);
+  const sostituto = v.proxy
+    ? ` È l'indice di un altro mercato, usato qui come sostituto dichiarato: ${strumento} non ha una misura propria pubblicata.`
     : "";
+  const varie = v.variazioni
+    .map((x) => `${x.assoluta >= 0 ? "+" : "−"}${n(Math.abs(x.assoluta), 2)} in ${x.sedute} sedute`)
+    .join(", ");
+  const movimento = varie === "" ? "" : ` Di recente: ${varie}.`;
   return (
-    `${articolo(v.indiceIv)}${v.indiceIv}, che misura quanto costa coprirsi su ` +
-    `${strumento}, sta a ${n(v.iv, v.decimaliIv)}: ${dove}. Il termometro ` +
-    `classifica la condizione come ${NOME_STATO[v.stato] ?? v.stato.toLowerCase()}.${corta}`
+    `${articolo(v.indice)}${v.indice}, che misura quanto costa coprirsi su ` +
+    `${strumento}, sta a ${n(v.livello, v.decimali)}: ${dove} ` +
+    `(${v.n} sedute).${movimento}${sostituto} Fonte: ${v.fonte}.`
   );
 }
 
-function rigaTermometroAmpiezza(
-  v: Extract<ValoreFattore, { tipo: "termometro_ampiezza" }>,
+/**
+ * F2 — quanto si è mossa la giornata, misurato. Sostituisce l'ampiezza attesa
+ * condizionata a una classificazione: stessa domanda operativa, risposta
+ * osservata. La frase DEVE dire che è chiusura-chiusura, perché quella misura
+ * sta sotto l'escursione vera della giornata.
+ */
+function rigaMovimento(
+  v: Extract<ValoreFattore, { tipo: "movimento_recente" }>,
   strumento: string,
 ): string {
   const rel =
-    `Nelle giornate con questa condizione, ${strumento} ha percorso dal minimo ` +
-    `al massimo circa ${conArticolo(`${n(v.relativa.mediana * 100)}%`)} del ` +
-    `proprio valore (metà delle volte fra ${conArticolo(`${n(v.relativa.q25 * 100)}%`)} ` +
-    `e ${conArticolo(`${n(v.relativa.q75 * 100)}%`)})`;
-  if (v.valuta) {
-    return (
-      `${rel}, cioè circa ${n(v.valuta.mediana, v.decimaliPrezzo)} ${v.unita} ` +
-      `(fascia ${n(v.valuta.q25, v.decimaliPrezzo)}–${n(v.valuta.q75, v.decimaliPrezzo)} ${v.unita}).`
-    );
-  }
-  const perche =
-    v.motivoValutaAssente === "chiusura_implausibile"
-      ? "la chiusura disponibile è fuori dalla banda di plausibilità e non è stata usata"
-      : "manca la chiusura di riferimento";
-  return `${rel}. La cifra in valuta non compare: ${perche}.`;
+    `Nelle ultime ${v.sedute} sedute ${strumento} ha cambiato prezzo da una ` +
+    `chiusura all'altra di circa ${conArticolo(`${n(v.mediana * 100)}%`)} ` +
+    `(metà delle volte fra ${conArticolo(`${n(v.q25 * 100)}%`)} e ` +
+    `${conArticolo(`${n(v.q75 * 100)}%`)}, con un massimo di ` +
+    `${n(v.massimo * 100)}%)`;
+  const inValuta = v.valuta
+    ? `, cioè circa ${n(v.valuta.mediana, 2)} (fascia ${n(v.valuta.q25, 2)}–${n(v.valuta.q75, 2)}) sulla chiusura del ${dataIt(v.giornoChiusura ?? "")}`
+    : "";
+  return (
+    `${rel}${inValuta}. È la variazione fra due chiusure, non l'escursione ` +
+    `massima dentro la giornata: quella è più ampia, e l'archivio non la conserva.`
+  );
 }
 
 function rigaTermometroAffidabilita(
@@ -250,10 +252,10 @@ function rigaLivelloTrends(
 /** La riga «cosa dice oggi» di un fattore, in linguaggio piano. */
 export function rigaFattore(f: FattorePresente, strumento: string): string {
   switch (f.valore.tipo) {
-    case "termometro_stato":
-      return rigaTermometroStato(f.valore, strumento);
-    case "termometro_ampiezza":
-      return rigaTermometroAmpiezza(f.valore, strumento);
+    case "iv_archivio":
+      return rigaIvArchivio(f.valore, strumento);
+    case "movimento_recente":
+      return rigaMovimento(f.valore, strumento);
     case "termometro_affidabilita":
       return rigaTermometroAffidabilita(f.valore);
     case "iv":
@@ -292,20 +294,31 @@ export function apertura(d: Dossier): string[] {
     return frasi;
   }
 
+  /* OGNI AFFERMAZIONE RICONDUCIBILE A UN DATO MOSTRATO IN PAGINA. Fino al
+     25/08/2026 qui c'era «in condizioni come questa l'escursione della giornata
+     è stata storicamente più ampia»: una statistica condizionale che nessun
+     fattore della pagina misurava più, una volta chiuso il cancello del
+     termometro. Al suo posto ci sono i due numeri che la pagina mostra
+     davvero — il rango dell'indice e il movimento osservato — citati con il
+     loro campione. */
+  const f1 = d.fattori.find((f) => f.valore.tipo === "iv_archivio");
+  const dettaglioRango =
+    f1 && f1.valore.tipo === "iv_archivio"
+      ? ` ${f1.valore.indice} sta a ${n(f1.valore.livello, f1.valore.decimali)}, più in alto che nel ${Math.round(f1.valore.percentile)}% delle sedute dal ${f1.valore.primoAnno}.`
+      : "";
   const misure =
     d.carattereAtteso === "CONDIZIONI_DI_ESPANSIONE"
-      ? `Le misure di volatilità implicita su ${nome} stanno nella parte alta della loro storia.`
+      ? `Le misure di volatilità implicita su ${nome} stanno nella parte alta della loro storia.${dettaglioRango}`
       : d.carattereAtteso === "CONDIZIONI_DI_COMPRESSIONE"
-        ? `Le misure di volatilità implicita su ${nome} stanno nella parte bassa della loro storia.`
-        : `Le misure di volatilità implicita su ${nome} stanno nella parte centrale della loro storia.`;
+        ? `Le misure di volatilità implicita su ${nome} stanno nella parte bassa della loro storia.${dettaglioRango}`
+        : `Le misure di volatilità implicita su ${nome} stanno nella parte centrale della loro storia.${dettaglioRango}`;
   frasi.push(misure);
 
+  const f2 = d.fattori.find((f) => f.valore.tipo === "movimento_recente");
   frasi.push(
-    d.carattereAtteso === "CONDIZIONI_DI_ESPANSIONE"
-      ? "In condizioni come questa l'escursione della giornata è stata storicamente più ampia dell'abitudine dello strumento."
-      : d.carattereAtteso === "CONDIZIONI_DI_COMPRESSIONE"
-        ? "In condizioni come questa l'escursione della giornata è stata storicamente più contenuta, con i prezzi che hanno passato più tempo vicino ai valori centrali."
-        : "In condizioni come questa l'escursione della giornata è stata storicamente in linea con l'abitudine dello strumento.",
+    f2 && f2.valore.tipo === "movimento_recente"
+      ? `Quanto si è mossa la giornata di recente è una misura, non una congettura: nelle ultime ${f2.valore.sedute} sedute il movimento fra due chiusure è stato in mediana ${conArticolo(`${n(f2.valore.mediana * 100)}%`)}, con metà dei giorni fra ${conArticolo(`${n(f2.valore.q25 * 100)}%`)} e ${conArticolo(`${n(f2.valore.q75 * 100)}%`)} (${f2.valore.n} osservazioni). È il numero da cui partire per stop e size.`
+      : "Il movimento giornaliero osservato di recente oggi non è disponibile: senza quello questa pagina non ha una misura propria dell'ampiezza della giornata.",
   );
 
   const mancanti = d.assenti.filter((a) => a.applicabile).length;
@@ -385,14 +398,11 @@ export function cosaNonSappiamo(d: Dossier): string[] {
     );
   }
 
-  const cortaFinestra = d.fattori.some(
-    (f) => f.valore.tipo === "termometro_stato" && f.valore.finestraCorta,
-  );
-  if (cortaFinestra) {
-    voci.push(
-      "La storia di riferimento del termometro per questo strumento è corta rispetto agli altri.",
-    );
-  }
+  /* Il limite «finestra di riferimento corta» riguardava la tabella del
+     termometro. Dal 25/08/2026 il rango di F1 è calcolato sull'archivio e
+     dichiara da sé la propria numerosità e il proprio anno di inizio, quindi
+     la nota generica è stata tolta invece di restare accesa su un dato che
+     non la produce più. */
 
   return voci;
 }

@@ -36,19 +36,20 @@ const num = (v: number, d = 2) => v.toFixed(d).replace(".", ",");
 function descrivi(f: FattorePresente): string[] {
   const v = f.valore;
   switch (v.tipo) {
-    case "termometro_stato":
+    case "iv_archivio":
       return [
-        `${v.indiceIv} a ${num(v.iv, v.decimaliIv)} · stato ${v.stato}`,
-        v.posizione.modalita === "puntuale"
-          ? `posizione nella propria storia: ${num(v.posizione.percentile, 1)} su 100 (${v.finestraSchermo})`
-          : `posizione nella propria storia: fra ${v.posizione.da} e ${v.posizione.a} su 100 (${v.finestraSchermo})`,
+        `${v.indice} a ${num(v.livello, v.decimali)}${v.proxy ? " (indice sostitutivo dichiarato)" : ""}`,
+        `rango sulla propria storia: ${num(v.percentile, 1)} su 100 · n=${v.n} · dal ${v.primoAnno} · fonte ${v.fonte}`,
+        v.variazioni.length === 0
+          ? "variazioni recenti non calcolabili"
+          : `variazioni: ${v.variazioni.map((x) => `${num(x.assoluta, 2)} in ${x.sedute} sedute`).join(" · ")}`,
       ];
-    case "termometro_ampiezza":
+    case "movimento_recente":
       return [
-        `escursione abituale: mediana ${num(v.relativa.mediana * 100)}% · fascia ${num(v.relativa.q25 * 100)}%–${num(v.relativa.q75 * 100)}%`,
+        `movimento chiusura-chiusura su ${v.sedute} sedute: mediana ${num(v.mediana * 100)}% · fascia ${num(v.q25 * 100)}%–${num(v.q75 * 100)}% · massimo ${num(v.massimo * 100)}% · n=${v.n}`,
         v.valuta
-          ? `in valuta: ${num(v.valuta.mediana, v.decimaliPrezzo)}${v.unita} (${num(v.valuta.q25, v.decimaliPrezzo)}–${num(v.valuta.q75, v.decimaliPrezzo)})`
-          : `in valuta: non disponibile (${v.motivoValutaAssente})`,
+          ? `in valuta: ${num(v.valuta.mediana, 2)} (${num(v.valuta.q25, 2)}–${num(v.valuta.q75, 2)}) sulla chiusura del ${v.giornoChiusura}`
+          : "in valuta: non disponibile (chiusura di riferimento assente)",
       ];
     case "termometro_affidabilita":
       return [

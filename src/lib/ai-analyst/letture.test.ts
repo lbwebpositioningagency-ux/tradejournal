@@ -511,19 +511,23 @@ const TERMO: LetturaTermometro = {
 };
 
 describe("letturaTermometro", () => {
-  it("spacchetta le tre facce con la data del report", () => {
+  it("porta la sola statistica condizionale, con la data del report", () => {
     const l = letturaTermometro("ORO", TERMO, "2026-08-03");
     expect(l.ok).toBe(true);
     if (!l.ok) return;
     expect(l.dataDato).toBe("2026-08-03");
-    expect(l.valore.stato.stato).toBe("ESPANSA");
-    expect(l.valore.stato.iv).toBe(18.42);
-    expect(l.valore.ampiezza.relativa.mediana).toBe(0.0161);
-    expect(l.valore.ampiezza.valuta?.mediana).toBe(64.4);
+    expect(l.valore.affidabilita.stato).toBe("ESPANSA");
     expect(l.valore.affidabilita.quota).toBe(0.71);
     expect(l.valore.affidabilita.baseRate).toBe(0.5);
     expect(l.valore.affidabilita.guadagnoPp).toBe(21);
     expect(l.valore.affidabilita.persistenza?.durataMediaGiorni).toBe(5.4);
+  });
+
+  it("stato e ampiezza condizionata NON passano più di qui", () => {
+    // dal 25/08/2026 il dossier li prende dall'archivio come fatti: se
+    // ricomparissero qui tornerebbero due sorgenti per la stessa cosa
+    const l = letturaTermometro("ORO", TERMO, "2026-08-03");
+    expect(l.ok && Object.keys(l.valore)).toEqual(["affidabilita"]);
   });
 
   it("porta sempre il base rate accanto alla quota, mai la quota da sola", () => {
@@ -533,10 +537,7 @@ describe("letturaTermometro", () => {
     expect(l.valore.affidabilita).toHaveProperty("baseRate");
     // La differenza dichiarata coincide con quota − base rate in punti:
     // 0,71 − 0,50 = 0,21 → 21 pp.
-    expect(l.valore.affidabilita.guadagnoPp).toBeCloseTo(
-      (0.71 - 0.5) * 100,
-      10,
-    );
+    expect(l.valore.affidabilita.guadagnoPp).toBeCloseTo((0.71 - 0.5) * 100, 10);
   });
 
   it("il DAX è non applicabile: nessun indice di volatilità nel pannello", () => {
@@ -555,17 +556,5 @@ describe("letturaTermometro", () => {
       ok: false,
       motivo: "fonte_non_disponibile",
     });
-  });
-
-  it("conserva il motivo per cui la cifra in valuta manca", () => {
-    const l = letturaTermometro(
-      "ORO",
-      { ...TERMO, ampiezzaValuta: null, motivoValutaAssente: "chiusura_implausibile" },
-      "2026-08-03",
-    );
-    expect(l.ok && l.valore.ampiezza.valuta).toBeNull();
-    expect(l.ok && l.valore.ampiezza.motivoValutaAssente).toBe(
-      "chiusura_implausibile",
-    );
   });
 });
