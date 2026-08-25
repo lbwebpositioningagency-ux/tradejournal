@@ -4,6 +4,8 @@ import { redirect } from "next/navigation";
 import { ArrowLeft, ChevronRight, Globe } from "lucide-react";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/db";
+import { getFreschezzaReport } from "@/lib/queries/macro-desk-freschezza";
+import { BandaFreschezza } from "@/components/macro-desk/banda-freschezza";
 import { BIAS_SHORT_LABELS, biasColorClass } from "@/lib/macro-desk";
 import { cn } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
@@ -127,7 +129,7 @@ export default async function MacroDeskReportPage() {
   const session = await auth();
   if (!session?.user?.id) redirect("/login");
 
-  const [latestDaily, latestWeekly, history] = await Promise.all([
+  const [latestDaily, latestWeekly, history, freschezza] = await Promise.all([
     prisma.macroDeskReport.findFirst({
       where: { type: "DAILY" },
       orderBy: { reportDate: "desc" },
@@ -140,6 +142,7 @@ export default async function MacroDeskReportPage() {
       orderBy: [{ reportDate: "desc" }, { type: "asc" }],
       take: 20,
     }),
+    getFreschezzaReport(),
   ]);
 
   const hasAny = history.length > 0;
@@ -162,6 +165,11 @@ export default async function MacroDeskReportPage() {
         </div>
         <MacroDeskSectionNav active="report" />
       </div>
+
+      {/* La data del report era in chiaro, ma non il RITARDO: "21 agosto" non
+          dice di per sé che sono passati quattro giorni, e questa è la sezione
+          principale del desk. Stessa banda delle altre, stessa sentinella. */}
+      {freschezza ? <BandaFreschezza esito={freschezza} /> : null}
 
       {!hasAny ? (
         <EmptyState

@@ -155,3 +155,89 @@ La sessione, in quella pagina, serve solo al redirect verso il login.
 Il difetto vero era un altro, ed è stato corretto: la Stagionalità rendeva
 l'ora dell'ultimo calcolo — che è un **istante**, non una data-giorno — con
 `timeZone: "Europe/Rome"` fisso nel markup.
+
+## F2 — il ridisegno dell'AI Analyst
+
+**La decisione operativa a cui serve la pagina**, dichiarata: *come mi
+posiziono oggi su oro, WTI e DAX, e cosa deve farmi cambiare idea.* Non "che
+succede nel mondo". Tutto cio che non risponde a quella domanda non entra
+nella tabella di sintesi.
+
+Il desk **non dichiara mai una direzione**: non e quello che sa fare. Quello
+che sa dire e il **carattere** della giornata — quanto ampiamente lo strumento
+tende a muoversi in condizioni come queste — che e l'informazione che governa
+size e distanza dello stop, cioe meta del posizionamento.
+
+**I sei campi, e perche proprio questi.** "Tutte le informazioni a colpo
+d'occhio" sono due cose in conflitto: una sintesi che mette tutto diventa una
+nona sezione che replica le altre otto.
+
+| Campo | Perche |
+|---|---|
+| Carattere atteso | la risposta alla domanda: espansione, compressione, norma |
+| Forza | su quante misure poggia: 3 su 3 non e 3 su 10 |
+| Conflitto | quando due misure dicono il contrario. E l'informazione piu preziosa, e va mostrata, non nascosta dietro una confidenza abbassata in silenzio |
+| Da ieri | cos'e cambiato: la parte "cosa mi fa cambiare idea" |
+| Copertura | misure arrivate su quelle attese: dice se e un giudizio o una congettura |
+| Eta del dato | il Macro Desk ha sezioni che dipendono da un report generato a mano |
+
+Niente prezzi, niente livelli, niente target: non li produciamo, e metterli li
+li farebbe sembrare nostri.
+
+Le righe sono **ordinate per quanto richiedono attenzione** (conflitti in
+cima, poi i cambiamenti, in fondo i dati insufficienti): una tabella in ordine
+alfabetico va riletta tutta ogni mattina. Ogni riga rimanda al dettaglio: la
+sintesi non duplica le altre sezioni, ci porta.
+
+Il carattere ha un **glifo** proprio (espansione, compressione, norma,
+indeterminato) oltre al colore: la regola delle coppie P&L vale anche qui.
+
+**Sul motore.** La richiesta di vincolare l'output a schema era **gia
+soddisfatta**: `rispostaModelloSchema` con `safeParse` e due cancelli. E
+comunque il percorso col modello e spento da una decisione di release
+misurata (su 29 generazioni, zero nessi genuini). La causa della sensazione di
+"grossolano" non era testo libero del modello: era che la pagina mostrava uno
+strumento alla volta e annegava i pochi dati decisivi in prosa.
+Costo e latenza per generazione: **zero**, nessuna chiamata di rete. Rigenera
+a ogni richiesta, perche e aritmetica in memoria sopra query gia dietro la
+cache di richiesta di React.
+
+## F3 — giudizio sulle altre sette
+
+| Sezione | Giudizio | Motivo | Intervento |
+|---|---|---|---|
+| Trends | **OTTIMO** | dati live da FRED, ogni valore con la data della sua osservazione, comparazioni, bande di recessione NBER, e uno stato d'errore per singola serie che dice "la sezione prosegue senza questa" | nessuno |
+| Scorecard | **OTTIMO** | denominatori separati per tipo di bias, esclusioni dichiarate, "campione troppo piccolo" al posto di percentuali finte | banda di freschezza (F1) |
+| Stagionalita | **OTTIMO** | ogni numero con media, mediana e campione; copertura e fonte per scheda; nota sull'archivio orario incompleto | fuso utente + nota di ritardo relativo (F1, F1-bis) |
+| Volatilita | **OTTIMO** | percentile, campione (n=570), periodo di riferimento, unita, e il controfattuale "senza il termometro: 55%" | banda di freschezza (F1) |
+| Posizionamento | **OTTIMO** | percentile su 503 settimane, contratti, variazione a 4 settimane, "ultima volta a questi livelli", implicazione derivata dalla definizione e non dalle notizie | nessuno |
+| Driver | **MEDIO** | contenuto solido (correlazioni con campione a 60 sedute, stabilita, chiavi di lettura), ma apre con ~40 righe di manuale sopra il primo dato: l'intera prima schermata e testo che si legge una volta sola. Chiuderlo di default porterebbe la pagina da 5402 a 4999 px — provato e **annullato**: un test esistente blinda "aperta di default", quindi e una decisione presa e non una svista, e ribaltarla non spetta a un audit | solo la nota di ritardo (F1-bis) |
+| Report | **MEDIO -> buono** | e la sezione principale e mostrava "21 agosto 2026" senza dire che erano passati quattro giorni | banda di freschezza |
+
+Cinque sezioni su sette **non sono state toccate o quasi**: erano gia a
+livello. Il churn senza beneficio e un difetto.
+
+**Un allarme rientrato:** nella cattura full-page i grafici del Driver
+apparivano vuoti. Verificato via DOM prima di segnalarlo: 3 SVG da 1084x650
+con 14 curve renderizzate. Era un artefatto di `captureBeyondViewport` con
+Recharts, non un difetto dell'app.
+
+## F4 — cosa resta aperto, per impatto
+
+1. **Il gergo del Report senza legenda.** "STRESS +0,76 EM", "ramo b2",
+   "k_break", "MFE", "WBR" arrivano a schermo senza glossario. E il contenuto
+   grezzo del desk e riscriverlo non spetta a un audit dell'app, ma una
+   legenda a scomparsa varrebbe la pena.
+2. **La confidenza in percentuale non dichiara la propria scala.**
+   "Confidenza 44%" non dice 44% di cosa, ne come e calcolata.
+3. **VDAX resta a catalogo senza fonte.** Scelta corretta, ma va deciso se la
+   voce debba restare visibile in Stagionalita.
+4. **Il ponte GitHub Actions per `MacroDeskReport`**: dipendenza esterna
+   bloccata, fuori dal perimetro di questo audit.
+5. **La legenda del Driver aperta di default** occupa la prima schermata. Il
+   test `driver-desk-panel.test.tsx` la blinda esplicitamente ("e presente e
+   aperta di default"): e una decisione, e cambiarla e una tua chiamata, non
+   dell'audit. Misurato: chiusa, la pagina passa da 5402 a 4999 px.
+6. **L'harness CDP e Recharts**: i grafici escono vuoti in
+   `captureBeyondViewport`. Chi verifica visivamente deve saperlo, o
+   segnalera difetti che non esistono.
