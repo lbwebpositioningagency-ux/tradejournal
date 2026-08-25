@@ -4,7 +4,9 @@ import { redirect } from "next/navigation";
 import { Inter, JetBrains_Mono } from "next/font/google";
 import { ArrowLeft } from "lucide-react";
 import { auth } from "@/lib/auth";
+import { getFreschezzaReport } from "@/lib/queries/macro-desk-freschezza";
 import { getVolatilitaData } from "@/lib/queries/volatilita";
+import { BandaFreschezza } from "@/components/macro-desk/banda-freschezza";
 import { cn } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
 import { MacroDeskSectionNav } from "@/components/macro-desk/section-nav";
@@ -46,7 +48,10 @@ export default async function MacroVolatilitaPage() {
   const session = await auth();
   if (!session?.user?.id) redirect("/login");
 
-  const data = await getVolatilitaData();
+  const [data, freschezza] = await Promise.all([
+    getVolatilitaData(),
+    getFreschezzaReport(),
+  ]);
 
   return (
     <div className="flex flex-col gap-4">
@@ -71,6 +76,10 @@ export default async function MacroVolatilitaPage() {
         </div>
         <MacroDeskSectionNav active="volatilita" />
       </div>
+
+      {/* La Volatilità non ha tabella propria: vive dentro il payload del
+          report. Se il report è vecchio, il termometro è vecchio. */}
+      {freschezza ? <BandaFreschezza esito={freschezza} /> : null}
 
       {/* Terminale: identità visiva propria, scoped a .macro-report */}
       <div
