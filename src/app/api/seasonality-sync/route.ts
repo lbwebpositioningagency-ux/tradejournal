@@ -1,6 +1,13 @@
 import { prisma } from "@/lib/db";
+import { DRIVER_SERIES } from "@/lib/driver-desk/catalog";
 import { runDriverDeskDeltaIngest } from "@/lib/driver-desk/ingest";
+import {
+  statusPerEsito,
+  verificaEsitoJob,
+  type EsitoSerie,
+} from "@/lib/job-esito";
 import { isAuthorizedMacroRequest } from "@/lib/macro-desk";
+import { AVAILABLE_INSTRUMENTS } from "@/lib/seasonality/instruments";
 import { BUDGET_DEFAULT_MS, runSeasonalityDailyJob } from "@/lib/seasonality/job";
 
 /** Margine sul limite di piattaforma; il budget interno del job è più stretto. */
@@ -91,10 +98,67 @@ export async function GET(request: Request) {
           },
         );
 
-  return Response.json({
-    ...esito,
-    driverDesk,
-    // Istruzione esplicita al chiamante: nessuno deve dedurla dai campi.
-    richiamare: !esito.completo,
-  });
+  /* ── VERIFICA DI ESITO REALE ──────────────────────────────────────────
+     Un cron che gira, non scrive e risponde 200 è indistinguibile da uno
+     che funziona: è già costato report persi. Il confronto è fra le serie
+     ATTESE (dal catalogo) e quelle di cui è davvero arrivato un esito —
+     così una serie che nessun ramo ha nemmeno tentato non passa più
+     inosservata, che era il caso invisibile.
+     "Nessuna novità dall'upstream" NON è un fallimento: WTI e Brent
+     arrivano dall'EIA via FRED, che pubblica con circa una settimana di
+     ritardo, e farli fallire ogni notte sarebbe rumore, non un allarme. */
+  const esitiStagionalita: EsitoSerie[] = esito.strumenti.map((s) => ({
+    codice: s.strumento,
+    stato:
+      s.esito === "errore"
+        ? "errore"
+        : s.esito === "aggiornato"
+          ? "aggiornato"
+          : "invariato",
+    scritte: s.barre,
+    dettaglio: s.messaggio ?? undefined,
+  }));
+  const verificaStagionalita = verificaEsitoJob(
+    AVAILABLE_INSTRUMENTS.map((i) => i.code),
+    esitiStagionalita,
+  );
+
+  const esitiDriver: EsitoSerie[] =
+    "results" in driverDesk
+      ? driverDesk.results.map((r) => ({
+          codice: r.series,
+          stato: r.ok ? (r.rows ? "aggiornato" : "invariato") : "errore",
+          scritte: r.rows ?? 0,
+          dettaglio: r.error,
+        }))
+      : [];
+  /* Il delta saltato per tempo residuo è previsto e non è un fallimento: la
+     finestra di 14 giorni ricuce alla notte dopo. Saltato per ECCEZIONE sì. */
+  const driverPrevisto =
+    "saltato" in driverDesk && driverDesk.motivo.startsWith("tempo residuo")
+      ? []
+      : DRIVER_SERIES.map((s) => s.code);
+  const verificaDriver = verificaEsitoJob(driverPrevisto, esitiDriver);
+
+  const riuscito = verificaStagionalita.riuscito && verificaDriver.riuscito;
+  if (!riuscito) {
+    console.error(
+      `[seasonality-sync] esito NON riuscito · stagionalità: ${verificaStagionalita.messaggio} · driver: ${verificaDriver.messaggio}`,
+    );
+  }
+
+  return Response.json(
+    {
+      ...esito,
+      driverDesk,
+      verifica: {
+        riuscito,
+        stagionalita: verificaStagionalita,
+        driver: verificaDriver,
+      },
+      // Istruzione esplicita al chiamante: nessuno deve dedurla dai campi.
+      richiamare: !esito.completo,
+    },
+    { status: statusPerEsito({ ...verificaStagionalita, riuscito }) },
+  );
 }

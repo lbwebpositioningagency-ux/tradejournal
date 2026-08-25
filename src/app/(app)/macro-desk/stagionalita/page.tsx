@@ -6,6 +6,7 @@ import { ArrowLeft } from "lucide-react";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { formatDateTime } from "@/lib/dates";
+import { ritardoRelativo } from "@/lib/serie-in-ritardo";
 import { cn } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
 import { MacroDeskSectionNav } from "@/components/macro-desk/section-nav";
@@ -152,6 +153,27 @@ export default async function StagionalitaPage({
   const detrended = params.d === "1" && def.kind === "RETURN";
   const [coverage, lastRun] = await Promise.all([getCoverage(), getLastRun()]);
   const cov = coverage.find((c) => c.instrument === instrument) ?? null;
+
+  /* Se QUESTO strumento è più indietro degli altri, va detto: il giornaliero
+     di WTI arriva dall'EIA via FRED, che pubblica con circa una settimana di
+     ritardo, e la pagina lo mostrava come se fosse aggiornato quanto gli
+     altri. Il confronto è relativo alla serie più fresca del catalogo, così
+     non serve un calendario di festività. Gli strumenti senza fonte (VDAX)
+     restano fuori: hanno già la loro nota dedicata. */
+  const noteRitardo = (() => {
+    const esito = ritardoRelativo(
+      coverage
+        .filter((c) => c.rows > 0)
+        .map((c) => ({
+          codice: c.instrument,
+          ultimoDato: c.last ? new Date(`${c.last}T00:00:00Z`) : null,
+        })),
+    );
+    const mio = esito.inRitardo.find((r) => r.codice === instrument);
+    return mio
+      ? `Questa serie è ferma a ${cov?.last ?? "—"}, ${mio.giorniDiScarto} giorni più indietro della più fresca del catalogo. Di solito è l'upstream che pubblica in ritardo, non un dato mancante.`
+      : null;
+  })();
 
   /* L'intraday esiste solo per i prezzi e solo se le barre orarie sono state
      caricate: un tab che porta a una pagina vuota è peggio di un tab spento. */
@@ -473,6 +495,16 @@ export default async function StagionalitaPage({
               </p>
             )}
           </div>
+
+          {noteRitardo ? (
+            <p
+              role="status"
+              className="rounded-md border border-dashed px-3 py-2 text-2xs leading-relaxed"
+              style={{ borderColor: "var(--md-muted)", color: "var(--md-muted)" }}
+            >
+              {noteRitardo}
+            </p>
+          ) : null}
 
           {/* ── Provenienza e freschezza del dato ─────────────────────── */}
           {/* La provenienza segue la SCHEDA, non lo strumento: sulle viste
