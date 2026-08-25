@@ -21,6 +21,7 @@ import type {
   DriverCardPayload,
   RelationStability,
 } from "@/lib/driver-desk/cards";
+import { ritardoRelativo, testoRitardo } from "@/lib/serie-in-ritardo";
 import { todayKeyInZone } from "@/lib/dates";
 import { fmtIt } from "@/lib/driver-desk/cards";
 import type { DriverDeskData } from "@/lib/queries/driver-desk";
@@ -283,6 +284,14 @@ export function DriverDeskPanel({
     .filter((c) => c.source !== null)
     .map((c) => (c.source as string).split(" ")[0]);
   const fontiUniche = [...new Set(fonti)];
+  const noteRitardo = testoRitardo(
+    ritardoRelativo(
+      coverage.map((c) => ({
+        codice: c.series,
+        ultimoDato: c.lastDate ? new Date(`${c.lastDate}T00:00:00Z`) : null,
+      })),
+    ),
+  );
   const ultimoIngest = coverage
     .map((c) => c.updatedAt)
     .filter(Boolean)
@@ -298,6 +307,22 @@ export function DriverDeskPanel({
           <SchedaStrumento key={card.id} card={card} indice={i} />
         ))}
       </div>
+
+      {/* Tredici serie affiancate lasciano credere che siano tutte della
+          stessa data. Al 25/08/2026 non lo erano: WTI e Brent ferme al 18/08
+          contro il 24/08 delle altre, perché l'EIA via FRED pubblica con una
+          settimana di ritardo. Il motivo è legittimo; leggerle credendole di
+          ieri no. Il confronto è relativo alla serie più fresca, così non
+          serve sapere quali giorni sono festivi. */}
+      {noteRitardo ? (
+        <p
+          role="status"
+          className="md-mono rounded-md border border-dashed px-3 py-2 text-[11px] leading-relaxed"
+          style={{ borderColor: "var(--md-muted)", color: "var(--md-muted)" }}
+        >
+          {noteRitardo}
+        </p>
+      ) : null}
 
       <p className="md-mono text-[11px] leading-relaxed text-[var(--md-muted)]">
         Fonti: {fontiUniche.join(", ")} — la fonte esatta di ogni serie è
