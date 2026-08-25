@@ -6,6 +6,11 @@ import { ArrowLeft } from "lucide-react";
 import { auth } from "@/lib/auth";
 import { getFreschezzaReport } from "@/lib/queries/macro-desk-freschezza";
 import { getVolatilitaData } from "@/lib/queries/volatilita";
+import {
+  getCalibrazioneTermometro,
+  getDegradoTermometro,
+} from "@/lib/queries/termometro-degrado";
+import { testoDegenerazione } from "@/lib/classificatore-degenere";
 import { BandaFreschezza } from "@/components/macro-desk/banda-freschezza";
 import { cn } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
@@ -48,10 +53,27 @@ export default async function MacroVolatilitaPage() {
   const session = await auth();
   if (!session?.user?.id) redirect("/login");
 
-  const [data, freschezza] = await Promise.all([
+  const [data, freschezza, degrado] = await Promise.all([
     getVolatilitaData(),
     getFreschezzaReport(),
+    getDegradoTermometro(),
   ]);
+
+  /* Il rilevatore si accende da solo: se in una finestra recente uno dei due
+     stati non compare più, la percentuale condizionale sparisce e al suo
+     posto va la spiegazione. Nessuno doveva accorgersene a mano. */
+  const degenerazioni = Object.fromEntries(
+    degrado
+      .map((d) => [
+        d.simbolo,
+        testoDegenerazione(
+          d.esito,
+          d.esito.gruppoDominante === "ESPANSA" ? "compressa" : "espansa",
+        ),
+      ])
+      .filter((v): v is [string, string] => v[1] !== null),
+  );
+  const calibrazione = getCalibrazioneTermometro();
 
   return (
     <div className="flex flex-col gap-4">
@@ -96,6 +118,8 @@ export default async function MacroVolatilitaPage() {
             items={data.items}
             reading={data.reading}
             asOf={data.asOf}
+            degenerazioni={degenerazioni}
+            calibrazione={calibrazione}
           />
         ) : (
           <div className="md-card p-4 text-xs leading-relaxed text-[var(--md-muted)]">
