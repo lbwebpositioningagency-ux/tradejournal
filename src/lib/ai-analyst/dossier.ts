@@ -256,6 +256,7 @@ interface Slot {
 function slots(
   strumento: AiAnalystInstrument,
   readings: DossierReadings,
+  termometroDegenere: boolean,
 ): Slot[] {
   const def = AI_ANALYST_DEFS[strumento];
   const term = readings.termometro;
@@ -272,10 +273,23 @@ function slots(
   // «cadute».
   const termometroApplicabile = def.termometro !== null && def.ivNelPannello;
 
+  /* F3 è la STATISTICA CONDIZIONALE del termometro: "ampia nel 75% dei casi
+     contro il 55% di una giornata qualsiasi". Quando il termometro ha smesso
+     di distinguere i due stati su questo strumento — oro e WTI al 25/08/2026 —
+     quel confronto non ha più un gruppo da cui distinguersi, ed è la stessa
+     frase che la sezione Volatilità ha già smesso di mostrare. Qui sparisce
+     con un motivo suo, non "fonte non disponibile": la fonte c'è, è il
+     confronto a non valere più.
+     F1 (dove sta l'IV) e F2 (ampiezza tipica) restano: il primo è un fatto,
+     il secondo una distribuzione, e nessuno dei due è un confronto fra gruppi. */
+  const affidabilita: Lettura<ValoreFattore> = termometroDegenere
+    ? { ok: false, motivo: "classificatore_degenere" }
+    : faccia((r) => r.affidabilita);
+
   return [
     { def: FATTORI.F1, applicabile: termometroApplicabile, lettura: faccia((r) => r.stato) },
     { def: FATTORI.F2, applicabile: termometroApplicabile, lettura: faccia((r) => r.ampiezza) },
-    { def: FATTORI.F3, applicabile: termometroApplicabile, lettura: faccia((r) => r.affidabilita) },
+    { def: FATTORI.F3, applicabile: termometroApplicabile, lettura: affidabilita },
     { def: FATTORI.F4, applicabile: true, lettura: readings.iv },
     { def: FATTORI.F5, applicabile: def.cot !== null, lettura: readings.cotPartecipazione },
     { def: FATTORI.F6, applicabile: def.cot !== null, lettura: readings.cotPosizionamento },
@@ -292,11 +306,19 @@ export function buildDossier(
   strumento: AiAnalystInstrument,
   giorno: string,
   readings: DossierReadings,
+  /**
+   * true = su questo strumento il termometro non distingue più i due stati.
+   * Il verdetto arriva SEMPRE da `lib/classificatore-degenere.ts` con la
+   * stessa soglia usata dalla sezione Volatilità: una sola fonte di verità,
+   * mai due giudizi diversi sullo stesso strumento in due pagine.
+   * Default false, così i chiamanti che non lo sanno non fingono di saperlo.
+   */
+  termometroDegenere = false,
 ): Dossier {
   const fattori: FattorePresente[] = [];
   const assenti: FattoreAssente[] = [];
 
-  for (const slot of slots(strumento, readings)) {
+  for (const slot of slots(strumento, readings, termometroDegenere)) {
     const { def, applicabile, lettura } = slot;
 
     if (!applicabile) {
@@ -415,6 +437,7 @@ export function buildDossier(
     datiInsufficienti,
     motivoInsufficienza,
     discordanza,
+    termometroDegenere,
     carattereAtteso,
     confidenza,
     motivoConfidenza: motivo,

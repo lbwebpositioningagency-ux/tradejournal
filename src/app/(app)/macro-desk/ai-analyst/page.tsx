@@ -15,6 +15,8 @@ import { AiAnalystSintesi } from "@/components/macro-desk/ai-analyst-sintesi";
 import { addDays } from "@/lib/calendar";
 import { formatDateTime } from "@/lib/dates";
 import { prisma } from "@/lib/db";
+import { getDegradoTermometro } from "@/lib/queries/termometro-degrado";
+import { AI_ANALYST_DEFS } from "@/lib/ai-analyst/instruments";
 import { parseAiAnalystInstrument } from "@/lib/ai-analyst/instruments";
 import {
   MOTIVO_DETERMINISTICO,
@@ -54,8 +56,26 @@ export default async function AiAnalystPage({
   const giorno = giornoRoma();
 
   const fonti = await caricaFontiCondivise();
+
+  /* STESSA FONTE DI VERITÀ della sezione Volatilità: lo stesso modulo, la
+     stessa soglia, la stessa finestra. Due giudizi diversi sullo stesso
+     strumento in due pagine sarebbero peggio di nessun giudizio. */
+  const degrado = await getDegradoTermometro();
+  const degeneri = new Set(
+    degrado.filter((d) => !d.esito.discrimina).map((d) => d.simbolo),
+  );
+  const termometroDegenere = (code: (typeof AI_ANALYST_INSTRUMENTS)[number]) => {
+    const simbolo = AI_ANALYST_DEFS[code].termometro;
+    return simbolo !== null && degeneri.has(simbolo);
+  };
+
   const letture = await caricaLetture(strumento, giorno, fonti);
-  const dossier = buildDossier(strumento, giorno, letture);
+  const dossier = buildDossier(
+    strumento,
+    giorno,
+    letture,
+    termometroDegenere(strumento),
+  );
 
   /* ── SINTESI IN TESTA (F2) ────────────────────────────────────────────
      La pagina rispondeva a «cosa dice il desk su UNO strumento»; la domanda
@@ -72,9 +92,10 @@ export default async function AiAnalystPage({
           caricaLetture(code, giorno, fonti),
           caricaLetture(code, ieri, fonti),
         ]);
+        const degenere = termometroDegenere(code);
         return rigaSintesi(
-          buildDossier(code, giorno, oggiLetture),
-          buildDossier(code, ieri, ieriLetture),
+          buildDossier(code, giorno, oggiLetture, degenere),
+          buildDossier(code, ieri, ieriLetture, degenere),
         );
       }),
     ),

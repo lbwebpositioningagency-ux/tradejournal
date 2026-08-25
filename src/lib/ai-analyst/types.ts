@@ -33,13 +33,21 @@ export type MotivoAssenza =
   | "fonte_non_disponibile"
   | "dato_stantio"
   | "non_applicabile"
-  | "campione_insufficiente";
+  | "campione_insufficiente"
+  /* Il dato c'è, ma la statistica che ne uscirebbe è un confronto fra due
+     stati di cui uno non si presenta più: aritmeticamente vera e priva di
+     contenuto. Diverso da "campione_insufficiente", dove il campione è
+     piccolo; qui è il GRUPPO DI CONFRONTO a mancare
+     (v. lib/classificatore-degenere.ts). */
+  | "classificatore_degenere";
 
 export const ETICHETTA_ASSENZA: Record<MotivoAssenza, string> = {
   fonte_non_disponibile: "fonte non raggiungibile",
   dato_stantio: "dato troppo vecchio per essere usato",
   non_applicabile: "non esiste per questo strumento",
   campione_insufficiente: "campione storico troppo piccolo",
+  classificatore_degenere:
+    "il termometro non distingue più i due stati su questo strumento: la percentuale non avrebbe nulla da cui distinguersi",
 };
 
 /** Lettura grezza in ingresso al costruttore puro: o c'è, o si dice perché no. */
@@ -283,6 +291,13 @@ export interface Dossier {
   motivoInsufficienza: string | null;
   /** F1 e F4 presenti e in contraddizione. */
   discordanza: boolean;
+  /**
+   * true = il termometro non distingue più i due stati su questo strumento,
+   * quindi la sua statistica condizionale (F3) non è stata prodotta. Va
+   * DICHIARATO in pagina: un pezzo del segnale manca, e chi legge deve
+   * saperlo invece di vedere solo una confidenza più bassa.
+   */
+  termometroDegenere: boolean;
   carattereAtteso: CarattereAtteso;
   confidenza: Confidenza;
   motivoConfidenza: string;

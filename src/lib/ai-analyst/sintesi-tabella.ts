@@ -64,6 +64,11 @@ export interface RigaSintesi {
   /** Frase breve su cos'è cambiato; null se non c'è nulla da dire. */
   cambiatoTesto: string | null;
   copertura: { presenti: number; attesi: number };
+  /**
+   * Pezzo di segnale non disponibile, con il perché in italiano corrente.
+   * null quando il segnale è intero.
+   */
+  segnaleIncompleto: string | null;
   /** Giorni del dato più vecchio usato; null se non ci sono dati. */
   etaDato: number | null;
   confidenza: string;
@@ -82,9 +87,19 @@ export interface RigaSintesi {
  */
 function forzaDelSegnale(d: Dossier): { concordi: number; disponibili: number } {
   const decisivi = d.fattori.filter((f) => f.id === "F1" || f.id === "F4");
-  const disponibili = decisivi.length;
+  let disponibili = decisivi.length;
   // In discordanza le due misure si annullano: concorde ne resta una sola.
-  const concordi = d.discordanza ? 1 : disponibili;
+  let concordi = d.discordanza ? 1 : disponibili;
+
+  /* Termometro degenerato: F1 poggia su una classificazione che non separa
+     più nulla su questo strumento, quindi smette di contare fra le misure
+     decisive. Il conteggio SCENDE — e la riga lo dichiara nella colonna
+     dedicata: abbassare la forza in silenzio sarebbe lo stesso difetto che
+     stiamo togliendo, con un numero al posto di una frase. */
+  if (d.termometroDegenere && decisivi.some((f) => f.id === "F1")) {
+    disponibili = Math.max(0, disponibili - 1);
+    concordi = Math.min(concordi, disponibili);
+  }
   return { concordi, disponibili };
 }
 
@@ -152,6 +167,9 @@ export function rigaSintesi(oggi: Dossier, ieri: Dossier | null): RigaSintesi {
     cambiato,
     cambiatoTesto: testo,
     copertura: { presenti: oggi.presenti, attesi: oggi.attesiApplicabili },
+    segnaleIncompleto: oggi.termometroDegenere
+      ? "il termometro di volatilità non distingue più i due stati su questo strumento: la sua statistica di affidabilità non è disponibile e non conta nella forza"
+      : null,
     etaDato:
       oggi.datoPiuVecchio === null
         ? null
@@ -171,9 +189,12 @@ export function rigaSintesi(oggi: Dossier, ieri: Dossier | null): RigaSintesi {
 export function ordinaRighe(righe: RigaSintesi[]): RigaSintesi[] {
   const rango = (r: RigaSintesi): number => {
     if (r.conflitto) return 0;
-    if (r.cambiato === "cambiato" || r.cambiato === "nuovo") return 1;
-    if (r.datiInsufficienti) return 3;
-    return 2;
+    // un pezzo di segnale mancante conta quanto un cambiamento: è una cosa
+    // che l'utente deve vedere prima di fidarsi della riga
+    if (r.segnaleIncompleto) return 1;
+    if (r.cambiato === "cambiato" || r.cambiato === "nuovo") return 2;
+    if (r.datiInsufficienti) return 4;
+    return 3;
   };
   return [...righe].sort((a, b) => rango(a) - rango(b));
 }
