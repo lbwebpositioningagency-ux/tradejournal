@@ -111,3 +111,44 @@ describe("ScoreRadar — icona (i) per ogni fattore", () => {
     expect(markup).toContain("Disciplina");
   });
 });
+
+/**
+ * FATTORE NON MISURABILE. Il vertice al centro, da solo, si legge come
+ * «punteggio zero»: il radar deve dirlo anche a parole e col conteggio dei
+ * fattori, altrimenti due punteggi costruiti su basi diverse sembrano la
+ * stessa scala.
+ */
+describe("ScoreRadar — un asse senza dato", () => {
+  const senzaDisciplina = radarScore({
+    ...input,
+    plannedTrades: 0,
+    tradesWithAnyPlan: 0,
+  });
+
+  it("dichiara su quanti fattori è calcolata la media", () => {
+    const markup = render(senzaDisciplina);
+    expect(markup).toContain("Media di 5 fattori su 6");
+    expect(markup).toContain("non è confrontabile");
+  });
+
+  it("mostra il MOTIVO, coi numeri: «non calcolabile» sembra un guasto", () => {
+    const markup = render(senzaDisciplina);
+    expect(markup).toContain("0 trade su 100");
+    expect(markup).toContain("20%");
+  });
+
+  it("l'etichetta dell'asse porta il trattino: non è solo forma e colore", () => {
+    expect(render(senzaDisciplina)).toContain("Disciplina —");
+  });
+
+  it("il tooltip del vertice dice «non calcolabile», non «0/100»", () => {
+    const markup = render(senzaDisciplina);
+    expect(markup).toContain("Disciplina: non calcolabile");
+  });
+
+  it("con tutti i fattori misurati nessuno di quei messaggi compare", () => {
+    const markup = render(radarScore(input));
+    expect(markup).not.toContain("fattori su 6");
+    expect(markup).not.toContain("Disciplina —");
+  });
+});

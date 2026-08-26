@@ -213,7 +213,20 @@ export function ScoreRadar({ result }: { result: RadarScore | null }) {
                 transform: labelTransform(side),
               }}
             >
-              <span>{SCORE_FACTOR_LABELS[key]}</span>
+              {/* Un asse non misurato lo dice anche a PAROLE: il vertice al
+                  centro, da solo, si legge come «punteggio zero» invece che
+                  «non misurato», e il colore o la forma non bastano mai come
+                  unico canale. */}
+              <span
+                className={cn(
+                  result !== null &&
+                    result.factors[key] === null &&
+                    "italic opacity-70",
+                )}
+              >
+                {SCORE_FACTOR_LABELS[key]}
+                {result !== null && result.factors[key] === null ? " —" : ""}
+              </span>
               <MetricInfo info={scoreFactorInfo(key, result)} size="sm" />
             </div>
           );

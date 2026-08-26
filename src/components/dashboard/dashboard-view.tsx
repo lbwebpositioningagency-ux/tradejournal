@@ -1149,7 +1149,8 @@ export function DashboardView({ data }: { data: DashboardData }) {
                           {data.totalTrades - data.rCount} senza rischio
                         </Link>
                         {" fuori dall'istogramma, con "}
-                        {money(data.netPnlWithoutR, null)} di P&amp;L
+                        {money(data.netPnlWithoutR, null)}
+                        {" di P&L"}
                       </>
                     )}
                   </p>
