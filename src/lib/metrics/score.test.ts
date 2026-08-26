@@ -7,6 +7,9 @@ import {
   SCORE_FACTOR_INFO,
   SCORE_FACTOR_KEYS,
   SCORE_MIN_TRADES,
+  DD_REFERENCE_SESSIONS,
+  normalizedDrawdownPct,
+  mulberry32,
 } from "./index";
 import type { RadarScoreInput } from "./index";
 
@@ -25,6 +28,9 @@ const base: RadarScoreInput = {
   netPnl: "4500.00",
   maxDrawdown: "500.00",
   maxDrawdownPct: "0.0500",
+  // 252 sedute = finestra di riferimento della normalizzazione Q-1:
+  // il fattore di scala vale esattamente 1 e le attese storiche restano valide.
+  observations: DD_REFERENCE_SESSIONS,
   daily: [
     { netPnl: "1500.00" },
     { netPnl: "1500.00" },
@@ -69,6 +75,7 @@ describe("radarScore — normalizzazione dei singoli fattori", () => {
       netPnl: "4000.00",
       maxDrawdown: "0.00",
       maxDrawdownPct: "0.0000",
+      observations: DD_REFERENCE_SESSIONS,
       daily: [
         { netPnl: "1000.00" },
         { netPnl: "1000.00" },
@@ -96,6 +103,7 @@ describe("radarScore — normalizzazione dei singoli fattori", () => {
       netPnl: "-3000.00",
       maxDrawdown: "3000.00",
       maxDrawdownPct: "0.3000",
+      observations: DD_REFERENCE_SESSIONS,
       daily: [{ netPnl: "-1500.00" }, { netPnl: "-1500.00" }],
     })!;
     expect(result.factors.winRate).toBe(0);
@@ -118,6 +126,7 @@ describe("radarScore — normalizzazione dei singoli fattori", () => {
         netPnl: "0",
         maxDrawdown: "0",
         maxDrawdownPct: null,
+        observations: DD_REFERENCE_SESSIONS,
         daily: [],
       }),
     ).toBeNull();
@@ -133,6 +142,7 @@ describe("radarScore — normalizzazione dei singoli fattori", () => {
       netPnl: "100.00",
       maxDrawdown: "0.00",
       maxDrawdownPct: "0.0000",
+      observations: DD_REFERENCE_SESSIONS,
       daily: [{ netPnl: "100.00" }],
     })!;
     expect(result.lowSample).toBe(true);
@@ -187,6 +197,7 @@ describe("radarScore — normalizzazione dei singoli fattori", () => {
       netPnl: "49900.00",
       maxDrawdown: "50.00",
       maxDrawdownPct: "0.0010",
+      observations: DD_REFERENCE_SESSIONS,
       daily: [{ netPnl: "25000.00" }, { netPnl: "24900.00" }],
     })!;
     for (const value of Object.values(result.factors)) {
@@ -208,6 +219,100 @@ describe("radarScore — normalizzazione dei singoli fattori", () => {
     expect(spread.factors.consistency).toBe(90); // 1 − 500/5000
     expect(concentrated.factors.consistency).toBe(0); // tutto in un giorno
     expect(Number(spread.score)).toBeGreaterThan(Number(concentrated.score));
+  });
+});
+
+describe("Q-1 — normalizzazione del fattore Max Drawdown sulla finestra", () => {
+  it("alla finestra di riferimento (252 sedute) il drawdown non viene toccato", () => {
+    expect(DD_REFERENCE_SESSIONS).toBe(252);
+    expect(Number(normalizedDrawdownPct("0.0500", 252))).toBeCloseTo(0.05, 10);
+  });
+
+  it("serie più CORTA della finestra: il drawdown viene scalato in SU", () => {
+    // 25 sedute: √(252/25) = 3.1749
+    expect(Number(normalizedDrawdownPct("0.0110", 25))).toBeCloseTo(0.034924, 6);
+  });
+
+  it("serie più LUNGA della finestra: il drawdown viene scalato in GIÙ", () => {
+    // 442 sedute (SIM1, tutto lo storico): √(252/442) = 0.755073
+    expect(Number(normalizedDrawdownPct("0.1159", 442))).toBeCloseTo(0.087513, 6);
+  });
+
+  it("senza sedute il drawdown torna invariato, e null resta null", () => {
+    expect(normalizedDrawdownPct("0.0500", 0)).toBe("0.0500");
+    expect(normalizedDrawdownPct("0.0500", -3)).toBe("0.0500");
+    expect(normalizedDrawdownPct("0.0500", Number.NaN)).toBe("0.0500");
+    expect(normalizedDrawdownPct(null, 100)).toBeNull();
+  });
+
+  it("il fattore usa il drawdown normalizzato, non quello grezzo", () => {
+    // Stesso maxDD% del `base` (5%), ma su un quarto delle sedute: √4 = 2,
+    // quindi 10% normalizzato → 1 − 0.10/0.20 = 50.
+    const quarter = radarScore({ ...base, observations: 252 / 4 })!;
+    expect(quarter.factors.maxDrawdown).toBe(50);
+    expect(radarScore(base)!.factors.maxDrawdown).toBe(75);
+  });
+
+  it("la card Max Drawdown resta sul valore VERO: la normalizzazione è interna allo Score", () => {
+    // Regressione: `radarScore` non deve mai riscrivere l'input che riceve —
+    // la percentuale mostrata in dashboard è la stessa che entra qui.
+    const input: RadarScoreInput = { ...base, observations: 30 };
+    radarScore(input);
+    expect(input.maxDrawdownPct).toBe("0.0500");
+  });
+
+  it("REGRESSIONE Q-1: su un processo stazionario il fattore smette di seguire la lunghezza", () => {
+    // Il difetto è STATISTICO, quindi va misurato su una media e non su un
+    // singolo percorso: una sola realizzazione è troppo rumorosa perché il
+    // suo massimo drawdown segua da vicino il valore atteso. Qui si simulano
+    // 120 conti con LO STESSO processo i.i.d. senza deriva e si confronta il
+    // drawdown medio a parità di trading, cambiando SOLO quante sedute si
+    // guardano — che è esattamente ciò che fa il filtro periodo.
+    const equity = 100_000;
+    const windows = [30, 60, 120, 250, 500];
+    const PATHS = 120;
+    const rawAvg: number[] = [];
+    const normAvg: number[] = [];
+
+    for (const n of windows) {
+      let raw = 0;
+      let normalized = 0;
+      for (let path = 0; path < PATHS; path++) {
+        const rand = mulberry32(1000 + path);
+        const days: { day: string; netPnl: string }[] = [];
+        for (let i = 0; i < n; i++) {
+          // ±1% dell'equity iniziale, simmetrico: nessuna deriva.
+          days.push({
+            day: `d${i}`,
+            netPnl: (((rand() - 0.5) * 2 * equity) / 100).toFixed(2),
+          });
+        }
+        const dd = maxDrawdown(days, String(equity));
+        raw += Number(dd.maxDrawdownPct);
+        normalized += Number(normalizedDrawdownPct(dd.maxDrawdownPct, n));
+      }
+      rawAvg.push(raw / PATHS);
+      normAvg.push(normalized / PATHS);
+    }
+
+    // PRIMA: il drawdown grezzo medio cresce monotonicamente con la finestra
+    // (≈ √n), e fra la finestra più corta e la più lunga il rapporto è ~4,7.
+    for (let i = 1; i < rawAvg.length; i++) {
+      expect(rawAvg[i]).toBeGreaterThan(rawAvg[i - 1]);
+    }
+    expect(Math.max(...rawAvg) / Math.min(...rawAvg)).toBeGreaterThan(3);
+
+    // DOPO: il drawdown normalizzato medio è piatto entro il 25%.
+    expect(Math.max(...normAvg) / Math.min(...normAvg)).toBeLessThan(1.25);
+  });
+
+  it("la nota del campione corto si AGGIUNGE alla nota del fattore, non la sostituisce", () => {
+    const low = radarScore({ ...base, total: 10, wins: 6, losses: 4 })!;
+    const info = scoreFactorInfo("maxDrawdown", low);
+    expect(info.note).toContain("Indicativo: 10 trade chiusi");
+    // La nota statica del fattore (limite della legge √n) sopravvive.
+    expect(info.note).toContain("deriva");
+    expect(SCORE_FACTOR_INFO.maxDrawdown.note).toBeDefined();
   });
 });
 

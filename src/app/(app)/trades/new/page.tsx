@@ -33,7 +33,7 @@ export default async function NewTradePage() {
     prisma.tag.findMany({
       where: { userId },
       orderBy: { name: "asc" },
-      select: { name: true },
+      select: { name: true, category: true },
     }),
     getActiveAccountId(),
   ]);
@@ -68,7 +68,7 @@ export default async function NewTradePage() {
         mode="create"
         accounts={accounts}
         strategies={strategies}
-        tagSuggestions={tags.map((t) => t.name)}
+        tagSuggestions={tags.map((t) => ({ name: t.name, category: t.category }))}
         initialValues={{
           tradingAccountId: defaultAccountId,
           symbol: "",

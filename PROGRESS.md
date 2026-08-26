@@ -1342,3 +1342,99 @@ restano: erano condivisi, non introdotti per questo pannello.
 Suite tornata a 1686 test (1747 − 61, esattamente i test aggiunti nei quattro
 round del pannello): nessun test esterno dipendeva da questi moduli. Build,
 typecheck e lint verdi; nessun riferimento orfano nel codice.
+
+## ✅ AUDIT JOURNAL — remediation F1-F4 (26/08/2026)
+
+Esito del piano deciso sull'audit `docs/audit/06-premium-journal.md` (perimetro
+journal, Macro Desk escluso). Branch `audit/journal-premium`, worktree dedicato,
+**tutte le verifiche contro il Postgres locale** (Neon mai toccata).
+
+**Q-1 — il fattore Max Drawdown dello Score misurava la lunghezza dello storico.**
+Il max drawdown è un massimo corrente: cresce per costruzione allungando la
+finestra, quindi confrontarlo con un tetto fisso premiava i filtri periodo
+corti. Ora è riportato a una finestra di riferimento di un anno di sedute
+(× √(252/sedute), la costante `TRADING_DAYS_PER_YEAR` già in uso per il √252
+dei rapporti) prima del confronto col tetto del 20%. **La percentuale mostrata
+nella card Max Drawdown resta quella vera**: la normalizzazione vive dentro
+`score.ts`. Limite dichiarato nell'icona (i): la legge √n vale senza deriva,
+quindi su un conto molto profittevole è un po' generosa con gli storici lunghi.
+Prova per regressione: 120 percorsi i.i.d. per finestra, il drawdown grezzo
+medio cresce monotonicamente (4,7× fra 30 e 500 sedute), il normalizzato resta
+piatto entro il 25%.
+
+**Q-2 — cancello sul campione per Sortino e Sharpe.** Erano gli unici rapporti
+senza: il numero resta visibile, ma sotto `RATIO_MIN_OBSERVATIONS` (60 sedute)
+la scala non assegna nessuna fascia e il popover dice quante sedute mancano.
+60 e non i 30 dell'SQN perché l'unità è diversa (sedute, non trade) ed è il
+primo preset di `DAY_WINDOWS`, cioè la finestra più corta che il progetto già
+considera leggibile per queste due metriche nelle rolling di /analytics.
+
+**Q-3 — Calmar al CAGR.** Faceva `Σ P&L / equity iniziale × 365/giorni`: un
+rendimento semplice sulla base di partenza, che sopra l'anno sovrastima. Ora
+`(equity finale / equity iniziale)^(365/giorni) − 1`. I due termini tornano
+omogenei e la scala MAR si applica alla lettera: i due paragrafi di scuse in
+`benchmarks.ts`, che il difetto lo dichiaravano senza chiuderlo, sono spariti.
+Nuovo caso null: equity finale ≤ 0.
+
+**J-1 — la categoria dei tag era irraggiungibile.** `resolveTagIds` creava
+`{ userId, name }` e basta: ogni tag nato dall'interfaccia restava `CUSTOM`,
+quindi l'etichetta di categoria nei Reports diceva «custom» per tutti e la
+sezione «errori taggati e il loro costo» del report del venerdì — che filtra
+`category === "MISTAKE"` — non poteva riempirsi su un conto vero. Ogni chip del
+`TagPicker` porta ora la sua categoria ed è modificabile lì. **Additivo**: la
+categoria assente (import CSV, sync MT5) non tocca il tag esistente; solo una
+scelta esplicita scrive, ed è anche il percorso per ricategorizzare i tag nati
+`CUSTOM`. `resolveTagIds` esce da `src/server/trades.ts` (dove un test non
+poteva raggiungerlo senza esportarlo come server action) e va in `src/lib/tags.ts`.
+
+**E-1 — la stampa riportava il tema scuro sulla carta.** Nessuna regola
+`@media print` esisteva: i browser stampano il colore del testo ma non gli
+sfondi, quindi in dark il PDF del report settimanale usciva quasi bianco su
+bianco, con la topbar sticky in cima. Il blocco di stampa neutralizza `.dark`
+coi valori chiari di `:root` (già validati AA e in gamut) e nasconde header e
+sidebar; la coppia P&L scelta dall'utente sopravvive nella variante chiara.
+Un test verifica che il blocco copra **ogni** token ridefinito da `.dark` con
+lo stesso valore di `:root`: la deriva non può riportare il difetto.
+
+**Pulizia.** `Sparkline` rimosso (35 righe, zero import, `linearGradient` con id
+costante). I sei grafici di `/analytics` passano dai wrapper lazy come quelli di
+dashboard e /trades: la Fase 52 aveva coperto solo due route, e un mese dopo
+/analytics era diventata la più pesante dell'app.
+
+**Trovato dal controllo visivo, non dal gate.** Il popover della scala sforava
+l'altezza concessa da Radix e la nota del cancello finiva fuori campo. Misurato:
+l'overflow **esisteva già** (Sortino 85px, Calmar 44px, SQN 20px). La nota è
+passata PRIMA delle bande — è lei che spiega perché la scala è attenuata — e i
+testi che ripetevano la formula sono stati accorciati.
+
+**Numeri su SIM1 (623 trade chiusi, Postgres locale), prima → dopo:**
+
+| Grandezza | Prima | Dopo |
+|---|---|---|
+| Score · tutto lo storico (442 sedute) | 77,00 | **79,37** |
+| Score · 15/06–28/07 (34 sedute) | 86,16 | **84,58** |
+| Divario fra le due finestre | 9,16 punti | **5,21 punti** |
+| Fattore Max Drawdown · tutto / 25 sedute | 42,05 / 94,50 | **56,24 / 82,54** |
+| Calmar · tutto lo storico | 7,98 | **6,69** (CAGR 77,48% invece di 92,50% lineare) |
+| Calmar · ultimi 180gg | 13,05 | **15,15** (sotto l'anno il composto sta sopra il lineare) |
+| Sortino 34 sedute | 11,63 · fascia OTTIMO | 11,63 · **nessuna fascia + nota** |
+| Sortino 442 sedute | 5,87 · OTTIMO | 5,87 · OTTIMO (invariato) |
+| `/analytics` client bundle | 267 kB gz | **117 kB gz** |
+| Overflow popover fattore Max DD | 40px | **0** |
+
+Il divario residuo di 5,21 punti sullo Score **è trading vero, non meccanica**:
+nella finestra corta win rate e profit factor sono davvero più alti. La prova
+che la componente meccanica è sparita sta nel test su processo stazionario, non
+in questi numeri.
+
+**Verificato:** lint ✅ · typecheck ✅ · **1909/1910 test** ✅ (+41) · build di
+produzione ✅ · screenshot su build reale contro Postgres locale (Score dark e
+light, popover Sortino con e senza cancello, popover Calmar e fattore Max
+Drawdown, /analytics coi grafici lazy montati — 10 grafici, 0 scheletri, 682
+forme disegnate — form trade col selettore di categoria, anteprima di stampa in
+tema scuro).
+
+**Fuori ambito per decisione, resta a debito:** il bundle di `/register` (zod =
+46% del payload), l'overflow strutturale del popover della scala, e i sei
+rilievi P1 dell'audit non toccati in questo giro (versamenti/prelievi, drill-down
+dalle tabelle, ora di uscita, autosave del journal, tagging in blocco, MAE/MFE).

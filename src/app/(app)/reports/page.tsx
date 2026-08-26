@@ -5,7 +5,11 @@ import { BarChart3, CalendarCheck } from "lucide-react";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { resolveTradeScope } from "@/lib/demo-account";
-import { ALL_ACCOUNTS } from "@/lib/constants";
+import {
+  ALL_ACCOUNTS,
+  TAG_CATEGORY_LABELS,
+  type TagCategory,
+} from "@/lib/constants";
 import {
   avgR,
   avgRInfo,
@@ -289,13 +293,6 @@ function BestWorstLine({
   );
 }
 
-const TAG_CATEGORY_LABELS: Record<string, string> = {
-  SETUP: "setup",
-  MISTAKE: "errore",
-  EMOTION: "emozione",
-  CUSTOM: "custom",
-};
-
 export default async function ReportsPage({
   searchParams,
 }: {
@@ -524,7 +521,8 @@ export default async function ReportsPage({
                         <span className="flex items-baseline gap-2">
                           {t.name}
                           <span className="text-xs text-muted-foreground">
-                            {TAG_CATEGORY_LABELS[t.category] ?? t.category}
+                            {TAG_CATEGORY_LABELS[t.category as TagCategory] ??
+                              t.category}
                           </span>
                         </span>
                       ),

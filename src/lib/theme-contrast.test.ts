@@ -245,3 +245,104 @@ describe("Macro Desk — up/down/warn/info AA su tutte le superfici (hover inclu
     }
   });
 });
+
+/**
+ * E-1 — LA STAMPA NON DEVE RIPORTARE IL TEMA SCURO SUL FOGLIO.
+ *
+ * Il difetto era concreto: il report settimanale ha un bottone «Stampa /
+ * salva PDF» e nel CSS non esisteva alcuna regola `@media print`, quindi in
+ * tema scuro il testo usciva quasi bianco su carta bianca (i browser
+ * stampano il colore del testo ma non gli sfondi).
+ *
+ * Questo test guarda la DERIVA, che è il modo in cui il difetto tornerebbe:
+ * il blocco di stampa deve ridefinire OGNI token che `.dark` ridefinisce, e
+ * con lo stesso valore di `:root`. Se domani si aggiunge un token al tema
+ * scuro e ci si dimentica della stampa, il gate se ne accorge qui.
+ */
+
+/** Token grezzi di un blocco (qualunque valore, non solo oklch a 3 canali). */
+function rawTokens(body: string): Map<string, string> {
+  const tokens = new Map<string, string>();
+  for (const m of body.matchAll(/--([\w-]+):\s*([^;]+);/g)) {
+    tokens.set(m[1], m[2].replace(/\s*\/\*[\s\S]*?\*\//g, "").trim());
+  }
+  return tokens;
+}
+
+/**
+ * Corpo di un blocco CSS di primo livello, cercato per testo e non per
+ * regex: i selettori qui contengono parentesi, punti e virgolette
+ * (`:where(.dark, .dark *)[data-pnl="classic"]`) e sfuggirli è più fragile
+ * che cercare la graffa di apertura e quella di chiusura a colonna 0.
+ */
+function bodyAfter(source: string, opening: string, closing: string): string {
+  const start = source.indexOf(opening);
+  if (start === -1) throw new Error(`Blocco CSS non trovato: ${opening.trim()}`);
+  const from = start + opening.length;
+  const end = source.indexOf(closing, from);
+  if (end === -1) throw new Error(`Blocco CSS non chiuso: ${opening.trim()}`);
+  return source.slice(from, end);
+}
+
+function topLevelBlock(selector: string): string {
+  return bodyAfter(CSS, `\n${selector} {`, "\n}");
+}
+
+const PRINT_MEDIA = (() => {
+  const start = CSS.indexOf("\n@media print {");
+  if (start === -1) throw new Error("Manca il blocco @media print in globals.css");
+  return CSS.slice(start);
+})();
+
+/** Blocco annidato dentro @media print (indentato di due spazi). */
+function printBlock(selector: string): string {
+  return bodyAfter(PRINT_MEDIA, `\n  ${selector} {`, "\n  }");
+}
+
+describe("E-1 — blocco @media print: il tema scuro non finisce sulla carta", () => {
+  const rootTokens = rawTokens(topLevelBlock(":root"));
+  const darkTokens = rawTokens(topLevelBlock(".dark"));
+  const printTokens = rawTokens(printBlock(".dark"));
+
+  it("esiste un blocco di stampa che neutralizza .dark", () => {
+    expect(printTokens.size).toBeGreaterThan(0);
+  });
+
+  it("copre OGNI token ridefinito da .dark: nessuna deriva possibile", () => {
+    const mancanti = [...darkTokens.keys()].filter((t) => !printTokens.has(t));
+    expect(mancanti, `token del tema scuro non neutralizzati in stampa: ${mancanti.join(", ")}`).toEqual([]);
+  });
+
+  it("i valori di stampa coincidono con quelli chiari di :root", () => {
+    for (const [token, value] of printTokens) {
+      expect(value, `--${token} in stampa`).toBe(rootTokens.get(token));
+    }
+  });
+
+  it("il testo del foreground stampato è SCURO, non il quasi-bianco del dark", () => {
+    // La prova diretta del difetto: contrasto del foreground di stampa
+    // contro la carta bianca.
+    const printFg = block(":root").get("foreground")!;
+    const paper: Color = [1, 0, 0];
+    expect(contrast(printFg, paper)).toBeGreaterThanOrEqual(4.5);
+    // E il foreground del tema scuro, sulla stessa carta, NON reggerebbe.
+    expect(contrast(block(".dark").get("foreground")!, paper)).toBeLessThan(4.5);
+  });
+
+  it("la coppia P&L scelta dall'utente sopravvive alla stampa nella variante chiara", () => {
+    for (const palette of ["classic", "blue-red", "green-violet"]) {
+      const printPnl = rawTokens(
+        printBlock(`:where(.dark, .dark *)[data-pnl="${palette}"]`),
+      );
+      const lightPnl = rawTokens(topLevelBlock(`[data-pnl="${palette}"]`));
+      expect(printPnl.get("profit"), `${palette} profit`).toBe(lightPnl.get("profit"));
+      expect(printPnl.get("loss"), `${palette} loss`).toBe(lightPnl.get("loss"));
+    }
+  });
+
+  it("il cromo dell'applicazione è nascosto in stampa", () => {
+    // header = topbar sticky (switcher conto, tema, avatar, «+»), aside = sidebar.
+    expect(PRINT_MEDIA).toMatch(/header,[\s\S]*?display:\s*none/);
+    expect(PRINT_MEDIA).toMatch(/aside,/);
+  });
+});
