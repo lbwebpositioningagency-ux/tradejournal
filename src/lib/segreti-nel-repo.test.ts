@@ -1,19 +1,17 @@
 import { execFileSync } from "node:child_process";
-import { readFileSync, statSync } from "node:fs";
-import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 // Modulo .mjs condiviso con l'hook di pre-commit: nessun tipo, si dichiara qui.
 import * as segreti from "./segreti.mjs";
 
 const {
-  violazioniIn,
   violazioniDiContenuto,
   violazioneDiPercorso,
+  daIgnorare,
   LUNGHEZZA_MINIMA_SEGRETO,
 } = segreti as {
-  violazioniIn: (percorso: string, contenuto: string) => string[];
   violazioniDiContenuto: (percorso: string, contenuto: string) => string[];
   violazioneDiPercorso: (percorso: string) => string | null;
+  daIgnorare: (percorso: string) => boolean;
   LUNGHEZZA_MINIMA_SEGRETO: number;
 };
 
@@ -36,15 +34,75 @@ const RADICE = process.cwd();
 /** Oltre questa soglia il file non si legge: sono lockfile e dati, non sonde. */
 const BYTE_MASSIMI = 2 * 1024 * 1024;
 
-function fileVersionati(): string[] {
-  return execFileSync("git", ["ls-files"], {
+function git(...argomenti: string[]): string {
+  return execFileSync("git", argomenti, {
     encoding: "utf8",
     cwd: RADICE,
-    maxBuffer: 64 * 1024 * 1024,
-  })
+    maxBuffer: 256 * 1024 * 1024,
+  });
+}
+
+function fileVersionati(): string[] {
+  return git("ls-files")
     .split("\n")
     .map((r) => r.trim())
     .filter(Boolean);
+}
+
+/**
+ * Il contenuto si legge dall'INDICE di git, non dal disco.
+ *
+ * Non è pignoleria: leggendo la copia di lavoro questo test è fallito due
+ * volte su tre esecuzioni consecutive mentre attorno giravano un merge, un
+ * `rm -rf .next` e un build — cioè mentre qualcosa riscriveva file
+ * versionati. Un controllo che ogni tanto grida al lupo per una gara con il
+ * filesystem finisce ignorato quanto uno che tace, e questo esiste per essere
+ * creduto. L'indice è anche la risposta giusta alla domanda che il test pone:
+ * cosa c'è sotto controllo di versione, non cosa c'è per terra adesso.
+ *
+ * `git cat-file --batch` legge TUTTI i blob in un solo processo: il formato è
+ * `<sha> <tipo> <byte>\n<contenuto>\n`, ripetuto.
+ */
+function contenutiDaIndice(percorsi: string[]): Map<string, string> {
+  const righe = git("ls-files", "-s").split("\n").filter(Boolean);
+  const shaPerPercorso = new Map<string, string>();
+  for (const r of righe) {
+    // "<modo> <sha> <stadio>\t<percorso>"
+    const tab = r.indexOf("\t");
+    if (tab < 0) continue;
+    const sha = r.slice(0, tab).split(/\s+/)[1];
+    const percorso = r.slice(tab + 1);
+    if (sha) shaPerPercorso.set(percorso, sha);
+  }
+
+  const voluti = percorsi.filter((p) => shaPerPercorso.has(p));
+  if (voluti.length === 0) return new Map();
+
+  const grezzo = execFileSync(
+    "git",
+    ["cat-file", "--batch"],
+    {
+      cwd: RADICE,
+      input: voluti.map((p) => shaPerPercorso.get(p)!).join("\n") + "\n",
+      maxBuffer: 512 * 1024 * 1024,
+    },
+  );
+
+  const fuori = new Map<string, string>();
+  let cursore = 0;
+  for (const percorso of voluti) {
+    const aCapo = grezzo.indexOf(0x0a, cursore);
+    if (aCapo < 0) break;
+    const intestazione = grezzo.toString("utf8", cursore, aCapo);
+    const byte = Number(intestazione.split(" ")[2]);
+    const inizio = aCapo + 1;
+    if (!Number.isFinite(byte)) break;
+    if (byte <= BYTE_MASSIMI) {
+      fuori.set(percorso, grezzo.toString("utf8", inizio, inizio + byte));
+    }
+    cursore = inizio + byte + 1; // +1 per l'a-capo finale del blob
+  }
+  return fuori;
 }
 
 describe("i pattern riconoscono i segreti e lasciano stare il resto", () => {
@@ -113,23 +171,17 @@ describe("i pattern riconoscono i segreti e lasciano stare il resto", () => {
 
 describe("l'albero versionato non contiene segreti né sonde", () => {
   it("nessun file sotto controllo di versione viola le regole", () => {
+    const percorsi = fileVersionati();
+    const contenuti = contenutiDaIndice(percorsi);
     const violazioni: string[] = [];
-    for (const percorso of fileVersionati()) {
-      const assoluto = join(RADICE, percorso);
-      let dimensione = 0;
-      try {
-        dimensione = statSync(assoluto).size;
-      } catch {
-        continue; // versionato ma assente dal disco (checkout parziale)
-      }
-      if (dimensione > BYTE_MASSIMI) continue;
-      let contenuto: string;
-      try {
-        contenuto = readFileSync(assoluto, "utf8");
-      } catch {
-        continue;
-      }
-      violazioni.push(...violazioniIn(percorso, contenuto));
+    for (const percorso of percorsi) {
+      // Il percorso si controlla sempre; il contenuto solo se leggibile e
+      // sotto la soglia (i lockfile non sono sonde).
+      const perPercorso = violazioneDiPercorso(percorso);
+      if (perPercorso && !daIgnorare(percorso)) violazioni.push(perPercorso);
+      const contenuto = contenuti.get(percorso);
+      if (contenuto === undefined || daIgnorare(percorso)) continue;
+      violazioni.push(...violazioniDiContenuto(percorso, contenuto));
     }
     expect(violazioni).toEqual([]);
   });
