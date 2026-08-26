@@ -61,9 +61,14 @@ import { PrintButton } from "./print-button";
 export const metadata: Metadata = { title: "Report periodico" };
 
 /**
- * W3 — «Report del venerdì»: digest della settimana generato dalle STESSE
- * formule testate del resto dell'app (zero AI, zero allucinazioni, tutto
- * verificabile), impaginato per la stampa/PDF nativi del browser.
+ * W3 — REPORT PERIODICO: il digest generato dalle STESSE formule testate del
+ * resto dell'app (zero AI, zero allucinazioni, tutto verificabile),
+ * impaginato per la stampa/PDF nativi del browser.
+ *
+ * F5 — nato settimanale («il report del venerdì»), ora su quattro intervalli:
+ * il mese è l'unità dei payout e delle challenge, il trimestre quella con cui
+ * si giudica un sistema, l'anno quella fiscale. L'URL resta quello e il
+ * default resta la settimana, così i segnalibri non si rompono.
  */
 
 /** Delta leggibile fra due importi (stringhe decimali). */
@@ -304,7 +309,7 @@ export default async function WeeklyReportPage({
                 </div>
               </div>
 
-              {/* Estremi della settimana */}
+              {/* Estremi del periodo */}
               <div className="grid gap-4 sm:grid-cols-2">
                 <div className="rounded-lg border border-profit/40 p-3">
                   <p className="text-sm font-semibold text-profit">Il meglio</p>
@@ -354,10 +359,12 @@ export default async function WeeklyReportPage({
 
               {/* Errori taggati e loro costo */}
               <div>
-                <p className="stat-label mb-2">Errori taggati della settimana</p>
+                <p className="stat-label mb-2">
+                  Errori taggati · {REPORT_RANGE_LABELS[range].toLowerCase()}
+                </p>
                 {mistakes.length === 0 ? (
                   <p className="text-sm text-muted-foreground">
-                    Nessun tag errore sui trade della settimana: o disciplina
+                    Nessun tag errore sui trade del periodo: o disciplina
                     perfetta, o journaling da completare.
                   </p>
                 ) : (
