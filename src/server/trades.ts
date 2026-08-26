@@ -7,6 +7,7 @@ import { prisma } from "@/lib/db";
 import { zonedInputToUtc } from "@/lib/dates";
 import { computeTrade, TradeComputeError } from "@/lib/trade-compute";
 import { DEMO_READONLY_MESSAGE } from "@/lib/constants";
+import { resolveTagIds } from "@/lib/tags";
 import {
   tradeInputSchema,
   tradeReviewSchema,
@@ -82,25 +83,6 @@ async function prepareTradeData(userId: string, input: TradeInput) {
   }
 
   return { data, executions, computed } as const;
-}
-
-/** Upsert dei tag per nome e ritorno degli id (sempre dell'utente). */
-async function resolveTagIds(
-  userId: string,
-  names: string[],
-): Promise<string[]> {
-  const unique = [...new Set(names.map((n) => n.trim()).filter(Boolean))];
-  const ids: string[] = [];
-  for (const name of unique) {
-    const tag = await prisma.tag.upsert({
-      where: { userId_name: { userId, name } },
-      update: {},
-      create: { userId, name },
-      select: { id: true },
-    });
-    ids.push(tag.id);
-  }
-  return ids;
 }
 
 export async function createTradeAction(

@@ -38,6 +38,8 @@ export {
   SCORE_FACTOR_INFO,
   scoreFactorInfo,
   SCORE_MIN_TRADES,
+  normalizedDrawdownPct,
+  DD_REFERENCE_SESSIONS,
   type RadarScore,
   type RadarScoreFactors,
   type RadarScoreInput,

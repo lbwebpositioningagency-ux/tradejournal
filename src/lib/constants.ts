@@ -109,3 +109,35 @@ export const PNL_PALETTE_HINTS: Record<PnlPalette, string> = {
   "blue-red": "adatta al daltonismo rosso-verde",
   "green-violet": "adatta al daltonismo rosso-verde",
 };
+
+/**
+ * J-1 — CATEGORIE DEI TAG, condivise fra UI, validazione e report.
+ *
+ * Vivono qui e non in `validations/`: `TagPicker` è un client component e
+ * importare da un modulo con zod dentro rimetterebbe lo schema nel bundle
+ * (P-02). L'ordine è quello di comparsa nel menu: prima le tre categorie
+ * che alimentano le analisi (setup, errore, emozione), poi il ripiego.
+ *
+ * Devono restare allineate all'enum `TagCategory` di Prisma: sono le stesse
+ * quattro chiavi, e i Reports le usano per l'etichetta accanto al nome.
+ */
+export const TAG_CATEGORIES = ["SETUP", "MISTAKE", "EMOTION", "CUSTOM"] as const;
+export type TagCategory = (typeof TAG_CATEGORIES)[number];
+
+/** Categoria di ripiego: quella con cui nasce un tag non classificato. */
+export const DEFAULT_TAG_CATEGORY: TagCategory = "CUSTOM";
+
+export const TAG_CATEGORY_LABELS: Record<TagCategory, string> = {
+  SETUP: "setup",
+  MISTAKE: "errore",
+  EMOTION: "emozione",
+  CUSTOM: "custom",
+};
+
+/** Riga di aiuto sotto al menu: cosa cambia scegliendo una categoria. */
+export const TAG_CATEGORY_HINTS: Record<TagCategory, string> = {
+  SETUP: "il tipo di operazione (breakout, pullback…)",
+  MISTAKE: "un errore commesso — alimenta il costo degli errori nel report settimanale",
+  EMOTION: "lo stato emotivo (disciplina, tilt…)",
+  CUSTOM: "nessuna delle precedenti",
+};

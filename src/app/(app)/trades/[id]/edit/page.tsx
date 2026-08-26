@@ -31,7 +31,7 @@ export default async function EditTradePage({
       where: { id, account: { userId } },
       include: {
         executions: { orderBy: { executedAt: "asc" } },
-        tags: { include: { tag: { select: { name: true } } } },
+        tags: { include: { tag: { select: { name: true, category: true } } } },
         notes: { where: { type: "TRADE" }, orderBy: { createdAt: "asc" } },
       },
     }),
@@ -49,7 +49,7 @@ export default async function EditTradePage({
     prisma.tag.findMany({
       where: { userId },
       orderBy: { name: "asc" },
-      select: { name: true },
+      select: { name: true, category: true },
     }),
   ]);
 
@@ -73,7 +73,7 @@ export default async function EditTradePage({
         tradeId={trade.id}
         accounts={accounts}
         strategies={strategies}
-        tagSuggestions={allTags.map((t) => t.name)}
+        tagSuggestions={allTags.map((t) => ({ name: t.name, category: t.category }))}
         initialValues={{
           tradingAccountId: trade.tradingAccountId,
           symbol: trade.symbol,
@@ -87,7 +87,10 @@ export default async function EditTradePage({
           strategyId: trade.strategyId ?? "",
           rating: trade.rating ? String(trade.rating) : "",
           notes: trade.notes.map((note) => note.content).join("\n\n"),
-          tags: trade.tags.map(({ tag }) => tag.name),
+          tags: trade.tags.map(({ tag }) => ({
+            name: tag.name,
+            category: tag.category,
+          })),
           executions,
         }}
       />

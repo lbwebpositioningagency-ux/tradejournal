@@ -330,6 +330,10 @@ export default async function DashboardPage({
     netPnl: agg.netPnl,
     maxDrawdown: dd.maxDrawdown,
     maxDrawdownPct: dd.maxDrawdownPct,
+    // Q-1 — sedute della serie su cui il drawdown è stato misurato (non i
+    // giorni del periodo, non i giorni con trade): è il denominatore della
+    // normalizzazione √n del fattore Max Drawdown.
+    observations: dailySeries.length,
     daily,
   });
   const expectancyR =

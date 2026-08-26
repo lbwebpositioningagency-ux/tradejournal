@@ -540,3 +540,129 @@
 .macro-report .scrollbar-none::-webkit-scrollbar {
   display: none;
 }
+
+/* ============================================================================
+   STAMPA (E-1)
+
+   Il report settimanale ha un bottone «Stampa / salva PDF» dal giorno in cui
+   è nato, ma nel foglio non esisteva UNA sola regola di stampa. Due difetti,
+   entrambi verificati sull'anteprima del browser:
+
+   ① IN TEMA SCURO IL TESTO ERA BIANCO SU CARTA BIANCA. I browser non
+      stampano gli sfondi (`print-color-adjust: economy` è il default), ma
+      stampano il COLORE DEL TESTO: con `.dark` attivo `--foreground` vale
+      oklch(0.975 …), cioè quasi bianco. Il PDF usciva vuoto a occhio nudo.
+   ② LA TOPBAR STICKY finiva in cima al foglio — switcher conto, tema,
+      avatar, bottone «+» — perché solo l'intestazione della pagina aveva
+      `print:hidden`. La sidebar si salvava per caso (è `lg:flex`, e la
+      larghezza di stampa sta sotto quel breakpoint): per caso, non per
+      scelta, quindi qui viene nascosta esplicitamente.
+
+   COME: in stampa il tema scuro viene NEUTRALIZZATO riportando i token ai
+   valori chiari — gli stessi di `:root`, già validati AA e in gamut. Non si
+   inventa nulla e non si tocca la palette dello schermo. Il test
+   `theme-contrast.test.ts` verifica che questo blocco copra OGNI token
+   ridefinito da `.dark` e che i valori coincidano con `:root`: se domani
+   qualcuno cambia un token chiaro senza aggiornarlo qui, il gate si accorge
+   della deriva invece di lasciare che ricompaia il bianco su bianco.
+   ========================================================================= */
+
+@media print {
+  .dark {
+    --background: oklch(0.988 0.003 264);
+    --foreground: oklch(0.16 0.014 264);
+    --card: oklch(1 0 0);
+    --card-foreground: oklch(0.16 0.014 264);
+    --popover: oklch(1 0 0);
+    --popover-foreground: oklch(0.16 0.014 264);
+    --primary: oklch(0.54 0.251 262);
+    --primary-foreground: oklch(0.988 0.003 264);
+    --secondary: oklch(0.968 0.005 264);
+    --secondary-foreground: oklch(0.21 0.015 264);
+    --muted: oklch(0.968 0.005 264);
+    --muted-foreground: oklch(0.532 0.019 264);
+    --accent: oklch(0.962 0.007 264);
+    --accent-foreground: oklch(0.21 0.015 264);
+    --destructive: oklch(0.545 0.22 26);
+    --border: oklch(0.918 0.007 264);
+    --input: oklch(0.918 0.007 264);
+    --ring: oklch(0.54 0.251 262);
+    --chart-1: oklch(0.54 0.251 262);
+    --chart-2: oklch(0.525 0.123 158);
+    --chart-3: oklch(0.565 0.23 26);
+    --chart-4: oklch(0.63 0.176 62);
+    --chart-5: oklch(0.53 0.256 300);
+    --profit: oklch(0.525 0.123 158);
+    --loss: oklch(0.565 0.23 26);
+    --breakeven: oklch(0.44 0.012 264);
+    --warning: oklch(0.565 0.133 60);
+    --sidebar: oklch(0.975 0.005 264);
+    --sidebar-foreground: oklch(0.16 0.014 264);
+    --sidebar-primary: oklch(0.54 0.251 262);
+    --sidebar-primary-foreground: oklch(0.988 0.003 264);
+    --sidebar-accent: oklch(0.955 0.008 264);
+    --sidebar-accent-foreground: oklch(0.21 0.015 264);
+    --sidebar-border: oklch(0.918 0.007 264);
+    --sidebar-ring: oklch(0.54 0.251 262);
+  }
+
+  /* La coppia P&L scelta dall'utente si CONSERVA in stampa, nella sua
+     variante chiara: chi ha scelto blu/rosso per daltonismo deve ritrovarla
+     sul foglio, non il verde/rosso di default. Stessi valori dei blocchi
+     `[data-pnl]` di modalità chiara qui sopra. */
+  :where(.dark, .dark *)[data-pnl="classic"] {
+    --profit: oklch(0.525 0.123 158);
+    --loss: oklch(0.565 0.23 26);
+  }
+  :where(.dark, .dark *)[data-pnl="blue-red"] {
+    --profit: oklch(0.452 0.313 264);
+    --loss: oklch(0.565 0.23 26);
+  }
+  :where(.dark, .dark *)[data-pnl="green-violet"] {
+    --profit: oklch(0.525 0.123 158);
+    --loss: oklch(0.526 0.292 293);
+  }
+
+  /* Il foglio è bianco: si dichiara, invece di dipendere dal fatto che il
+     browser non renda gli sfondi. `print-color-adjust: exact` sul testo
+     colorato (verde/rosso del P&L) perché quello va reso davvero: senza,
+     alcuni browser lo virano al nero e il segno si perde. */
+  html,
+  body {
+    background: #fff !important;
+    color: var(--foreground) !important;
+  }
+
+  .text-profit,
+  .text-loss,
+  .text-breakeven {
+    print-color-adjust: exact;
+    -webkit-print-color-adjust: exact;
+  }
+
+  /* Cromo dell'applicazione: non appartiene al documento stampato. */
+  header,
+  aside,
+  nav[aria-label],
+  [data-slot="sonner-toaster"] {
+    display: none !important;
+  }
+
+  /* La colonna principale non deve più lasciare il posto alla sidebar. */
+  main {
+    padding: 0 !important;
+  }
+
+  /* Le card non devono spezzarsi a metà fra due pagine. */
+  [data-slot="card"] {
+    break-inside: avoid;
+    box-shadow: none !important;
+  }
+
+  /* I link interni stampati come testo: un URL fra parentesi su ogni voce
+     renderebbe il report illeggibile. */
+  a {
+    text-decoration: none !important;
+    color: inherit !important;
+  }
+}

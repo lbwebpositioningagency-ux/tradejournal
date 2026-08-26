@@ -56,7 +56,7 @@ export default async function DayReviewPage({
       orderBy: { closedAt: "asc" },
       include: {
         account: { select: { currency: true } },
-        tags: { include: { tag: { select: { name: true } } } },
+        tags: { include: { tag: { select: { name: true, category: true } } } },
       },
     }),
     prisma.strategy.findMany({
@@ -67,7 +67,7 @@ export default async function DayReviewPage({
     prisma.tag.findMany({
       where: { userId },
       orderBy: { name: "asc" },
-      select: { name: true },
+      select: { name: true, category: true },
     }),
     prisma.note.findFirst({
       where: {
@@ -139,10 +139,13 @@ export default async function DayReviewPage({
           currency: trade.account.currency,
           strategyId: trade.strategyId ?? "",
           rating: trade.rating,
-          tags: trade.tags.map(({ tag }) => tag.name),
+          tags: trade.tags.map(({ tag }) => ({
+            name: tag.name,
+            category: tag.category,
+          })),
         }))}
         strategies={strategies}
-        tagSuggestions={tags.map((t) => t.name)}
+        tagSuggestions={tags.map((t) => ({ name: t.name, category: t.category }))}
         postmarketInitial={postmarket?.content ?? statsTemplate}
       />
     </div>
