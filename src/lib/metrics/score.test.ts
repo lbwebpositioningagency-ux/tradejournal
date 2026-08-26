@@ -14,6 +14,7 @@ import {
   SCORE_FACTOR_KEYS,
   SCORE_MIN_TRADES,
   DISCIPLINE_MIN_COVERAGE,
+  DISCIPLINE_MIN_LOSSES,
   ulcerIndex,
 } from "./index";
 import type { RadarScoreInput } from "./index";
@@ -31,8 +32,11 @@ const base: RadarScoreInput = {
   winSum: "9000.00",
   lossSum: "-4500.00",
   ulcer: "0.0500", // esattamente il neutro della scala Ulcer
-  plannedTrades: 50, // esattamente il neutro della disciplina
-  tradesWithAnyPlan: 50, // campo di piano in uso su tutti i trade
+  // Disciplina esattamente al neutro: 32 perdite su 40 rimaste entro il
+  // rischio pianificato (80%), e il rischio è definito su 40 delle 45.
+  grossLosses: 45,
+  plannedRiskLosses: 40,
+  riskRespectedLosses: 32,
   daily: [
     { netPnl: "1500.00" },
     { netPnl: "1500.00" },
@@ -129,8 +133,9 @@ describe("radarScore — fattori e composizione", () => {
       winSum: "6000.00",
       lossSum: "-6000.00", // PF 1,00 = pareggio; payoff 150/100 → 1,5
       ulcer: "0.0500",
-      plannedTrades: 50,
-      tradesWithAnyPlan: 50,
+      grossLosses: 60,
+      plannedRiskLosses: 50,
+      riskRespectedLosses: 40, // 80% = neutro della disciplina
       daily: [{ netPnl: "100" }, { netPnl: "300" }],
     })!;
     expect(neutral.factors.winRate).toBe(50);
@@ -147,8 +152,9 @@ describe("radarScore — fattori e composizione", () => {
       winSum: "4000.00",
       lossSum: "0.00",
       ulcer: "0.0000",
-      plannedTrades: 40,
-      tradesWithAnyPlan: 40,
+      grossLosses: 0,
+      plannedRiskLosses: 0,
+      riskRespectedLosses: 0,
       daily: [
         { netPnl: "1000.00" },
         { netPnl: "1000.00" },
@@ -160,7 +166,14 @@ describe("radarScore — fattori e composizione", () => {
     expect(result.factors.avgWinLoss).toBe(100);
     expect(result.factors.drawdown).toBe(100); // nessun underwater
     expect(result.factors.consistency).toBe(100); // giornate identiche
-    expect(result.computed).toBe(6);
+    // Senza una sola perdita il rispetto dello stop non ha nulla su cui
+    // misurarsi: «—», non un 100 regalato a chi non è mai stato messo alla
+    // prova. È il caso che rende ONESTO il fattore anche al suo estremo.
+    expect(result.factors.discipline).toBeNull();
+    expect(result.missingReasons.discipline).toContain(
+      "Nessun trade chiuso in perdita",
+    );
+    expect(result.computed).toBe(5);
   });
 
   it("tutti perdenti: gli assi di risultato vanno a zero, la disciplina resta", () => {
@@ -171,8 +184,11 @@ describe("radarScore — fattori e composizione", () => {
       winSum: "0.00",
       lossSum: "-3000.00",
       ulcer: "0.3000",
-      plannedTrades: 27, // 90% → disciplina al massimo
-      tradesWithAnyPlan: 27,
+      // Trenta perdite, tutte col rischio pianificato e tutte rimaste
+      // dentro: si può perdere trenta volte di fila restando disciplinati.
+      grossLosses: 30,
+      plannedRiskLosses: 30,
+      riskRespectedLosses: 30,
       daily: [{ netPnl: "-1500.00" }, { netPnl: "-1500.00" }],
     })!;
     expect(result.factors.winRate).toBe(0);
@@ -206,8 +222,9 @@ describe("radarScore — fattori e composizione", () => {
         winSum: "0",
         lossSum: "0",
         ulcer: null,
-        plannedTrades: 0,
-        tradesWithAnyPlan: 0,
+        grossLosses: 0,
+        plannedRiskLosses: 0,
+        riskRespectedLosses: 0,
         daily: [],
       }),
     ).toBeNull();
@@ -227,8 +244,9 @@ describe("radarScore — fattori e composizione", () => {
       winSum: "50000.00",
       lossSum: "-100.00",
       ulcer: "0.0001",
-      plannedTrades: 50,
-      tradesWithAnyPlan: 50,
+      grossLosses: 40,
+      plannedRiskLosses: 40,
+      riskRespectedLosses: 40,
       daily: [{ netPnl: "25000.00" }, { netPnl: "24900.00" }],
     })!;
     for (const key of SCORE_FACTOR_KEYS) {
@@ -240,57 +258,118 @@ describe("radarScore — fattori e composizione", () => {
     expect(Number(estremo.score)).toBeLessThanOrEqual(100);
   });
 
-  it("la disciplina è un tasso: dipende dalla QUOTA di piani, non dal loro numero", () => {
+  it("la disciplina è un tasso: dipende dalla QUOTA, non dal numero di perdite", () => {
     const pochi = radarScore({
       ...base,
       total: 40,
-      plannedTrades: 36,
-      tradesWithAnyPlan: 36,
+      grossLosses: 36,
+      plannedRiskLosses: 36,
+      riskRespectedLosses: 32,
     })!;
     const molti = radarScore({
       ...base,
       total: 400,
-      plannedTrades: 360,
-      tradesWithAnyPlan: 360,
+      grossLosses: 360,
+      plannedRiskLosses: 360,
+      riskRespectedLosses: 320,
     })!;
     expect(pochi.factors.discipline).toBe(molti.factors.discipline);
   });
 });
 
 /**
- * DATO DI PIANO ASSENTE: il caso che un import CSV senza colonne di stop e
- * target produce su tutto lo storico. Il rapporto «piani completi / trade»
- * varrebbe 0 e il fattore direbbe «disciplina pessima» — il giudizio
- * peggiore possibile, su un dato che non c'è.
+ * I DUE CANCELLI DELLA DISCIPLINA.
+ *
+ * Il fattore e' una PROPORZIONE osservata su un sottoinsieme dei trade, e due
+ * cose possono renderla una finta misura: che il sottoinsieme sia piccolo
+ * (il caso al posto del comportamento) o che sia una fetta minoritaria delle
+ * perdite (le altre potrebbero averlo sforato tutte). Un cancello per parte,
+ * e ciascuno dice il suo motivo: "non calcolabile" da solo sembra un guasto.
  */
-describe("disciplina — quando il campo di piano non è in uso", () => {
-  it("nessun trade porta un campo di piano → null, MAI zero", () => {
+describe("disciplina - i due cancelli, e il motivo dichiarato", () => {
+  it("nessuna perdita porta il rischio pianificato: null, MAI zero", () => {
+    // Il caso dell'import CSV senza colonna di rischio: il rapporto non e' 0,
+    // e' indefinito. Zero sarebbe il giudizio peggiore possibile su un dato
+    // che non c'e'.
     const result = radarScore({
       ...base,
-      plannedTrades: 0,
-      tradesWithAnyPlan: 0,
+      plannedRiskLosses: 0,
+      riskRespectedLosses: 0,
     })!;
     expect(result.factors.discipline).toBeNull();
     expect(result.computed).toBe(5);
   });
 
-  it("il motivo è dichiarato, coi numeri: «non calcolabile» da solo sembra un guasto", () => {
+  it("copertura insufficiente: il motivo porta i numeri veri", () => {
     const result = radarScore({
       ...base,
-      total: 200,
-      plannedTrades: 0,
-      tradesWithAnyPlan: 3,
+      grossLosses: 100,
+      plannedRiskLosses: 50, // 50% sotto l'80%
+      riskRespectedLosses: 50,
     })!;
-    expect(result.missingReasons.discipline).toContain("3 trade su 200");
-    expect(result.missingReasons.discipline).toContain("20%");
+    expect(result.factors.discipline).toBeNull();
+    expect(result.missingReasons.discipline).toContain("50 delle 100 perdite");
+    expect(result.missingReasons.discipline).toContain("80%");
+  });
+
+  it("copertura piena ma poche perdite: e' il caso, non il comportamento", () => {
+    const result = radarScore({
+      ...base,
+      grossLosses: 20,
+      plannedRiskLosses: 20, // copertura 100%, ma 20 sotto le 30
+      riskRespectedLosses: 18,
+    })!;
+    expect(result.factors.discipline).toBeNull();
+    expect(result.missingReasons.discipline).toContain("Solo 20 perdite");
+    expect(DISCIPLINE_MIN_LOSSES).toBe(30);
+  });
+
+  it("i tre motivi sono DIVERSI: si risolvono in tre modi diversi", () => {
+    const senzaPerdite = radarScore({
+      ...base,
+      grossLosses: 0,
+      plannedRiskLosses: 0,
+      riskRespectedLosses: 0,
+    })!.missingReasons.discipline;
+    const pocaCopertura = radarScore({
+      ...base,
+      grossLosses: 100,
+      plannedRiskLosses: 40,
+      riskRespectedLosses: 40,
+    })!.missingReasons.discipline;
+    const pochePerdite = radarScore({
+      ...base,
+      grossLosses: 12,
+      plannedRiskLosses: 12,
+      riskRespectedLosses: 10,
+    })!.missingReasons.discipline;
+    expect(new Set([senzaPerdite, pocaCopertura, pochePerdite]).size).toBe(3);
+  });
+
+  it("esattamente alle due soglie il fattore si calcola: il confine e' incluso", () => {
+    const alLimite = radarScore({
+      ...base,
+      grossLosses: 50,
+      plannedRiskLosses: 40, // copertura 80,00% esatta
+      riskRespectedLosses: 32,
+    })!;
+    expect(alLimite.factors.discipline).toBe(50);
+    const campioneMinimo = radarScore({
+      ...base,
+      grossLosses: 30,
+      plannedRiskLosses: 30, // esattamente DISCIPLINE_MIN_LOSSES
+      riskRespectedLosses: 24,
+    })!;
+    expect(campioneMinimo.factors.discipline).toBe(50);
+    expect(DISCIPLINE_MIN_COVERAGE).toBe("0.80");
   });
 
   it("la media si ricalcola sui SOLI fattori misurati, senza il buco", () => {
     const conDato = radarScore(base)!;
     const senzaDato = radarScore({
       ...base,
-      plannedTrades: 0,
-      tradesWithAnyPlan: 0,
+      plannedRiskLosses: 0,
+      riskRespectedLosses: 0,
     })!;
     const media = (r: typeof conDato) =>
       SCORE_FACTOR_KEYS.map((k) => r.factors[k])
@@ -301,38 +380,88 @@ describe("disciplina — quando il campo di piano non è in uso", () => {
     expect(conDato.computed).toBe(6);
   });
 
-  it("sopra la soglia di copertura il campo È in uso: un trade senza piano conta", () => {
-    // 50 trade su 100 hanno un campo di piano (50% > 20%), ma solo 20 lo
-    // hanno completo: la disciplina è misurata e vale poco. È un giudizio
-    // legittimo, perché il dato c'è.
-    const result = radarScore({
+  it("uno Score senza disciplina NON e' confrontabile con uno che ce l'ha, e lo dichiara", () => {
+    const senza = radarScore({
       ...base,
-      total: 100,
-      plannedTrades: 20,
-      tradesWithAnyPlan: 50,
+      plannedRiskLosses: 0,
+      riskRespectedLosses: 0,
     })!;
-    expect(result.factors.discipline).not.toBeNull();
-    expect(result.factors.discipline!).toBeLessThan(50);
-    expect(result.missingReasons.discipline).toBeUndefined();
-  });
-
-  it("esattamente alla soglia il fattore si calcola: il confine è incluso", () => {
-    const result = radarScore({
-      ...base,
-      total: 100,
-      plannedTrades: 10,
-      tradesWithAnyPlan: 20,
-    })!;
-    expect(result.factors.discipline).not.toBeNull();
-    expect(DISCIPLINE_MIN_COVERAGE).toBe("0.20");
-  });
-
-  it("uno Score senza disciplina NON è confrontabile con uno che ce l'ha, e lo dichiara", () => {
-    const senza = radarScore({ ...base, plannedTrades: 0, tradesWithAnyPlan: 0 })!;
     expect(senza.computed).toBeLessThan(SCORE_FACTOR_KEYS.length);
-    // È `computed` il campo che la UI deve mostrare: senza, due punteggi
+    // E' `computed` il campo che la UI deve mostrare: senza, due punteggi
     // costruiti su un numero diverso di fattori sembrano la stessa scala.
     expect(senza.computed).toBe(5);
+  });
+});
+
+/**
+ * IL DIFETTO PER CUI QUESTO ASSE E' STATO RISCRITTO DUE VOLTE.
+ *
+ * Il recovery factor fu tolto anche perche' saturo a 100 su ogni periodo di
+ * SIM1: un sesto dello Score che alzava il punteggio senza mai variare. La
+ * prima disciplina - presenza di stop e target - aveva lo stesso difetto, e
+ * anzi uno peggiore: numeratore e denominatore coincidevano sui dati reali
+ * (nessun trade ha mai avuto un solo campo dei due), quindi il fattore ERA
+ * la copertura del campo, e il cancello di copertura confrontava il fattore
+ * con se stesso.
+ *
+ * Questi test fissano che il rispetto del piano, invece, si muove.
+ */
+describe("disciplina - misura un comportamento, quindi varia", () => {
+  const con = (respected: number, losses = 100) =>
+    radarScore({
+      ...base,
+      grossLosses: losses,
+      plannedRiskLosses: losses,
+      riskRespectedLosses: respected,
+    })!.factors.discipline;
+
+  it("le tre ancore sono conteggi leggibili: meta', una su cinque, nessuna", () => {
+    expect(con(50)).toBe(0); // una perdita su due oltre il piano
+    expect(con(80)).toBe(50); // una su cinque
+    expect(con(100)).toBe(100); // nessuna
+  });
+
+  it("100 SOLO alla perfezione: una sola perdita oltre il piano lo toglie", () => {
+    expect(con(99)).toBeLessThan(100);
+    expect(con(99)).toBeGreaterThan(90);
+  });
+
+  it("i valori misurati sui conti locali cadono su punteggi distinti", () => {
+    // Misura reale (26/08/2026) sulle perdite con rischio pianificato:
+    // SIM1 211/313 - Conto futures 31/39 - Conto forex 36/37.
+    const sim1 = con(211, 313)!;
+    const futures = con(31, 39)!;
+    const forex = con(36, 37)!;
+    expect(sim1).toBeGreaterThan(0);
+    expect(sim1).toBeLessThan(futures);
+    expect(futures).toBeLessThan(forex);
+    expect(forex).toBeLessThan(100);
+  });
+
+  it("il denominatore sono le PERDITE: il win rate non puo' gonfiarlo", () => {
+    // Stesso comportamento sullo stop, win rate opposto: il fattore non si
+    // muove. Con le vincite nel denominatore salirebbe col win rate, e
+    // l'asse duplicherebbe quello del win rate invece di aggiungere.
+    const vincente = radarScore({
+      ...base,
+      total: 400,
+      wins: 360,
+      losses: 40,
+      grossLosses: 40,
+      plannedRiskLosses: 40,
+      riskRespectedLosses: 34,
+    })!;
+    const perdente = radarScore({
+      ...base,
+      total: 400,
+      wins: 40,
+      losses: 360,
+      grossLosses: 40,
+      plannedRiskLosses: 40,
+      riskRespectedLosses: 34,
+    })!;
+    expect(vincente.factors.discipline).toBe(perdente.factors.discipline);
+    expect(vincente.factors.winRate).not.toBe(perdente.factors.winRate);
   });
 });
 
@@ -376,7 +505,8 @@ describe("Q-1 — lo Score è piatto su un processo stazionario", () => {
       winSum: sum((r) => r > 0),
       lossSum: sum((r) => r < 0),
       // Disciplina costante: è il processo a essere stazionario, non i dati.
-      plannedTrades: Math.round(rs.length * 0.7),
+      // Rispetto dello stop all'85% delle perdite, sempre, in ogni finestra.
+      lossCount: rs.filter((r) => r < 0).length,
       days,
     };
   }
@@ -385,10 +515,16 @@ describe("Q-1 — lo Score è piatto su un processo stazionario", () => {
   const PATHS = 60;
 
   function averages() {
-    const perWindow: { score: number; factors: Record<string, number> }[] = [];
+    const perWindow: {
+      score: number;
+      factors: Record<string, number>;
+      /** Quante volte, su PATHS cammini, ogni fattore era calcolabile. */
+      counted: Record<string, number>;
+    }[] = [];
     for (const n of WINDOWS) {
       let score = 0;
       const factors: Record<string, number> = {};
+      const counted: Record<string, number> = {};
       for (let p = 0; p < PATHS; p++) {
         const s = simulate(n, 4200 + p);
         const series = dailyReturns(s.days, EQUITY);
@@ -399,18 +535,29 @@ describe("Q-1 — lo Score è piatto su un processo stazionario", () => {
           winSum: s.winSum,
           lossSum: s.lossSum,
           ulcer: ulcerIndex(series, EQUITY),
-          plannedTrades: s.plannedTrades,
-          tradesWithAnyPlan: s.plannedTrades,
+          grossLosses: s.lossCount,
+          plannedRiskLosses: s.lossCount,
+          riskRespectedLosses: Math.round(s.lossCount * 0.85),
           daily: s.days,
         })!;
         score += Number(r.score);
-        for (const k of SCORE_FACTOR_KEYS) factors[k] = (factors[k] ?? 0) + (r.factors[k] ?? 0);
+        // La media di un fattore si fa sui cammini in cui ESISTE. Sommare
+        // gli zeri dei cammini in cui vale «—» misurerebbe il cancello di
+        // campione, non la deriva del fattore: sono due cose diverse e il
+        // test sotto le tiene separate.
+        for (const k of SCORE_FACTOR_KEYS) {
+          const v = r.factors[k];
+          if (v === null) continue;
+          factors[k] = (factors[k] ?? 0) + v;
+          counted[k] = (counted[k] ?? 0) + 1;
+        }
       }
       perWindow.push({
         score: score / PATHS,
         factors: Object.fromEntries(
-          Object.entries(factors).map(([k, v]) => [k, v / PATHS]),
+          Object.entries(factors).map(([k, v]) => [k, v / (counted[k] ?? 1)]),
         ),
+        counted,
       });
     }
     return perWindow;
@@ -436,6 +583,16 @@ describe("Q-1 — lo Score è piatto su un processo stazionario", () => {
         `${key} per finestra: ${values.map((v) => v.toFixed(1)).join(" ")}`,
       ).toBeLessThan(6);
     }
+  });
+
+  it("il cancello di campione morde solo sulla finestra più corta, e lo si vede", () => {
+    // Effetto DICHIARATO del cancello: a 30 sedute alcuni cammini non
+    // arrivano a 30 perdite e la disciplina vale «—». Non è una deriva del
+    // fattore — il tasso è costante per costruzione — è il rifiuto di
+    // calcolare una proporzione su un campione che non la regge.
+    const disciplina = measured.map((m) => m.counted.discipline);
+    expect(disciplina[0]).toBeLessThan(PATHS);
+    for (const c of disciplina.slice(1)) expect(c).toBe(PATHS);
   });
 
   it("il drawdown NON usa più il massimo: l'Ulcer è la media dell'underwater", () => {

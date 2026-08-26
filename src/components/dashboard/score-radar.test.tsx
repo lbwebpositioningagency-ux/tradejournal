@@ -29,8 +29,9 @@ const input: RadarScoreInput = {
   winSum: "9000.00",
   lossSum: "-4500.00",
   ulcer: "0.0400",
-  plannedTrades: 70,
-  tradesWithAnyPlan: 70,
+  grossLosses: 45,
+  plannedRiskLosses: 40,
+  riskRespectedLosses: 36,
   daily: [{ netPnl: "3000.00" }, { netPnl: "2000.00" }, { netPnl: "-500.00" }],
 };
 
@@ -121,8 +122,10 @@ describe("ScoreRadar — icona (i) per ogni fattore", () => {
 describe("ScoreRadar — un asse senza dato", () => {
   const senzaDisciplina = radarScore({
     ...input,
-    plannedTrades: 0,
-    tradesWithAnyPlan: 0,
+    // Nessuna delle 45 perdite porta un rischio pianificato: il caso
+    // dell'import CSV senza colonna di rischio.
+    plannedRiskLosses: 0,
+    riskRespectedLosses: 0,
   });
 
   it("dichiara su quanti fattori è calcolata la media", () => {
@@ -133,8 +136,8 @@ describe("ScoreRadar — un asse senza dato", () => {
 
   it("mostra il MOTIVO, coi numeri: «non calcolabile» sembra un guasto", () => {
     const markup = render(senzaDisciplina);
-    expect(markup).toContain("0 trade su 100");
-    expect(markup).toContain("20%");
+    expect(markup).toContain("0 delle 45 perdite");
+    expect(markup).toContain("80%");
   });
 
   it("l'etichetta dell'asse porta il trattino: non è solo forma e colore", () => {

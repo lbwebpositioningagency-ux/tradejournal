@@ -94,12 +94,14 @@ export interface TradeAggregates {
   /** Somma delle fee. */
   fees: string;
   /**
-   * Trade chiusi con un piano COMPLETO (stop e target entrambi pianificati):
-   * numeratore del fattore disciplina dello Score.
+   * Trade chiusi in perdita LORDA (prima delle commissioni): base del
+   * fattore disciplina dello Score, e denominatore della sua copertura.
    */
-  plannedTrades: number;
-  /** Trade con almeno uno dei due campi di piano: copertura del campo. */
-  tradesWithAnyPlan: number;
+  grossLosses: number;
+  /** Di quelli, quanti portano un rischio iniziale definito: la copertura. */
+  plannedRiskLosses: number;
+  /** Di quelli, quanti sono rimasti ENTRO il rischio pianificato. */
+  riskRespectedLosses: number;
   /** P&L netto dei trade senza R: quanto denaro resta fuori dall'istogramma. */
   netPnlWithoutR: string;
 }
