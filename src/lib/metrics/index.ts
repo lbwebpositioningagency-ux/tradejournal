@@ -39,6 +39,7 @@ export {
   scoreFactorInfo,
   SCORE_MIN_TRADES,
   DISCIPLINE_MIN_COVERAGE,
+  DISCIPLINE_MIN_LOSSES,
   anchoredScore,
   positiveDayCv,
   SCORE_ANCHORS,

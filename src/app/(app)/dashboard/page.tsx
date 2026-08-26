@@ -323,8 +323,9 @@ export default async function DashboardPage({
     // Ogni fattore è un tasso o una media: mai il max drawdown (un massimo,
     // che cresce con la finestra) né il P&L netto (un totale).
     ulcer,
-    plannedTrades: agg.plannedTrades,
-    tradesWithAnyPlan: agg.tradesWithAnyPlan,
+    grossLosses: agg.grossLosses,
+    plannedRiskLosses: agg.plannedRiskLosses,
+    riskRespectedLosses: agg.riskRespectedLosses,
     daily,
   });
   const expectancyR =

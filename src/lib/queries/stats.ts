@@ -189,16 +189,22 @@ export async function getTradeAggregates(
       COALESCE(SUM(t."netPnl") FILTER (WHERE t."netPnl" > 0), 0)::text AS "winSum",
       COALESCE(SUM(t."netPnl") FILTER (WHERE t."netPnl" < 0), 0)::text AS "lossSum",
       COALESCE(SUM(t."fees"), 0)::text                         AS "fees",
-      -- Fattore DISCIPLINA dello Score: trade chiusi con un piano COMPLETO
-      -- (stop e target entrambi pianificati). Conteggio, non media: la
-      -- quota la fa il modulo puro, qui si contano soltanto le righe.
-      (COUNT(*) FILTER (WHERE t."plannedStop" IS NOT NULL
-                          AND t."plannedTarget" IS NOT NULL))::int AS "plannedTrades",
-      -- Almeno UNO dei due campi: distingue "non pianifico" da "il campo non
-      -- e' in uso". Senza, un import CSV senza colonne di piano darebbe
-      -- disciplina 0, cioe' il giudizio peggiore su un dato assente.
-      (COUNT(*) FILTER (WHERE t."plannedStop" IS NOT NULL
-                           OR t."plannedTarget" IS NOT NULL))::int AS "tradesWithAnyPlan",
+      -- Fattore DISCIPLINA dello Score: rispetto del rischio pianificato.
+      -- Base: i trade chiusi IN PERDITA (perdita LORDA, cioe' prima delle
+      -- commissioni) che portano un rischio iniziale definito. Le vincite
+      -- restano fuori dal denominatore di proposito: includendole, il tasso
+      -- salirebbe col win rate e l'asse duplicherebbe un altro asse.
+      (COUNT(*) FILTER (WHERE t."grossPnl" < 0))::int          AS "grossLosses",
+      (COUNT(*) FILTER (WHERE t."grossPnl" < 0
+                          AND t."initialRisk" > 0))::int       AS "plannedRiskLosses",
+      -- Perdita rimasta ENTRO il rischio deciso prima di entrare. Il
+      -- confronto e' sul LORDO perche' lo stop e' un livello di prezzo: le
+      -- commissioni non sono una decisione di uscita, e addebitarle al
+      -- trader trasformerebbe ogni stop preso in una violazione.
+      (COUNT(*) FILTER (WHERE t."grossPnl" < 0
+                          AND t."initialRisk" > 0
+                          AND -t."grossPnl" <= t."initialRisk"))::int
+                                                              AS "riskRespectedLosses",
       (COUNT(*) FILTER (WHERE t."rMultiple" IS NOT NULL))::int AS "rCount",
       -- Denaro che resta FUORI dalla distribuzione in R. Stessa definizione
       -- di getPlanCoverage (rMultiple IS NULL): il conteggio dei trade da

@@ -64,12 +64,34 @@ import type { MetricInfoData } from "./types";
  *   della finestra (misurato: 0,66 → 0,70 fra 30 e 500 sedute). Sostituisce
  *   `1 − miglior giornata / Σ giornate positive`, che dipendeva da un
  *   MASSIMO e aveva un pavimento meccanico di 1−1/n.
- * - DISCIPLINA: quota di trade chiusi con un piano completo (stop E target
- *   pianificati). Sostituisce il RECOVERY FACTOR, che era il peggior
- *   derivante della finestra (+40 punti), ridondante col drawdown — misura
- *   la stessa buca — e saturo a 100 su ogni periodo di SIM1. È l'unico asse
- *   che misura un COMPORTAMENTO invece di un risultato, quindi l'unico
- *   davvero indipendente dagli altri cinque.
+ * - DISCIPLINA: quota di trade CHIUSI IN PERDITA la cui perdita è rimasta
+ *   entro il rischio deciso prima di entrare. È l'unico asse che misura un
+ *   COMPORTAMENTO invece di un risultato, quindi l'unico davvero
+ *   indipendente dagli altri cinque.
+ *
+ *   Nota storica, ed è la seconda riscrittura di questo asse. Il fattore
+ *   nasce per sostituire il RECOVERY FACTOR, tolto perché derivava dalla
+ *   finestra (+40 punti), duplicava il drawdown e restava SATURO A 100 su
+ *   ogni periodo di SIM1. La prima versione leggeva la PRESENZA di stop e
+ *   target pianificati — e aveva lo stesso difetto: misurato su tutti i
+ *   conti locali, 100,00 in ogni finestra di SIM1, e sui due conti
+ *   realistici numeratore e denominatore COINCIDEVANO (75 su 75, 49 su 49:
+ *   nessun trade ha mai avuto un solo campo dei due). Il fattore era la
+ *   copertura del campo travestita da comportamento: valeva 100 ovunque il
+ *   campo fosse compilato, e scendeva solo contando i dati mancanti.
+ *
+ *   Ora misura il RISPETTO del piano e non la sua presenza: fra i trade
+ *   finiti in perdita, quanti hanno perso non più del rischio pianificato.
+ *   Il confronto è sulla perdita LORDA — lo stop è un livello di prezzo, e
+ *   addebitare al trader le commissioni farebbe risultare violato ogni stop
+ *   preso. Misurato: SIM1 67,4%, futures 79,5%, forex 97,3%, e mese per mese
+ *   su SIM1 fra 46% e 89%. Discrimina.
+ *
+ *   LIMITE DICHIARATO: dai dati non si distingue lo stop SPOSTATO dal gap
+ *   che lo salta. Entrambi finiscono qui dentro, ed è il motivo per cui il
+ *   target del fattore è "nessuna perdita oltre il piano" e non "quasi
+ *   nessuna": una soglia di slippage "accettabile" sarebbe un numero
+ *   inventato, il conteggio no.
  *
  * CAUTELA STATISTICA: sotto SCORE_MIN_TRADES trade chiusi (30, la stessa
  * soglia di SQN e Optimal f) il risultato è marcato `lowSample`.
@@ -95,14 +117,17 @@ export interface RadarScoreInput {
    * serie giornaliera del resto della dashboard. null = non calcolabile.
    */
   ulcer: string | null;
-  /** Trade chiusi con stop E target pianificati (numeratore della disciplina). */
-  plannedTrades: number;
   /**
-   * Trade chiusi che portano ALMENO UNO dei due campi di piano (stop oppure
-   * target). È il segnale che distingue «non pianifico» da «il campo non è
-   * in uso»: v. DISCIPLINE_MIN_COVERAGE.
+   * Trade chiusi in perdita LORDA (prima delle commissioni): la popolazione
+   * su cui la disciplina è osservabile. Una vincita non dice nulla sul
+   * rispetto dello stop, e tenerla nel denominatore legherebbe l'asse al win
+   * rate — cioè a un altro asse.
    */
-  tradesWithAnyPlan: number;
+  grossLosses: number;
+  /** Di quelle perdite, quante hanno un rischio pianificato: la COPERTURA. */
+  plannedRiskLosses: number;
+  /** Di quelle, quante sono rimaste entro il rischio: il NUMERATORE. */
+  riskRespectedLosses: number;
   /** Serie giornaliera del periodo (per la consistency). */
   daily: { netPnl: string }[];
 }
@@ -111,26 +136,41 @@ export interface RadarScoreInput {
 export const SCORE_MIN_TRADES = 30;
 
 /**
- * COPERTURA MINIMA DEI CAMPI DI PIANO perché la disciplina sia misurabile.
+ * COPERTURA MINIMA perché la disciplina sia misurabile: quota delle perdite
+ * del periodo che porta un rischio pianificato.
  *
- * Il problema, che è reale e non ipotetico: chi importa lo storico da un CSV
- * senza colonne di stop e target si ritrova ogni trade privo di piano. Il
- * rapporto `piani completi / trade` varrebbe 0 e il fattore direbbe
- * «disciplina pessima» — un giudizio, per giunta il peggiore possibile, su
- * un dato che semplicemente non c'è. Misurato sui conti realistici del seed:
- * 46 trade su 120 e 42 su 91 non hanno NESSUNO dei due campi.
+ * Il problema è reale e non ipotetico: chi importa lo storico da un CSV
+ * senza colonna di rischio non ha nulla da confrontare, e un fattore
+ * calcolato sulle poche righe rimaste verrebbe presentato come un giudizio
+ * sul comportamento di tutte.
  *
- * La regola: se i campi di piano sono usati su meno di questa quota dei
- * trade, non sono in uso — e un fattore che non si può misurare vale `null`
- * ed esce dalla media, che dichiara su quanti fattori è stata fatta. Sopra
- * la soglia il campo è in uso, e allora un trade senza piano è davvero un
- * trade senza piano.
+ * DA DOVE VIENE IL NUMERO — e perché non è più 0,20. Le perdite senza
+ * rischio pianificato non sono osservabili: nel caso peggiore le hanno
+ * sforate tutte. Con copertura c il valore vero sta dunque in una banda
+ * larga (1 − c) punti di tasso, QUALUNQUE sia il valore osservato. La regola
+ * è che questa banda d'ignoranza non superi un passo d'ancora del fattore
+ * (neutro 0,80 → target 1,00 = 0,20): quindi c ≥ 0,80.
+ *
+ * Con la soglia precedente — 0,20 — la banda era 0,80: quattro passi
+ * d'ancora, due volte l'intera scala del fattore. A copertura 25% il numero
+ * veniva calcolato su un quarto dei dati e trattato come pienamente valido:
+ * non era una misura, era un'ipotesi con due decimali.
  *
  * Il verso dell'errore è deliberato. Dire «non misurabile» a un trader che è
  * davvero indisciplinato gli nasconde un giudizio; dire 0 a chi non ha il
  * dato gliene inventa uno. Fra i due, questo progetto non inventa.
  */
-export const DISCIPLINE_MIN_COVERAGE = "0.20";
+export const DISCIPLINE_MIN_COVERAGE = "0.80";
+
+/**
+ * CAMPIONE MINIMO: perdite con rischio pianificato sotto le quali il tasso
+ * non si calcola. È la stessa soglia di significatività che il progetto usa
+ * già per SQN, Optimal f e per lo Score intero (SCORE_MIN_TRADES = 30), e
+ * qui ha un secondo motivo, aritmetico: a 30 osservazioni un solo trade
+ * muove il tasso di 3,3 punti percentuali, cioè oltre 16 punti di fattore.
+ * Sotto, l'asse racconterebbe il caso invece del comportamento.
+ */
+export const DISCIPLINE_MIN_LOSSES = 30;
 
 /**
  * Ancore di un fattore. `lowerIsBetter` inverte il verso senza cambiare il
@@ -160,8 +200,11 @@ export interface FactorAnchors {
  * - CONSISTENCY: calibrata sui dati. Giornate tutte uguali → CV 0; una serie
  *   realistica di giornate diverse → CV ~0,48; una giornata sola che vale
  *   metà del profitto → CV 2,1-7,0 a seconda della lunghezza.
- * - DISCIPLINA: metà dei trade pianificati è il neutro, il 90% l'eccellenza.
- *   Il 100% non è il target perché un trade preso al volo capita a tutti.
+ * - DISCIPLINA: le tre ancore sono conteggi leggibili sulle perdite del
+ *   periodo. 100 = nessuna perdita oltre il rischio pianificato; 50 = una su
+ *   cinque; 0 = una su due, cioè lo stop non è più una regola. Il target è
+ *   la perfezione di proposito: l'alternativa sarebbe dichiarare quanto
+ *   slippage è "accettabile", e sarebbe un numero inventato.
  */
 export const SCORE_ANCHORS = {
   winRate: { floor: "0.25", neutral: "0.40", target: "0.60" },
@@ -169,7 +212,7 @@ export const SCORE_ANCHORS = {
   avgWinLoss: { floor: "0.50", neutral: "1.00", target: "2.00" },
   drawdown: { floor: "0.10", neutral: "0.05", target: "0.02", lowerIsBetter: true },
   consistency: { floor: "1.60", neutral: "0.80", target: "0.40", lowerIsBetter: true },
-  discipline: { floor: "0.00", neutral: "0.50", target: "0.90" },
+  discipline: { floor: "0.50", neutral: "0.80", target: "1.00" },
 } as const satisfies Record<string, FactorAnchors>;
 
 /** Ordine degli assi del radar (senso orario dal vertice in alto). */
@@ -309,15 +352,25 @@ export function radarScore(input: RadarScoreInput): RadarScore | null {
         : new Decimal(0)
       : factorOf("avgWinLoss", payoff);
 
-  // DISCIPLINA — quota di trade chiusi con piano completo, ma solo se i
-  // campi di piano risultano in uso (v. DISCIPLINE_MIN_COVERAGE).
-  const planCoverage = new Decimal(input.tradesWithAnyPlan).div(input.total);
-  const disciplineScore = planCoverage.lt(DISCIPLINE_MIN_COVERAGE)
-    ? null
-    : factorOf(
-        "discipline",
-        new Decimal(input.plannedTrades).div(input.total).toFixed(6),
-      );
+  // DISCIPLINA — quota di PERDITE rimaste entro il rischio pianificato.
+  // Due cancelli prima di calcolarla, e nessuno dei due è cosmetico: senza
+  // copertura il tasso descrive un campione scelto dai dati mancanti, senza
+  // campione descrive il caso (v. DISCIPLINE_MIN_COVERAGE e _MIN_LOSSES).
+  const lossCoverage =
+    input.grossLosses === 0
+      ? null
+      : new Decimal(input.plannedRiskLosses).div(input.grossLosses);
+  const disciplineScore =
+    lossCoverage === null ||
+    lossCoverage.lt(DISCIPLINE_MIN_COVERAGE) ||
+    input.plannedRiskLosses < DISCIPLINE_MIN_LOSSES
+      ? null
+      : factorOf(
+          "discipline",
+          new Decimal(input.riskRespectedLosses)
+            .div(input.plannedRiskLosses)
+            .toFixed(6),
+        );
 
   // DRAWDOWN (Ulcer) e CONSISTENCY (CV): null se non calcolabili.
   const drawdownScore = factorOf("drawdown", input.ulcer);
@@ -344,7 +397,17 @@ export function radarScore(input: RadarScoreInput): RadarScore | null {
 
   const missingReasons: Partial<Record<ScoreFactorKey, string>> = {};
   if (disciplineScore === null) {
-    missingReasons.discipline = `Stop e target pianificati compilati su ${input.tradesWithAnyPlan} trade su ${input.total}: sotto il ${new Decimal(DISCIPLINE_MIN_COVERAGE).times(100).toFixed(0)}% il campo non risulta in uso, e un rapporto calcolato su un dato assente sarebbe un giudizio inventato.`;
+    // Tre motivi diversi, e vanno detti separati: «non calcolabile» senza il
+    // perché si legge come un guasto, e i tre si risolvono in modi diversi.
+    const minCoveragePct = new Decimal(DISCIPLINE_MIN_COVERAGE)
+      .times(100)
+      .toFixed(0);
+    missingReasons.discipline =
+      input.grossLosses === 0
+        ? "Nessun trade chiuso in perdita nel periodo: il rispetto dello stop non ha nulla su cui misurarsi."
+        : lossCoverage !== null && lossCoverage.lt(DISCIPLINE_MIN_COVERAGE)
+          ? `Rischio pianificato presente su ${input.plannedRiskLosses} delle ${input.grossLosses} perdite del periodo: sotto il ${minCoveragePct}% le perdite senza rischio potrebbero averlo sforato tutte, e la banda d'incertezza sarebbe più larga di un passo della scala.`
+          : `Solo ${input.plannedRiskLosses} perdite con rischio pianificato: sotto le ${DISCIPLINE_MIN_LOSSES} un singolo trade sposta il fattore di oltre 16 punti, e l'asse racconterebbe il caso invece del comportamento.`;
   }
   if (drawdownScore === null) {
     missingReasons.drawdown =
@@ -398,8 +461,10 @@ export const SCORE_FACTOR_INFO: Record<ScoreFactorKey, MetricInfoData> = {
   discipline: {
     label: "Disciplina (fattore dello Score)",
     description:
-      "Quota di trade chiusi con un piano completo: stop E target pianificati prima di entrare. È l'unico asse che misura un comportamento invece di un risultato, quindi l'unico indipendente dagli altri cinque — ed è anche l'unico su cui puoi agire domani mattina. Il target non è il 100%: un trade preso al volo capita a tutti.",
-    formula: "0 senza piani · 50 alla metà dei trade · 100 dal 90% in su",
+      "Fra i trade finiti in PERDITA, quanti hanno perso non più del rischio che avevi deciso di correre prima di entrare. Non misura se il piano c'era, misura se l'hai rispettato: è l'unico asse che guarda un comportamento invece di un risultato, ed è l'unico su cui puoi agire domani mattina. Il confronto è sulla perdita lorda, perché lo stop è un livello di prezzo e le commissioni non sono una decisione di uscita. Attenzione a come si legge: dai dati non si distingue lo stop spostato dal gap che lo salta — entrambi contano come piano non rispettato.",
+    formula:
+      "perdite rimaste entro il rischio pianificato / perdite con rischio pianificato · 0 al 50% (una perdita su due lo sfora) · 50 all'80% (una su cinque) · 100 al 100% (nessuna lo sfora)",
+    note: "Serve il rischio pianificato su almeno l'80% delle perdite del periodo e almeno 30 perdite: sotto, il fattore vale «—» ed esce dalla media.",
   },
   drawdown: {
     label: "Drawdown (fattore dello Score)",
