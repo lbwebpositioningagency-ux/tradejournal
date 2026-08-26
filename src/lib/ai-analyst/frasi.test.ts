@@ -213,6 +213,16 @@ describe("i testi deterministici dicono qualcosa", () => {
     expect(riga).toContain("570"); // numerosità
   });
 
+  /* F1 e F4 misurano lo stesso indice da due fonti e a due date: in pagina
+     escono uno vicino all'altro e prima mostravano due livelli diversi senza
+     dire che erano la stessa cosa. F4 adesso lo dichiara. */
+  it("F4 dichiara di essere la stessa misura di F1 letta dal report", () => {
+    const testi = testiDeterministici(dossierCompleto());
+    expect(testi.righe.F4).toContain("rilevato dal report");
+    expect(testi.righe.F4).toContain("stessa misura");
+    expect(testi.righe.F4).toContain("un'altra fonte");
+  });
+
   it("riusa verbatim le implicazioni meccaniche già approvate del COT", () => {
     const testi = testiDeterministici(dossierCompleto());
     expect(testi.righe.F5).toContain(

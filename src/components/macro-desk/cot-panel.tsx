@@ -18,8 +18,8 @@
  * linguaggio piano. Mai gergo statistico.
  */
 
-import { ExternalLink } from "lucide-react";
-import { IMPLICAZIONI_MECCANICHE, type NotiziaCot } from "@/lib/cot-contesto";
+
+import { IMPLICAZIONI_MECCANICHE } from "@/lib/cot-contesto";
 import {
   formatContratti,
   formatDataIt,
@@ -27,7 +27,6 @@ import {
   formatMeseAnnoIt,
   type BandaCot,
   type CartaCot,
-  type ContestoCotBox,
   type PannelloCot,
 } from "@/lib/cot-panel";
 import { Callout, PanelLabel, RangeBar } from "./primitives";
@@ -133,42 +132,33 @@ function CartaMetrica({ carta, indice }: { carta: CartaCot; indice: number }) {
   );
 }
 
-/** Una notizia: titolo originale linkato, sotto fonte e data in mono. */
-function VoceNotizia({ notizia }: { notizia: NotiziaCot }) {
-  return (
-    <a
-      href={notizia.url}
-      target="_blank"
-      rel="noopener noreferrer"
-      className="group flex flex-col gap-0.5 rounded-[var(--md-r-sm)] px-2 py-1.5 -mx-2 transition-colors hover:bg-[var(--md-surface-2)]"
-    >
-      <span className="text-sm font-medium leading-snug text-[var(--md-text)] group-hover:underline">
-        {notizia.titolo}
-        <ExternalLink
-          className="ml-1.5 inline size-3 align-baseline text-[var(--md-muted)]"
-          aria-hidden
-        />
-      </span>
-      <span className="md-mono text-[11px] text-[var(--md-muted)]">
-        {notizia.fonte} · {formatDataIt(notizia.data)}
-      </span>
-    </a>
-  );
-}
-
 /**
- * Sezione contesto della settimana: per ogni strumento, i titoli VERI trovati
- * online (originali, mai riscritti) e — visivamente separata in un riquadro
- * proprio — l'implicazione meccanica delle bande correnti, che discende dalla
- * definizione della metrica e non dalle notizie.
+ * Implicazione meccanica delle bande correnti, uno riquadro per strumento.
+ *
+ * Fino al 26/08/2026 questo blocco si chiamava «Contesto della settimana» e
+ * si apriva con 2-3 TITOLI presi da Google News RSS per parola chiave. Sono
+ * stati tolti, e il motivo è duplice.
+ *
+ * Primo, la selezione. Il filtro respingeva le direzioni di prezzo, non
+ * l'irrilevanza: accanto al posizionamento dei fondi sull'oro finivano il
+ * prezzo degli anelli d'oro in Vietnam e un «oro giù dello 0,63%» di due
+ * giorni prima. Un titolo senza un numero non è un fatto, e su un terminale
+ * occupa lo spazio di uno.
+ *
+ * Secondo, la fonte. Un aggregatore che restituisce testate arbitrarie non
+ * si può qualificare: non ha un codice di risposta che valga per la singola
+ * notizia, non ha una data di riferimento che sia la sua, non ha licenza per
+ * la ripubblicazione dei titoli. È esattamente il tipo di provenienza che
+ * questa revisione non ammette.
+ *
+ * Effetto collaterale, voluto: l'implicazione meccanica era annidata dentro
+ * il box delle notizie e spariva con lui quando il job settimanale non
+ * produceva nulla. Adesso è incondizionata — discende dalla DEFINIZIONE
+ * della metrica, quindi non ha ragione di dipendere da un job.
+ *
+ * La lacuna resta aperta e dichiarata in `docs/DEBITO-TECNICO.md`.
  */
-function ContestoSezione({
-  contesto,
-  carte,
-}: {
-  contesto: ContestoCotBox;
-  carte: CartaCot[];
-}) {
+function ImplicazioniSezione({ carte }: { carte: CartaCot[] }) {
   const strumenti = (["GOLD", "WTI"] as const).filter((s) =>
     carte.some((c) => c.strumento === s),
   );
@@ -178,7 +168,6 @@ function ContestoSezione({
         {strumenti.map((strumento, i) => {
           const accento = ACCENTO_STRUMENTO[strumento] ?? "var(--md-info)";
           const carteStrumento = carte.filter((c) => c.strumento === strumento);
-          const notizie = contesto.contenuto.strumenti[strumento].notizie;
           return (
             <div
               key={strumento}
@@ -188,32 +177,12 @@ function ContestoSezione({
               <div className="h-[3px]" style={{ backgroundColor: accento }} />
               <div className="flex flex-1 flex-col gap-3 p-4">
                 <div className="flex flex-wrap items-baseline justify-between gap-x-2 gap-y-1">
-                  <PanelLabel>Contesto della settimana</PanelLabel>
+                  <PanelLabel>Implicazione meccanica</PanelLabel>
                   <span className="md-mono text-[11px] font-semibold" style={{ color: accento }}>
                     {carteStrumento[0]?.nomeStrumento ?? strumento}
                   </span>
                 </div>
-
-                {/* Titoli trovati online — o la dicitura esplicita, mai un riempitivo */}
-                {notizie ? (
-                  <div className="flex flex-col gap-1">
-                    {notizie.map((n) => (
-                      <VoceNotizia key={n.url} notizia={n} />
-                    ))}
-                  </div>
-                ) : (
-                  <p className="text-sm leading-relaxed text-[var(--md-muted)]">
-                    Nessun contesto rilevante trovato questa settimana.
-                  </p>
-                )}
-
-                {/* SEPARAZIONE VISIVA: l'implicazione meccanica sta in un
-                    riquadro proprio, su fondo diverso, sotto i titoli */}
-                <div
-                  className="mt-auto flex flex-col gap-2 rounded-[var(--md-r-md)] p-3"
-                  style={{ backgroundColor: "var(--md-surface-2)" }}
-                >
-                  <PanelLabel>Implicazione meccanica</PanelLabel>
+                <div className="flex flex-col gap-2">
                   {carteStrumento.map((c) => (
                     <p key={c.metrica} className="text-xs leading-relaxed text-[var(--md-text-2)]">
                       <span
@@ -232,17 +201,16 @@ function ContestoSezione({
         })}
       </div>
       <p className="md-mono text-[11px] leading-relaxed text-[var(--md-muted)]">
-        Titoli originali delle testate, selezionati automaticamente da Google News e mai
-        riscritti · contesto generato il {formatDataIt(contesto.generatoIl.slice(0, 10))}.
-        L&apos;implicazione meccanica discende dalla definizione della metrica, non dalle
-        notizie.
+        L&apos;implicazione meccanica discende dalla definizione della metrica
+        e dalla banda in cui cade oggi: non è una lettura della cronaca né
+        un&apos;aspettativa sul prezzo.
       </p>
     </div>
   );
 }
 
 export function CotPanel({ pannello }: { pannello: PannelloCot }) {
-  const { carte, meta, contesto } = pannello;
+  const { carte, meta } = pannello;
 
   if (carte.length === 0 || meta === null) {
     return (
@@ -285,9 +253,9 @@ export function CotPanel({ pannello }: { pannello: PannelloCot }) {
         ))}
       </div>
 
-      {/* Box di contesto: se il job settimanale non l'ha prodotto (cancelli,
-          rete, chiave), la sezione semplicemente non esiste */}
-      {contesto ? <ContestoSezione contesto={contesto} carte={carte} /> : null}
+      {/* Incondizionata: discende dalla definizione della metrica, non da un
+          job settimanale */}
+      <ImplicazioniSezione carte={carte} />
 
       <p className="md-mono text-[11px] leading-relaxed text-[var(--md-muted)]">
         Fonte: {meta.fonte}. Riferimento storico: {meta.finestraRiferimento},{" "}

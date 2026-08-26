@@ -401,6 +401,27 @@ describe("computeSeriesMetrics", () => {
     expect(m.trend).toBe("rialzista");
   });
 
+  /* IL CANCELLO SUL CICLO: senza un trend dimostrato il quadrante non si
+     assegna, perché il suo asse verticale è il segno di una pendenza che il
+     test ha appena dichiarato indistinguibile da zero. */
+  it("trend laterale → nessun ciclo, ma levelZ resta (è un fatto)", () => {
+    /* Serie con rumore attorno a una salita lentissima: la pendenza è
+       positiva, il test del trend non la distingue dal rumore. */
+    const rumorosa = monthly(
+      Array.from({ length: 60 }, (_, i) => 100 + i * 0.01 + (i % 2 ? 3 : -3)),
+      "2020-01",
+    );
+    const m = computeSeriesMetrics(rumorosa, {
+      cadence: "monthly",
+      deltaMode: "abs",
+      includeCycle: true,
+      goodDirection: "up",
+    });
+    expect(m.trend).toBe("laterale");
+    expect(m.cycle).toBeNull();
+    expect(m.levelZ).not.toBeNull();
+  });
+
   it("serie vuota → tutto null senza crash", () => {
     const m = computeSeriesMetrics([], {
       cadence: "daily",

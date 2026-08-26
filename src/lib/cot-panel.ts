@@ -9,7 +9,7 @@
  * database; l'unico pezzo con I/O è la query in src/lib/queries/cot-panel.ts.
  */
 
-import type { ContenutoContestoCot } from "@/lib/cot-contesto";
+
 import {
   calcolaLetturaCot,
   type BandaCot,
@@ -67,21 +67,10 @@ export interface MetaCot {
   fonte: string;
 }
 
-/** Box di contesto settimanale (tabella CotContestoBox), già validato. */
-export interface ContestoCotBox {
-  /** Quando il job l'ha generato (ISO datetime) — mostrato a schermo. */
-  generatoIl: string;
-  contenuto: ContenutoContestoCot;
-}
-
 export interface PannelloCot {
   carte: CartaCot[];
   /** null solo quando non c'è nemmeno una carta. */
   meta: MetaCot | null;
-  /** null = nessun box per questa settimana: la sezione non compare affatto
-   * (degrado sicuro del job); i null DENTRO il contenuto, invece, mostrano
-   * la dicitura «Nessun contesto rilevante trovato questa settimana». */
-  contesto: ContestoCotBox | null;
 }
 
 export type SerieCotPerStrumento = Partial<
@@ -129,14 +118,12 @@ export function costruisciPannelloCot(
     }
   }
 
-  if (carte.length === 0) return { carte, meta: null, contesto: null };
+  if (carte.length === 0) return { carte, meta: null };
 
   const aggiornatoAl = carte.map((c) => c.aggiornatoAl).sort()[0];
   const giorni = giorniFra(aggiornatoAl, oggi);
   return {
     carte,
-    // il costruttore puro non conosce il box: lo riempie la query (I/O)
-    contesto: null,
     meta: {
       aggiornatoAl,
       giorniDaAggiornamento: giorni,

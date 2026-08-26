@@ -322,7 +322,9 @@ function buildSectionPill(
       short,
       text: "N/D",
       color: "var(--md-muted)",
-      title: "Nessun indicatore della sezione ha un'etichetta calcolabile",
+      title: isVol
+        ? "Nessun indicatore della sezione ha un trend calcolabile"
+        : "Nessun indicatore della sezione ha un trend dimostrato: senza direzione il quadrante del ciclo non si assegna",
     };
   }
   if (result.tie || result.winner === null) {
@@ -392,7 +394,8 @@ function GeneralCycleBadge({ series }: { series: TrendsSeriesView[] }) {
 
   let text = "N/D";
   let color = "var(--md-muted)";
-  let detail = "Nessuna sezione con etichetta di ciclo calcolabile";
+  let detail =
+    "Nessuna sezione con ciclo: nessun indicatore ha un trend dimostrato";
   if (result.total > 0) {
     if (result.tie || result.winner === null) {
       text = "Misto";
@@ -945,6 +948,13 @@ export function TrendsView({
       <p className="text-2xs" style={{ color: "var(--md-muted)" }}>
         Bande grigie = recessioni NBER (USREC). Orizzonte {horizon}: il cambio
         filtra i dati già scaricati, nessuna nuova richiesta.
+      </p>
+      <p className="text-2xs" style={{ color: "var(--md-muted)" }}>
+        Il chip «ciclo» compare solo dove il trend è dimostrato: il quadrante
+        ha per asse verticale la direzione, e con un trend laterale quella
+        direzione è indistinguibile dal rumore. Misurato su 1.800 istantanee
+        mensili di 10 serie: col trend laterale il quadrante cambiava nel
+        24,4% dei mesi, col trend significativo nell&apos;1,9%.
       </p>
     </div>
   );

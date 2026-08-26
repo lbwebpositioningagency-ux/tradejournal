@@ -159,9 +159,24 @@ describe("DriverDeskPanel — nessun messaggio di assenza", () => {
 });
 
 describe("DriverDeskPanel — legenda esplicativa", () => {
-  it("è presente e aperta di default", () => {
+  it("è presente ma CHIUSA di default: i dati vengono prima del manuale", () => {
+    /* Era aperta, e occupava l'intera prima schermata prima del primo dato.
+       Un manuale si legge una volta, i dati ogni mattina: in un terminale
+       l'ordine è quello. Misurato all'audit: chiusa, la pagina passa da
+       5.402 a 4.999 px. */
     expect(html).toContain("Come si legge questa pagina");
-    expect(html).toMatch(/<details[^>]*\sopen/);
+    expect(html).not.toMatch(/<details[^>]*\sopen/);
+  });
+
+  it("chiudendola non si perde l'avvertenza: il riassunto la porta con sé", () => {
+    // il vincolo che la legenda esisteva per dichiarare non deve sparire
+    // insieme al corpo che si chiude
+    const summary = html.slice(
+      html.indexOf("<summary"),
+      html.indexOf("</summary>"),
+    );
+    expect(summary).toContain("non dice dove andrà il prezzo");
+    expect(summary).toContain("nessuna indicazione operativa");
   });
 
   it("dichiara che non è una previsione né un'indicazione operativa", () => {

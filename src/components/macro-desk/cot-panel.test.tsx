@@ -73,7 +73,7 @@ describe("CotPanel — parole vietate", () => {
       <CotPanel pannello={costruisciPannelloCot(serieDaCsv(), new Date("2026-08-30T12:00:00Z"))} />,
     );
     const vuoto = renderToStaticMarkup(
-      <CotPanel pannello={{ carte: [], meta: null, contesto: null }} />,
+      <CotPanel pannello={{ carte: [], meta: null }} />,
     );
     for (const parola of ["percentile", "probabilit", "prevision", "edge", "segnale"]) {
       expect(stantio.toLowerCase()).not.toContain(parola);
@@ -84,8 +84,12 @@ describe("CotPanel — parole vietate", () => {
 
 describe("CotPanel — struttura", () => {
   it("quattro carte: ORO e PETROLIO WTI, ciascuno con posizionamento e partecipazione", () => {
-    expect(html.match(/Posizionamento speculativo/g)?.length).toBe(2);
-    expect(html.match(/Partecipazione/g)?.length).toBe(2);
+    /* Si conta la BARRA, una per carta: le etichette ricompaiono anche nei
+       riquadri dell'implicazione meccanica, che dal 26/08/2026 sono sempre
+       resi (prima esistevano solo col box notizie). */
+    expect(html.match(/Posizione nel range storico: \d+ su 100/g)?.length).toBe(4);
+    expect(html).toContain("Posizionamento speculativo");
+    expect(html).toContain("Partecipazione");
     expect(html).toContain("ORO");
     expect(html).toContain("PETROLIO WTI");
   });
@@ -188,79 +192,40 @@ describe("CotPanel — cadenza e trasparenza", () => {
 
   it("senza dati degrada a un messaggio esplicito, senza lanciare", () => {
     const vuoto = renderToStaticMarkup(
-      <CotPanel pannello={{ carte: [], meta: null, contesto: null }} />,
+      <CotPanel pannello={{ carte: [], meta: null }} />,
     );
     expect(vuoto).toContain("Pannello COT non disponibile");
   });
 });
 
-describe("CotPanel — sezione contesto (box notizie)", () => {
-  const CONTESTO = {
-    generatoIl: "2026-07-31T05:12:00.000Z",
-    contenuto: {
-      tipo: "notizie" as const,
-      settimanaCot: "2026-07-21",
-      strumenti: {
-        GOLD: {
-          notizie: [
-            {
-              titolo: "Oro: domanda stabile nel secondo trimestre, gli acquisti delle banche centrali compensano i deflussi dagli ETF",
-              url: "https://esempio.org/oro-domanda",
-              fonte: "MarketScreener Italia",
-              data: "2026-07-30",
-            },
-            {
-              titolo: "Le riserve auree mondiali nel rapporto del secondo trimestre",
-              url: "https://esempio.org/riserve",
-              fonte: "WGC",
-              data: "2026-07-24",
-            },
-          ],
-        },
-        WTI: { notizie: null },
-      },
-    },
-  };
-  const pannelloConContesto = { ...PANNELLO_FRESCO, contesto: CONTESTO };
-  const conContesto = renderToStaticMarkup(<CotPanel pannello={pannelloConContesto} />);
-
-  it("senza box la sezione non esiste affatto (degrado sicuro del job)", () => {
-    expect(html).not.toContain("Contesto della settimana");
-    expect(html).not.toContain("Implicazione meccanica");
+/**
+ * Il 26/08/2026 il box «Contesto della settimana» — 2-3 titoli da Google
+ * News per strumento — è stato rimosso. Questi test tengono fermo il dopo:
+ * nessun titolo, nessun link esterno, e l'implicazione meccanica che PRIMA
+ * viveva dentro quel box adesso c'è sempre, perché discende dalla
+ * definizione della metrica e non da un job settimanale.
+ */
+describe("CotPanel — implicazione meccanica, senza notizie", () => {
+  it("un riquadro per strumento, sempre presente", () => {
+    expect(html.match(/Implicazione meccanica/g)?.length).toBe(2);
   });
 
-  it("le parole vietate non compaiono nemmeno nella sezione contesto", () => {
-    for (const parola of ["hit rate", "probabilit", "affidabilit", "prevision", "predi", "percentile", "edge", "segnale"]) {
-      expect(conContesto.toLowerCase()).not.toContain(parola);
-    }
-  });
-
-  it("i titoli sono link esterni curati: href, nuova scheda, fonte e data in mono", () => {
-    expect(conContesto).toContain('href="https://esempio.org/oro-domanda"');
-    expect(conContesto).toContain('target="_blank"');
-    expect(conContesto).toContain('rel="noopener noreferrer"');
-    expect(conContesto).toContain("MarketScreener Italia · 30/07/2026");
-    expect(conContesto).toContain("WGC · 24/07/2026");
-  });
-
-  it("strumento senza notizie → la dicitura esplicita, mai un riempitivo", () => {
-    expect(conContesto).toContain("Nessun contesto rilevante trovato questa settimana.");
-  });
-
-  it("l'implicazione meccanica è presente, separata, e coerente con la banda corrente", () => {
-    // un riquadro per strumento
-    expect(conContesto.match(/Implicazione meccanica/g)?.length).toBe(2);
-    // il testo statico della tabella per le bande correnti delle carte
+  it("il testo è quello della tabella statica per la banda corrente", () => {
     for (const carta of PANNELLO_FRESCO.carte) {
-      expect(conContesto).toContain(IMPLICAZIONI_MECCANICHE[carta.metrica][carta.banda]);
+      expect(html).toContain(IMPLICAZIONI_MECCANICHE[carta.metrica][carta.banda]);
     }
   });
 
-  it("dichiara provenienza, non-riscrittura e data di generazione", () => {
-    expect(conContesto).toContain("mai");
-    expect(conContesto).toContain("riscritti");
-    expect(conContesto).toContain("contesto generato il 31/07/2026");
-    expect(conContesto).toContain("discende dalla definizione della metrica");
+  it("nessun titolo di giornale e nessun link esterno nel pannello", () => {
+    expect(html).not.toContain("Contesto della settimana");
+    expect(html).not.toContain("Google News");
+    expect(html).not.toContain('target="_blank"');
+    expect(html).not.toContain("riscritti");
+  });
+
+  it("dichiara da dove viene la frase, e che non è un'aspettativa", () => {
+    expect(html).toContain("discende dalla definizione della metrica");
+    expect(html).toContain("non è una lettura della cronaca");
   });
 });
 

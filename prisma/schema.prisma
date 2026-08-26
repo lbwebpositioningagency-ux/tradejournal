@@ -403,12 +403,13 @@ model CotWeek {
   @@unique([instrument, reportDate])
 }
 
-// Box di contesto settimanale del pannello COT, generato dal cron del sabato
-// DOPO il sync dati: ricerca web con fonti citate, passata da DUE cancelli
-// automatici PERMANENTI (lessicale + semantico) prima di essere salvata.
-// Se la generazione o un cancello falliscono, semplicemente NON esiste la riga
-// della settimana: il pannello degrada senza box, mai un errore.
-// Chiave logica: la settimana COT a cui il contesto si riferisce.
+// ORFANA dal 26/08/2026 — nessun codice la scrive né la legge più.
+// Conteneva i titoli settimanali presi da Google News per il pannello COT:
+// il percorso è stato rimosso (selezione non qualificabile, nessuna licenza
+// di ripubblicazione; motivo esteso in components/macro-desk/cot-panel.tsx).
+// La tabella resta in piedi con lo storico già scritto perché cancellare dati
+// è una decisione di chi possiede il database, non di una revisione della UI:
+// la voce è registrata in docs/DEBITO-TECNICO.md in attesa di un drop.
 model CotContestoBox {
   id String @id @default(cuid())
   /** Martedì di riferimento della settimana COT commentata (mezzanotte UTC). */

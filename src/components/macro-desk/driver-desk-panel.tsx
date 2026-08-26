@@ -50,9 +50,21 @@ const CONFINI_BANDE = [10, 30, 70, 90];
 
 function ComeSiLegge() {
   return (
-    <details open className="md-card md-fade p-4" style={fade(0)}>
+    /* CHIUSA di default dal 26/08/2026. Era aperta, e occupava ~40 righe —
+       l'intera prima schermata — prima del primo dato: un manuale si legge una
+       volta, i dati ogni mattina, e in un terminale ciò che si consulta ogni
+       giorno non sta sotto ciò che si legge una volta sola. Misurato
+       all'audit: chiusa, la pagina passa da 5.402 a 4.999 px. Resta a un clic
+       di distanza, e il riassunto nel `summary` dice cosa c'è dentro. */
+    <details className="md-card md-fade p-4" style={fade(0)}>
+      {/* Il riassunto porta con sé la cosa più importante che c'era dentro:
+          chiudere la legenda non deve nascondere che questa pagina non è una
+          previsione. */}
       <summary className="cursor-pointer text-sm font-semibold text-[var(--md-text)]">
         Come si legge questa pagina
+        <span className="ml-2 font-normal text-[var(--md-muted)]">
+          — non dice dove andrà il prezzo, nessuna indicazione operativa
+        </span>
       </summary>
 
       <div className="mt-3 flex flex-col gap-3 text-sm leading-relaxed text-[var(--md-text-2)]">

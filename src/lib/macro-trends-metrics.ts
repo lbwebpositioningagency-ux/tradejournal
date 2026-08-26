@@ -304,8 +304,10 @@ export interface CycleResult {
  * POSIZIONE NEL CICLO, a quadranti:
  * asse X = livello vs regime recente (z-score dell'ultimo valore su media e
  * dev. std. degli ultimi CYCLE_LEVEL_YEARS anni, Q-04) · asse Y = direzione (segno della pendenza
- * del TREND — anche quando l'etichetta è "laterale" la direzione resta
- * quella della regressione).
+ * del TREND). Funzione di sola GEOMETRIA: assegna il quadrante a una coppia
+ * (livello, pendenza) e non giudica se quella pendenza sia dimostrata — il
+ * cancello che pretende un trend significativo sta in `computeSeriesMetrics`,
+ * unico punto che ha entrambe le informazioni.
  * Sopra + salita = espansione · sopra + discesa = rallentamento ·
  * sotto + discesa = contrazione · sotto + salita = ripresa.
  *
@@ -407,7 +409,30 @@ export interface MetricsOptions {
   goodDirection: GoodDirection;
 }
 
-/** Orchestratore: ogni metrica degrada a null per conto suo, mai un crash. */
+/**
+ * Orchestratore: ogni metrica degrada a null per conto suo, mai un crash.
+ *
+ * IL CANCELLO SUL CICLO (26/08/2026). L'asse verticale del quadrante è il
+ * SEGNO della pendenza. Quando il test del trend dice «laterale» quel segno
+ * è, per costruzione, indistinguibile da zero: usarlo lo stesso significa
+ * far uscire una parola da un lancio di moneta. Misurato su 10 serie FRED e
+ * 1.800 istantanee mensili (script di misura, 26/08/2026):
+ *
+ *   trend laterale       → il quadrante CAMBIA nel 24,4% dei mesi (357/1462)
+ *   trend significativo  → il quadrante cambia nell'1,9% dei mesi (4/206)
+ *
+ * Un'etichetta di ciclo economico che salta un mese su quattro non è una
+ * lettura di regime, è rumore con un nome sopra — e da qui votava anche
+ * nelle pillole di sezione e nel badge «ciclo generale» in cima alla
+ * pagina. Quindi: senza direzione dimostrata, nessuna etichetta. Resta
+ * `levelZ`, che è un fatto (dove sta il livello rispetto al proprio
+ * decennio) e non dipende dalla pendenza.
+ *
+ * Conseguenza dichiarata: sulle serie macro il trend è laterale nell'85%
+ * delle osservazioni (1532/1800), quindi il ciclo sarà assente il più delle
+ * volte. È il prezzo giusto: prima era sempre presente e un quarto delle
+ * volte sbagliato di quadrante.
+ */
 export function computeSeriesMetrics(
   observations: FredObservation[],
   options: MetricsOptions,
@@ -417,6 +442,7 @@ export function computeSeriesMetrics(
     options.includeCycle && trend !== null
       ? cycleMetric(observations, trend.slope, options.goodDirection)
       : null;
+  const direzioneDimostrata = trend !== null && trend.label !== "laterale";
   return {
     trend: trend?.label ?? null,
     trendZ: trend?.z ?? null,
@@ -428,7 +454,7 @@ export function computeSeriesMetrics(
       percentileAllHistory(observations),
     historyStartYear:
       observations.length > 0 ? observations[0].date.slice(0, 4) : null,
-    cycle: cycle?.label ?? null,
+    cycle: direzioneDimostrata ? (cycle?.label ?? null) : null,
     levelZ: cycle?.levelZ ?? null,
   };
 }
