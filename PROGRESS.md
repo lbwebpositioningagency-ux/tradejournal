@@ -1616,3 +1616,101 @@ View, riquadro durata/esito, PDF scaricato e aperto).
 righe nel browser; MAE/MFE fuori per vincolo dati; il test
 `segreti-nel-repo` (di un'altra sessione) va in timeout a 5 s su filesystem
 freddo e passa a caldo in 1,6 s — non è codice di questo perimetro.
+
+## ✅ AUDIT JOURNAL — coda 3: il fattore disciplina (26/08/2026)
+
+Un punto solo, e nasce da un'osservazione giusta: il recovery factor era
+stato tolto anche perché **saturo a 100 su ogni periodo di SIM1**, e la
+disciplina che lo ha sostituito si comportava allo stesso modo.
+
+**1. Verifica su TUTTI i conti locali, non solo SIM1.** Il fattore leggeva la
+presenza di `plannedStop` e `plannedTarget`. Misurato con lo stesso percorso
+dati della dashboard:
+
+| conto | tutto | 2026 | luglio 2026 |
+|---|---|---|---|
+| SIM1 | **100,00** | **100,00** | **100,00** |
+| Conto futures | 64,58 | 64,58 | 61,36 |
+| Conto forex | 54,81 | 54,81 | 50,00 |
+
+I due conti realistici sembrano variare, ma il motivo non è il
+comportamento: **numeratore e denominatore del fattore coincidevano**. Su
+tutti e tre i conti i trade con un piano completo sono esattamente quelli con
+almeno un campo di piano — 625 su 625, 75 su 75, 49 su 49: nessun trade ha
+mai avuto un solo campo dei due. Il fattore ERA la copertura del campo, e il
+cancello di copertura confrontava il fattore con se stesso. Nell'uso normale
+— campo compilato — valeva 100 e basta: **zero volte diverso da 100 su 623
+trade di SIM1**, e scendeva solo contando i dati mancanti degli altri due.
+
+**2. Decisione: (a), il fattore resta e misura il RISPETTO del piano.**
+L'opzione (b) — toglierlo e passare a cinque fattori — era la via d'uscita se
+i dati non fossero bastati. Bastano: il rischio pianificato è già in tabella
+(`initialRisk`), e con la perdita realizzata dice se il trade ha perso più di
+quanto era stato deciso di rischiare.
+
+Definizione: **fra i trade chiusi in perdita che portano un rischio
+pianificato, quanti hanno perso non più di quel rischio.** Tre scelte, e
+ognuna ha un motivo:
+
+- Il confronto è sulla perdita **lorda**. Lo stop è un livello di prezzo; le
+  commissioni non sono una decisione di uscita, e addebitarle al trader
+  farebbe risultare violato *ogni* stop preso. Controprova: la stessa quota
+  calcolata sul confronto prezzo/`plannedStop` dà lo stesso identico numero
+  su SIM1 — 102 sforamenti su 313 perdite, per due strade indipendenti.
+- Il denominatore sono le **perdite**, non tutti i trade. Con le vincite
+  dentro, il tasso salirebbe col win rate e l'asse duplicherebbe un altro
+  asse invece di aggiungere. Un test lo fissa.
+- Nessuna tolleranza di slippage. Sarebbe un numero inventato: si conta, e il
+  100 se lo prende solo chi non ha sforato nemmeno una volta.
+
+**LIMITE DICHIARATO, in pagina e non solo qui**: dai dati non si distingue lo
+stop *spostato* dal gap che lo *salta*. Entrambi contano come piano non
+rispettato, e la (i) del fattore lo dice.
+
+Il fattore ora discrimina davvero — SIM1 67,4%, futures 79,5%, forex 97,3% —
+e mese per mese su SIM1 va dal 46% all'89%.
+
+**3. Le soglie: alzate, e derivate invece che scelte.**
+
+*Copertura* da **20% a 80%**, e su una base diversa (le perdite del periodo,
+non tutti i trade). Il motivo è aritmetico: le perdite senza rischio
+pianificato non sono osservabili, nel caso peggiore le hanno sforate tutte,
+quindi con copertura c il valore vero sta in una banda larga (1 − c). La
+regola è che questa banda non superi **un passo d'ancora** del fattore
+(neutro 0,80 → target 1,00 = 0,20), da cui c ≥ 0,80. Con la soglia vecchia la
+banda valeva 0,80: quattro passi d'ancora, due volte l'intera scala — a
+copertura 25% il numero veniva calcolato su un quarto dei dati e presentato
+come pienamente valido.
+
+*Campione minimo*: **30 perdite valutabili**, la stessa soglia di
+significatività già usata da SQN, Optimal f e dallo Score intero. A 30
+osservazioni un solo trade muove il tasso di 3,3 punti percentuali, cioè
+oltre 16 punti di fattore: sotto, l'asse racconta il caso.
+
+I tre motivi di «non calcolabile» sono **distinti e mostrati coi numeri
+veri** — nessuna perdita nel periodo / copertura insufficiente / poche
+perdite — perché si risolvono in tre modi diversi.
+
+**Score prima → dopo** (controllo visivo su build di produzione, quattro
+coppie di screenshot in `docs/audit/coda3/`):
+
+| conto · finestra | Score prima | Score dopo | disciplina |
+|---|---|---|---|
+| SIM1 · tutto | 72,02 | **60,19** | 100,00 → 29,02 |
+| SIM1 · 2026 | 83,63 | **71,51** | 100,00 → 27,26 |
+| Conto futures · tutto | 88,18 | **85,60** | 64,58 → 49,15 |
+| Conto forex · tutto | 78,86 | **85,26** | 54,81 → **93,24** |
+| Conto futures · luglio | 81,79 | **85,87** (5/6) | 61,36 → **—** |
+
+Il forex SALE e SIM1 SCENDE: è la prova che il fattore misura e non
+penalizza. Il calo di SIM1 è tutto reale — una perdita su tre supera il
+rischio dichiarato — e prima era coperto da un 100 costante.
+
+**Effetto dichiarato dei cancelli**: su finestre corte (un mese, per chi non
+fa decine di trade) le perdite valutabili scendono sotto 30 e la disciplina
+vale «—», con lo Score che dichiara «media di 5 fattori su 6». È il prezzo
+scelto: meglio un asse che si astiene di un asse che giudica su otto perdite.
+
+**Verificato:** lint ✅ · typecheck ✅ · **2136/2137 test** ✅ (da 2130) · build
+di produzione ✅ · controllo visivo prima/dopo su tre conti più lo stato
+«disciplina non misurabile» e la (i) del fattore riscritta.
