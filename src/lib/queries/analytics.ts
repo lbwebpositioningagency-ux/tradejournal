@@ -155,6 +155,17 @@ export interface PlanCoverage {
   withR: number;
   /** Con target R (piano completo e valido). */
   withTargetR: number;
+  /**
+   * P&L netto dei trade SENZA R, in valuta e col segno.
+   *
+   * Il conteggio da solo non basta: 22 trade su 120 sono il 18% delle righe,
+   * ma se dentro c'è il trade più grosso dell'anno la distribuzione in R
+   * descrive una minoranza del risultato. Questo numero dice quanto denaro
+   * resta fuori dall'istogramma, e va dichiarato accanto al conteggio.
+   */
+  netPnlWithoutR: string;
+  /** Quota del |P&L| rappresentata dai trade CON R (frazione 0-1). */
+  pnlShareWithR: string | null;
 }
 
 /**
@@ -170,7 +181,11 @@ export async function getPlanCoverage(
       COUNT(*)::int                                          AS "total",
       (COUNT(*) FILTER (WHERE t."rMultiple" IS NOT NULL))::int AS "withR",
       (COUNT(*) FILTER (WHERE t."targetR" IS NOT NULL
-                          AND t."rMultiple" IS NOT NULL))::int AS "withTargetR"
+                          AND t."rMultiple" IS NOT NULL))::int AS "withTargetR",
+      COALESCE(SUM(t."netPnl") FILTER (WHERE t."rMultiple" IS NULL), 0)::text
+                                                             AS "netPnlWithoutR",
+      (SUM(ABS(t."netPnl")) FILTER (WHERE t."rMultiple" IS NOT NULL)
+        / NULLIF(SUM(ABS(t."netPnl")), 0))::text             AS "pnlShareWithR"
     ${FROM_TRADES}
     WHERE ${analyticsWhere(filter)}
   `);
@@ -618,5 +633,33 @@ export async function getSymbolTrading(
     WHERE ${analyticsWhere(filter)}
     GROUP BY 1
     ORDER BY 2 DESC
+  `);
+}
+
+export interface DurationOutcomeRow {
+  durationSec: string;
+  netPnl: string;
+}
+
+/**
+ * Durata ed esito di ogni trade chiuso, per la correlazione punto-biseriale
+ * (`metrics/holding-time.ts`).
+ *
+ * Due colonne e nulla di aggregato: qui il calcolo NON è un aggregato SQL —
+ * una correlazione ha bisogno di tutti i punti. È l'eccezione dichiarata
+ * alla regola "aggrega in SQL": la riga pesa due numeri, e la coppia
+ * (durata, P&L) di qualche migliaio di trade sta in memoria senza problemi,
+ * mentre riscrivere Pearson in SQL significherebbe avere la formula in due
+ * posti.
+ */
+export async function getDurationOutcomes(
+  filter: AnalyticsFilter,
+): Promise<DurationOutcomeRow[]> {
+  return prisma.$queryRaw<DurationOutcomeRow[]>(Prisma.sql`
+    SELECT
+      EXTRACT(EPOCH FROM (t."closedAt" - t."openedAt"))::text AS "durationSec",
+      t."netPnl"::text                                        AS "netPnl"
+    ${FROM_TRADES}
+    WHERE ${analyticsWhere(filter)} AND t."closedAt" IS NOT NULL
   `);
 }

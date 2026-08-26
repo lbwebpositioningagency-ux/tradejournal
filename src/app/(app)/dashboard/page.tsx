@@ -386,6 +386,8 @@ export default async function DashboardPage({
     fees: agg.fees,
     netR: rTotal.toFixed(2),
     rCount: agg.rCount,
+    // Denaro fuori dall'istogramma R: il conteggio dei trade non basta.
+    netPnlWithoutR: agg.netPnlWithoutR,
     winRate: winRate(agg.wins, agg.total),
     dayWinRate,
     dayWins,

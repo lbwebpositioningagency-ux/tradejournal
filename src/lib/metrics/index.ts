@@ -100,6 +100,13 @@ export {
   formatDayCount,
   type DayUnit,
 } from "./day-vocabulary";
+export {
+  holdingTimeOutcome,
+  holdingTimeInfo,
+  HOLDING_MIN_TRADES,
+  type HoldingTimeInput,
+  type HoldingTimeOutcome,
+} from "./holding-time";
 export { ulcerIndex, ulcerInfo } from "./ulcer";
 export {
   valueAtRisk,

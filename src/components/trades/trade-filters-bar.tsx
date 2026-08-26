@@ -179,6 +179,20 @@ export function TradeFiltersBar({
           </SelectContent>
         </Select>
 
+        {/* Copertura del rischio: rende ELENCABILI i trade che restano
+            fuori dalle distribuzioni in R, invece di lasciarli come un
+            conteggio che si può solo constatare. */}
+        <Select value={filters.risk ?? ALL} onValueChange={(v) => setParam("risk", v)}>
+          <SelectTrigger className={triggerClass ?? "w-36"} aria-label="Rischio">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value={ALL}>Rischio</SelectItem>
+            <SelectItem value="missing">Senza rischio</SelectItem>
+            <SelectItem value="present">Con rischio</SelectItem>
+          </SelectContent>
+        </Select>
+
         <Select value={filters.tagId ?? ALL} onValueChange={(v) => setParam("tag", v)}>
           <SelectTrigger className={triggerClass ?? "w-36"} aria-label="Tag">
             <SelectValue />
@@ -219,6 +233,11 @@ export function TradeFiltersBar({
     chips.push({
       param: "tag",
       label: tags.find((t) => t.id === filters.tagId)?.name ?? "Tag",
+    });
+  if (filters.risk)
+    chips.push({
+      param: "risk",
+      label: filters.risk === "missing" ? "Senza rischio" : "Con rischio",
     });
 
   function removeChip(param: string) {

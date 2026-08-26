@@ -20,6 +20,7 @@ import {
   HOUR_BASES,
   type HourBasis,
   getDurationPerformance,
+  getDurationOutcomes,
   getRollingTradeWindow,
   getProAggregates,
   getStrategyDayPnl,
@@ -74,6 +75,9 @@ import {
   bestAndWorst,
   dailyReturns,
   durationPerformanceInfo,
+  holdingTimeOutcome,
+  holdingTimeInfo,
+  HOLDING_MIN_TRADES,
   fillDurationSegments,
   fillHourSegments,
   hourPerformanceInfo,
@@ -125,7 +129,9 @@ import {
   formatPercent,
   formatPercentSmall,
   formatRMultiple,
+  formatSignedMoney,
 } from "@/lib/money";
+import { formatDurationSec } from "@/lib/dates";
 import { cn } from "@/lib/utils";
 import { MetricInfo } from "@/components/metric-info";
 import { EmptyState } from "@/components/empty-state";
@@ -372,6 +378,7 @@ export default async function AnalyticsPage({
     symbols,
     hourRows,
     durationRows,
+    durationOutcomeRows,
     // §1 — Equity curve simulator (Fase 34): il saldo reale del conto è il
     // default di Start Equity. Gli R storici servono all'optimal f (§3), la
     // serie giornaliera alle metriche rolling (§2): le query restano condivise.
@@ -397,6 +404,7 @@ export default async function AnalyticsPage({
     getAnalyticsSymbols({ ...base, currency: currencyScope.active }),
     getHourPerformance(filter, user.timezone, hourBasis),
     getDurationPerformance(filter, DURATION_BUCKETS),
+    getDurationOutcomes(filter),
     getRMultiples(filter),
     getDailyPnl(filter, user.timezone),
     getStartingBalance(filter),
@@ -640,6 +648,11 @@ export default async function AnalyticsPage({
   );
   const benchmarkCovered = benchmarkCoverage(benchmark);
 
+  // Durata contro esito su TUTTI i trade insieme: la tabella per fascia dice
+  // quanto rende ogni bucket, questa riga dice se fra i bucket ci sia un
+  // andamento o solo rumore.
+  const holding = holdingTimeOutcome(durationOutcomeRows);
+
   const hourSegments = fillHourSegments(hourRows);
   /* Il link conserva TUTTI gli altri parametri: cambiare base oraria non
      deve resettare periodo, valuta, simbolo o finestra rolling. */
@@ -735,7 +748,32 @@ export default async function AnalyticsPage({
             {coverage.total} trade chiusi nel periodo · {coverage.withR} con
             rischio definito ({coverage.withTargetR} anche con target
             pianificato).
-            {senzaR > 0 && ` ${senzaR} senza rischio: R non calcolabile (N/D).`}
+            {senzaR > 0 && (
+              <>
+                {" "}
+                <Link
+                  href="/trades?risk=missing"
+                  className="underline underline-offset-2"
+                >
+                  {senzaR} senza rischio
+                </Link>
+                : R non calcolabile (N/D)
+                {/* Il conteggio da solo non basta: se fra i trade esclusi c'è
+                    quello più grosso dell'anno, la distribuzione descrive una
+                    minoranza del risultato. Si dichiara anche il DENARO che
+                    resta fuori. */}
+                {coverage.pnlShareWithR !== null && (
+                  <>
+                    , e con loro{" "}
+                    {formatSignedMoney(coverage.netPnlWithoutR, currency)} di
+                    P&amp;L: l&apos;istogramma rappresenta il{" "}
+                    {formatPercent(coverage.pnlShareWithR)} del movimento del
+                    periodo
+                  </>
+                )}
+                .
+              </>
+            )}
             {senzaPiano > 0 &&
               ` ${senzaPiano} con rischio ma senza piano completo: fuori dalle fasce per target R.`}
           </p>
@@ -1359,6 +1397,54 @@ export default async function AnalyticsPage({
                 currency={currency}
                 segmentLabel="Durata"
               />
+
+              {/* La lettura d'insieme, che nessuna riga della tabella può
+                  dare: con sette fasce e poche decine di trade per fascia il
+                  rumore è l'ipotesi di partenza. */}
+              <div className="rounded-md border border-dashed p-3">
+                <p className="stat-label flex items-center gap-1">
+                  Durata ed esito
+                  <MetricInfo info={holdingTimeInfo} />
+                </p>
+                {holding.lowSample ? (
+                  <p className="mt-1 text-sm text-muted-foreground">
+                    Servono {HOLDING_MIN_TRADES} trade direzionali per misurare
+                    la relazione: nel periodo ce ne sono {holding.sample}.
+                  </p>
+                ) : holding.correlation === null ? (
+                  <p className="mt-1 text-sm text-muted-foreground">
+                    Relazione non misurabile: servono sia vincenti sia perdenti,
+                    con durate diverse fra loro.
+                  </p>
+                ) : (
+                  <>
+                    <p
+                      className={cn(
+                        "mt-1 text-lg font-semibold tabular-nums",
+                        Math.abs(Number(holding.correlation)) < 0.2
+                          ? "text-muted-foreground"
+                          : undefined,
+                      )}
+                    >
+                      {formatRatio(holding.correlation)}
+                      <span className="ml-2 text-sm font-normal text-muted-foreground">
+                        su {holding.sample} trade direzionali
+                      </span>
+                    </p>
+                    <p className="mt-1 text-xs text-muted-foreground">
+                      {Math.abs(Number(holding.correlation)) < 0.2
+                        ? "Nessun legame apprezzabile fra quanto tieni un trade e come va a finire."
+                        : Number(holding.correlation) > 0
+                          ? "Tieni più a lungo i trade che vincono. Di solito non è merito dell'attesa: è lo stop che chiude presto i perdenti."
+                          : "Più tieni un trade, peggio tende ad andare."}{" "}
+                      Mediana vincenti{" "}
+                      <strong>{formatDurationSec(holding.medianWinSec)}</strong>{" "}
+                      · perdenti{" "}
+                      <strong>{formatDurationSec(holding.medianLossSec)}</strong>.
+                    </p>
+                  </>
+                )}
+              </div>
             </CardContent>
           </Card>
 
