@@ -108,13 +108,17 @@ export function formatShare(value: number): string {
  * livello non vorrebbe dire niente.
  */
 export function positiveLabel(kind: SeasonalityKind): string {
-  return kind === "LEVEL" ? "Sopra mediana" : "Pos%";
+  /* «Pos%» era una sigla che va decifrata, e per di più suggeriva un tasso di
+     successo: è invece la QUOTA di osservazioni con rendimento positivo in un
+     campione storico dichiarato. «Anni in positivo» dice esattamente quello,
+     e non si presta a essere letto come una probabilità. */
+  return kind === "LEVEL" ? "Sopra mediana" : "Anni in positivo";
 }
 
 export function positiveHelp(kind: SeasonalityKind): string {
   return kind === "LEVEL"
     ? "Quota di osservazioni con livello superiore alla mediana dell'intera finestra selezionata."
-    : "Quota di osservazioni con rendimento positivo (hit rate). Un rendimento nullo non conta come positivo.";
+    : "Quota di osservazioni con rendimento positivo nel campione storico, non una probabilità per il futuro. Un rendimento nullo non conta come positivo.";
 }
 
 /** Etichetta dell'unità mostrata: per la volatilità è un LIVELLO, non una %. */

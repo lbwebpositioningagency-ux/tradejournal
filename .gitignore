@@ -37,6 +37,24 @@ yarn-error.log*
 .env*
 !.env.example
 
+# Risposte grezze di API salvate durante le verifiche delle fonti.
+# Non e' un vezzo: il 26/08/2026 due di questi file (`eia_f.json`, `y_cl.json`)
+# sono finiti in un commit con `git add -A`, e l'API dell'EIA rimanda indietro
+# i parametri della richiesta — chiave compresa. Regola per ESCLUSIONE, perche'
+# i nomi delle sonde sono arbitrari e una lista di nomi non li prende mai
+# tutti: alla radice del progetto stanno solo i file di configurazione noti,
+# qualunque altro .json li' e' roba di sonda.
+/*.json
+!/package.json
+!/package-lock.json
+!/tsconfig.json
+!/components.json
+!/vercel.json
+# Sonde messe altrove, per nome esplicito.
+*.raw.json
+sonda-*.json
+sonda-*.txt
+
 # vercel
 .vercel
 

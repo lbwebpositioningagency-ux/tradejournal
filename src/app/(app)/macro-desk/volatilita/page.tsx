@@ -161,9 +161,10 @@ export default async function MacroVolatilitaPage() {
             <Badge variant="outline">contesto</Badge>
           </h1>
           <p className="page-subtitle">
-            Dove sta la volatilità rispetto alla propria storia, di quanto si è
-            mossa di recente e quanto si è mossa davvero la giornata. Misure con
-            fonte, periodo e data — non previsioni.
+            Cosa succede nei prossimi sette giorni, dove sta la volatilità
+            rispetto alla propria storia, quanto si è mossa davvero la giornata
+            e come stanno le scorte di greggio. Misure con fonte, periodo e
+            data — non previsioni.
           </p>
         </div>
         <MacroDeskSectionNav active="volatilita" />

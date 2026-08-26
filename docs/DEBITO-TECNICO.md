@@ -425,3 +425,91 @@ successivo. Se il codice dedotto fosse sbagliato, il prezzo che torna sarebbe
 di un'altra scadenza: la guardia rifiuta uno scarto oltre il 25% fra contratti
 adiacenti e non pubblica nulla, invece di mostrare un numero plausibile e
 falso.
+
+## Il ciclo economico non si assegna senza un trend dimostrato (26/08/2026)
+
+La pagina Trends assegna a ogni serie un quadrante — espansione,
+rallentamento, contrazione, ripresa — incrociando il LIVELLO (z-score sul
+decennio) con la DIREZIONE (segno della pendenza sulle ultime sei
+osservazioni). Il livello e un fatto; la direzione, quando il test del trend
+dichiara «laterale», e per costruzione indistinguibile da zero.
+
+Fino al 26/08/2026 il quadrante usava lo stesso il segno di quella pendenza.
+Misurato su 10 serie FRED e 1.800 istantanee mensili:
+
+| Condizione | Il quadrante cambia da un'osservazione all'altra |
+|---|---|
+| trend laterale | **357 volte su 1.462 — 24,4%** |
+| trend significativo | 4 volte su 206 — 1,9% |
+
+Un'etichetta di ciclo che salta un mese su quattro non e una lettura di
+regime. Quelle etichette votavano anche nelle pillole di sezione e nel badge
+«ciclo generale» in cima alla pagina, quindi il rumore arrivava al titolo.
+
+**Deciso:** senza direzione dimostrata, nessuna etichetta
+(`computeSeriesMetrics` in `src/lib/macro-trends-metrics.ts`). `levelZ` resta,
+perche e un fatto che non dipende dalla pendenza.
+
+**Conseguenza dichiarata, non nascosta:** sulle serie macro il trend e
+laterale nell'85% delle osservazioni (1.532 su 1.800), quindi il chip del
+ciclo sara assente il piu delle volte e le pillole diranno spesso «N/D». E il
+prezzo giusto: prima l'etichetta c'era sempre ed era un lancio di moneta un
+quarto delle volte. La pagina lo spiega in fondo, coi numeri.
+
+## Lacuna aperta: al desk manca il «perche» di un movimento (26/08/2026)
+
+Il 26/08/2026 e stato rimosso il box «Contesto della settimana» del pannello
+COT: 2-3 titoli per strumento presi ogni sabato da Google News RSS per parola
+chiave, con due cancelli automatici sul linguaggio.
+
+Motivo della rimozione, in ordine di peso:
+
+1. **La selezione filtrava la direzione, non l'irrilevanza.** Accanto al
+   posizionamento dei fondi sull'oro sono usciti il prezzo degli anelli d'oro
+   in Vietnam (Vietnam.vn) e un «oro giu dello 0,63% sul Comex» di due giorni
+   prima. Un titolo senza un numero non e un fatto.
+2. **La fonte non e qualificabile.** Un aggregatore che restituisce testate
+   arbitrarie non ha un codice di risposta proprio della singola notizia, non
+   ha una data di riferimento sua, e non ha licenza per la ripubblicazione dei
+   titoli. E il tipo di provenienza che la revisione del 26/08/2026 non
+   ammette.
+
+Effetto collaterale voluto: l'implicazione meccanica (tabella statica metrica
+x banda) era annidata dentro quel box e spariva con lui quando il job non
+produceva nulla. Adesso e incondizionata.
+
+**Cosa resta scoperto:** il desk dice cosa e successo e quanto e raro, ma non
+perche. Il sostituto corretto e un wire con licenza (Reuters, Dow Jones) o un
+feed ufficiale per strumento; nessuno dei due e gratuito, quindi la lacuna
+resta aperta finche non si decide di pagarlo. Il calendario macro aggiunto
+nella stessa revisione copre la meta programmata della domanda: cosa succede,
+e quando.
+
+**Codice rimosso:** `src/lib/cot-contesto-job.ts`, `fetchRssReale` e la meta
+di `src/lib/cot-contesto.ts` che costruiva le query, leggeva l'RSS e
+selezionava i titoli; `scripts/cot-contesto-once.ts`; la chiamata nel cron
+`api/cot-sync`. Restano — perche li usa anche la Sintesi — i due cancelli sul
+linguaggio e la tabella delle implicazioni meccaniche.
+
+**Tabella orfana:** `CotContestoBox` non e piu scritta ne letta da nessuno.
+Non e stata droppata: cancellare dati e una decisione di chi possiede il
+database, non di una revisione della UI. Il drop e da fare in una migrazione a
+se, quando si decide che lo storico dei box non serve piu.
+
+## Due misure dello stesso indice, una accanto all'altra (26/08/2026)
+
+Nella Sintesi i fattori F1 e F4 misurano lo STESSO indice di volatilita
+implicita da due fonti diverse: F1 il rango sull'intera storia dell'archivio,
+F4 le finestre a 1/3/5 anni dal report giornaliero. La discordanza fra i due
+ranghi e informazione vera (`rilevaDiscordanza`) e va mostrata.
+
+Quello che non andava e che uscivano uno sotto l'altro con due LIVELLI e due
+DATE senza dirlo: «GVZ 27,69» (25/08) e due riquadri piu sotto «Il GVZ sta a
+28,28» (24/08). Due numeri per la stessa cosa, e nessun modo per il lettore di
+capire quale valesse. Adesso F4 dichiara di essere la stessa misura letta dal
+report, a un'altra data.
+
+Nella stessa passata le due righe di stagionalita (mese e giorno della
+settimana) hanno preso l'orizzonte scritto accanto: la loro ampiezza
+differiva di un ordine di grandezza — 6,15 punti ad agosto contro 0,19 punti
+di mercoledi — solo perche una somma ventuno sedute e l'altra una.

@@ -31,7 +31,7 @@ import {
   giornoRoma,
 } from "@/lib/queries/ai-analyst";
 
-export const metadata: Metadata = { title: "AI Analyst" };
+export const metadata: Metadata = { title: "Sintesi · Macro Desk" };
 
 /* Stessa identità tipografica delle sorelle: Inter per la UI, JetBrains Mono
    per numeri, sigle e date (variabili consumate da .macro-report). */
@@ -163,7 +163,7 @@ export default async function AiAnalystPage({
             Macro Desk
           </Link>
           <h1 className="page-title flex flex-wrap items-center gap-2.5">
-            AI Analyst
+            Sintesi
             <Badge variant="outline">carattere della giornata, non direzione</Badge>
           </h1>
           <p className="page-subtitle">

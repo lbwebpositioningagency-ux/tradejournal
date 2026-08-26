@@ -1,5 +1,4 @@
 import { prisma } from "@/lib/db";
-import { contenutoContestoCotSchema } from "@/lib/cot-contesto";
 import {
   costruisciPannelloCot,
   type PannelloCot,
@@ -36,34 +35,12 @@ export async function caricaPannelloCot(oggi: Date = new Date()): Promise<Pannel
       (perStrumento.mm_net ??= []).push({ reportDate, valore: r.mmNet });
       (perStrumento.open_interest ??= []).push({ reportDate, valore: r.openInterest });
     }
-    const pannello = costruisciPannelloCot(serie, oggi);
-
-    // Box di contesto della settimana corrente: facoltativo per costruzione.
-    // Qualunque intoppo (tabella non ancora migrata, contenuto non conforme,
-    // settimana diversa) → il pannello esce SENZA sezione contesto, mai giù.
-    if (pannello.meta) {
-      try {
-        const box = await prisma.cotContestoBox.findUnique({
-          where: { settimanaCot: new Date(`${pannello.meta.aggiornatoAl}T00:00:00Z`) },
-        });
-        if (box) {
-          const parsed = contenutoContestoCotSchema.safeParse(box.contenuto);
-          if (parsed.success && parsed.data.settimanaCot === pannello.meta.aggiornatoAl) {
-            pannello.contesto = {
-              generatoIl: box.generatedAt.toISOString(),
-              contenuto: parsed.data,
-            };
-          } else {
-            console.error("[cot-panel] contesto scartato: contenuto non conforme");
-          }
-        }
-      } catch (errore) {
-        console.error("[cot-panel] contesto non caricato:", errore);
-      }
-    }
-    return pannello;
+    /* Dal 26/08/2026 non si carica più nessun box di contesto: i titoli da
+       Google News sono stati tolti dal pannello (motivo in cot-panel.tsx) e
+       l'implicazione meccanica non ha bisogno di una riga in tabella. */
+    return costruisciPannelloCot(serie, oggi);
   } catch (errore) {
     console.error("[cot-panel] caricamento fallito:", errore);
-    return { carte: [], meta: null, contesto: null };
+    return { carte: [], meta: null };
   }
 }

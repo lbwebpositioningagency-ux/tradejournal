@@ -1,5 +1,4 @@
 import { prisma } from "@/lib/db";
-import { eseguiJobContestoCot } from "@/lib/cot-contesto-job";
 import { cotSyncDbPrisma, runCotSync, STRUMENTI_COT } from "@/lib/cot-sync";
 import {
   statusPerEsito,
@@ -8,8 +7,9 @@ import {
 } from "@/lib/job-esito";
 import { isAuthorizedMacroRequest } from "@/lib/macro-desk";
 
-/** Sync CFTC + feed RSS + cancello semantico: margine largo sui tempi di
- * rete, Vercel taglia al limite del piano se inferiore. */
+/** Sync CFTC: margine largo sui tempi di rete, Vercel taglia al limite del
+ * piano se inferiore. Dal 26/08/2026 il job non scarica più feed RSS né
+ * chiama modelli — resta il solo download CFTC. */
 export const maxDuration = 300;
 
 /**
@@ -36,12 +36,7 @@ export async function GET(request: Request) {
     return Response.json({ error: "Non autorizzato" }, { status: 401 });
   }
 
-  // 1) prima il numero nuovo…
   const esito = await runCotSync(cotSyncDbPrisma(prisma));
-  // 2) …poi, IN SEQUENZA, il contesto per quel numero. Non lancia mai: se
-  // fallisce (chiave, rete, cancelli) il box della settimana non esiste e
-  // il resto del pannello resta invariato.
-  const contesto = await eseguiJobContestoCot(prisma);
 
   /* Stesso punto cieco della stagionalità, stessa chiusura: la route
      rispondeva 200 anche con TUTTI gli strumenti in "contratto_non_trovato"
@@ -66,7 +61,7 @@ export async function GET(request: Request) {
   }
 
   return Response.json(
-    { ...esito, contesto: contesto.esito, verifica },
+    { ...esito, verifica },
     { status: statusPerEsito(verifica) },
   );
 }

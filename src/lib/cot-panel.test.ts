@@ -98,12 +98,8 @@ describe("costruisciPannelloCot — dal CSV troncato al cutoff del JSON", () => 
     const p = costruisciPannelloCot({}, OGGI_FRESCO);
     expect(p.carte).toEqual([]);
     expect(p.meta).toBeNull();
-    expect(p.contesto).toBeNull();
   });
 
-  it("il costruttore puro non conosce il box di contesto: sempre null (lo riempie la query)", () => {
-    expect(pannello.contesto).toBeNull();
-  });
 });
 
 describe("staleness con serie divergenti", () => {

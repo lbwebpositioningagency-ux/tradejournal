@@ -1,6 +1,10 @@
 /**
- * Cancello semantico via Gemini (API gratuita, SENZA grounding) — l'unico
- * punto che parla con un modello nel percorso "notizie" del box COT.
+ * Cancello semantico via Gemini (API gratuita, SENZA grounding).
+ *
+ * Nato per il percorso "notizie" del box COT, rimosso il 26/08/2026: oggi
+ * l'unico consumatore è il giro reale della Sintesi
+ * (`lib/ai-analyst/sintesi.live.test.ts`), che lo usa per la stessa domanda
+ * sì/no. Il nome del file resta quello di origine.
  *
  * Perché Gemini e perché senza grounding: il grounding è a quota zero sugli
  * account gratuiti (verificato: HTTP 429 su ogni chiamata), ma la semplice
@@ -69,13 +73,3 @@ export async function cancelloSemanticoGemini(
   return testoRisposta;
 }
 
-/** Scarica il corpo di un feed RSS (dipendenza iniettabile della pipeline). */
-export async function fetchRssReale(url: string): Promise<string> {
-  const risposta = await fetch(url, {
-    headers: { accept: "application/rss+xml, application/xml, text/xml" },
-  });
-  if (!risposta.ok) {
-    throw new Error(`feed RSS: HTTP ${risposta.status}`);
-  }
-  return risposta.text();
-}

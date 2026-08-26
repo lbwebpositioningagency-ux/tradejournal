@@ -163,7 +163,21 @@ function rigaIv(v: Extract<ValoreFattore, { tipo: "iv" }>): string {
       ? ""
       : ` Variazione: ${v.var1S === null ? "—" : `${n(v.var1S)} punti in una settimana`}, ` +
         `${v.var1M === null ? "—" : `${n(v.var1M)} punti in un mese`}.`;
-  return `${articolo(v.etichetta)}${v.etichetta} sta a ${n(v.livello)}.${storia}${variazioni}${sostituto}`;
+  /* «Rilevato dal report a …»: F1 e F4 misurano lo STESSO indice da due
+     fonti diverse, e prima uscivano uno dopo l'altro con due livelli e due
+     date senza dirlo — a schermo si leggeva «GVZ 27,69» e due riquadri più
+     sotto «Il GVZ sta a 28,28», cioè due numeri per la stessa cosa e nessun
+     modo di capire quale valesse. La discordanza fra i due ranghi resta
+     informazione (vedi `rilevaDiscordanza` in dossier.ts): quello che non
+     deve restare implicito è che qui il livello è quello del report, non
+     dell'archivio, e che il valore aggiunto di questa riga sono le finestre
+     a uno, tre e cinque anni. */
+  return (
+    `${articolo(v.etichetta)}${v.etichetta} rilevato dal report sta a ` +
+    `${n(v.livello)} — stessa misura del riquadro sulla storia lunga, ` +
+    `letta da un'altra fonte e a un'altra data, quindi il livello può ` +
+    `differire di poco.${storia}${variazioni}${sostituto}`
+  );
 }
 
 function rigaCot(v: Extract<ValoreFattore, { tipo: "cot" }>): string {
@@ -201,11 +215,20 @@ function rigaDispersione(
     v.quality === "low"
       ? " Il campione è piccolo: la cifra va letta con cautela."
       : "";
+  /* «mensili» / «di quel solo giorno»: le due righe di stagionalità escono
+     una accanto all'altra e la loro ampiezza differiva di un ordine di
+     grandezza (6,15 punti ad agosto contro 0,19 punti di mercoledì) solo
+     perché una somma ventuno sedute e l'altra una. Senza l'orizzonte scritto
+     accanto, il confronto invita a concludere che il mercoledì sia trenta
+     volte più calmo di agosto: non è una differenza di mercato, è una
+     differenza di finestra. */
+  const orizzonte =
+    v.granularita === "MESE" ? "mensili" : "di quel solo giorno della settimana";
   return (
-    `${quando}, negli ultimi ${v.anniFinestra} anni, i rendimenti di ${strumento} ` +
-    `stanno in una fascia larga circa ${n(v.iqrPct)} punti fra il quarto più ` +
-    `basso e il quarto più alto.${disp} Campione: ${v.n} anni, dal ${v.primoAnno} ` +
-    `al ${v.ultimoAnno}.${cautela}`
+    `${quando}, negli ultimi ${v.anniFinestra} anni, i rendimenti ${orizzonte} ` +
+    `di ${strumento} stanno in una fascia larga circa ${n(v.iqrPct)} punti fra ` +
+    `il quarto più basso e il quarto più alto.${disp} Campione: ${v.n} anni, ` +
+    `dal ${v.primoAnno} al ${v.ultimoAnno}.${cautela}`
   );
 }
 

@@ -63,9 +63,9 @@ export function posInfo(kind: SeasonalityKind): MetricInfoData {
     };
   }
   return {
-    label: "Pos% (hit rate)",
+    label: "Anni in positivo",
     description:
-      "Quota di osservazioni con rendimento positivo. Distingue «sale spesso di poco» da «sale di rado ma tanto», due profili che la sola media confonde. Un rendimento nullo NON conta come positivo.",
+      "Quota di ANNI con rendimento positivo nel bucket. Distingue «sale spesso di poco» da «sale di rado ma tanto», due profili che la sola media confonde. Un rendimento nullo NON conta come positivo. È un conteggio storico su n anni, non una probabilità per il prossimo.",
     formula: "n(rendimenti > 0) / n",
   };
 }
