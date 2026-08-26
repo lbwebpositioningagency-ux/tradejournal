@@ -95,11 +95,50 @@ const RATIO_BANDS = [
   { tier: "OTTIMO", min: 2, max: null, range: "> 2" },
 ] as const satisfies readonly BenchmarkBand[];
 
+/**
+ * Q-2 — OSSERVAZIONI MINIME PER APPLICARE LA SCALA a Sortino e Sharpe.
+ *
+ * Erano gli unici due rapporti dell'app senza un cancello sul campione:
+ * l'SQN ne ha uno a 30 trade e il Calmar a 180 giorni, ma un Sortino
+ * calcolato su 25 sedute veniva mostrato con la stessa fascia colorata di
+ * uno calcolato su 442. Misurato su SIM1: 15,53 sugli ultimi 30 giorni
+ * contro 5,87 su tutto lo storico, ed entrambi marcati OTTIMO.
+ *
+ * La causa è l'annualizzazione: il fattore ×√252 moltiplica per ~16 anche il
+ * rumore di un mese fortunato, e la scala di letteratura (< 1 / 1-2 / > 2) è
+ * tarata su serie lunghe.
+ *
+ * PERCHÉ 60 E NON I 30 DELL'SQN: l'unità è diversa. L'SQN conta TRADE, qui
+ * si contano SEDUTE, e 60 è la finestra più corta che il progetto stesso
+ * considera leggibile per queste due metriche — è il primo preset di
+ * `DAY_WINDOWS` delle rolling di /analytics, dove Sharpe e Sortino sono
+ * calcolati dalle stesse identiche funzioni. Usare due minimi diversi per lo
+ * stesso rapporto nelle due pagine sarebbe la contraddizione che questa
+ * soglia esiste per evitare.
+ *
+ * COSA FA IL CANCELLO: il numero RESTA VISIBILE — è corretto, e nasconderlo
+ * sarebbe peggio che spiegarlo. Sparisce solo il giudizio: niente fascia
+ * evidenziata, scala attenuata, e la nota qui sotto nel popover.
+ */
+export const RATIO_MIN_OBSERVATIONS = 60;
+
+/**
+ * Nota del cancello, o `undefined` sopra soglia. Vive qui accanto alla
+ * soglia e alle bande: chi cambia il minimo trova il testo nella stessa
+ * schermata.
+ */
+export function ratioSampleNote(observations: number): string | undefined {
+  if (observations >= RATIO_MIN_OBSERVATIONS) return undefined;
+  return `Campione insufficiente per un giudizio affidabile: ${observations} ${
+    observations === 1 ? "seduta" : "sedute"
+  } sulle ${RATIO_MIN_OBSERVATIONS} minime. Il valore è corretto, ma l'annualizzazione ×√252 amplifica il caso di una serie corta: la fascia non viene assegnata.`;
+}
+
 export const SORTINO_BENCHMARK: MetricBenchmark = {
   decimals: 2,
   bands: RATIO_BANDS,
   source:
-    "Scala classica del Sortino annualizzato, applicabile perché la metrica è annualizzata ×√252 su rendimenti in frazione dell'equity.",
+    "Scala classica del Sortino annualizzato, applicabile perché la metrica è annualizzata ×√252 su rendimenti in frazione dell'equity. Serve un minimo di sedute perché la fascia venga assegnata.",
 };
 
 export const SHARPE_BENCHMARK: MetricBenchmark = {
@@ -111,21 +150,19 @@ export const SHARPE_BENCHMARK: MetricBenchmark = {
 
 /**
  * Calmar Ratio — scala di letteratura standard (MAR ratio): sotto 1 il
- * rendimento non ripaga il drawdown, oltre 3 è eccellente. Applicabile perché
- * il modulo annualizza davvero il numeratore (v. calmar.ts), ma con DUE
- * differenze dal manuale che vanno dette, non minimizzate:
+ * rendimento non ripaga il drawdown, oltre 3 è eccellente.
  *
- * 1. l'annualizzazione è LINEARE (× 365/giorni), non composta. Sui rendimenti
- *    piccoli le due coincidono, su quelli grandi no: +71% in 288 giorni fa
- *    ~90% lineare contro ~97% composto, cioè ~7 punti di rendimento annuo e
- *    altrettanti sul Calmar. Il segno dello scarto cambia col periodo — sotto
- *    l'anno la lineare SOTTOSTIMA, sopra l'anno SOVRASTIMA — quindi non è un
- *    bias correggibile a occhio;
- * 2. numeratore e denominatore hanno basi diverse: il rendimento è rapportato
- *    al SALDO INIZIALE (base fissa), il drawdown al PICCO DI EQUITY raggiunto
- *    (base mobile). Su un conto molto cresciuto il denominatore si misura su
- *    un capitale più grande del numeratore, e il rapporto risulta più
- *    generoso di un Calmar calcolato su basi omogenee.
+ * Q-3 — la scala si applica ALLA LETTERA da quando `calmar.ts` usa il CAGR.
+ * Qui stava scritto, per esteso, che l'annualizzazione era LINEARE e che
+ * numeratore e denominatore avevano basi diverse: due scostamenti dichiarati
+ * e mai chiusi, che su SIM1 valevano il 19,4% di Calmar in più (7,98 invece
+ * di 6,69). Ora il numeratore è un tasso di crescita composto e il
+ * denominatore un drawdown in frazione del picco — la definizione standard
+ * del MAR ratio, senza scuse da lasciare in nota.
+ *
+ * Resta un'assunzione, ed è dell'intero progetto, non di questa metrica:
+ * la curva di equity non conosce versamenti e prelievi, perché il modello
+ * non li registra.
  */
 export const CALMAR_BENCHMARK: MetricBenchmark = {
   decimals: 2,
@@ -135,7 +172,7 @@ export const CALMAR_BENCHMARK: MetricBenchmark = {
     { tier: "OTTIMO", min: 3, max: null, range: "> 3" },
   ],
   source:
-    "Scala standard del Calmar/MAR ratio. Qui l'annualizzazione è lineare e non composta: sui rendimenti alti le due divergono parecchio (+71% in 288 giorni fa ~90% lineare contro ~97% composto). Il rendimento è calcolato sul saldo iniziale, il drawdown sul picco di equity: basi diverse.",
+    "Scala standard del Calmar/MAR ratio, applicabile alla lettera: il numeratore è il CAGR sul periodo coperto e il denominatore il drawdown massimo in frazione del picco. I ritorni assumono nessun versamento o prelievo sul conto.",
 };
 
 /**

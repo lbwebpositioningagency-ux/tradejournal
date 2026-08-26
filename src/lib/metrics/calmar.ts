@@ -2,19 +2,37 @@ import Decimal from "decimal.js";
 import type { DailyPnl } from "./types";
 
 /**
- * Calmar Ratio = rendimento annualizzato / |Max Drawdown %|.
+ * Calmar Ratio (MAR ratio) = CAGR / |Max Drawdown %|.
  *
- * - rendimento del periodo = Σ P&L giornalieri / saldo iniziale;
- * - annualizzazione LINEARE sul periodo effettivamente coperto dai dati
- *   (dal primo all'ultimo giorno operativo, estremi inclusi): × 365/giorni.
- *   Mai assumere un anno pieno se lo storico è più corto;
+ * - CAGR = (equity finale / equity iniziale)^(365 / giorni coperti) − 1,
+ *   sui giorni effettivamente coperti dai dati (dal primo all'ultimo giorno
+ *   operativo, estremi inclusi). Mai assumere un anno pieno se lo storico è
+ *   più corto;
  * - il Max Drawdown % è la frazione già calcolata da maxDrawdown() sulla
- *   STESSA serie giornaliera.
+ *   STESSA serie giornaliera, in rapporto al picco di equity.
  *
- * null se: nessun giorno, saldo iniziale ≤ 0 (rendimento non definibile),
- * drawdown % null oppure zero (nessun drawdown: rapporto non definito).
+ * Q-3 — PERCHÉ IL CAGR E NON PIÙ L'ANNUALIZZAZIONE LINEARE. La versione
+ * precedente faceva `Σ P&L / equity iniziale × 365/giorni`: un rendimento
+ * SEMPLICE sulla base di partenza, moltiplicato per una frazione d'anno.
+ * Sopra l'anno quella formula SOVRASTIMA, e non di poco — misurato su SIM1
+ * (50.000 → 121.718,90 in 566 giorni coperti): 92,50% lineare contro 77,48%
+ * composto, cioè Calmar 7,98 invece di 6,69, il 19,4% in più. Il difetto era
+ * già dichiarato per esteso in `benchmarks.ts` ma mai chiuso nel calcolo.
+ *
+ * Col CAGR i due termini tornano omogenei — un tasso di crescita composto
+ * diviso un drawdown in frazione del picco — che è la definizione standard
+ * del MAR ratio, quella cui la scala di lettura si riferisce.
+ *
+ * null se: nessun giorno, equity iniziale ≤ 0 (rendimento non definibile),
+ * equity finale ≤ 0 (il conto è azzerato: non esiste un tasso di crescita,
+ * e una potenza frazionaria di un numero negativo non è un numero reale),
+ * giorni coperti sotto CALMAR_MIN_DAYS, drawdown % null oppure zero
+ * (nessun drawdown: rapporto non definito).
  *
  * `days` in ordine cronologico crescente (stesso contratto di maxDrawdown).
+ * `startingEquity` è l'equity a INIZIO periodo (saldo iniziale + P&L chiuso
+ * prima del filtro), non il saldo di apertura del conto: la distinzione è il
+ * fix Q-01 e la dashboard passa già quella.
  */
 const DAY_MS = 86_400_000;
 
@@ -46,7 +64,7 @@ export function coveredDays(days: Pick<DailyPnl, "day">[]): number {
 
 export function calmarRatio(
   days: Pick<DailyPnl, "day" | "netPnl">[],
-  startingBalance: string,
+  startingEquity: string,
   maxDrawdownPct: string | null,
 ): string | null {
   if (days.length === 0 || maxDrawdownPct === null) return null;
@@ -54,8 +72,8 @@ export function calmarRatio(
   const ddPct = new Decimal(maxDrawdownPct);
   if (ddPct.lte(0)) return null;
 
-  const balance = new Decimal(startingBalance);
-  if (balance.lte(0)) return null;
+  const start = new Decimal(startingEquity);
+  if (start.lte(0)) return null;
 
   const daysCovered = coveredDays(days);
   // Gate storico: sotto ~6 mesi l'annualizzazione non è affidabile.
@@ -66,14 +84,22 @@ export function calmarRatio(
     net = net.plus(day.netPnl);
   }
 
-  const annualized = net.div(balance).times(new Decimal(365).div(daysCovered));
-  return annualized.div(ddPct).toFixed(2);
+  const end = start.plus(net);
+  // Conto azzerato o in negativo: non esiste un tasso di crescita composto.
+  if (end.lte(0)) return null;
+
+  const cagr = end
+    .div(start)
+    .pow(new Decimal(365).div(daysCovered))
+    .minus(1);
+  return cagr.div(ddPct).toFixed(2);
 }
 
 /** Testo per <MetricInfo>: tenuto accanto alla formula (vedi sopra). */
 export const calmarInfo = {
   label: "Calmar Ratio",
   description:
-    "Rendimento annualizzato diviso il drawdown massimo: quanto rendimento ottieni per ogni unità di sofferenza massima. Annualizzato sul periodo reale coperto dai dati. I ritorni assumono nessun versamento o prelievo sul conto.",
-  formula: "Calmar = (Σ P&L / saldo iniziale × 365/giorni coperti) / MaxDD%",
+    "Rendimento annualizzato COMPOSTO (CAGR) diviso il drawdown massimo: quanto rendimento ottieni per ogni unità di sofferenza massima. Annualizzato sul periodo reale coperto dai dati, mai su un anno assunto. I ritorni assumono nessun versamento o prelievo sul conto.",
+  formula:
+    "Calmar = ((equity finale / equity iniziale)^(365/giorni coperti) − 1) / MaxDD%",
 };

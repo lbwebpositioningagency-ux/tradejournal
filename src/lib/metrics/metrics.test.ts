@@ -405,9 +405,40 @@ describe("calmarRatio", () => {
 
   it("annualizza sul periodo effettivo (>= soglia), non su un anno pieno", () => {
     // span 2026-01-01 → 2026-06-30 = 181 giorni (supera il gate);
-    // +1% sul periodo → ×365/181 = +2,0166% annuo; / 5% DD = 0.40
+    // +1% sul periodo → CAGR = 1.01^(365/181) − 1 = +2,0268% annuo;
+    // / 5% DD = 0.4054 → 0.41. (Sotto l'anno il composto è appena SOPRA il
+    // lineare, che dava 0.40: la differenza è piccola perché il rendimento
+    // è piccolo — cresce con lui, v. il caso SIM1 qui sotto.)
     const days = [day("2026-01-01", "100"), day("2026-06-30", "0")];
-    expect(calmarRatio(days, "10000", "0.0500")).toBe("0.40");
+    expect(calmarRatio(days, "10000", "0.0500")).toBe("0.41");
+  });
+
+  it("Q-3 — CAGR e non annualizzazione lineare: il caso SIM1", () => {
+    // Numeri reali del conto demo: equity 50.000 → 121.718,90, 566 giorni
+    // coperti, Max DD 11,59% del picco.
+    //   lineare  (prima): 71.718,90/50.000 × 365/566 = 92,50% → 7,98
+    //   composto (ora)  : (121.718,90/50.000)^(365/566) − 1 = 77,48% → 6,69
+    // La vecchia formula sovrastimava del 19,4%.
+    const days = [day("2025-01-06", "71718.90"), day("2026-07-25", "0")];
+    expect(coveredDays(days)).toBe(566);
+    expect(calmarRatio(days, "50000.00", "0.1159")).toBe("6.69");
+  });
+
+  it("Q-3 — sopra l'anno il composto sta SOTTO il lineare, e il divario cresce", () => {
+    // +200% in 731 giorni (2024 è bisestile): composto 3^(365/731) − 1 = 73,08%.
+    const days = [day("2024-01-01", "20000"), day("2025-12-31", "0")];
+    expect(coveredDays(days)).toBe(731);
+    // lineare avrebbe dato 20000/10000 × 365/731 = 99,86% → 9.99
+    expect(calmarRatio(days, "10000", "0.1000")).toBe("7.31");
+  });
+
+  it("equity finale ≤ 0 → null: non esiste un tasso di crescita composto", () => {
+    // Perdita superiore all'equity di partenza: la potenza frazionaria di un
+    // numero negativo non è un numero reale, e "rendimento" non ha senso.
+    const wiped = [day("2026-01-01", "-12000"), day("2026-08-01", "0")];
+    expect(calmarRatio(wiped, "10000", "0.5000")).toBeNull();
+    const exact = [day("2026-01-01", "-10000"), day("2026-08-01", "0")];
+    expect(calmarRatio(exact, "10000", "0.5000")).toBeNull();
   });
 
   it("gate storico: sotto CALMAR_MIN_DAYS giorni coperti → null (non affidabile)", () => {
