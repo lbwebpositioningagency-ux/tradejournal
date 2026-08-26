@@ -1,0 +1,3 @@
+#!/bin/sh
+# Installato da scripts/setup-hooks.mjs (npm install imposta core.hooksPath).
+exec node "$(dirname "$0")/../scripts/pre-commit.mjs"
