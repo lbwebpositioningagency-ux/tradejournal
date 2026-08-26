@@ -29,6 +29,7 @@ model User {
   importProfiles  ImportProfile[]
   mt5SyncSources  Mt5SyncSource[]
   attachments     Attachment[]
+  checklistItems  ChecklistItem[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -106,6 +107,15 @@ enum NoteType {
   NOTEBOOK // nota libera / con template
 }
 
+// F3 — momento del testo scritto SU UN TRADE. Prima esisteva un campo note
+// unico: il piano scritto prima di entrare e la revisione scritta dopo aver
+// visto l'esito finivano nello stesso testo, e diventava impossibile
+// distinguere l'analisi dal senno di poi.
+enum TradeNotePhase {
+  PLAN // scritto PRIMA: perché entro, cosa mi aspetto
+  REVIEW // scritto DOPO: com'è andata davvero
+}
+
 // Fase del journal giornaliero (Day View a 3 campi)
 enum DayPhase {
   PREMARKET // prima dell'apertura
@@ -160,6 +170,11 @@ model Trade {
   avgExitPrice  Decimal? @db.Decimal(18, 8)
   grossPnl      Decimal  @default(0) @db.Decimal(14, 2)
   fees          Decimal  @default(0) @db.Decimal(14, 2)
+  // Swap / rollover / finanziamento notturno: costo di POSIZIONE, non di
+  // esecuzione — matura mentre il trade resta aperto, quindi non può stare
+  // sulla Execution come la fee. Segno libero: uno swap può essere un
+  // accredito. netPnl = grossPnl − fees − swap.
+  swap          Decimal  @default(0) @db.Decimal(14, 2)
   netPnl        Decimal  @default(0) @db.Decimal(14, 2)
 
   initialRisk   Decimal? @db.Decimal(14, 2) // rischio $ pianificato → R-multiple
@@ -185,6 +200,8 @@ model Trade {
   tags        TradeTag[]
   notes       Note[]
   attachments Attachment[]
+  checklist   TradeChecklistCheck[]
+  review      TradeReview?
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -264,6 +281,9 @@ model Note {
   tradeId  String?
   dayDate  DateTime? @db.Date // per type=DAILY: giorno nel fuso dell'utente
   dayPhase DayPhase? // per type=DAILY: fase del journal (3 campi per giorno)
+  // per type=TRADE: piano (prima) o revisione (dopo). null = nota storica
+  // scritta quando il campo era uno solo: non si riscrive il passato.
+  tradePhase TradeNotePhase?
   title    String?
   content  String // markdown
 
@@ -275,8 +295,70 @@ model Note {
   updatedAt DateTime @updatedAt
 
   @@unique([userId, dayDate, dayPhase]) // un journal per giorno E fase
+  @@unique([tradeId, tradePhase]) // un piano e una revisione per trade
   @@index([userId, type])
   @@index([tradeId])
+}
+
+/**
+ * F3 — CHECKLIST PRE-TRADE RIUTILIZZABILE.
+ *
+ * Le voci sono dell'utente e vivono nel tempo; le spunte sono del singolo
+ * trade e non cambiano mai più. `TradeChecklistCheck` porta una COPIA
+ * dell'etichetta al momento della spunta: rinominare una voce non deve
+ * riscrivere che cosa hai verificato tre mesi fa.
+ */
+model ChecklistItem {
+  id         String  @id @default(cuid())
+  userId     String
+  label      String
+  position   Int     @default(0)
+  isArchived Boolean @default(false)
+
+  user   User                 @relation(fields: [userId], references: [id], onDelete: Cascade)
+  checks TradeChecklistCheck[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([userId, label])
+  @@index([userId, isArchived])
+}
+
+model TradeChecklistCheck {
+  tradeId String
+  itemId  String
+  checked Boolean @default(false)
+  /** Etichetta al momento della spunta: il passato non si riscrive. */
+  label   String
+
+  trade Trade         @relation(fields: [tradeId], references: [id], onDelete: Cascade)
+  item  ChecklistItem @relation(fields: [itemId], references: [id], onDelete: Cascade)
+
+  @@id([tradeId, itemId])
+  @@index([itemId])
+}
+
+/**
+ * F3 — REVISIONE POST-MORTEM STRUTTURATA.
+ *
+ * Tre domande fisse invece di un campo libero: un box vuoto produce "bene"
+ * e "male", tre domande producono una revisione. `followedPlan` è l'unico
+ * campo che si può AGGREGARE — «win rate quando ho seguito il piano contro
+ * quando no» è la riga che trasforma il journaling in una misura.
+ */
+model TradeReview {
+  tradeId      String   @id
+  /** Il trade ha seguito il piano? null = non ancora risposto. */
+  followedPlan Boolean?
+  whatWorked   String?
+  whatFailed   String?
+  nextTime     String?
+
+  trade Trade @relation(fields: [tradeId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }
 
 model Attachment {

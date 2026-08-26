@@ -1,6 +1,9 @@
 import { z } from "zod";
+import { CURRENCIES } from "@/lib/constants";
 
-export const CURRENCIES = ["USD", "EUR", "GBP", "CHF", "JPY"] as const;
+// Ri-esportata per non rompere gli import server esistenti; la fonte è
+// `lib/constants.ts`, che non porta zod nel bundle client (P-02).
+export { CURRENCIES };
 
 export const tradingAccountSchema = z.object({
   name: z.string().trim().min(1, "Nome obbligatorio").max(60, "Nome troppo lungo"),

@@ -10,8 +10,6 @@ import { resolvePeriod } from "@/lib/period";
 import { periodCookieFallback } from "@/lib/period-cookie";
 import { resolveCurrencyScope } from "@/lib/currency-scope";
 import { getCurrencyBreakdown } from "@/lib/queries/stats";
-// TODO(P-04): import TEMPORANEO della misura stadi — rimuovere dopo la misura.
-import { createStageTimer } from "@/lib/stage-timing";
 import {
   getAnalyticsSymbols,
   getPlanCoverage,
@@ -19,9 +17,14 @@ import {
   getTargetRBuckets,
   getTargetVsRealized,
   getHourPerformance,
+  HOUR_BASES,
+  type HourBasis,
   getDurationPerformance,
+  getDurationOutcomes,
   getRollingTradeWindow,
   getProAggregates,
+  getStrategyDayPnl,
+  getSymbolTrading,
   getStreakRuns,
   getTopConcentration,
   type AnalyticsFilter,
@@ -33,6 +36,12 @@ import {
   breakEvenWinRateInfo,
   concentration,
   concentrationInfo,
+  benchmarkRows,
+  benchmarkCoverage,
+  benchmarkInfo,
+  correlationMatrix,
+  correlationInfo,
+  CORRELATION_MIN_DAYS,
   equityFitInfo,
   equityLinearFit,
   expectedLongestRun,
@@ -42,12 +51,21 @@ import {
   payoffRatio,
   riskOfRuinAnalytic,
   riskOfRuinAnalyticInfo,
+  valueAtRisk,
+  valueAtRiskInfo,
+  VAR_MIN_OBSERVATIONS,
   streakDistribution,
   streakDistributionInfo,
   winRate as winRateOf,
   winRateMargin,
 } from "@/lib/metrics";
 import { ConcentrationTable } from "@/components/analytics/concentration-table";
+import { CorrelationMatrixTable } from "@/components/analytics/correlation-matrix";
+import { BenchmarkTable } from "@/components/analytics/benchmark-table";
+import {
+  getInstrumentCloses,
+  instrumentForSymbol,
+} from "@/lib/queries/benchmark";
 import {
   DAY_WINDOWS,
   DURATION_BUCKETS,
@@ -57,6 +75,9 @@ import {
   bestAndWorst,
   dailyReturns,
   durationPerformanceInfo,
+  holdingTimeOutcome,
+  holdingTimeInfo,
+  HOLDING_MIN_TRADES,
   fillDurationSegments,
   fillHourSegments,
   hourPerformanceInfo,
@@ -94,6 +115,7 @@ import {
   type MetricRangeRow,
 } from "@/components/analytics/metric-range-strip";
 import { SegmentTable } from "@/components/analytics/segment-table";
+import { HourBasisToggle } from "@/components/analytics/hour-basis-toggle";
 import {
   targetRBucketStats,
   targetRTotals,
@@ -107,7 +129,9 @@ import {
   formatPercent,
   formatPercentSmall,
   formatRMultiple,
+  formatSignedMoney,
 } from "@/lib/money";
+import { formatDurationSec } from "@/lib/dates";
 import { cn } from "@/lib/utils";
 import { MetricInfo } from "@/components/metric-info";
 import { EmptyState } from "@/components/empty-state";
@@ -271,11 +295,7 @@ export default async function AnalyticsPage({
 }: {
   searchParams: Promise<Record<string, string | string[] | undefined>>;
 }) {
-  // TODO(P-04): misura TEMPORANEA degli stadi (vedi lib/stage-timing.ts) —
-  // rimuovere timer e mark dopo la lettura dei numeri in produzione.
-  const timing = createStageTimer("/analytics");
   const session = await auth();
-  timing.mark("auth");
   if (!session?.user?.id) redirect("/login");
   const sessionUserId = session.user.id;
 
@@ -287,7 +307,6 @@ export default async function AnalyticsPage({
     resolveTradeScope(sessionUserId),
     searchParams,
   ]);
-  timing.mark("scope");
   const userId = tradeScope.userId;
   const accountId = tradeScope.accountId;
 
@@ -297,7 +316,6 @@ export default async function AnalyticsPage({
 
   // Stessa regola del resto dell'app: mai sommare valute diverse.
   const currencyTotals = await getCurrencyBreakdown(base);
-  timing.mark("currency");
   const currencyScope = resolveCurrencyScope(
     currencyTotals,
     typeof params.cur === "string" ? params.cur : undefined,
@@ -309,6 +327,15 @@ export default async function AnalyticsPage({
       : undefined;
   const direction =
     params.dir === "LONG" || params.dir === "SHORT" ? params.dir : undefined;
+
+  // Base della performance oraria: apertura (default) o chiusura. Parsing
+  // LENIENT come ogni altro filtro: un valore non riconosciuto torna al
+  // default invece di rompere la pagina.
+  const hourBasis: HourBasis = (HOUR_BASES as readonly string[]).includes(
+    typeof params.hb === "string" ? params.hb : "",
+  )
+    ? (params.hb as HourBasis)
+    : "open";
 
   // Le metriche di CONTO (rolling, R², Kelly, risk of ruin, simulatore)
   // leggono l'equity intera e non possono rispettare un filtro strumento o
@@ -351,6 +378,7 @@ export default async function AnalyticsPage({
     symbols,
     hourRows,
     durationRows,
+    durationOutcomeRows,
     // §1 — Equity curve simulator (Fase 34): il saldo reale del conto è il
     // default di Start Equity. Gli R storici servono all'optimal f (§3), la
     // serie giornaliera alle metriche rolling (§2): le query restano condivise.
@@ -364,6 +392,8 @@ export default async function AnalyticsPage({
     accountAgg,
     rAgg,
     streakRuns,
+    strategyDays,
+    symbolTrading,
     concentrationRow,
     rollingRows,
   ] = await Promise.all([
@@ -372,8 +402,9 @@ export default async function AnalyticsPage({
     getRHistogram(filter),
     getTargetVsRealized(filter),
     getAnalyticsSymbols({ ...base, currency: currencyScope.active }),
-    getHourPerformance(filter, user.timezone),
+    getHourPerformance(filter, user.timezone, hourBasis),
     getDurationPerformance(filter, DURATION_BUCKETS),
+    getDurationOutcomes(filter),
     getRMultiples(filter),
     getDailyPnl(filter, user.timezone),
     getStartingBalance(filter),
@@ -384,11 +415,11 @@ export default async function AnalyticsPage({
     getProAggregates(accountFilter),
     getTradeAggregates(accountFilter),
     getStreakRuns(filter),
+    getStrategyDayPnl(filter, user.timezone),
+    getSymbolTrading(filter, user.timezone),
     getTopConcentration(filter),
     rollingRowsPromise,
   ]);
-  timing.mark("queries");
-  timing.flush();
   const startingEquity = new Decimal(mcStartBalance).plus(mcLifetime).toFixed(2);
 
   const buckets = targetRBucketStats(bucketRows);
@@ -490,6 +521,11 @@ export default async function AnalyticsPage({
   const accAvgLoss = avgLoss(accountAgg.lossSum, accountAgg.losses);
   const accPayoff = payoffRatio(accAvgWin, accAvgLoss);
 
+  // VaR/CVaR storici sulla stessa serie giornaliera di rolling e Sortino:
+  // sono metriche di CONTO, non di strumento — la serie non conosce i filtri
+  // simbolo/direzione, e dirlo sulla card è la stessa regola delle rolling.
+  const risk = valueAtRisk(returnsSeries);
+
   const kelly = kellyFraction(accWinRate, accPayoff);
   const optF = optimalF(mcR);
   const equityFit = equityLinearFit(returnsSeries.map((d) => d.equityStart));
@@ -550,7 +586,85 @@ export default async function AnalyticsPage({
     netPnl: proAgg.netPnl,
   });
 
+  /* Matrice di correlazione fra strategie: le righe SQL diventano una serie
+     per strategia con il suo calendario. Le strategie con meno di 10 trade
+     restano fuori — una correlazione costruita su una manciata di giornate
+     descrive quelle giornate, non la strategia. */
+  const strategySeries = (() => {
+    const byStrategy = new Map<
+      string,
+      { key: string; label: string; byDay: Map<string, string>; trades: number }
+    >();
+    for (const row of strategyDays) {
+      const entry = byStrategy.get(row.strategyId) ?? {
+        key: row.strategyId,
+        label: row.strategyName,
+        byDay: new Map<string, string>(),
+        trades: 0,
+      };
+      entry.byDay.set(row.day, row.netPnl);
+      entry.trades += row.trades;
+      byStrategy.set(row.strategyId, entry);
+    }
+    return [...byStrategy.values()]
+      .filter((s) => s.trades >= 10)
+      .sort((a, b) => b.trades - a.trades);
+  })();
+  const correlations = correlationMatrix(strategySeries);
+
+  /* Confronto col buy & hold. Secondo stadio per forza: la finestra di
+     chiusure da leggere dipende dai giorni in cui l'utente ha davvero
+     operato, che si sanno solo dopo la query dei simboli. Una sola query in
+     più, sui soli strumenti che servono. */
+  const benchmarkWindow = {
+    from: symbolTrading.reduce<string | null>(
+      (min, r) => (min === null || r.firstDay < min ? r.firstDay : min),
+      null,
+    ),
+    to: symbolTrading.reduce<string | null>(
+      (max, r) => (max === null || r.lastDay > max ? r.lastDay : max),
+      null,
+    ),
+  };
+  const wantedInstruments = [
+    ...new Set(
+      symbolTrading
+        .map((r) => instrumentForSymbol(r.symbol))
+        .filter((i): i is string => i !== null),
+    ),
+  ];
+  const closes =
+    benchmarkWindow.from && benchmarkWindow.to && wantedInstruments.length > 0
+      ? await getInstrumentCloses(
+          wantedInstruments,
+          benchmarkWindow.from,
+          benchmarkWindow.to,
+        )
+      : [];
+  const benchmark = benchmarkRows(
+    symbolTrading,
+    new Map(closes.map((c) => [c.instrument, c])),
+    instrumentForSymbol,
+  );
+  const benchmarkCovered = benchmarkCoverage(benchmark);
+
+  // Durata contro esito su TUTTI i trade insieme: la tabella per fascia dice
+  // quanto rende ogni bucket, questa riga dice se fra i bucket ci sia un
+  // andamento o solo rumore.
+  const holding = holdingTimeOutcome(durationOutcomeRows);
+
   const hourSegments = fillHourSegments(hourRows);
+  /* Il link conserva TUTTI gli altri parametri: cambiare base oraria non
+     deve resettare periodo, valuta, simbolo o finestra rolling. */
+  const hourBasisHref = (next: HourBasis) => {
+    const query = new URLSearchParams();
+    for (const [key, value] of Object.entries(params)) {
+      if (typeof value === "string" && key !== "hb") query.set(key, value);
+    }
+    if (next !== "open") query.set("hb", next);
+    const qs = query.toString();
+    return `/analytics${qs ? `?${qs}` : ""}#timing`;
+  };
   const durationSegments = fillDurationSegments(durationRows);
   const bestHour = bestAndWorst(hourSegments, (s) => s.avgR);
   const bestDuration = bestAndWorst(durationSegments, (s) => s.avgR);
@@ -634,7 +748,32 @@ export default async function AnalyticsPage({
             {coverage.total} trade chiusi nel periodo · {coverage.withR} con
             rischio definito ({coverage.withTargetR} anche con target
             pianificato).
-            {senzaR > 0 && ` ${senzaR} senza rischio: R non calcolabile (N/D).`}
+            {senzaR > 0 && (
+              <>
+                {" "}
+                <Link
+                  href="/trades?risk=missing"
+                  className="underline underline-offset-2"
+                >
+                  {senzaR} senza rischio
+                </Link>
+                : R non calcolabile (N/D)
+                {/* Il conteggio da solo non basta: se fra i trade esclusi c'è
+                    quello più grosso dell'anno, la distribuzione descrive una
+                    minoranza del risultato. Si dichiara anche il DENARO che
+                    resta fuori. */}
+                {coverage.pnlShareWithR !== null && (
+                  <>
+                    , e con loro{" "}
+                    {formatSignedMoney(coverage.netPnlWithoutR, currency)} di
+                    P&amp;L: l&apos;istogramma rappresenta il{" "}
+                    {formatPercent(coverage.pnlShareWithR)} del movimento del
+                    periodo
+                  </>
+                )}
+                .
+              </>
+            )}
             {senzaPiano > 0 &&
               ` ${senzaPiano} con rischio ma senza piano completo: fuori dalle fasce per target R.`}
           </p>
@@ -935,6 +1074,32 @@ export default async function AnalyticsPage({
                   accountScoped={instrumentFilterActive}
                 />
                 <StatBox
+                  label="VaR giornaliero (95%)"
+                  value={risk === null ? "—" : formatMoney(risk.var, currency)}
+                  sub={
+                    risk === null
+                      ? `servono ${VAR_MIN_OBSERVATIONS} sedute (${returnsSeries.length} nel periodo)`
+                      : risk.varPct !== null
+                        ? `${formatPercent(risk.varPct)} dell'equity · 1 seduta su 20`
+                        : "1 seduta su 20"
+                  }
+                  tone={risk !== null && Number(risk.var) > 0 ? "loss" : undefined}
+                  info={valueAtRiskInfo}
+                  accountScoped={instrumentFilterActive}
+                />
+                <StatBox
+                  label="CVaR giornaliero (95%)"
+                  value={risk === null ? "—" : formatMoney(risk.cvar, currency)}
+                  sub={
+                    risk === null
+                      ? `servono ${VAR_MIN_OBSERVATIONS} sedute (${returnsSeries.length} nel periodo)`
+                      : `media delle ${risk.tailDays} sedute peggiori su ${risk.observations}`
+                  }
+                  tone={risk !== null && Number(risk.cvar) > 0 ? "loss" : undefined}
+                  info={valueAtRiskInfo}
+                  accountScoped={instrumentFilterActive}
+                />
+                <StatBox
                   label="Risk of ruin (analitico)"
                   value={formatPercentSmall(ruinAnalytic)}
                   sub="formula chiusa, azzeramento del conto intero"
@@ -1058,16 +1223,115 @@ export default async function AnalyticsPage({
             </CardContent>
           </Card>
 
-          {/* §2 — performance per fascia oraria (ora di APERTURA). */}
-          <Card id="timing" className="scroll-mt-20">
+          {/* Il confronto che nessuna metrica interna fa: vs stare fermo. */}
+          <Card>
             <CardHeader>
               <CardTitle className="flex items-center gap-2 text-base">
-                Performance per fascia oraria
-                <MetricInfo info={hourPerformanceInfo} />
+                Il tuo trading vs stare fermo
+                <MetricInfo info={benchmarkInfo} />
               </CardTitle>
               <CardDescription>
-                Fasce di un&apos;ora sull&apos;orario di <strong>apertura</strong>{" "}
-                del trade, nel tuo fuso ({user.timezone.replace("_", " ")}).
+                Per ogni simbolo: quanto hai realizzato, e quanto avrebbe reso
+                comprare la tua size media all&apos;inizio del periodo e non
+                toccarla più.
+                {benchmarkCovered.share !== null && (
+                  <>
+                    {" "}
+                    Confronto disponibile su{" "}
+                    <strong>
+                      {benchmarkCovered.covered} trade su{" "}
+                      {benchmarkCovered.total}
+                    </strong>{" "}
+                    ({formatPercent(benchmarkCovered.share)}): per gli altri
+                    simboli l&apos;istanza non ha una serie di chiusure, e non
+                    viene inventato un valore di ripiego.
+                  </>
+                )}
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="flex flex-col gap-3">
+              {benchmark.length > 0 ? (
+                <>
+                  <BenchmarkTable rows={benchmark} currency={currency} />
+                  <p className="rounded-md border border-dashed p-3 text-xs text-muted-foreground">
+                    <strong className="text-foreground">Come leggerlo.</strong>{" "}
+                    La serie di riferimento è il sottostante (oro spot, indice,
+                    future continuo), non il contratto esatto che hai tradato:
+                    su orizzonti lunghi il rollover fa divergere le due curve.
+                    Il buy &amp; hold è calcolato sulla tua size MEDIA tenuta
+                    per tutto il periodo — è un&apos;ipotesi di confronto, non
+                    una cosa che è successa. La variazione percentuale è sempre
+                    confrontabile; l&apos;importo in valuta solo se la valuta
+                    del conto coincide con quella dello strumento.
+                  </p>
+                </>
+              ) : (
+                <EmptyState
+                  compact
+                  icon={Activity}
+                  title="Nessun trade chiuso nel periodo"
+                  description="Il confronto si costruisce sui simboli che hai davvero tradato."
+                />
+              )}
+            </CardContent>
+          </Card>
+
+          {/* Correlazione fra strategie: le strategie guardate INSIEME. */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2 text-base">
+                Correlazione fra strategie
+                <MetricInfo info={correlationInfo} />
+              </CardTitle>
+              <CardDescription>
+                Quanto si muovono insieme i P&amp;L giornalieri. Rosso = le due
+                vanno bene e male negli stessi giorni, quindi sommarle non
+                riduce il rischio; verde = si alternano, ed è lì che la
+                diversificazione fa il suo lavoro.
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="flex flex-col gap-3">
+              {correlations.keys.length >= 2 ? (
+                <>
+                  <CorrelationMatrixTable matrix={correlations} />
+                  <p className="text-xs text-muted-foreground">
+                    {strategySeries.length} strategie con almeno 10 trade nel
+                    periodo. Nei giorni in cui una strategia non opera il suo
+                    contributo è zero: è un fatto, non un dato mancante. Sotto{" "}
+                    {CORRELATION_MIN_DAYS} giornate comuni la cella resta
+                    vuota.
+                  </p>
+                </>
+              ) : (
+                <EmptyState
+                  compact
+                  icon={Crosshair}
+                  title="Servono almeno due strategie"
+                  description="La correlazione confronta strategie fra loro: assegna una strategia ai trade (almeno 10 per strategia) e questa matrice si popola."
+                />
+              )}
+            </CardContent>
+          </Card>
+
+          {/* §2 — performance per fascia oraria: apertura O chiusura. */}
+          <Card id="timing" className="scroll-mt-20">
+            <CardHeader>
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <CardTitle className="flex items-center gap-2 text-base">
+                  Performance per fascia oraria
+                  <MetricInfo info={hourPerformanceInfo} />
+                </CardTitle>
+                <HourBasisToggle basis={hourBasis} hrefFor={hourBasisHref} />
+              </div>
+              <CardDescription>
+                Fasce di un&apos;ora sull&apos;orario di{" "}
+                <strong>
+                  {hourBasis === "close" ? "chiusura" : "apertura"}
+                </strong>{" "}
+                del trade, nel tuo fuso ({user.timezone.replace("_", " ")}).{" "}
+                {hourBasis === "close"
+                  ? "Quando esci bene: è una domanda sulla gestione."
+                  : "Quando entri bene: è una domanda sul setup."}
                 {bestHour.best && bestHour.worst && (
                   <>
                     {" "}
@@ -1086,12 +1350,16 @@ export default async function AnalyticsPage({
               <SegmentPerformanceChart
                 points={hourSegments}
                 currency={currency}
-                ariaLabel="Performance per fascia oraria"
+                ariaLabel={`Performance per fascia oraria di ${
+                  hourBasis === "close" ? "chiusura" : "apertura"
+                }`}
               />
               <SegmentTable
                 rows={hourSegments.filter((s) => !s.empty)}
                 currency={currency}
-                segmentLabel="Fascia oraria"
+                segmentLabel={`Ora di ${
+                  hourBasis === "close" ? "chiusura" : "apertura"
+                }`}
               />
             </CardContent>
           </Card>
@@ -1129,6 +1397,54 @@ export default async function AnalyticsPage({
                 currency={currency}
                 segmentLabel="Durata"
               />
+
+              {/* La lettura d'insieme, che nessuna riga della tabella può
+                  dare: con sette fasce e poche decine di trade per fascia il
+                  rumore è l'ipotesi di partenza. */}
+              <div className="rounded-md border border-dashed p-3">
+                <p className="stat-label flex items-center gap-1">
+                  Durata ed esito
+                  <MetricInfo info={holdingTimeInfo} />
+                </p>
+                {holding.lowSample ? (
+                  <p className="mt-1 text-sm text-muted-foreground">
+                    Servono {HOLDING_MIN_TRADES} trade direzionali per misurare
+                    la relazione: nel periodo ce ne sono {holding.sample}.
+                  </p>
+                ) : holding.correlation === null ? (
+                  <p className="mt-1 text-sm text-muted-foreground">
+                    Relazione non misurabile: servono sia vincenti sia perdenti,
+                    con durate diverse fra loro.
+                  </p>
+                ) : (
+                  <>
+                    <p
+                      className={cn(
+                        "mt-1 text-lg font-semibold tabular-nums",
+                        Math.abs(Number(holding.correlation)) < 0.2
+                          ? "text-muted-foreground"
+                          : undefined,
+                      )}
+                    >
+                      {formatRatio(holding.correlation)}
+                      <span className="ml-2 text-sm font-normal text-muted-foreground">
+                        su {holding.sample} trade direzionali
+                      </span>
+                    </p>
+                    <p className="mt-1 text-xs text-muted-foreground">
+                      {Math.abs(Number(holding.correlation)) < 0.2
+                        ? "Nessun legame apprezzabile fra quanto tieni un trade e come va a finire."
+                        : Number(holding.correlation) > 0
+                          ? "Tieni più a lungo i trade che vincono. Di solito non è merito dell'attesa: è lo stop che chiude presto i perdenti."
+                          : "Più tieni un trade, peggio tende ad andare."}{" "}
+                      Mediana vincenti{" "}
+                      <strong>{formatDurationSec(holding.medianWinSec)}</strong>{" "}
+                      · perdenti{" "}
+                      <strong>{formatDurationSec(holding.medianLossSec)}</strong>.
+                    </p>
+                  </>
+                )}
+              </div>
             </CardContent>
           </Card>
 

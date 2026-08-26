@@ -86,6 +86,7 @@ export default async function EditTradePage({
             : "",
           strategyId: trade.strategyId ?? "",
           rating: trade.rating ? String(trade.rating) : "",
+          swap: trimZeros(trade.swap.toString()),
           notes: trade.notes.map((note) => note.content).join("\n\n"),
           tags: trade.tags.map(({ tag }) => ({
             name: tag.name,

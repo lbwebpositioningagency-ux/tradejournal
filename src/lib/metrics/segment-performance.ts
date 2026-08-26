@@ -218,8 +218,9 @@ export function bestAndWorst<T extends SegmentMetrics & { label: string }>(
 export const hourPerformanceInfo: MetricInfoData = {
   label: "Performance per fascia oraria",
   description:
-    "Come rende ogni ora della giornata, sull'orario di APERTURA del trade nel tuo fuso. Le fasce con pochi trade sono marcate: tre operazioni non fanno una statistica, e il modo più facile per peggiorare è cambiare le proprie abitudini inseguendo il rumore.",
-  formula: "Ora di apertura (fuso utente) · Expectancy = Σ R / trade con rischio",
+    "Come rende ogni ora della giornata, nel tuo fuso. Il selettore cambia la domanda: sull'APERTURA leggi quando entri bene (è una domanda sul setup), sulla CHIUSURA quando esci bene (è una domanda sulla gestione). Le due risposte possono benissimo essere diverse, ed è quello il punto. Le fasce con pochi trade sono marcate: tre operazioni non fanno una statistica, e il modo più facile per peggiorare è cambiare le proprie abitudini inseguendo il rumore.",
+  formula:
+    "Ora di apertura o di chiusura (fuso utente) · Expectancy = Σ R / trade con rischio",
 };
 
 export const durationPerformanceInfo: MetricInfoData = {

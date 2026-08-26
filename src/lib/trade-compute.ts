@@ -44,6 +44,13 @@ export interface ComputeOptions {
   plannedStop?: string | null;
   /** Target pianificato (prezzo). */
   plannedTarget?: string | null;
+  /**
+   * Swap / rollover del periodo in cui la posizione è stata aperta, in
+   * valuta conto. SEGNO LIBERO: su una coppia forex con differenziale
+   * favorevole è un accredito, e forzarlo a costo sarebbe una bugia.
+   * Assente = 0, quindi ogni trade storico resta identico a prima.
+   */
+  swap?: string | null;
 }
 
 export interface ComputedTrade {
@@ -61,7 +68,9 @@ export interface ComputedTrade {
   grossPnl: string;
   /** Somma fee (scala 2) */
   fees: string;
-  /** P&L netto = lordo − fee (scala 2) */
+  /** Swap/rollover applicato (scala 2, segno libero) */
+  swap: string;
+  /** P&L netto = lordo − fee − swap (scala 2) */
   netPnl: string;
   /** netPnl / initialRisk (scala 4), null se rischio assente o zero */
   rMultiple: string | null;
@@ -93,6 +102,20 @@ function parseNonNegative(value: string, label: string): Decimal {
   }
   if (!dec.isFinite() || dec.lt(0)) {
     throw new TradeComputeError(`${label} non può essere negativo`);
+  }
+  return dec;
+}
+
+/** Numero finito con SEGNO libero (lo swap può essere un accredito). */
+function parseSigned(value: string, label: string): Decimal {
+  let dec: Decimal;
+  try {
+    dec = new Decimal(value);
+  } catch {
+    throw new TradeComputeError(`${label} non è un numero valido: "${value}"`);
+  }
+  if (!dec.isFinite()) {
+    throw new TradeComputeError(`${label} non è un numero valido: "${value}"`);
   }
   return dec;
 }
@@ -152,7 +175,13 @@ export function computeTrade(
       direction === "LONG" ? avgExit.minus(avgEntry) : avgEntry.minus(avgExit);
     grossPnl = diff.times(exitQty).times(pointValue);
   }
-  const netPnl = grossPnl.minus(fees);
+  // Lo swap è un costo di POSIZIONE: entra una volta sola sul trade, non
+  // per esecuzione. Segno libero, quindi si somma algebricamente.
+  const swap =
+    options.swap != null && options.swap !== ""
+      ? parseSigned(options.swap, "Lo swap")
+      : new Decimal(0);
+  const netPnl = grossPnl.minus(fees).minus(swap);
 
   const isClosed = position.isZero();
 
@@ -190,6 +219,7 @@ export function computeTrade(
     avgExitPrice: avgExit ? avgExit.toFixed(8) : null,
     grossPnl: grossPnl.toFixed(2),
     fees: fees.toFixed(2),
+    swap: swap.toFixed(2),
     netPnl: netPnl.toFixed(2),
     rMultiple,
     targetR,

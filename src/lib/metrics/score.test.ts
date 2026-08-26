@@ -1,22 +1,27 @@
 import { describe, expect, it } from "vitest";
+import Decimal from "decimal.js";
 import {
+  anchoredScore,
+  dailyReturns,
   maxDrawdown,
+  mulberry32,
+  positiveDayCv,
   radarScore,
+  SCORE_ANCHORS,
   scoreFactorInfo,
   scoreInfo,
   SCORE_FACTOR_INFO,
   SCORE_FACTOR_KEYS,
   SCORE_MIN_TRADES,
-  DD_REFERENCE_SESSIONS,
-  normalizedDrawdownPct,
-  mulberry32,
+  DISCIPLINE_MIN_COVERAGE,
+  ulcerIndex,
 } from "./index";
 import type { RadarScoreInput } from "./index";
 
 /**
- * Test della formula a 6 fattori (peso uguale 100/6) e delle
- * normalizzazioni di ciascun fattore — casi noti: tutti vincenti, tutti
- * perdenti, storico misto, storico vuoto, un solo trade.
+ * Score a 6 fattori: contratto di scala unico (0 = allarme, 50 = neutro,
+ * 100 = eccellente su OGNI asse) e fattori tutti invarianti alla lunghezza
+ * della finestra.
  */
 
 const base: RadarScoreInput = {
@@ -25,12 +30,9 @@ const base: RadarScoreInput = {
   losses: 45,
   winSum: "9000.00",
   lossSum: "-4500.00",
-  netPnl: "4500.00",
-  maxDrawdown: "500.00",
-  maxDrawdownPct: "0.0500",
-  // 252 sedute = finestra di riferimento della normalizzazione Q-1:
-  // il fattore di scala vale esattamente 1 e le attese storiche restano valide.
-  observations: DD_REFERENCE_SESSIONS,
+  ulcer: "0.0500", // esattamente il neutro della scala Ulcer
+  plannedTrades: 50, // esattamente il neutro della disciplina
+  tradesWithAnyPlan: 50, // campo di piano in uso su tutti i trade
   daily: [
     { netPnl: "1500.00" },
     { netPnl: "1500.00" },
@@ -39,43 +41,114 @@ const base: RadarScoreInput = {
   ],
 };
 
-describe("radarScore — normalizzazione dei singoli fattori", () => {
-  it("storico misto: ogni fattore segue la sua scala documentata", () => {
-    const result = radarScore(base)!;
-    // Win %: 55% / 60% = 91.67
-    expect(result.factors.winRate).toBeCloseTo(91.67, 2);
-    // PF: 9000/4500 = 2 → 2/2.5 = 80
-    expect(result.factors.profitFactor).toBe(80);
-    // Payoff: avgWin 163.64 / avgLoss 100 = 1.6364 → /2 = 81.82
-    expect(result.factors.avgWinLoss).toBeCloseTo(81.82, 2);
-    // Recovery: 4500/500 = 9 → /3 = 3 → clamp 100
-    expect(result.factors.recoveryFactor).toBe(100);
-    // Max DD: 1 − 0.05/0.20 = 75
-    expect(result.factors.maxDrawdown).toBe(75);
-    // Consistency: miglior giornata 2000 / positive 5000 = 0.4 → 60
-    expect(result.factors.consistency).toBe(60);
+describe("anchoredScore — il contratto di scala comune", () => {
+  const anchors = { floor: "0", neutral: "10", target: "20" };
+
+  it("le tre ancore valgono esattamente 0, 50 e 100", () => {
+    expect(anchoredScore(new Decimal("0"), anchors).toNumber()).toBe(0);
+    expect(anchoredScore(new Decimal("10"), anchors).toNumber()).toBe(50);
+    expect(anchoredScore(new Decimal("20"), anchors).toNumber()).toBe(100);
   });
 
-  it("lo score è la media a peso uguale dei 6 fattori, due decimali", () => {
-    const result = radarScore(base)!;
-    const mean =
-      (91.666666 + 80 + 81.818181 + 100 + 75 + 60) / 6;
-    expect(Number(result.score)).toBeCloseTo(mean, 1);
-    expect(result.score).toMatch(/^\d+\.\d{2}$/);
-    expect(result.lowSample).toBe(false);
+  it("interpola linearmente dentro ciascuno dei due tratti", () => {
+    expect(anchoredScore(new Decimal("5"), anchors).toNumber()).toBe(25);
+    expect(anchoredScore(new Decimal("15"), anchors).toNumber()).toBe(75);
   });
 
-  it("tutti trade vincenti: PF e payoff senza perdite valgono 100", () => {
+  it("clampa fuori dagli estremi: mai sotto 0, mai sopra 100", () => {
+    expect(anchoredScore(new Decimal("-99"), anchors).toNumber()).toBe(0);
+    expect(anchoredScore(new Decimal("999"), anchors).toNumber()).toBe(100);
+  });
+
+  it("lowerIsBetter ribalta il verso lasciando alle ancore lo stesso senso", () => {
+    const inverse = { floor: "20", neutral: "10", target: "0", lowerIsBetter: true };
+    expect(anchoredScore(new Decimal("20"), inverse).toNumber()).toBe(0);
+    expect(anchoredScore(new Decimal("10"), inverse).toNumber()).toBe(50);
+    expect(anchoredScore(new Decimal("0"), inverse).toNumber()).toBe(100);
+    expect(anchoredScore(new Decimal("5"), inverse).toNumber()).toBe(75);
+    expect(anchoredScore(new Decimal("999"), inverse).toNumber()).toBe(0);
+  });
+
+  it("il neutro di OGNI fattore vale 50: è ciò che rende sensata la media", () => {
+    for (const key of SCORE_FACTOR_KEYS) {
+      const a = SCORE_ANCHORS[key];
+      expect(
+        anchoredScore(new Decimal(a.neutral), a).toNumber(),
+        `neutro di ${key}`,
+      ).toBe(50);
+      expect(anchoredScore(new Decimal(a.floor), a).toNumber(), `floor di ${key}`).toBe(0);
+      expect(anchoredScore(new Decimal(a.target), a).toNumber(), `target di ${key}`).toBe(100);
+    }
+  });
+
+  it("i punti neutri sono quelli VERI dove esistono: PF e payoff al pareggio", () => {
+    expect(SCORE_ANCHORS.profitFactor.neutral).toBe("1.00");
+    expect(SCORE_ANCHORS.avgWinLoss.neutral).toBe("1.00");
+  });
+});
+
+describe("positiveDayCv — la consistency non dipende più da un massimo", () => {
+  it("giornate positive tutte uguali → dispersione zero", () => {
+    const days = Array.from({ length: 10 }, () => ({ netPnl: "500.00" }));
+    expect(Number(positiveDayCv(days))).toBe(0);
+  });
+
+  it("una giornata che vale quasi tutto → dispersione alta", () => {
+    const days = [
+      { netPnl: "9000.00" },
+      ...Array.from({ length: 9 }, () => ({ netPnl: "100.00" })),
+    ];
+    expect(Number(positiveDayCv(days))).toBeGreaterThan(2);
+  });
+
+  it("le giornate negative non entrano: si misura come si distribuisce il PROFITTO", () => {
+    const soloPositive = [{ netPnl: "100" }, { netPnl: "300" }];
+    const conNegative = [...soloPositive, { netPnl: "-5000" }, { netPnl: "-1" }];
+    expect(positiveDayCv(conNegative)).toBe(positiveDayCv(soloPositive));
+  });
+
+  it("meno di due giornate positive → null, mai una consistenza perfetta finta", () => {
+    expect(positiveDayCv([{ netPnl: "100" }])).toBeNull();
+    expect(positiveDayCv([{ netPnl: "-100" }, { netPnl: "-2" }])).toBeNull();
+    expect(positiveDayCv([])).toBeNull();
+  });
+
+  it("è invariante alla SCALA: raddoppiare tutti gli importi non la muove", () => {
+    const a = [{ netPnl: "100" }, { netPnl: "300" }, { netPnl: "250" }];
+    const b = a.map((d) => ({ netPnl: String(Number(d.netPnl) * 2) }));
+    expect(positiveDayCv(b)).toBe(positiveDayCv(a));
+  });
+});
+
+describe("radarScore — fattori e composizione", () => {
+  it("un input tutto ai valori neutri dà 50 su ogni asse e 50 di Score", () => {
+    const neutral = radarScore({
+      total: 100,
+      wins: 40, // 40% = neutro del win rate
+      losses: 60,
+      winSum: "6000.00",
+      lossSum: "-6000.00", // PF 1,00 = pareggio; payoff 150/100 → 1,5
+      ulcer: "0.0500",
+      plannedTrades: 50,
+      tradesWithAnyPlan: 50,
+      daily: [{ netPnl: "100" }, { netPnl: "300" }],
+    })!;
+    expect(neutral.factors.winRate).toBe(50);
+    expect(neutral.factors.profitFactor).toBe(50);
+    expect(neutral.factors.drawdown).toBe(50);
+    expect(neutral.factors.discipline).toBe(50);
+  });
+
+  it("nessuna perdita: PF e payoff valgono il massimo, non un infinito finto", () => {
     const result = radarScore({
       total: 40,
       wins: 40,
       losses: 0,
       winSum: "4000.00",
       lossSum: "0.00",
-      netPnl: "4000.00",
-      maxDrawdown: "0.00",
-      maxDrawdownPct: "0.0000",
-      observations: DD_REFERENCE_SESSIONS,
+      ulcer: "0.0000",
+      plannedTrades: 40,
+      tradesWithAnyPlan: 40,
       daily: [
         { netPnl: "1000.00" },
         { netPnl: "1000.00" },
@@ -85,34 +158,43 @@ describe("radarScore — normalizzazione dei singoli fattori", () => {
     })!;
     expect(result.factors.profitFactor).toBe(100);
     expect(result.factors.avgWinLoss).toBe(100);
-    expect(result.factors.recoveryFactor).toBe(100); // zero DD con profitto
-    expect(result.factors.maxDrawdown).toBe(100);
-    expect(result.factors.winRate).toBe(100); // 100% > tetto 60%
-    // Consistency: 1000/4000 → 1−0.25 = 75; score = (5·100+75)/6
-    expect(result.factors.consistency).toBe(75);
-    expect(result.score).toBe("95.83");
+    expect(result.factors.drawdown).toBe(100); // nessun underwater
+    expect(result.factors.consistency).toBe(100); // giornate identiche
+    expect(result.computed).toBe(6);
   });
 
-  it("tutti trade perdenti: tutto a zero tranne il fattore drawdown", () => {
+  it("tutti perdenti: gli assi di risultato vanno a zero, la disciplina resta", () => {
     const result = radarScore({
       total: 30,
       wins: 0,
       losses: 30,
       winSum: "0.00",
       lossSum: "-3000.00",
-      netPnl: "-3000.00",
-      maxDrawdown: "3000.00",
-      maxDrawdownPct: "0.3000",
-      observations: DD_REFERENCE_SESSIONS,
+      ulcer: "0.3000",
+      plannedTrades: 27, // 90% → disciplina al massimo
+      tradesWithAnyPlan: 27,
       daily: [{ netPnl: "-1500.00" }, { netPnl: "-1500.00" }],
     })!;
     expect(result.factors.winRate).toBe(0);
-    expect(result.factors.profitFactor).toBe(0); // solo breakeven/nessuna vincita
+    expect(result.factors.profitFactor).toBe(0);
     expect(result.factors.avgWinLoss).toBe(0);
-    expect(result.factors.recoveryFactor).toBe(0); // netto negativo
-    expect(result.factors.maxDrawdown).toBe(0); // 30% ≥ tetto 20% → clamp 0
-    expect(result.factors.consistency).toBe(0); // nessuna giornata positiva
-    expect(result.score).toBe("0.00");
+    expect(result.factors.drawdown).toBe(0);
+    expect(result.factors.discipline).toBe(100);
+    // Nessuna giornata positiva: la consistency non è calcolabile.
+    expect(result.factors.consistency).toBeNull();
+    expect(result.computed).toBe(5);
+  });
+
+  it("un fattore non calcolabile resta FUORI dalla media, mai un 50 di comodo", () => {
+    const senzaUlcer = radarScore({ ...base, ulcer: null })!;
+    expect(senzaUlcer.factors.drawdown).toBeNull();
+    expect(senzaUlcer.computed).toBe(5);
+    // La media è quella dei cinque calcolabili, non dei sei con uno finto.
+    const media =
+      SCORE_FACTOR_KEYS.map((k) => senzaUlcer.factors[k])
+        .filter((v): v is number => v !== null)
+        .reduce((a, b) => a + b, 0) / 5;
+    expect(Number(senzaUlcer.score)).toBeCloseTo(media, 1);
   });
 
   it("storico vuoto → null, mai un punteggio finto", () => {
@@ -123,220 +205,295 @@ describe("radarScore — normalizzazione dei singoli fattori", () => {
         losses: 0,
         winSum: "0",
         lossSum: "0",
-        netPnl: "0",
-        maxDrawdown: "0",
-        maxDrawdownPct: null,
-        observations: DD_REFERENCE_SESSIONS,
+        ulcer: null,
+        plannedTrades: 0,
+        tradesWithAnyPlan: 0,
         daily: [],
       }),
     ).toBeNull();
   });
 
-  it("un solo trade: punteggio calcolabile ma marcato lowSample", () => {
-    const result = radarScore({
-      total: 1,
-      wins: 1,
-      losses: 0,
-      winSum: "100.00",
-      lossSum: "0.00",
-      netPnl: "100.00",
-      maxDrawdown: "0.00",
-      maxDrawdownPct: "0.0000",
-      observations: DD_REFERENCE_SESSIONS,
-      daily: [{ netPnl: "100.00" }],
-    })!;
-    expect(result.lowSample).toBe(true);
-    expect(result.total).toBe(1);
-    // Un giorno solo positivo: tutta la consistenza in una giornata → 0.
-    expect(result.factors.consistency).toBe(0);
-  });
-
   it("soglia lowSample coerente con SQN/Optimal f (30 trade)", () => {
     expect(SCORE_MIN_TRADES).toBe(30);
-    const at = radarScore({ ...base, total: 30 })!;
-    const below = radarScore({ ...base, total: 29 })!;
-    expect(at.lowSample).toBe(false);
-    expect(below.lowSample).toBe(true);
+    expect(radarScore({ ...base, total: 30 })!.lowSample).toBe(false);
+    expect(radarScore({ ...base, total: 29 })!.lowSample).toBe(true);
   });
 
-  it("drawdown % indefinibile (picco ≤ 0) → fattore neutro 50", () => {
-    // Regressione ereditata dal compositeScore: pct null "indefinibile"
-    // non è pct "0.0000" (nessun drawdown, fattore pieno).
-    const dd = maxDrawdown([
-      { day: "2026-07-01", netPnl: "-100" },
-      { day: "2026-07-02", netPnl: "-200" },
-    ]);
-    expect(dd.maxDrawdownPct).toBeNull();
-    const result = radarScore({
-      ...base,
-      maxDrawdownPct: dd.maxDrawdownPct,
-    })!;
-    expect(result.factors.maxDrawdown).toBe(50);
-  });
-
-  it("sole giornate positive: nessun drawdown → fattore DD pieno", () => {
-    const dd = maxDrawdown(
-      [
-        { day: "2026-07-01", netPnl: "200" },
-        { day: "2026-07-02", netPnl: "100" },
-      ],
-      "10000",
-    );
-    expect(dd.maxDrawdownPct).toBe("0.0000");
-    const result = radarScore({ ...base, maxDrawdownPct: dd.maxDrawdownPct })!;
-    expect(result.factors.maxDrawdown).toBe(100);
-  });
-
-  it("clamp: nessun fattore supera 100 né scende sotto 0, mai score > 100", () => {
-    const result = radarScore({
+  it("nessun fattore esce da 0-100 e lo Score nemmeno", () => {
+    const estremo = radarScore({
       total: 50,
-      wins: 45,
-      losses: 5,
+      wins: 49,
+      losses: 1,
       winSum: "50000.00",
       lossSum: "-100.00",
-      netPnl: "49900.00",
-      maxDrawdown: "50.00",
-      maxDrawdownPct: "0.0010",
-      observations: DD_REFERENCE_SESSIONS,
+      ulcer: "0.0001",
+      plannedTrades: 50,
+      tradesWithAnyPlan: 50,
       daily: [{ netPnl: "25000.00" }, { netPnl: "24900.00" }],
     })!;
-    for (const value of Object.values(result.factors)) {
-      expect(value).toBeGreaterThanOrEqual(0);
-      expect(value).toBeLessThanOrEqual(100);
+    for (const key of SCORE_FACTOR_KEYS) {
+      const v = estremo.factors[key];
+      if (v === null) continue;
+      expect(v).toBeGreaterThanOrEqual(0);
+      expect(v).toBeLessThanOrEqual(100);
     }
-    expect(Number(result.score)).toBeLessThanOrEqual(100);
+    expect(Number(estremo.score)).toBeLessThanOrEqual(100);
   });
 
-  it("consistency: profitto spalmato batte profitto concentrato", () => {
-    const spread = radarScore({
+  it("la disciplina è un tasso: dipende dalla QUOTA di piani, non dal loro numero", () => {
+    const pochi = radarScore({
       ...base,
-      daily: Array.from({ length: 10 }, () => ({ netPnl: "500.00" })),
+      total: 40,
+      plannedTrades: 36,
+      tradesWithAnyPlan: 36,
     })!;
-    const concentrated = radarScore({
+    const molti = radarScore({
       ...base,
-      daily: [{ netPnl: "5000.00" }, { netPnl: "-500.00" }],
+      total: 400,
+      plannedTrades: 360,
+      tradesWithAnyPlan: 360,
     })!;
-    expect(spread.factors.consistency).toBe(90); // 1 − 500/5000
-    expect(concentrated.factors.consistency).toBe(0); // tutto in un giorno
-    expect(Number(spread.score)).toBeGreaterThan(Number(concentrated.score));
+    expect(pochi.factors.discipline).toBe(molti.factors.discipline);
   });
 });
 
-describe("Q-1 — normalizzazione del fattore Max Drawdown sulla finestra", () => {
-  it("alla finestra di riferimento (252 sedute) il drawdown non viene toccato", () => {
-    expect(DD_REFERENCE_SESSIONS).toBe(252);
-    expect(Number(normalizedDrawdownPct("0.0500", 252))).toBeCloseTo(0.05, 10);
+/**
+ * DATO DI PIANO ASSENTE: il caso che un import CSV senza colonne di stop e
+ * target produce su tutto lo storico. Il rapporto «piani completi / trade»
+ * varrebbe 0 e il fattore direbbe «disciplina pessima» — il giudizio
+ * peggiore possibile, su un dato che non c'è.
+ */
+describe("disciplina — quando il campo di piano non è in uso", () => {
+  it("nessun trade porta un campo di piano → null, MAI zero", () => {
+    const result = radarScore({
+      ...base,
+      plannedTrades: 0,
+      tradesWithAnyPlan: 0,
+    })!;
+    expect(result.factors.discipline).toBeNull();
+    expect(result.computed).toBe(5);
   });
 
-  it("serie più CORTA della finestra: il drawdown viene scalato in SU", () => {
-    // 25 sedute: √(252/25) = 3.1749
-    expect(Number(normalizedDrawdownPct("0.0110", 25))).toBeCloseTo(0.034924, 6);
+  it("il motivo è dichiarato, coi numeri: «non calcolabile» da solo sembra un guasto", () => {
+    const result = radarScore({
+      ...base,
+      total: 200,
+      plannedTrades: 0,
+      tradesWithAnyPlan: 3,
+    })!;
+    expect(result.missingReasons.discipline).toContain("3 trade su 200");
+    expect(result.missingReasons.discipline).toContain("20%");
   });
 
-  it("serie più LUNGA della finestra: il drawdown viene scalato in GIÙ", () => {
-    // 442 sedute (SIM1, tutto lo storico): √(252/442) = 0.755073
-    expect(Number(normalizedDrawdownPct("0.1159", 442))).toBeCloseTo(0.087513, 6);
+  it("la media si ricalcola sui SOLI fattori misurati, senza il buco", () => {
+    const conDato = radarScore(base)!;
+    const senzaDato = radarScore({
+      ...base,
+      plannedTrades: 0,
+      tradesWithAnyPlan: 0,
+    })!;
+    const media = (r: typeof conDato) =>
+      SCORE_FACTOR_KEYS.map((k) => r.factors[k])
+        .filter((v): v is number => v !== null)
+        .reduce((a, b) => a + b, 0) / r.computed;
+    expect(Number(senzaDato.score)).toBeCloseTo(media(senzaDato), 1);
+    expect(senzaDato.computed).toBe(5);
+    expect(conDato.computed).toBe(6);
   });
 
-  it("senza sedute il drawdown torna invariato, e null resta null", () => {
-    expect(normalizedDrawdownPct("0.0500", 0)).toBe("0.0500");
-    expect(normalizedDrawdownPct("0.0500", -3)).toBe("0.0500");
-    expect(normalizedDrawdownPct("0.0500", Number.NaN)).toBe("0.0500");
-    expect(normalizedDrawdownPct(null, 100)).toBeNull();
+  it("sopra la soglia di copertura il campo È in uso: un trade senza piano conta", () => {
+    // 50 trade su 100 hanno un campo di piano (50% > 20%), ma solo 20 lo
+    // hanno completo: la disciplina è misurata e vale poco. È un giudizio
+    // legittimo, perché il dato c'è.
+    const result = radarScore({
+      ...base,
+      total: 100,
+      plannedTrades: 20,
+      tradesWithAnyPlan: 50,
+    })!;
+    expect(result.factors.discipline).not.toBeNull();
+    expect(result.factors.discipline!).toBeLessThan(50);
+    expect(result.missingReasons.discipline).toBeUndefined();
   });
 
-  it("il fattore usa il drawdown normalizzato, non quello grezzo", () => {
-    // Stesso maxDD% del `base` (5%), ma su un quarto delle sedute: √4 = 2,
-    // quindi 10% normalizzato → 1 − 0.10/0.20 = 50.
-    const quarter = radarScore({ ...base, observations: 252 / 4 })!;
-    expect(quarter.factors.maxDrawdown).toBe(50);
-    expect(radarScore(base)!.factors.maxDrawdown).toBe(75);
+  it("esattamente alla soglia il fattore si calcola: il confine è incluso", () => {
+    const result = radarScore({
+      ...base,
+      total: 100,
+      plannedTrades: 10,
+      tradesWithAnyPlan: 20,
+    })!;
+    expect(result.factors.discipline).not.toBeNull();
+    expect(DISCIPLINE_MIN_COVERAGE).toBe("0.20");
   });
 
-  it("la card Max Drawdown resta sul valore VERO: la normalizzazione è interna allo Score", () => {
-    // Regressione: `radarScore` non deve mai riscrivere l'input che riceve —
-    // la percentuale mostrata in dashboard è la stessa che entra qui.
-    const input: RadarScoreInput = { ...base, observations: 30 };
-    radarScore(input);
-    expect(input.maxDrawdownPct).toBe("0.0500");
+  it("uno Score senza disciplina NON è confrontabile con uno che ce l'ha, e lo dichiara", () => {
+    const senza = radarScore({ ...base, plannedTrades: 0, tradesWithAnyPlan: 0 })!;
+    expect(senza.computed).toBeLessThan(SCORE_FACTOR_KEYS.length);
+    // È `computed` il campo che la UI deve mostrare: senza, due punteggi
+    // costruiti su un numero diverso di fattori sembrano la stessa scala.
+    expect(senza.computed).toBe(5);
   });
+});
 
-  it("REGRESSIONE Q-1: su un processo stazionario il fattore smette di seguire la lunghezza", () => {
-    // Il difetto è STATISTICO, quindi va misurato su una media e non su un
-    // singolo percorso: una sola realizzazione è troppo rumorosa perché il
-    // suo massimo drawdown segua da vicino il valore atteso. Qui si simulano
-    // 120 conti con LO STESSO processo i.i.d. senza deriva e si confronta il
-    // drawdown medio a parità di trading, cambiando SOLO quante sedute si
-    // guardano — che è esattamente ciò che fa il filtro periodo.
-    const equity = 100_000;
-    const windows = [30, 60, 120, 250, 500];
-    const PATHS = 120;
-    const rawAvg: number[] = [];
-    const normAvg: number[] = [];
+/**
+ * LA PROVA CHE CHIUDE Q-1.
+ *
+ * Un processo STAZIONARIO: stesso edge, stesse regole, stessa disciplina —
+ * cambia SOLO quante sedute si guardano, che è esattamente ciò che fa il
+ * filtro periodo. Su un processo del genere lo Score non deve muoversi.
+ *
+ * Prima di questa riscrittura si muoveva di ~10 punti fra 30 e 500 sedute,
+ * trainato da recovery factor (+40), consistency (+14) e max drawdown (+9).
+ */
+describe("Q-1 — lo Score è piatto su un processo stazionario", () => {
+  const EQUITY = "100000";
 
-    for (const n of windows) {
-      let raw = 0;
-      let normalized = 0;
-      for (let path = 0; path < PATHS; path++) {
-        const rand = mulberry32(1000 + path);
-        const days: { day: string; netPnl: string }[] = [];
-        for (let i = 0; i < n; i++) {
-          // ±1% dell'equity iniziale, simmetrico: nessuna deriva.
-          days.push({
-            day: `d${i}`,
-            netPnl: (((rand() - 0.5) * 2 * equity) / 100).toFixed(2),
-          });
-        }
-        const dd = maxDrawdown(days, String(equity));
-        raw += Number(dd.maxDrawdownPct);
-        normalized += Number(normalizedDrawdownPct(dd.maxDrawdownPct, n));
+  function simulate(sessions: number, seed: number) {
+    const rand = mulberry32(seed);
+    const days: { day: string; netPnl: string }[] = [];
+    const rs: number[] = [];
+    let cursor = Date.UTC(2024, 0, 1);
+    for (let i = 0; i < sessions; i++) {
+      while ([0, 6].includes(new Date(cursor).getUTCDay())) cursor += 86400000;
+      const day = new Date(cursor).toISOString().slice(0, 10);
+      cursor += 86400000;
+      let pnl = 0;
+      const perDay = 1 + Math.floor(rand() * 3);
+      for (let t = 0; t < perDay; t++) {
+        const r = rand() < 0.45 ? 0.8 + rand() * 1.8 : -0.6 - rand() * 0.6;
+        rs.push(r);
+        pnl += r * 250;
       }
-      rawAvg.push(raw / PATHS);
-      normAvg.push(normalized / PATHS);
+      days.push({ day, netPnl: pnl.toFixed(2) });
     }
+    const sum = (f: (r: number) => boolean) =>
+      (rs.filter(f).reduce((a, b) => a + b, 0) * 250).toFixed(2);
+    return {
+      total: rs.length,
+      wins: rs.filter((r) => r > 0).length,
+      losses: rs.filter((r) => r < 0).length,
+      winSum: sum((r) => r > 0),
+      lossSum: sum((r) => r < 0),
+      // Disciplina costante: è il processo a essere stazionario, non i dati.
+      plannedTrades: Math.round(rs.length * 0.7),
+      days,
+    };
+  }
 
-    // PRIMA: il drawdown grezzo medio cresce monotonicamente con la finestra
-    // (≈ √n), e fra la finestra più corta e la più lunga il rapporto è ~4,7.
-    for (let i = 1; i < rawAvg.length; i++) {
-      expect(rawAvg[i]).toBeGreaterThan(rawAvg[i - 1]);
+  const WINDOWS = [30, 60, 120, 250, 500];
+  const PATHS = 60;
+
+  function averages() {
+    const perWindow: { score: number; factors: Record<string, number> }[] = [];
+    for (const n of WINDOWS) {
+      let score = 0;
+      const factors: Record<string, number> = {};
+      for (let p = 0; p < PATHS; p++) {
+        const s = simulate(n, 4200 + p);
+        const series = dailyReturns(s.days, EQUITY);
+        const r = radarScore({
+          total: s.total,
+          wins: s.wins,
+          losses: s.losses,
+          winSum: s.winSum,
+          lossSum: s.lossSum,
+          ulcer: ulcerIndex(series, EQUITY),
+          plannedTrades: s.plannedTrades,
+          tradesWithAnyPlan: s.plannedTrades,
+          daily: s.days,
+        })!;
+        score += Number(r.score);
+        for (const k of SCORE_FACTOR_KEYS) factors[k] = (factors[k] ?? 0) + (r.factors[k] ?? 0);
+      }
+      perWindow.push({
+        score: score / PATHS,
+        factors: Object.fromEntries(
+          Object.entries(factors).map(([k, v]) => [k, v / PATHS]),
+        ),
+      });
     }
-    expect(Math.max(...rawAvg) / Math.min(...rawAvg)).toBeGreaterThan(3);
+    return perWindow;
+  }
 
-    // DOPO: il drawdown normalizzato medio è piatto entro il 25%.
-    expect(Math.max(...normAvg) / Math.min(...normAvg)).toBeLessThan(1.25);
+  const measured = averages();
+
+  it("lo SCORE resta piatto entro 3 punti fra 30 e 500 sedute", () => {
+    const scores = measured.map((m) => m.score);
+    const spread = Math.max(...scores) - Math.min(...scores);
+    expect(
+      spread,
+      `Score per finestra: ${scores.map((s) => s.toFixed(1)).join(" ")}`,
+    ).toBeLessThan(3);
   });
 
-  it("la nota del campione corto si AGGIUNGE alla nota del fattore, non la sostituisce", () => {
-    const low = radarScore({ ...base, total: 10, wins: 6, losses: 4 })!;
-    const info = scoreFactorInfo("maxDrawdown", low);
-    expect(info.note).toContain("Indicativo: 10 trade chiusi");
-    // La nota statica del fattore (limite della legge √n) sopravvive.
-    expect(info.note).toContain("deriva");
-    expect(SCORE_FACTOR_INFO.maxDrawdown.note).toBeDefined();
+  it("NESSUN singolo fattore deriva di più di 6 punti", () => {
+    for (const key of SCORE_FACTOR_KEYS) {
+      const values = measured.map((m) => m.factors[key]);
+      const spread = Math.max(...values) - Math.min(...values);
+      expect(
+        spread,
+        `${key} per finestra: ${values.map((v) => v.toFixed(1)).join(" ")}`,
+      ).toBeLessThan(6);
+    }
+  });
+
+  it("il drawdown NON usa più il massimo: l'Ulcer è la media dell'underwater", () => {
+    // Controprova diretta: su queste finestre il max drawdown grezzo cresce
+    // monotonicamente, l'Ulcer no. È il motivo del cambio di statistica.
+    const maxDd: number[] = [];
+    const ulcer: number[] = [];
+    for (const n of WINDOWS) {
+      let a = 0;
+      let b = 0;
+      for (let p = 0; p < PATHS; p++) {
+        const series = dailyReturns(simulate(n, 4200 + p).days, EQUITY);
+        a += Number(maxDrawdown(series, EQUITY).maxDrawdownPct);
+        b += Number(ulcerIndex(series, EQUITY));
+      }
+      maxDd.push(a / PATHS);
+      ulcer.push(b / PATHS);
+    }
+    for (let i = 1; i < maxDd.length; i++) {
+      expect(maxDd[i]).toBeGreaterThan(maxDd[i - 1]);
+    }
+    const ulcerSpread = Math.max(...ulcer) / Math.min(...ulcer);
+    const maxDdSpread = Math.max(...maxDd) / Math.min(...maxDd);
+    expect(ulcerSpread).toBeLessThan(maxDdSpread);
   });
 });
 
-describe("SCORE_FACTOR_INFO / scoreFactorInfo — spiegazione del singolo asse", () => {
-  it("ogni asse del radar ha la sua voce, distinta da quella dello Score", () => {
+describe("SCORE_FACTOR_INFO — spiegazione del singolo asse", () => {
+  it("ogni asse ha la sua voce, distinta da quella dello Score", () => {
     for (const key of SCORE_FACTOR_KEYS) {
       const info = SCORE_FACTOR_INFO[key];
       expect(info.description.length).toBeGreaterThan(0);
       expect(info.formula.length).toBeGreaterThan(0);
-      // Il testo del fattore non è quello del punteggio complessivo.
       expect(info.label).not.toBe(scoreInfo.label);
       expect(info.formula).not.toBe(scoreInfo.formula);
     }
     expect(Object.keys(SCORE_FACTOR_INFO)).toHaveLength(SCORE_FACTOR_KEYS.length);
   });
 
-  it("la formula di ogni fattore dichiara il tetto usato per la normalizzazione", () => {
-    expect(SCORE_FACTOR_INFO.winRate.formula).toContain("60%");
-    expect(SCORE_FACTOR_INFO.profitFactor.formula).toContain("2,5");
-    expect(SCORE_FACTOR_INFO.avgWinLoss.formula).toContain("2,0");
-    expect(SCORE_FACTOR_INFO.recoveryFactor.formula).toContain("3,0");
-    expect(SCORE_FACTOR_INFO.maxDrawdown.formula).toContain("20%");
-    // La consistency non ha un tetto: è già una frazione 0-1 per costruzione.
-    expect(SCORE_FACTOR_INFO.consistency.formula).toContain("giornate positive");
+  it("la formula di ogni fattore dichiara le sue TRE ancore reali", () => {
+    // Il testo vive accanto alla formula: se una soglia cambia e la stringa
+    // no, questo test lo vede. Le ancore si leggono in notazione italiana.
+    const italian = (v: string) =>
+      new Decimal(v)
+        .toNumber()
+        .toLocaleString("it-IT", { maximumFractionDigits: 2 });
+    for (const key of SCORE_FACTOR_KEYS) {
+      const { formula } = SCORE_FACTOR_INFO[key];
+      const a = SCORE_ANCHORS[key];
+      for (const anchor of [a.floor, a.neutral, a.target]) {
+        const asPercent = new Decimal(anchor).times(100).toNumber();
+        const shown =
+          formula.includes(italian(anchor)) ||
+          formula.includes(`${asPercent}%`) ||
+          formula.includes(String(asPercent));
+        expect(shown, `${key}: l'ancora ${anchor} non compare in "${formula}"`).toBe(true);
+      }
+    }
   });
 
   it("sotto la soglia aggiunge la nota col numero di trade; sopra no", () => {
@@ -344,8 +501,6 @@ describe("SCORE_FACTOR_INFO / scoreFactorInfo — spiegazione del singolo asse",
     expect(low.lowSample).toBe(true);
     const info = scoreFactorInfo("winRate", low);
     expect(info.note).toContain("Indicativo: 12 trade chiusi");
-    expect(info.note).toContain(String(SCORE_MIN_TRADES));
-    // Il resto del testo resta quello statico.
     expect(info.formula).toBe(SCORE_FACTOR_INFO.winRate.formula);
 
     const full = radarScore(base)!;

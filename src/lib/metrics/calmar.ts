@@ -1,4 +1,5 @@
 import Decimal from "decimal.js";
+import { DAY_UNIT_NOTES } from "./day-vocabulary";
 import type { DailyPnl } from "./types";
 
 /**
@@ -101,5 +102,6 @@ export const calmarInfo = {
   description:
     "Rendimento annualizzato COMPOSTO (CAGR) diviso il drawdown massimo: quanto rendimento ottieni per ogni unità di sofferenza massima. Annualizzato sul periodo reale coperto dai dati, mai su un anno assunto. I ritorni assumono nessun versamento o prelievo sul conto.",
   formula:
-    "Calmar = ((equity finale / equity iniziale)^(365/giorni coperti) − 1) / MaxDD%",
+    "Calmar = ((equity finale / equity iniziale)^(365/giorni di calendario coperti) − 1) / MaxDD%",
+  note: DAY_UNIT_NOTES.calendar,
 };

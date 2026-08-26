@@ -57,6 +57,8 @@ export type TradeFormValues = {
   plannedTarget: string;
   strategyId: string;
   rating: string;
+  /** Swap/rollover di posizione, segno libero (vuoto = nessuno). */
+  swap: string;
   notes: string;
   /** J-1 — il tag porta la sua categoria, scelta nel picker. */
   tags: TagValue[];
@@ -184,6 +186,7 @@ export function TradeForm({
       plannedTarget: values.plannedTarget,
       strategyId: values.strategyId === NO_STRATEGY ? "" : values.strategyId,
       rating: values.rating ? Number(values.rating) : undefined,
+      swap: values.swap || undefined,
       notes: values.notes || undefined,
       tags: values.tags,
       executions: values.executions,
@@ -208,6 +211,7 @@ export function TradeForm({
           plannedStop: "",
           plannedTarget: "",
           rating: "",
+          swap: "",
           notes: "",
           tags: [],
           executions: [
@@ -408,6 +412,21 @@ export function TradeForm({
                 </button>
               </p>
             ) : null}
+          </div>
+          <div className="grid gap-2">
+            <Label htmlFor="trade-swap">Swap / rollover (valuta conto)</Label>
+            <Input
+              id="trade-swap"
+              inputMode="decimal"
+              value={values.swap}
+              onChange={(e) => set("swap", e.target.value)}
+              placeholder="Es. -12.40"
+            />
+            <p className="text-xs text-muted-foreground">
+              Costo (o accredito) del mantenimento notturno. Le commissioni
+              vanno sulle singole esecuzioni: qui va solo ciò che matura col
+              tempo. Entra nel P&amp;L netto.
+            </p>
           </div>
         </CardContent>
       </Card>

@@ -81,9 +81,14 @@ function labelTransform(side: "left" | "center" | "right"): string {
 }
 
 export function ScoreRadar({ result }: { result: RadarScore | null }) {
-  const fractions = SCORE_FACTOR_KEYS.map((key) =>
-    result === null ? 0 : result.factors[key] / 100,
-  );
+  /* Un fattore non calcolabile vale null e NON entra nella media: sul
+     radar il suo vertice sta al centro (frazione 0) ma il pallino diventa
+     vuoto e il tooltip dice "non calcolabile", così un asse assente non si
+     confonde con un asse a punteggio zero. */
+  const fractions = SCORE_FACTOR_KEYS.map((key) => {
+    const value = result === null ? null : result.factors[key];
+    return value === null ? 0 : value / 100;
+  });
   const score = result === null ? null : Number(result.score);
   const lowSample = result?.lowSample ?? false;
 
@@ -102,7 +107,10 @@ export function ScoreRadar({ result }: { result: RadarScore | null }) {
             result === null
               ? "Radar dello score: nessun dato"
               : `Radar dello score: ${SCORE_FACTOR_KEYS.map(
-                  (key) => `${SCORE_FACTOR_LABELS[key]} ${result.factors[key]}`,
+                  (key) =>
+                    `${SCORE_FACTOR_LABELS[key]} ${
+                      result.factors[key] ?? "non calcolabile"
+                    }`,
                 ).join(", ")}`
           }
         >
@@ -205,7 +213,20 @@ export function ScoreRadar({ result }: { result: RadarScore | null }) {
                 transform: labelTransform(side),
               }}
             >
-              <span>{SCORE_FACTOR_LABELS[key]}</span>
+              {/* Un asse non misurato lo dice anche a PAROLE: il vertice al
+                  centro, da solo, si legge come «punteggio zero» invece che
+                  «non misurato», e il colore o la forma non bastano mai come
+                  unico canale. */}
+              <span
+                className={cn(
+                  result !== null &&
+                    result.factors[key] === null &&
+                    "italic opacity-70",
+                )}
+              >
+                {SCORE_FACTOR_LABELS[key]}
+                {result !== null && result.factors[key] === null ? " —" : ""}
+              </span>
               <MetricInfo info={scoreFactorInfo(key, result)} size="sm" />
             </div>
           );
@@ -260,6 +281,32 @@ export function ScoreRadar({ result }: { result: RadarScore | null }) {
           </div>
         </div>
       </div>
+
+      {/* FATTORI NON MISURABILI. Un punteggio costruito su cinque fattori non
+          è confrontabile con uno costruito su sei: se non lo si dice, i due
+          numeri sembrano la stessa scala. Il motivo sta accanto al conteggio
+          — «non calcolabile» da solo si legge come un guasto. */}
+      {result !== null && result.computed < SCORE_FACTOR_KEYS.length ? (
+        <div className="w-full rounded-md border border-dashed px-2.5 py-2">
+          <p className="text-xs font-medium">
+            Media di {result.computed} fattori su {SCORE_FACTOR_KEYS.length}:
+            non è confrontabile con un punteggio calcolato su tutti e sei.
+          </p>
+          <ul className="mt-1 flex flex-col gap-0.5">
+            {SCORE_FACTOR_KEYS.filter((key) => result.factors[key] === null).map(
+              (key) => (
+                <li key={key} className="text-2xs text-muted-foreground">
+                  <span className="font-medium">
+                    {SCORE_FACTOR_LABELS[key]}
+                  </span>
+                  {": "}
+                  {result.missingReasons[key] ?? "non calcolabile nel periodo."}
+                </li>
+              ),
+            )}
+          </ul>
+        </div>
+      ) : null}
 
       {lowSample && result !== null ? (
         <p className="text-xs text-muted-foreground">

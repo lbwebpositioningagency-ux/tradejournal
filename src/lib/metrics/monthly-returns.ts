@@ -93,18 +93,43 @@ export function monthlyReturnGrids(
 }
 
 /**
- * Intensità della gradazione (0 = neutro/assente, 1..3 crescente) per una
- * frazione di ritorno. Soglie all'1% e al 4%: sotto l'1% il mese è
- * sostanzialmente piatto e il colore pieno mentirebbe sulla magnitudine.
- * La UI mappa l'intensità sui token bg-profit/bg-loss già validati AA.
+ * SOGLIE DI INTENSITÀ delle heatmap, in frazione di equity.
+ *
+ * UNA SOLA CONVENZIONE PER TUTTE LE HEATMAP DELL'APP, ed è il debito che
+ * questo blocco chiude. Prima il calendario mensile usava soglie assolute
+ * sul ritorno (1% e 4%) mentre quello giornaliero colorava RELATIVAMENTE
+ * al giorno più grande del mese: due mesi diversi non erano confrontabili
+ * fra loro — un mese con una giornata eccezionale schiacciava tutte le
+ * altre a tinta chiara — e la stessa gradazione voleva dire due cose a
+ * seconda della pagina che stavi guardando.
+ *
+ * Soglie ASSOLUTE, quindi comparabili fra periodi e fra conti. Diverse per
+ * unità di tempo perché un 4% in un giorno e un 4% in un mese non sono la
+ * stessa notizia: il giorno usa un quarto delle soglie del mese.
  */
-export function returnIntensity(ret: string | null): 0 | 1 | 2 | 3 {
+export const INTENSITY_THRESHOLDS = {
+  month: { mid: "0.01", high: "0.04" },
+  day: { mid: "0.0025", high: "0.01" },
+} as const;
+
+export type IntensityScale = keyof typeof INTENSITY_THRESHOLDS;
+
+/**
+ * Intensità della gradazione (0 = neutro/assente, 1..3 crescente) per una
+ * frazione di ritorno. La UI mappa l'intensità sui token bg-profit/bg-loss
+ * già validati AA.
+ */
+export function returnIntensity(
+  ret: string | null,
+  scale: IntensityScale = "month",
+): 0 | 1 | 2 | 3 {
   if (ret === null) return 0;
+  const { mid, high } = INTENSITY_THRESHOLDS[scale];
   const abs = new Decimal(ret).abs();
-  if (abs.gte("0.04")) return 3;
-  if (abs.gte("0.01")) return 2;
+  if (abs.gte(high)) return 3;
+  if (abs.gte(mid)) return 2;
   if (abs.gt(0)) return 1;
-  return 1; // 0% esatto su un mese operativo: pareggio, non assenza.
+  return 1; // 0% esatto su un periodo operativo: pareggio, non assenza.
 }
 
 export const monthlyCalendarInfo: MetricInfoData = {

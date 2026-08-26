@@ -1,4 +1,5 @@
 import Decimal from "decimal.js";
+import { DAY_UNIT_NOTES } from "./day-vocabulary";
 import type { DailyPnl } from "./types";
 
 /**
@@ -52,4 +53,5 @@ export const ulcerInfo = {
   description:
     "Misura il drawdown pesando anche quanto A LUNGO resti sott'acqua, non solo la profondità: più basso è, meno stress ha inflitto la curva di equity. Calcolato sul P&L realizzato per giorno di chiusura: le escursioni dei trade aperti e intraday non sono incluse.",
   formula: "UI = √( Σ dd%² / N ) · dd% = (picco storico − equity) / picco, per ogni giorno",
+  note: DAY_UNIT_NOTES.session,
 };

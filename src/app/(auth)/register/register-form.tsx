@@ -21,7 +21,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { CURRENCIES } from "@/lib/validations/account";
+import { CURRENCIES } from "@/lib/constants";
 
 export function RegisterForm() {
   const [state, formAction, pending] = useActionState(registerAction, undefined);

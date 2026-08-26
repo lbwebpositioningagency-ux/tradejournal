@@ -24,7 +24,20 @@ export interface TradeFilters {
   /** Id strategia, oppure NO_STRATEGY_FILTER per "senza strategia". */
   strategyId?: string;
   tagId?: string;
+  /**
+   * Copertura del rischio: "missing" = trade SENZA rischio iniziale, quindi
+   * senza R-multiple e fuori da ogni distribuzione in R.
+   *
+   * Esiste perché la dichiarazione «22 trade senza rischio restano fuori»
+   * diventi azionabile: senza un modo di ELENCARLI, l'unica reazione
+   * possibile è prenderne atto. Con il filtro si aprono, si compila il
+   * rischio e la distribuzione torna completa.
+   */
+  risk?: (typeof TRADE_RISK_FILTERS)[number];
 }
+
+/** Valori del filtro copertura rischio. */
+export const TRADE_RISK_FILTERS = ["missing", "present"] as const;
 
 type RawParams = Record<string, string | string[] | undefined>;
 
@@ -58,6 +71,7 @@ export function parseTradeFilters(params: RawParams): TradeFilters {
     assetClass: oneOf(params.asset, ASSET_CLASSES),
     strategyId: id(params.strategy),
     tagId: id(params.tag),
+    risk: oneOf(params.risk, TRADE_RISK_FILTERS),
   };
 }
 
@@ -141,6 +155,12 @@ export function buildTradeFilterWhere(
   } else if (filters.strategyId) {
     where.strategyId = filters.strategyId;
   }
+
+  // Il rischio iniziale è ciò che rende calcolabile l'R: filtrare su di lui
+  // e non su `rMultiple` include anche i trade ancora aperti, che un R
+  // realizzato non ce l'hanno ancora ma un rischio sì.
+  if (filters.risk === "missing") where.initialRisk = null;
+  else if (filters.risk === "present") where.initialRisk = { not: null };
 
   if (filters.tagId) {
     where.tags = { some: { tagId: filters.tagId } };

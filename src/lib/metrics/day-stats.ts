@@ -1,4 +1,5 @@
 import Decimal from "decimal.js";
+import { DAY_UNIT_NOTES } from "./day-vocabulary";
 import type { DailyPnl } from "./types";
 
 /**
@@ -53,10 +54,12 @@ export function dayStats(days: Pick<DailyPnl, "day" | "netPnl">[]): DayStats {
 
 /** Testi per <MetricInfo>: tenuti accanto alla formula (vedi types.ts). */
 export const dayCountInfo = {
-  label: "Giorni positivi / negativi",
+  label: "Giornate operative positive / negative",
   description:
     "Quante giornate operative hai chiuso in verde e quante in rosso nel periodo: la consistenza giorno per giorno, al netto dei singoli trade.",
-  formula: "Conteggio dei giorni con P&L netto > 0 (o < 0); i breakeven non contano",
+  formula:
+    "Conteggio delle giornate operative con P&L netto > 0 (o < 0); i breakeven non contano",
+  note: DAY_UNIT_NOTES.operative,
 };
 
 export const bestWorstDayInfo = {
