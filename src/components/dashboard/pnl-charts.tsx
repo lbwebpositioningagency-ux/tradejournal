@@ -171,31 +171,3 @@ export function DailyPnlChart({
     </ResponsiveContainer>
   );
 }
-
-export function Sparkline({ points }: { points: ChartPoint[] }) {
-  const last = points.at(-1)?.cumulative ?? 0;
-  const color = pnlChartColor(last === 0 ? 1 : last);
-  return (
-    <ResponsiveContainer width="100%" height={36}>
-      <AreaChart
-        data={withZeroStart(points)}
-        margin={{ top: 2, right: 0, bottom: 0, left: 0 }}
-      >
-        <defs>
-          <linearGradient id="sparkline-fill" x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0%" stopColor={color} stopOpacity={0.3} />
-            <stop offset="100%" stopColor={color} stopOpacity={0} />
-          </linearGradient>
-        </defs>
-        <Area
-          type="monotone"
-          dataKey="cumulative"
-          stroke={color}
-          strokeWidth={CHART.sparklineStrokeWidth}
-          fill="url(#sparkline-fill)"
-          isAnimationActive={false}
-        />
-      </AreaChart>
-    </ResponsiveContainer>
-  );
-}
