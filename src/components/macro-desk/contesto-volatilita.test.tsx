@@ -334,8 +334,14 @@ describe("ContestoVolatilita — il campione dell'escursione non si mescola mai"
     ]);
     expect(html).toContain("Escursione vera della giornata");
     expect(html).toContain("dato non disponibile");
-    expect(html).toContain("pubblica solo la chiusura");
+    // dichiara il FATTO osservabile, non una causa che non può conoscere:
+    // «nessuna fonte le pubblica» e «archivio non ancora riscritto» danno lo
+    // stesso schermo, e affermare la prima sarebbe falso nella seconda
+    expect(html).toContain("Nessuna delle");
+    expect(html).toContain("10.225"); // it-IT raggruppa da cinque cifre in su
+    expect(html).toContain("porta massimo e minimo");
     expect(html).toContain("non si ricostruisce dalla");
+    expect(html).not.toContain("pubblica solo la chiusura");
     // e soprattutto: nessun numero inventato al posto del dato mancante
     expect(html).not.toContain("più ampia del");
   });

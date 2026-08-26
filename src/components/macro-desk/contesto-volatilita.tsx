@@ -284,10 +284,18 @@ function BloccoEscursione({
         <span className="md-mono text-sm text-[var(--md-muted)]">
           dato non disponibile
         </span>
+        {/* SI DICHIARA IL FATTO, NON LA CAUSA. Le sedute senza massimo e
+            minimo hanno due origini possibili — una fonte a valore singolo
+            come il WTI spot di FRED, oppure un archivio non ancora riscritto
+            dopo l'aggiunta delle colonne — e questo componente non può
+            distinguerle. Affermare la prima sarebbe scrivere una frase falsa
+            per tutta la finestra in cui vale la seconda. */}
         <span className="text-[11px] leading-relaxed text-[var(--md-muted)]">
-          La fonte che ha risposto per questo prezzo pubblica solo la chiusura:
-          senza massimo e minimo l&apos;escursione non si calcola, e non si
-          ricostruisce dalla chiusura.
+          Nessuna delle{" "}
+          <span className="md-mono">{nf(0).format(copertura.totali)}</span>{" "}
+          sedute in archivio per questo strumento porta massimo e minimo: senza
+          di essi l&apos;escursione non si calcola, e non si ricostruisce dalla
+          chiusura.
         </span>
       </div>
     );
