@@ -1,4 +1,5 @@
 import Decimal from "decimal.js";
+import { DAY_UNIT_NOTES } from "./day-vocabulary";
 import {
   ANNUALIZATION,
   hasUndefinedReturn,
@@ -59,4 +60,5 @@ export const sharpeInfo: MetricInfoData = {
     "Rendimento medio giornaliero rapportato alla volatilità TOTALE, anche quella positiva: metrica classica di confronto, meno rappresentativa del Sortino per un trader discrezionale. Stessa serie del Sortino: sedute feriali, giornate senza trade a rendimento 0.",
   formula:
     "Sharpe = √252 × (media ritorni − risk-free) / dev. std dei ritorni · risk-free = 0 · r = P&L giorno / equity inizio giornata",
+  note: DAY_UNIT_NOTES.session,
 };

@@ -42,6 +42,7 @@ import {
   bestWorstTradeInfo,
   calmarInfo,
   dayCountInfo,
+  formatDayCount,
   dayWinRateInfo,
   expectancyInfo,
   maxDrawdownInfo,
@@ -774,7 +775,7 @@ export function DashboardView({ data }: { data: DashboardData }) {
             label="Day Win %"
             info={dayWinRateInfo}
             value={formatPercent(data.dayWinRate)}
-            sub={`${data.dayWins} giorni verdi su ${data.dayCount}`}
+            sub={`${data.dayWins} in verde su ${formatDayCount(data.dayCount, "operative")}`}
           />
         ) : null}
         {show("avg-win-loss") && !hideExtraMetrics ? (
@@ -896,15 +897,15 @@ export function DashboardView({ data }: { data: DashboardData }) {
               display: calmarValue,
               muted: calmarShort,
               note: calmarShort
-                ? `Campione insufficiente: ${data.daysCovered} giorni di storico sui ${CALMAR_MIN_DAYS} minimi.`
+                ? `Campione insufficiente: ${formatDayCount(data.daysCovered, "calendar")} sui ${CALMAR_MIN_DAYS} minimi.`
                 : data.daysCovered < CALMAR_RELIABLE_DAYS
-                  ? `Storico di ${data.daysCovered} giorni, meno di 12 mesi: il drawdown massimo non è ancora rappresentativo e il valore resta statisticamente poco affidabile.`
+                  ? `Storico di ${formatDayCount(data.daysCovered, "calendar")}, meno di 12 mesi: il drawdown massimo non è ancora rappresentativo e il valore resta statisticamente poco affidabile.`
                   : undefined,
             }}
             value={calmarValue}
             sub={
               calmarShort
-                ? `Dati insufficienti (${data.daysCovered}/${CALMAR_MIN_DAYS} giorni di storico)`
+                ? `Dati insufficienti (${data.daysCovered}/${CALMAR_MIN_DAYS} giorni di calendario)`
                 : "Rendimento annualizzato / |Max DD %|"
             }
           />

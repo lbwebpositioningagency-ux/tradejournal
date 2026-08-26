@@ -94,6 +94,12 @@ export {
   type InstrumentWindow,
   type SymbolTrading,
 } from "./benchmark-compare";
+export {
+  DAY_UNIT_LABELS,
+  DAY_UNIT_NOTES,
+  formatDayCount,
+  type DayUnit,
+} from "./day-vocabulary";
 export { ulcerIndex, ulcerInfo } from "./ulcer";
 export {
   valueAtRisk,
