@@ -124,6 +124,19 @@ export const SEASONALITY_INSTRUMENTS: SeasonalityInstrumentDef[] = [
       "Attenzione: qui il giornaliero è lo SPOT di Cushing pubblicato da FRED, l'intraday è il CFD front-month di Dukascopy. Sono due serie di prezzo diverse per lo stesso mercato: i livelli non coincidono e i due drill non vanno confrontati riga per riga.",
   },
   {
+    code: "WTIFUT",
+    label: "Petrolio WTI (future front-month)",
+    ticker: "CL",
+    kind: "RETURN",
+    colorToken: "var(--md-oil)",
+    daily: [{ provider: "yahoo", symbol: "CL=F" }],
+    hourly: null,
+    fuoriDallaStagionalita: true,
+    sourceNote:
+      "Contratto NYMEX più vicino alla scadenza, serie continua. Vive ACCANTO allo spot Cushing, non al suo posto: sulle 6.506 sedute sovrapposte i rendimenti delle due serie correlano 0,9376, quindi sono due strumenti diversi e mescolarli falserebbe qualunque statistica. Il future porta massimo e minimo, che lo spot di FRED non ha, ed è aggiornato in giornata contro gli otto giorni di ritardo dello spot.",
+    attribution: "NYMEX via Yahoo Finance",
+  },
+  {
     code: "GER40",
     label: "GER40 (DAX)",
     ticker: "GER40",

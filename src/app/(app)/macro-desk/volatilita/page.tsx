@@ -34,6 +34,8 @@ import {
   tabellaValida,
 } from "@/lib/calendario-macro";
 import { formatDateTime } from "@/lib/dates";
+import { InventariEiaPanel } from "@/components/macro-desk/inventari-eia-panel";
+import { getInventariEia } from "@/lib/queries/inventari-eia";
 
 export const metadata: Metadata = { title: "Volatilità · Macro Desk" };
 
@@ -113,11 +115,12 @@ export default async function MacroVolatilitaPage() {
     fraQuanto: fraQuanto(e.istante, adesso),
   }));
 
-  const [data, freschezza, degrado, contesto] = await Promise.all([
+  const [data, freschezza, degrado, contesto, inventari] = await Promise.all([
     getVolatilitaData(),
     getFreschezzaReport(),
     getDegradoTermometro(),
     getContestoVolatilita(oggi),
+    getInventariEia(oggi),
   ]);
 
   /* IL CANCELLO, composto qui perché è l'unico punto che ha entrambe le
@@ -216,6 +219,20 @@ export default async function MacroVolatilitaPage() {
             <ContestoVolatilitaPanel contesto={contesto} />
           </div>
         )}
+      </div>
+
+      {/* Gli inventari stanno DOPO il contesto di volatilità e prima del
+          report: sono il fatto settimanale che muove il WTI più di ogni altro,
+          ma restano un dato di sfondo rispetto a dove sta la volatilità oggi. */}
+      <div
+        className={cn(
+          "macro-report overflow-hidden rounded-[var(--md-r-lg)] border p-4 sm:p-6",
+          fontUi.variable,
+          fontMono.variable,
+        )}
+        style={{ borderColor: "var(--md-border)" }}
+      >
+        <InventariEiaPanel dati={inventari} />
       </div>
 
       {data ? (

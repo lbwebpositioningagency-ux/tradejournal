@@ -378,3 +378,50 @@ Non e stato corretto qui perche la correzione giusta non e banale: servirebbe
 o un confronto con la lunghezza precedente che rifiuti una serie
 improvvisamente piu corta, o un merge invece di una sostituzione. Entrambe
 cambiano la semantica della scrittura e vanno decise, non improvvisate.
+
+## WTI: due serie affiancate, non una sostituita (26/08/2026)
+
+Il WTI era l'unico dei tre strumenti senza massimo e minimo, perche FRED
+`DCOILWTICO` pubblica lo spot Cushing come valore singolo e con otto giorni di
+ritardo. La tentazione era sostituirlo col future front-month (Yahoo `CL=F`,
+OHLC completo, aggiornato in giornata). **Misurato prima di decidere**, sulle
+6.506 sedute sovrapposte (2000-08-23 → 2026-08-18):
+
+| Misura | Valore |
+|---|---|
+| scarto di LIVELLO mediano | 0,07 $ (0,07%) |
+| scarto di livello p95 | 1,24 $ |
+| scarto di livello massimo | 8,81 $ (42,5%, aprile 2020) |
+| **correlazione dei RENDIMENTI** | **0,9376** |
+| deviazione standard dei rendimenti | future 2,730% · spot 2,897% |
+| sedute con scarto di rendimento > 3 pp | 84 su 6.505 |
+
+**Conclusione: affiancare, non sostituire.** Con una correlazione di 0,94 —
+non 0,99 — le due serie sono strumenti diversi: sostituire avrebbe spostato
+OGNI statistica stagionale gia pubblicata, e perso 14 anni di storia (lo spot
+parte dal 1986, il future dal 2000).
+
+Da qui la divisione, dichiarata in entrambe le pagine:
+
+- **Stagionalita** usa lo spot Cushing: nessun artefatto di cambio contratto,
+  storia dal 1986, ed e la base di tutte le statistiche gia pubblicate;
+- **Volatilita** usa il future: ha massimo e minimo, quindi il WTI ha
+  finalmente l'escursione vera, ed e aggiornato in giornata.
+
+I numeri delle due sezioni NON sono confrontabili riga per riga, e la pagina
+lo scrive.
+
+## Struttura a termine del WTI: nessun rango storico, e perche
+
+Il livello (front meno secondo contratto) c'e; il rango storico no. L'unica
+serie gratuita del SECONDO contratto e `RCLC2` dell'EIA, e **si e fermata al
+05/04/2024** — verificato il 26/08/2026 con la chiave API: 200, 20.173 righe,
+ultimo periodo aprile 2024. Costruirci un rango darebbe un percentile su dati
+vecchi di due anni, cioe il difetto che questo desk ha gia avuto.
+
+Il rollover NON e mantenuto a mano: Yahoo dichiara il contratto dietro a
+`CL=F` nel campo `shortName` («Crude Oil Oct 26»), e da li si ricava il mese
+successivo. Se il codice dedotto fosse sbagliato, il prezzo che torna sarebbe
+di un'altra scadenza: la guardia rifiuta uno scarto oltre il 25% fra contratti
+adiacenti e non pubblica nulla, invece di mostrare un numero plausibile e
+falso.

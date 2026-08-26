@@ -90,6 +90,7 @@ const contesto = (
   righe,
   oggi: "2026-08-25",
   strutturaTermine,
+  strutturaWti: { ok: false, motivo: "front_non_disponibile" },
 });
 
 function resa(righe: RigaContestoVol[]) {

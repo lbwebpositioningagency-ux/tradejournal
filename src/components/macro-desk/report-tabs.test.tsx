@@ -107,7 +107,7 @@ describe("tab con il sample completo", () => {
         reading={vol?.reading}
         asOf={vol?.asOf}
         cancelli={{}}
-        contesto={{ righe: [], oggi: "2026-08-25", strutturaTermine: null }}
+        contesto={{ righe: [], oggi: "2026-08-25", strutturaTermine: null, strutturaWti: { ok: false, motivo: "front_non_disponibile" } }}
         giornoReport="2026-07-21"
       />,
     );
@@ -129,7 +129,7 @@ describe("tab con il sample completo", () => {
         reading={vol?.reading}
         asOf={vol?.asOf}
         cancelli={{}}
-        contesto={{ righe: [], oggi: "2026-08-25", strutturaTermine: null }}
+        contesto={{ righe: [], oggi: "2026-08-25", strutturaTermine: null, strutturaWti: { ok: false, motivo: "front_non_disponibile" } }}
         giornoReport="2026-07-21"
       />,
     );

@@ -2,6 +2,7 @@ import { cache } from "react";
 import { prisma } from "@/lib/db";
 import type { SeasonalityInstrument } from "@/generated/prisma/client";
 import { SEASONALITY_BY_CODE } from "@/lib/seasonality/instruments";
+import { getStrutturaWti, type EsitoStrutturaWti } from "@/lib/queries/wti-termine";
 import {
   escursioneDi,
   escursioneOsservata,
@@ -78,11 +79,18 @@ export const COPPIE_VOL: CoppiaVol[] = [
   },
   {
     indice: "OVX",
-    prezzo: "WTI",
+    /* IL FUTURE, non lo spot. Dal 26/08/2026 i fatti di volatilità del WTI
+       vengono dal contratto front-month: lo spot Cushing di FRED non pubblica
+       massimo e minimo — quindi il WTI era l'unico dei tre strumenti senza
+       escursione vera — e arriva con otto giorni di ritardo. Lo spot resta la
+       base della Stagionalità, dove i rendimenti del future avrebbero gli
+       artefatti dei cambi di contratto. Due serie, due usi, entrambi
+       dichiarati. */
+    prezzo: "WTIFUT",
     etichetta: "Petrolio WTI",
     decimaliIv: 2,
     disallineamento:
-      "OVX misura la volatilità implicita delle opzioni sull'ETF USO; la realizzata è calcolata sullo spot Cushing pubblicato da FRED. Sottostanti diversi dello stesso mercato.",
+      "OVX misura la volatilità implicita delle opzioni sull'ETF USO; le misure di prezzo qui sotto vengono dal future NYMEX più vicino alla scadenza. Sottostanti diversi dello stesso mercato. La Stagionalità usa invece lo spot Cushing: sulle sedute comuni i rendimenti delle due serie correlano 0,94, non 1, quindi i numeri delle due sezioni non sono confrontabili riga per riga.",
   },
   {
     indice: "VIX",
@@ -166,6 +174,8 @@ export interface ContestoVolatilita {
    * sono ancora — è il caso finché il job non le ha raccolte la prima volta.
    */
   strutturaTermine: StrutturaTermine | null;
+  /** Contango o backwardation del WTI: due contratti, la loro differenza. */
+  strutturaWti: EsitoStrutturaWti;
 }
 
 export interface StrutturaTermine {
@@ -342,10 +352,20 @@ export const getContestoVolatilita = cache(
           };
         }),
       );
-      return { righe, oggi, strutturaTermine: await caricaStrutturaTermine(oggi) };
+      return {
+        righe,
+        oggi,
+        strutturaTermine: await caricaStrutturaTermine(oggi),
+        strutturaWti: await getStrutturaWti(),
+      };
     } catch (e: unknown) {
       console.error("[volatilita] contesto non caricato:", e);
-      return { righe: [], oggi, strutturaTermine: null };
+      return {
+        righe: [],
+        oggi,
+        strutturaTermine: null,
+        strutturaWti: { ok: false, motivo: "front_non_disponibile" },
+      };
     }
   },
 );

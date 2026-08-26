@@ -30,6 +30,8 @@ import type {
   MovimentoOsservato,
   VariazioneFinestra,
 } from "@/lib/volatilita-fatti";
+import type { EsitoStrutturaWti } from "@/lib/queries/wti-termine";
+import { WtiTerminePanel } from "./wti-termine-panel";
 import { Callout, PanelLabel, RangeBar } from "./primitives";
 
 function fade(index: number) {
@@ -400,10 +402,13 @@ function Riga({
   riga,
   indice,
   oggi,
+  strutturaWti,
 }: {
   riga: RigaContestoVol;
   indice: number;
   oggi: string;
+  /** La struttura a termine compare solo nella riga del WTI. */
+  strutturaWti?: EsitoStrutturaWti;
 }) {
   return (
     <div className="md-card md-card-hover md-fade flex flex-col gap-3 p-4" style={fade(indice + 1)}>
@@ -425,6 +430,7 @@ function Riga({
         ultimaChiusura={riga.ultimaChiusura}
         prezzo={riga.prezzo}
       />
+      {strutturaWti ? <WtiTerminePanel esito={strutturaWti} /> : null}
     </div>
   );
 }
@@ -549,7 +555,13 @@ export function ContestoVolatilitaPanel({
 
       <div className="grid gap-3 lg:grid-cols-2">
         {contesto.righe.map((r, i) => (
-          <Riga key={r.indice} riga={r} indice={i} oggi={contesto.oggi} />
+          <Riga
+            key={r.indice}
+            riga={r}
+            indice={i}
+            oggi={contesto.oggi}
+            strutturaWti={r.indice === "OVX" ? contesto.strutturaWti : undefined}
+          />
         ))}
       </div>
 
