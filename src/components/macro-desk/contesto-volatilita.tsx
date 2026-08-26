@@ -521,6 +521,92 @@ function BloccoTermine({
   );
 }
 
+/**
+ * VVIX e SKEW — quanto si paga per coprirsi sull'azionario.
+ *
+ * Fino al 26/08/2026 erano due tessere del blocco «indici dal report», col
+ * vintage di Investing.com: VVIX «chiusura 20 ago», SKEW «vintage 18 ago», su
+ * una pagina del 26. Adesso vengono dal CBOE come il resto dell'archivio, e
+ * portano il rango sulla storia intera che il report non poteva dare.
+ */
+function BloccoClima({
+  voci,
+  oggi,
+}: {
+  voci: ContestoVolatilita["climaCopertura"];
+  oggi: string;
+}) {
+  return (
+    <div className="md-card md-fade flex flex-col gap-3 p-4" style={fade(0)}>
+      <div className="flex flex-wrap items-baseline justify-between gap-x-2 gap-y-1">
+        <PanelLabel>Quanto costa coprirsi sull&apos;azionario</PanelLabel>
+        <span className="md-mono text-[11px] text-[var(--md-muted)]">
+          al {dataIt(voci[0].giorno)} · {eta(voci[0].etaGiorni)}
+        </span>
+      </div>
+
+      {voci.map((v) => (
+        <div
+          key={v.sigla}
+          className="flex flex-col gap-1 border-t pt-2 first-of-type:border-t-0 first-of-type:pt-0"
+          style={{ borderColor: "var(--md-border)" }}
+        >
+          <div className="flex flex-wrap items-baseline gap-x-2.5 gap-y-0.5">
+            <span className="md-mono text-[11px] text-[var(--md-muted)]">
+              {v.sigla}
+            </span>
+            <span className="md-mono text-xl font-bold text-[var(--md-text)]">
+              {nf(2).format(v.valore)}
+            </span>
+            {v.rango ? (
+              <span className="text-xs leading-relaxed text-[var(--md-text-2)]">
+                più alto del{" "}
+                <span className="md-mono font-semibold">
+                  {nf(0).format(v.rango.percentile)}%
+                </span>{" "}
+                delle sedute dal {v.rango.primoGiorno.slice(0, 4)}{" "}
+                <span className="text-[var(--md-muted)]">
+                  (n={nf(0).format(v.rango.n)})
+                </span>
+              </span>
+            ) : null}
+          </div>
+          {v.rango ? (
+            <RangeBar
+              position={v.rango.percentile}
+              color="var(--md-info)"
+              ariaLabel={`${v.sigla} al ${nf(0).format(v.rango.percentile)}° percentile della propria storia`}
+              title={`${nf(0).format(v.rango.percentile)}° percentile su ${v.rango.n} sedute`}
+            />
+          ) : null}
+          {v.variazioni.length > 0 ? (
+            <div className="flex flex-wrap gap-x-4 gap-y-0.5">
+              {v.variazioni.map((x) => (
+                <span
+                  key={x.sedute}
+                  className="md-mono text-[11px] text-[var(--md-muted)]"
+                >
+                  {x.sedute} sedute {x.assoluta >= 0 ? "+" : "−"}
+                  {nf(2).format(Math.abs(x.assoluta))}
+                </span>
+              ))}
+            </div>
+          ) : null}
+          <span className="text-[11px] leading-relaxed text-[var(--md-muted)]">
+            {v.descrizione}
+          </span>
+        </div>
+      ))}
+
+      <span className="text-[11px] leading-relaxed text-[var(--md-muted)]">
+        Fonte: {voci[0].fonte}. Nessuna riserva: FRED non ridistribuisce questi
+        due indici, quindi se il CBOE non risponde restano fermi e la verifica
+        di esito del job lo dichiara. Età calcolata rispetto a {dataIt(oggi)}.
+      </span>
+    </div>
+  );
+}
+
 export function ContestoVolatilitaPanel({
   contesto,
 }: {
@@ -551,6 +637,10 @@ export function ContestoVolatilitaPanel({
           struttura={contesto.strutturaTermine}
           oggi={contesto.oggi}
         />
+      ) : null}
+
+      {contesto.climaCopertura.length > 0 ? (
+        <BloccoClima voci={contesto.climaCopertura} oggi={contesto.oggi} />
       ) : null}
 
       <div className="grid gap-3 lg:grid-cols-2">

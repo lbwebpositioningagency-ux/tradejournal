@@ -163,20 +163,28 @@ function rigaIv(v: Extract<ValoreFattore, { tipo: "iv" }>): string {
       ? ""
       : ` Variazione: ${v.var1S === null ? "—" : `${n(v.var1S)} punti in una settimana`}, ` +
         `${v.var1M === null ? "—" : `${n(v.var1M)} punti in un mese`}.`;
-  /* «Rilevato dal report a …»: F1 e F4 misurano lo STESSO indice da due
-     fonti diverse, e prima uscivano uno dopo l'altro con due livelli e due
-     date senza dirlo — a schermo si leggeva «GVZ 27,69» e due riquadri più
-     sotto «Il GVZ sta a 28,28», cioè due numeri per la stessa cosa e nessun
-     modo di capire quale valesse. La discordanza fra i due ranghi resta
-     informazione (vedi `rilevaDiscordanza` in dossier.ts): quello che non
-     deve restare implicito è che qui il livello è quello del report, non
-     dell'archivio, e che il valore aggiunto di questa riga sono le finestre
-     a uno, tre e cinque anni. */
+  /* F1 e F4 misurano lo STESSO indice da due fonti diverse, e prima uscivano
+     uno dopo l'altro con due livelli e due date senza dirlo — a schermo si
+     leggeva «GVZ 27,69» e due riquadri più sotto «Il GVZ sta a 28,28», due
+     numeri per la stessa cosa e nessun modo di capire quale valesse.
+
+     LA FONTE È FRED, NON IL REPORT. Il primo tentativo di questa frase, il
+     26/08/2026, attribuiva il valore al report giornaliero: è sbagliato, e
+     bastava leggere `queries/ai-analyst.ts` per vederlo — F4 arriva da
+     `fonti.trends`, cioè dalla serie FRED della sezione Trends, e la sua
+     stessa anagrafica lo dichiara con `sezione: "Trends — Volatilità"`. F1
+     viene invece dall'archivio giornaliero, che usa il CBOE.
+
+     La discordanza fra i due ranghi resta informazione (v.
+     `rilevaDiscordanza` in dossier.ts): quello che non deve restare
+     implicito è che sono due letture della stessa misura, da due fonti e a
+     due date, e che il valore aggiunto di questa riga sono le finestre a
+     uno, tre e cinque anni. */
   return (
-    `${articolo(v.etichetta)}${v.etichetta} rilevato dal report sta a ` +
-    `${n(v.livello)} — stessa misura del riquadro sulla storia lunga, ` +
-    `letta da un'altra fonte e a un'altra data, quindi il livello può ` +
-    `differire di poco.${storia}${variazioni}${sostituto}`
+    `${articolo(v.etichetta)}${v.etichetta} rilevato da FRED sta a ` +
+    `${n(v.livello)} — stessa misura del riquadro sulla storia lunga, che ` +
+    `la legge dal CBOE e a un'altra data, quindi il livello può differire ` +
+    `di poco.${storia}${variazioni}${sostituto}`
   );
 }
 

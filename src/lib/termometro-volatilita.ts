@@ -15,8 +15,6 @@
  */
 
 import tabellaJson from "@/data/termometro-volatilita.json";
-import { parseWeeklyBiasRecord } from "@/lib/macro-desk-bias-record";
-import type { ScorecardAsset } from "@/lib/macro-desk-scorecard";
 
 export type StatoVolatilita = "ESPANSA" | "COMPRESSA";
 
@@ -93,6 +91,15 @@ const tabella = tabellaJson as unknown as Tabella;
 export interface IngressoTermometro {
   /** Chiusura dell'indice di volatilità implicita del giorno PRECEDENTE. */
   iv: number | null | undefined;
+  /**
+   * Giorno civile dell'osservazione IV (ISO), dall'archivio.
+   *
+   * Viaggia col valore e non a parte: finché l'IV arrivava dal report, la
+   * classificazione compariva senza data e nessuno poteva accorgersi che
+   * stava leggendo il VIX di cinque giorni prima. Ora la lettura si data da
+   * sé — v. `ingressiTermometroDaContesto`.
+   */
+  giorno?: string | null;
   /** Chiusura dello strumento del giorno precedente, per la cifra in valuta. */
   close?: number | null;
 }
@@ -361,97 +368,3 @@ export function leggiTermometro(
   };
 }
 
-/**
- * Estrae dal pannello volatilità già presente nel report giornaliero le chiusure degli
- * indici di volatilità implicita.
- *
- * Comodità che evita di toccare i task schedulati: i valori del pannello sono stringhe
- * formattate all'italiana ("25,37"). DV1X non è nel pannello, quindi il DAX resta senza
- * ingresso finché non verrà aggiunto alla pipeline.
- */
-export function estraiIvDaVolPanel(
-  items: ReadonlyArray<{ k: string; v?: string }> | undefined,
-): Record<string, IngressoTermometro> {
-  const fuori: Record<string, IngressoTermometro> = {};
-  if (!items) return fuori;
-
-  // Le etichette del pannello hanno forma "<TICKER> · <descrizione>". Si confronta il
-  // solo ticker, non il testo libero: la voce "VVIX · vol del VIX" contiene "VIX" nella
-  // descrizione e una ricerca sul testo intero la scambierebbe per il VIX.
-  const ticker = (k: string) =>
-    (k ?? "").split(/[·|]/)[0].trim().split(/\s+/)[0].toUpperCase();
-
-  const mappa: Array<[string, RegExp]> = [
-    ["XAUUSD", /^GVZ$/],
-    ["WTICOUSD", /^OVX$/],
-    ["GER40", /^(DV1X|VDAX(-NEW)?)$/],
-    // Esatto: esclude VVIX, VIX1D, VIX9D, che nel pannello convivono con lui.
-    ["SP500", /^VIX$/],
-  ];
-
-  for (const [simbolo, regola] of mappa) {
-    const trovato = items.find((it) => regola.test(ticker(it.k)));
-    const grezzo = trovato?.v;
-    if (typeof grezzo !== "string") continue;
-    const numero = Number.parseFloat(
-      grezzo.replace(/\s/g, "").replace(/\.(?=\d{3}\b)/g, "").replace(",", "."),
-    );
-    if (Number.isFinite(numero)) fuori[simbolo] = { iv: numero };
-  }
-  return fuori;
-}
-
-/**
- * Chiusure numeriche dal Weekly Bias Record: l'ultimo punto del `path` di ogni asset
- * porta `px`, aggiornato dai report giornalieri. È l'unica fonte numerica di prezzo
- * presente nel Macro Desk — il payload del report contiene solo stringhe.
- *
- * Il record grezzo passa da `parseWeeklyBiasRecord`, che è l'UNICO parser del
- * campo nel progetto (stessa strada della scorecard): `assets` è un dizionario
- * per chiave asset e qualunque forma non riconosciuta degrada a nessuna
- * chiusura, mai a un lancio. La versione precedente aveva un parsing proprio
- * che si aspettava un array mai esistito in produzione, ed è il guasto che ha
- * spento AI Analyst e Volatilità dal 10 al 13/08/2026.
- *
- * `idx` è l'S&P 500 (`ASSET_LABELS.idx === "Indici (S&P 500)"`), verificato anche sulla
- * narrativa del desk ("i cash USA: S&P 7.509 · Nasdaq comp 25.837 · Dow 52.225"). Va
- * quindi su SP500 e **non** su GER40: usarlo per il DAX scalerebbe l'ampiezza su un
- * indice di un altro mercato. La guardia di plausibilità in `leggiTermometro` è la
- * seconda linea di difesa se la sorgente cambiasse unità.
- */
-export function estraiChiusureDaBiasRecord(
-  record: unknown,
-): Record<string, number> {
-  const perSimbolo: Record<ScorecardAsset, string> = {
-    xau: "XAUUSD",
-    wti: "WTICOUSD",
-    idx: "SP500",
-  };
-  const fuori: Record<string, number> = {};
-  for (const a of parseWeeklyBiasRecord(record)?.assets ?? []) {
-    // Il path esce dal parser già ordinato per data; i punti senza prezzo
-    // portano px = NaN e si scartano qui.
-    const validi = a.path.filter((p) => Number.isFinite(p.px) && p.px > 0);
-    if (validi.length === 0) continue;
-    fuori[perSimbolo[a.asset]] = validi[validi.length - 1].px;
-  }
-  return fuori;
-}
-
-/**
- * Compone gli ingressi del componente: volatilità implicita dal pannello volatilità,
- * chiusure dal Weekly Bias Record. Entrambe le fonti sono facoltative — se manca la
- * chiusura il componente mostra l'ampiezza in percentuale del prezzo.
- */
-export function componiIngressi(input: {
-  volItems?: ReadonlyArray<{ k: string; v?: string }>;
-  /** Weekly Bias Record grezzo dal DB: lo interpreta `parseWeeklyBiasRecord`. */
-  biasRecord?: unknown;
-}): Record<string, IngressoTermometro> {
-  const ingressi = estraiIvDaVolPanel(input.volItems);
-  const chiusure = estraiChiusureDaBiasRecord(input.biasRecord);
-  for (const [simbolo, close] of Object.entries(chiusure)) {
-    if (ingressi[simbolo]) ingressi[simbolo] = { ...ingressi[simbolo], close };
-  }
-  return ingressi;
-}

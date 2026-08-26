@@ -1,33 +1,36 @@
 import { cache } from "react";
 import { prisma } from "@/lib/db";
 import { parseMacroPayload, type MacroVolItem } from "@/lib/macro-desk-payload";
-import { componiIngressi } from "@/lib/termometro-volatilita";
 
 /**
- * Fonte della sezione Volatilità.
+ * Quel che resta del report giornaliero nella sezione Volatilità.
  *
- * ONESTÀ SULLA FONTE: a differenza di Posizionamento (`CotWeek`) e Driver
- * (`DriverDeskBar`), la volatilità NON ha una tabella propria. Gli indici IV e
- * la chiusura di ieri entrano nel database solo dentro l'ultimo report
- * giornaliero (`MacroDeskReport.payload.volPanel` e `.biasRecord`): quella è,
- * ad oggi, la sua fonte primaria. La sola parte indipendente dal report è la
- * tabella statica `termometro-volatilita.json`, che dà percentili e soglie.
+ * COM'ERA fino al 26/08/2026: questa funzione era la fonte PRIMARIA della
+ * sezione. Gli indici di volatilità implicita e la chiusura del giorno prima
+ * entravano nel database solo dentro `MacroDeskReport.payload.volPanel` e
+ * `.biasRecord`, cioè copiati a mano dalle pagine historical-data di
+ * Investing.com, e da lì alimentavano anche il termometro.
  *
- * Conseguenza dichiarata: senza nemmeno un report giornaliero la sezione non ha
- * numeri da mostrare, e lo dice invece di fingere. Il giorno in cui gli indici
- * IV avranno un ingest proprio, basta cambiare questa funzione: la pagina e il
- * pannello non se ne accorgono.
+ * COM'È ORA: VIX, VVIX, SKEW, GVZ e OVX arrivano dal CDN del CBOE ogni notte,
+ * insieme al resto dell'archivio, e il termometro beve da lì
+ * (`ingressiTermometroDaContesto`). Di questa funzione restano due cose
+ * soltanto, ed entrambe hanno un motivo per esserci:
  *
- * La stessa composizione è usata da `queries/ai-analyst.ts`, che legge lo
- * stesso report: i due restano allineati per costruzione.
+ *  - le voci di `volPanel` SENZA fonte gratuita — oggi il solo MOVE, indice
+ *    proprietario ICE che FRED non ridistribuisce (404). Il filtro sta in
+ *    `lib/volatilita-report.ts`, non qui: è una regola, non una query;
+ *  - il commento del giorno, che è prosa e non ha alternative automatiche.
+ *
+ * Il `biasRecord` non si legge più: serviva solo a ricavare la chiusura per
+ * la cifra in valuta del termometro, e quella adesso viene dall'archivio.
  */
 
 export interface VolatilitaData {
-  /** Ingressi del termometro: IV di ieri + chiusura di ieri, già composti. */
-  ingressi: ReturnType<typeof componiIngressi>;
+  /** Voci grezze del pannello del report: chi le rende le filtra. */
   items: MacroVolItem[];
   /** Commento del giorno sulla struttura vol, scritto dal report. */
   reading?: string;
+  /** Vintage dichiarato dal report per le proprie voci. */
   asOf?: string;
   /** Report da cui arrivano i numeri: serve a datare la pagina e a linkarlo. */
   reportId: string;
@@ -35,12 +38,9 @@ export interface VolatilitaData {
 }
 
 /**
- * DIFENSIVA: qualunque errore — database giù, tabella non migrata, ma anche
- * un report i cui blocchi non si lasciano comporre — degrada a `null` con
- * log: la pagina mostra lo stato vuoto invece di cadere. La composizione sta
- * DENTRO lo stesso catch della query di proposito: il 10-13/08/2026 un
- * `biasRecord` di forma inattesa componeva fuori dal catch e la pagina
- * finiva in error boundary.
+ * DIFENSIVA: qualunque errore — database giù, tabella non migrata, payload
+ * illeggibile — degrada a `null` con log, e la pagina mostra i fatti
+ * dell'archivio senza il blocco del report.
  */
 export const getVolatilitaData = cache(
   async (): Promise<VolatilitaData | null> => {
@@ -48,15 +48,12 @@ export const getVolatilitaData = cache(
       const row = await prisma.macroDeskReport.findFirst({
         where: { type: "DAILY" },
         orderBy: { reportDate: "desc" },
+        select: { id: true, reportDate: true, payload: true },
       });
       if (!row) return null;
 
       const vol = parseMacroPayload(row.payload).volPanel;
       return {
-        ingressi: componiIngressi({
-          volItems: vol?.items,
-          biasRecord: row.biasRecord,
-        }),
         items: vol?.items ?? [],
         reading: vol?.reading,
         asOf: vol?.asOf,

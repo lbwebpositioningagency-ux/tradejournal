@@ -17,6 +17,8 @@ import { cache } from "react";
 import { prisma } from "@/lib/db";
 import {
   getContestoVolatilita,
+  ingressiTermometroDaContesto,
+  type ContestoVolatilita,
   type RigaContestoVol,
 } from "@/lib/queries/volatilita-contesto";
 import {
@@ -37,12 +39,14 @@ import {
   letturaTermometro,
 } from "@/lib/ai-analyst/letture";
 import { letturaAssente, type Lettura } from "@/lib/ai-analyst/types";
-import { parseMacroPayload } from "@/lib/macro-desk-payload";
 import { caricaPannelloCot } from "@/lib/queries/cot-panel";
 import { getDriverDeskData, type DriverDeskData } from "@/lib/queries/driver-desk";
 import { getTrendsSection, type TrendsSeriesView } from "@/lib/macro-trends";
 import { TRENDS_SERIES } from "@/lib/macro-trends-series";
-import { componiIngressi, leggiTermometro } from "@/lib/termometro-volatilita";
+import {
+  leggiTermometro,
+  type IngressoTermometro,
+} from "@/lib/termometro-volatilita";
 import type { PannelloCot } from "@/lib/cot-panel";
 import {
   CLOCK_TIMEZONE,
@@ -80,11 +84,15 @@ const CHIAVI_TRENDS = ["vix", "gvz", "ovx", "nfci", "hy-oas"] as const;
 /* ── sorgenti condivise fra gli strumenti ────────────────────────────── */
 
 export interface FontiCondivise {
-  /** Ultimo report giornaliero: data + ingressi già composti per il termometro. */
-  report: {
-    reportDate: string;
-    ingressi: ReturnType<typeof componiIngressi>;
-  } | null;
+  /**
+   * Ultimo report giornaliero: la sola DATA. Dal 26/08/2026 il report non
+   * porta più nessun numero dentro la Sintesi — nemmeno gli ingressi del
+   * termometro, che ora vengono dall'archivio come tutto il resto. La data
+   * serve solo a dichiarare quanto è vecchio il bias che la pagina cita.
+   */
+  report: { reportDate: string } | null;
+  /** Ingressi del termometro, composti dall'archivio giornaliero. */
+  ingressiTermometro: Record<string, IngressoTermometro>;
   cot: PannelloCot;
   driver: DriverDeskData;
   coverage: CoverageView[];
@@ -117,22 +125,17 @@ export const caricaFontiCondivise = cache(async (): Promise<FontiCondivise> => {
   );
 
   const [report, cot, driver, coverage, contestoVol, viste] = await Promise.all([
-    /* La COMPOSIZIONE sta nello stesso catch della query, di proposito: il
-       10-13/08/2026 un `biasRecord` di forma inattesa componeva fuori dal
-       catch e l'intera pagina finiva in error boundary invece che nello
-       stato "fonte non disponibile". */
+    /* Del report resta la sola DATA: dal 26/08/2026 gli ingressi del
+       termometro vengono dall'archivio (`ingressiTermometroDaContesto`) e non
+       più da `payload.volPanel`, che li portava copiati a mano. */
     prisma.macroDeskReport
-      .findFirst({ where: { type: "DAILY" }, orderBy: { reportDate: "desc" } })
+      .findFirst({
+        where: { type: "DAILY" },
+        orderBy: { reportDate: "desc" },
+        select: { reportDate: true },
+      })
       .then((row): FontiCondivise["report"] =>
-        row
-          ? {
-              reportDate: iso(row.reportDate),
-              ingressi: componiIngressi({
-                volItems: parseMacroPayload(row.payload).volPanel?.items,
-                biasRecord: row.biasRecord,
-              }),
-            }
-          : null,
+        row ? { reportDate: iso(row.reportDate) } : null,
       )
       .catch((e: unknown) => {
         console.error("[ai-analyst] report non caricato:", e);
@@ -149,7 +152,14 @@ export const caricaFontiCondivise = cache(async (): Promise<FontiCondivise> => {
     }),
     getContestoVolatilita(giornoRoma()).catch((e: unknown) => {
       console.error("[ai-analyst] contesto volatilità non caricato:", e);
-      return { righe: [] as RigaContestoVol[], oggi: giornoRoma() };
+      const vuoto: ContestoVolatilita = {
+        righe: [],
+        oggi: giornoRoma(),
+        strutturaTermine: null,
+        strutturaWti: { ok: false, motivo: "front_non_disponibile" },
+        climaCopertura: [],
+      };
+      return vuoto;
     }),
     getTrendsSection(defs),
   ]);
@@ -160,7 +170,15 @@ export const caricaFontiCondivise = cache(async (): Promise<FontiCondivise> => {
   const contesto = new Map<string, RigaContestoVol>();
   for (const riga of contestoVol.righe) contesto.set(riga.indice, riga);
 
-  return { report, cot, driver, coverage, trends, contesto };
+  return {
+    report,
+    ingressiTermometro: ingressiTermometroDaContesto(contestoVol),
+    cot,
+    driver,
+    coverage,
+    trends,
+    contesto,
+  };
 });
 
 /* ── letture che richiedono una query per strumento ──────────────────── */
@@ -255,7 +273,7 @@ export async function caricaLetture(
 
   const termometro =
     def.termometro !== null && fonti.report
-      ? leggiTermometro(def.termometro, fonti.report.ingressi[def.termometro])
+      ? leggiTermometro(def.termometro, fonti.ingressiTermometro[def.termometro])
       : null;
 
   const rigaContesto = fonti.contesto.get(def.seasonalityIv);

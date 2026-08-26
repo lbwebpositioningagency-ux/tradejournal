@@ -86,11 +86,13 @@ function riga(over: Partial<RigaContestoVol> = {}): RigaContestoVol {
 const contesto = (
   righe: RigaContestoVol[],
   strutturaTermine: ContestoVolatilita["strutturaTermine"] = null,
+  climaCopertura: ContestoVolatilita["climaCopertura"] = [],
 ): ContestoVolatilita => ({
   righe,
   oggi: "2026-08-25",
   strutturaTermine,
   strutturaWti: { ok: false, motivo: "front_non_disponibile" },
+  climaCopertura,
 });
 
 function resa(righe: RigaContestoVol[]) {

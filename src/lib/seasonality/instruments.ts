@@ -213,6 +213,47 @@ export const SEASONALITY_INSTRUMENTS: SeasonalityInstrumentDef[] = [
       "Volatilità implicita dell'S&P 500 a 3 mesi, chiusure CBOE dal 2009.",
     attribution: "CBOE Global Markets",
   },
+  /**
+   * VVIX e SKEW — il «clima di copertura» sull'azionario.
+   *
+   * Arrivavano dal report giornaliero, copiati a mano dalle pagine
+   * historical-data di Investing.com con due-tre giorni di ritardo. Il CDN del
+   * CBOE li pubblica per intero e gratis (verificato il 26/08/2026: VVIX 200
+   * in 566 ms, 5.090 sedute dal 03/06/2006; SKEW 200 in 527 ms, 9.213 sedute
+   * dal 02/01/1990), quindi non c'è motivo di farli passare da un report
+   * pubblicato a mano.
+   *
+   * NIENTE RISERVA, ed è dichiarato: FRED non ridistribuisce né l'uno né
+   * l'altro (`VVIXCLS` e `SKEWCLS` rispondono 404, verificato lo stesso
+   * giorno). Se il CDN del CBOE cade, queste due serie restano ferme e la
+   * verifica di esito del job lo dice — non c'è una seconda strada da provare.
+   */
+  {
+    code: "VVIX",
+    label: "VVIX — volatilità del VIX",
+    ticker: "VVIX",
+    kind: "LEVEL",
+    colorToken: "var(--md-cross)",
+    daily: [{ provider: "cboe", symbol: "VVIX" }],
+    hourly: null,
+    fuoriDallaStagionalita: true,
+    sourceNote:
+      "Quanto costano le opzioni SUL VIX: misura la domanda di convessità, cioè quanto si paga per coprirsi da un salto della volatilità stessa. Chiusure CBOE dal 2006. FRED non la ridistribuisce (404): questa serie non ha riserva.",
+    attribution: "CBOE Global Markets",
+  },
+  {
+    code: "SKEW",
+    label: "SKEW — prezzo delle code",
+    ticker: "SKEW",
+    kind: "LEVEL",
+    colorToken: "var(--md-cross)",
+    daily: [{ provider: "cboe", symbol: "SKEW" }],
+    hourly: null,
+    fuoriDallaStagionalita: true,
+    sourceNote:
+      "Quanto il mercato paga le opzioni molto fuori dal denaro sull'S&P 500 rispetto a quelle vicine: sale quando si prezza con più attenzione un movimento estremo. Chiusure CBOE dal 1990. FRED non la ridistribuisce (404): questa serie non ha riserva.",
+    attribution: "CBOE Global Markets",
+  },
   {
     code: "GVZ",
     label: "GVZ — volatilità oro",
