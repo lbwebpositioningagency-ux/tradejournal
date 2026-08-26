@@ -194,6 +194,11 @@ export async function getTradeAggregates(
       -- quota la fa il modulo puro, qui si contano soltanto le righe.
       (COUNT(*) FILTER (WHERE t."plannedStop" IS NOT NULL
                           AND t."plannedTarget" IS NOT NULL))::int AS "plannedTrades",
+      -- Almeno UNO dei due campi: distingue "non pianifico" da "il campo non
+      -- e' in uso". Senza, un import CSV senza colonne di piano darebbe
+      -- disciplina 0, cioe' il giudizio peggiore su un dato assente.
+      (COUNT(*) FILTER (WHERE t."plannedStop" IS NOT NULL
+                           OR t."plannedTarget" IS NOT NULL))::int AS "tradesWithAnyPlan",
       (COUNT(*) FILTER (WHERE t."rMultiple" IS NOT NULL))::int AS "rCount",
       -- Denaro che resta FUORI dalla distribuzione in R. Stessa definizione
       -- di getPlanCoverage (rMultiple IS NULL): il conteggio dei trade da

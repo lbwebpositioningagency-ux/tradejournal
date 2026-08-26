@@ -30,6 +30,7 @@ const input: RadarScoreInput = {
   lossSum: "-4500.00",
   ulcer: "0.0400",
   plannedTrades: 70,
+  tradesWithAnyPlan: 70,
   daily: [{ netPnl: "3000.00" }, { netPnl: "2000.00" }, { netPnl: "-500.00" }],
 };
 

@@ -1427,6 +1427,11 @@ nella finestra corta win rate e profit factor sono davvero più alti. La prova
 che la componente meccanica è sparita sta nel test su processo stazionario, non
 in questi numeri.
 
+> ⚠️ **Numeri SUPERATI dalla seconda onda.** La tabella qui sopra resta come
+> registro di ciò che questa onda ha misurato, ma lo Score è stato riscritto:
+> i valori correnti — e la spiegazione del perché il divario su SIM1 è
+> AUMENTATO invece di scendere — stanno nella nota della seconda onda.
+
 **Verificato:** lint ✅ · typecheck ✅ · **1909/1910 test** ✅ (+41) · build di
 produzione ✅ · screenshot su build reale contro Postgres locale (Score dark e
 light, popover Sortino con e senza cancello, popover Calmar e fattore Max

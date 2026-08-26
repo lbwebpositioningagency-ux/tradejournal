@@ -98,6 +98,8 @@ export interface TradeAggregates {
    * numeratore del fattore disciplina dello Score.
    */
   plannedTrades: number;
+  /** Trade con almeno uno dei due campi di piano: copertura del campo. */
+  tradesWithAnyPlan: number;
   /** P&L netto dei trade senza R: quanto denaro resta fuori dall'istogramma. */
   netPnlWithoutR: string;
 }

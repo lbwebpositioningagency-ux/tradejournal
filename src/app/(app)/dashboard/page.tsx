@@ -324,6 +324,7 @@ export default async function DashboardPage({
     // che cresce con la finestra) né il P&L netto (un totale).
     ulcer,
     plannedTrades: agg.plannedTrades,
+    tradesWithAnyPlan: agg.tradesWithAnyPlan,
     daily,
   });
   const expectancyR =
