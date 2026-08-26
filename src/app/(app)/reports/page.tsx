@@ -50,6 +50,8 @@ import {
   getStreakStats,
   getSymbolBreakdown,
   getTagBreakdown,
+  getTagCategoryBreakdown,
+  getPlanAdherenceBreakdown,
   getWeekdayBreakdown,
   type BreakdownAggregates,
 } from "@/lib/queries/reports";
@@ -61,8 +63,6 @@ import {
   type StatsFilter,
 } from "@/lib/queries/stats";
 import { resolveCurrencyScope } from "@/lib/currency-scope";
-// TODO(P-04): import TEMPORANEO della misura stadi — rimuovere dopo la misura.
-import { createStageTimer } from "@/lib/stage-timing";
 import { cn } from "@/lib/utils";
 import { PeriodFilter } from "@/components/filters/period-filter";
 import { CurrencyFilter } from "@/components/filters/currency-filter";
@@ -293,18 +293,19 @@ function BestWorstLine({
   );
 }
 
+/** Etichette dei tre bucket di aderenza al piano (F3). */
+const PLAN_ADHERENCE_LABELS: Record<string, string> = {
+  followed: "Piano rispettato",
+  broken: "Piano tradito",
+  unanswered: "Non ancora rivisto",
+};
+
 export default async function ReportsPage({
   searchParams,
 }: {
   searchParams: Promise<Record<string, string | string[] | undefined>>;
 }) {
-  // TODO(P-04): misura TEMPORANEA degli stadi (vedi lib/stage-timing.ts) —
-  // rimuovere timer e mark dopo la lettura dei numeri in produzione.
-  // Qui non c'è nulla da fondere senza cambiare query: ogni report dello
-  // stadio finale dipende dalla valuta attiva, che dipende dal breakdown.
-  const timing = createStageTimer("/reports");
   const session = await auth();
-  timing.mark("auth");
   if (!session?.user?.id) redirect("/login");
   const sessionUserId = session.user.id;
 
@@ -316,7 +317,6 @@ export default async function ReportsPage({
     resolveTradeScope(sessionUserId),
     searchParams,
   ]);
-  timing.mark("scope");
   // Scope dei dati: utente di sistema quando il conto attivo è il demo SIM1.
   const userId = tradeScope.userId;
   const activeAccountId = tradeScope.accountId;
@@ -342,15 +342,16 @@ export default async function ReportsPage({
           select: { currency: true },
         }),
   ]);
-  timing.mark("currency");
   const scope = resolveCurrencyScope(currencyTotals, curParam);
   const filter: StatsFilter = { ...baseFilter, currency: scope.active };
   const currency = scope.active ?? activeAccount?.currency ?? user.baseCurrency;
 
-  const [strategies, tags, symbols, directionAssets, months, hours, weekdays, streaks, outcomes, biasRows] =
+  const [strategies, tags, tagCategories, planAdherence, symbols, directionAssets, months, hours, weekdays, streaks, outcomes, biasRows] =
     await Promise.all([
       getStrategyBreakdown(filter),
       getTagBreakdown(filter),
+      getTagCategoryBreakdown(filter),
+      getPlanAdherenceBreakdown(filter),
       getSymbolBreakdown(filter),
       getDirectionAssetBreakdown(filter),
       getMonthBreakdown(filter, user.timezone),
@@ -360,8 +361,6 @@ export default async function ReportsPage({
       getRecentTradeOutcomes(filter),
       getBiasAlignmentBreakdown(filter, user.timezone),
     ]);
-  timing.mark("queries");
-  timing.flush();
   // W2 — bias × esecuzione: righe classificate e non.
   const biasAligned = biasRows.find((r) => r.alignment === "ALIGNED");
   const biasAgainst = biasRows.find((r) => r.alignment === "AGAINST");
@@ -438,11 +437,13 @@ export default async function ReportsPage({
           ) : null}
         </div>
         <div className="flex flex-wrap items-center gap-2">
-          {/* W3 — la review del venerdì generata dai dati */}
+          {/* W3 — la review generata dai dati. Settimana, mese, trimestre
+              o anno: il mese è l'unità dei payout, il trimestre quella con
+              cui si giudica un sistema, l'anno quella fiscale. */}
           <Button asChild variant="outline">
             <Link href="/reports/settimana">
               <CalendarCheck className="size-4" />
-              Report settimanale
+              Report periodico
             </Link>
           </Button>
           {scope.multi ? (
@@ -536,6 +537,61 @@ export default async function ReportsPage({
                   </p>
                 </>
               )}
+          </CollapsibleCard>
+
+          <CollapsibleCard title="Per categoria di tag">
+            {tagCategories.length === 0 ? (
+              <p className="py-8 text-center text-sm text-muted-foreground">
+                Nessun tag sui trade del periodo. Assegna una categoria ai tag
+                dal form del trade: «errore» è quella che alimenta il costo
+                degli errori.
+              </p>
+            ) : (
+              <>
+                <BreakdownTable
+                  currency={currency}
+                  rows={tagCategories.map((row) => ({
+                    key: row.category,
+                    label:
+                      TAG_CATEGORY_LABELS[row.category as TagCategory] ??
+                      row.category,
+                    aggregates: row,
+                  }))}
+                />
+                <p className="mt-2 text-xs text-muted-foreground">
+                  Quanto pesano gli errori tutti insieme, invece che quindici
+                  tag da tre trade l&apos;uno. Dentro una categoria ogni trade
+                  conta una volta sola; fra categorie diverse le righe si
+                  sovrappongono — un trade può essere insieme un breakout e un
+                  errore.
+                </p>
+              </>
+            )}
+          </CollapsibleCard>
+
+          <CollapsibleCard title="Piano rispettato">
+            {planAdherence.length === 0 ? (
+              <p className="py-8 text-center text-sm text-muted-foreground">
+                Nessun trade chiuso nel periodo.
+              </p>
+            ) : (
+              <>
+                <BreakdownTable
+                  currency={currency}
+                  rows={planAdherence.map((row) => ({
+                    key: row.bucket,
+                    label: PLAN_ADHERENCE_LABELS[row.bucket] ?? row.bucket,
+                    aggregates: row,
+                  }))}
+                />
+                <p className="mt-2 text-xs text-muted-foreground">
+                  Dalla revisione del singolo trade. Se il win rate col piano
+                  rispettato non è più alto di quello senza, o il piano non
+                  vale niente o non lo stai davvero seguendo. «Non ancora
+                  rivisto» è una riga a sé: non è un piano tradito.
+                </p>
+              </>
+            )}
           </CollapsibleCard>
 
           {/* Tabelle a tutta larghezza: affiancate a 1280 taglierebbero le colonne */}

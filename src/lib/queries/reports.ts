@@ -327,3 +327,78 @@ export async function getStreakStats(filter: StatsFilter): Promise<StreakStats> 
   }
   return { maxWinStreak, maxLossStreak };
 }
+
+export interface TagCategoryBreakdownRow extends BreakdownAggregates {
+  category: string;
+}
+
+/**
+ * F3 — performance per CATEGORIA di tag (setup / errore / emozione).
+ *
+ * Ora che la categoria è impostabile dall'interfaccia, la domanda «quanto mi
+ * costano gli errori, tutti insieme» ha una risposta. Il breakdown per tag
+ * singolo la dava una riga alla volta: quindici tag di errore da tre trade
+ * ciascuno non si leggono, la loro somma sì.
+ *
+ * Un trade con due tag della STESSA categoria conta una volta sola in quella
+ * categoria (DISTINCT sul trade), altrimenti il suo P&L verrebbe sommato due
+ * volte e il totale di riga non tornerebbe con nulla. Fra categorie diverse
+ * le righe restano sovrapposte — un trade può essere insieme un breakout e
+ * un errore — ed è dichiarato in pagina come per i tag.
+ */
+export async function getTagCategoryBreakdown(
+  filter: StatsFilter,
+): Promise<TagCategoryBreakdownRow[]> {
+  return prisma.$queryRaw<TagCategoryBreakdownRow[]>(Prisma.sql`
+    WITH "tagged" AS (
+      SELECT DISTINCT tg."category" AS "category", t."id" AS "tradeId"
+      ${FROM_TRADES}
+      JOIN "TradeTag" tt ON tt."tradeId" = t."id"
+      JOIN "Tag" tg      ON tg."id" = tt."tagId"
+      WHERE ${whereClosedTrades(filter)}
+    )
+    SELECT
+      "tagged"."category"::text AS "category",
+      ${AGGREGATE_COLUMNS}
+    FROM "tagged"
+    JOIN "Trade" t ON t."id" = "tagged"."tradeId"
+    GROUP BY 1
+    ORDER BY SUM(t."netPnl") DESC
+  `);
+}
+
+export interface PlanAdherenceRow extends BreakdownAggregates {
+  /** "followed" | "broken" | "unanswered" */
+  bucket: string;
+}
+
+/**
+ * F3 — performance a PIANO RISPETTATO contro piano tradito.
+ *
+ * È la riga che trasforma il journaling da diario a misura: se il win rate
+ * quando segui il piano non è più alto di quando lo tradisci, o il piano non
+ * vale niente o non lo stai davvero seguendo. Nessun'altra metrica dell'app
+ * può rispondere, perché nessun'altra sa cosa avevi deciso di fare.
+ *
+ * Tre bucket e non due: «non ancora risposto» non è «no». Confonderli
+ * farebbe sembrare indisciplinato chi semplicemente non ha ancora rivisto
+ * quel trade — cioè, all'inizio, tutti.
+ */
+export async function getPlanAdherenceBreakdown(
+  filter: StatsFilter,
+): Promise<PlanAdherenceRow[]> {
+  return prisma.$queryRaw<PlanAdherenceRow[]>(Prisma.sql`
+    SELECT
+      CASE
+        WHEN r."followedPlan" IS TRUE  THEN 'followed'
+        WHEN r."followedPlan" IS FALSE THEN 'broken'
+        ELSE 'unanswered'
+      END AS "bucket",
+      ${AGGREGATE_COLUMNS}
+    ${FROM_TRADES}
+    LEFT JOIN "TradeReview" r ON r."tradeId" = t."id"
+    WHERE ${whereClosedTrades(filter)}
+    GROUP BY 1
+    ORDER BY 1 ASC
+  `);
+}

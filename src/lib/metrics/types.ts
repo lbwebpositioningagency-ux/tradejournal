@@ -93,6 +93,11 @@ export interface TradeAggregates {
   lossSum: string;
   /** Somma delle fee. */
   fees: string;
+  /**
+   * Trade chiusi con un piano COMPLETO (stop e target entrambi pianificati):
+   * numeratore del fattore disciplina dello Score.
+   */
+  plannedTrades: number;
 }
 
 /**

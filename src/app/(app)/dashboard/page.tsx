@@ -3,8 +3,6 @@ import { redirect } from "next/navigation";
 import Decimal from "decimal.js";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/db";
-// TODO(P-04): import TEMPORANEO della misura stadi — rimuovere dopo la misura.
-import { createStageTimer } from "@/lib/stage-timing";
 import { tradeAccountWhere } from "@/lib/active-account";
 import { resolveTradeScope } from "@/lib/demo-account";
 import { ALL_ACCOUNTS } from "@/lib/constants";
@@ -80,11 +78,7 @@ export default async function DashboardPage({
     cur?: string;
   }>;
 }) {
-  // TODO(P-04): misura TEMPORANEA degli stadi (vedi lib/stage-timing.ts) —
-  // rimuovere timer e mark dopo la lettura dei numeri in produzione.
-  const timing = createStageTimer("/dashboard");
   const session = await auth();
-  timing.mark("auth");
   if (!session?.user?.id) redirect("/login");
   const sessionUserId = session.user.id;
 
@@ -105,7 +99,6 @@ export default async function DashboardPage({
     }),
     resolveTradeScope(sessionUserId),
   ]);
-  timing.mark("scope");
   const userId = tradeScope.userId;
   const activeAccountId = tradeScope.accountId;
 
@@ -144,7 +137,6 @@ export default async function DashboardPage({
     // invece che nel successivo (query invariata, cambia solo quando parte).
     prisma.trade.count({ where: { account: { userId } } }),
   ]);
-  timing.mark("currency");
   const lifetimeTotals = lifetimeTotalsRaw ?? currencyTotals;
   // B-02 — periodo senza trade: lo scope di periodo ricade sulle valute
   // lifetime invece che su `undefined` — MAI una query di denaro senza
@@ -281,8 +273,6 @@ export default async function DashboardPage({
         "month",
       ),
     ]);
-  timing.mark("queries");
-  timing.flush();
 
   // Metriche (tutte Decimal-safe, sul server; il client formatta soltanto)
   const dayWins = daily.filter((d) => new Decimal(d.netPnl).gt(0)).length;
@@ -321,19 +311,19 @@ export default async function DashboardPage({
   const aLoss = avgLoss(agg.lossSum, agg.losses);
 
   const rTotal = new Decimal(agg.rSum);
+  // L'Ulcer alimenta sia la card sia il fattore drawdown dello Score: una
+  // sola chiamata, mai due convenzioni per la stessa buca.
+  const ulcer = ulcerIndex(dailySeries, equityStart);
   const score = radarScore({
     total: agg.total,
     wins: agg.wins,
     losses: agg.losses,
     winSum: agg.winSum,
     lossSum: agg.lossSum,
-    netPnl: agg.netPnl,
-    maxDrawdown: dd.maxDrawdown,
-    maxDrawdownPct: dd.maxDrawdownPct,
-    // Q-1 — sedute della serie su cui il drawdown è stato misurato (non i
-    // giorni del periodo, non i giorni con trade): è il denominatore della
-    // normalizzazione √n del fattore Max Drawdown.
-    observations: dailySeries.length,
+    // Ogni fattore è un tasso o una media: mai il max drawdown (un massimo,
+    // che cresce con la finestra) né il P&L netto (un totale).
+    ulcer,
+    plannedTrades: agg.plannedTrades,
     daily,
   });
   const expectancyR =
@@ -447,7 +437,7 @@ export default async function DashboardPage({
     sharpe: sharpeRatio(ratioWindow.window),
     calmar: calmarRatio(daily, equityStart, dd.maxDrawdownPct),
     sqn: sqn(agg.rCount, agg.rSum, agg.rSumSq),
-    ulcer: ulcerIndex(dailySeries, equityStart),
+    ulcer,
     tradeStreak: currentStreak(outcomes),
     dayStreak: currentDayStreak([...daily].reverse()),
     // Score a 6 fattori per il radar (peso uguale 100/6, v. lib/metrics/score.ts).

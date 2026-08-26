@@ -300,3 +300,70 @@ describe("plannedRiskFromStop (F17)", () => {
     ).toBeNull();
   });
 });
+
+/**
+ * SWAP / ROLLOVER — debito registrato nell'audit e mai chiuso: il modello
+ * aveva solo `fees`, e swap, commissioni e rollover ci finivano dentro
+ * indistinti. Su un forex tenuto una settimana il costo di mantenimento
+ * diventava invisibile.
+ */
+describe("computeTrade — swap di posizione", () => {
+  const exec = (side: "BUY" | "SELL", price: string, minute: number) => ({
+    side,
+    quantity: "1",
+    price,
+    fee: "0",
+    executedAt: new Date(Date.UTC(2026, 7, 26, 10, minute)),
+  });
+  const round = [exec("BUY", "100", 0), exec("SELL", "110", 30)];
+
+  it("assente: ogni trade storico resta identico a prima", () => {
+    const senza = computeTrade(round, {});
+    expect(senza.swap).toBe("0.00");
+    expect(senza.netPnl).toBe("10.00");
+    expect(computeTrade(round, { swap: null }).netPnl).toBe("10.00");
+    expect(computeTrade(round, { swap: "" }).netPnl).toBe("10.00");
+  });
+
+  it("costo: si sottrae dal netto, il lordo non si muove", () => {
+    const t = computeTrade(round, { swap: "2.50" });
+    expect(t.grossPnl).toBe("10.00");
+    expect(t.swap).toBe("2.50");
+    expect(t.netPnl).toBe("7.50");
+  });
+
+  it("accredito: segno LIBERO, uno swap positivo esiste davvero", () => {
+    // Coppia con differenziale favorevole: il rollover paga.
+    const t = computeTrade(round, { swap: "-3.00" });
+    expect(t.netPnl).toBe("13.00");
+  });
+
+  it("è un costo di POSIZIONE: entra una volta, non per esecuzione", () => {
+    const scaleOut = [
+      exec("BUY", "100", 0),
+      exec("BUY", "100", 5),
+      exec("SELL", "110", 30),
+      exec("SELL", "110", 40),
+    ];
+    const t = computeTrade(scaleOut, { swap: "4.00" });
+    expect(t.swap).toBe("4.00");
+    // 4 esecuzioni, uno swap solo: 20 di lordo − 4.
+    expect(t.grossPnl).toBe("20.00");
+    expect(t.netPnl).toBe("16.00");
+  });
+
+  it("swap e fee si sommano entrambi al netto", () => {
+    const conFee = [
+      { ...exec("BUY", "100", 0), fee: "1.00" },
+      { ...exec("SELL", "110", 30), fee: "1.00" },
+    ];
+    const t = computeTrade(conFee, { swap: "3.00" });
+    expect(t.fees).toBe("2.00");
+    expect(t.swap).toBe("3.00");
+    expect(t.netPnl).toBe("5.00");
+  });
+
+  it("valore non numerico → errore parlante, mai uno zero silenzioso", () => {
+    expect(() => computeTrade(round, { swap: "abc" })).toThrow(TradeComputeError);
+  });
+});

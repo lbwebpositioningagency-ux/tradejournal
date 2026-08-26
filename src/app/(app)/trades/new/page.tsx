@@ -79,6 +79,7 @@ export default async function NewTradePage() {
           plannedTarget: "",
           strategyId: "",
           rating: "",
+          swap: "",
           notes: "",
           tags: [],
           executions: [

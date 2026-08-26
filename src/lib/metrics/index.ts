@@ -38,12 +38,14 @@ export {
   SCORE_FACTOR_INFO,
   scoreFactorInfo,
   SCORE_MIN_TRADES,
-  normalizedDrawdownPct,
-  DD_REFERENCE_SESSIONS,
+  anchoredScore,
+  positiveDayCv,
+  SCORE_ANCHORS,
   type RadarScore,
   type RadarScoreFactors,
   type RadarScoreInput,
   type ScoreFactorKey,
+  type FactorAnchors,
 } from "./score";
 export {
   benchmarkTier,
@@ -73,7 +75,39 @@ export { sortinoRatio, sortinoInfo } from "./sortino";
 export { sharpeRatio, sharpeInfo } from "./sharpe";
 export { sqn, sqnInfo, SQN_MIN_TRADES } from "./sqn";
 export { calmarRatio, calmarInfo, coveredDays, CALMAR_MIN_DAYS } from "./calmar";
+export {
+  correlationMatrix,
+  correlationTone,
+  correlationInfo,
+  pairKey,
+  CORRELATION_MIN_DAYS,
+  type CorrelationMatrix,
+  type CorrelationPair,
+  type CorrelationSeries,
+} from "./correlation";
+export {
+  benchmarkRows,
+  benchmarkCoverage,
+  benchmarkInfo,
+  BENCHMARK_MIN_BARS,
+  type BenchmarkRow,
+  type InstrumentWindow,
+  type SymbolTrading,
+} from "./benchmark-compare";
+export {
+  DAY_UNIT_LABELS,
+  DAY_UNIT_NOTES,
+  formatDayCount,
+  type DayUnit,
+} from "./day-vocabulary";
 export { ulcerIndex, ulcerInfo } from "./ulcer";
+export {
+  valueAtRisk,
+  valueAtRiskInfo,
+  VAR_CONFIDENCE,
+  VAR_MIN_OBSERVATIONS,
+  type ValueAtRisk,
+} from "./value-at-risk";
 export {
   planVsOutcome,
   plannedRInfo,
@@ -100,6 +134,8 @@ export {
 export {
   monthlyReturnGrids,
   returnIntensity,
+  INTENSITY_THRESHOLDS,
+  type IntensityScale,
   monthlyCalendarInfo,
   type MonthCell,
   type MonthlyReturn,

@@ -1,4 +1,5 @@
 import Decimal from "decimal.js";
+import { DAY_UNIT_NOTES } from "./day-vocabulary";
 
 /**
  * Win rate = vincenti / totale, come frazione 0-1 (scala 4).
@@ -23,5 +24,6 @@ export const dayWinRateInfo = {
   label: "Day Win Rate",
   description:
     "Percentuale di giornate operative chiuse in verde: misura la costanza giorno per giorno, meno sensibile del win rate al singolo trade.",
-  formula: "Day Win % = giornate con P&L > 0 / giornate operative",
+  formula: "Day Win % = giornate operative con P&L > 0 / giornate operative",
+  note: DAY_UNIT_NOTES.operative,
 };

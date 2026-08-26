@@ -1,4 +1,5 @@
 import Decimal from "decimal.js";
+import { DAY_UNIT_NOTES } from "./day-vocabulary";
 import {
   ANNUALIZATION,
   hasUndefinedReturn,
@@ -71,4 +72,5 @@ export const sortinoInfo: MetricInfoData = {
     "Rendimento medio giornaliero rapportato alla sola volatilità NEGATIVA: premia chi guadagna senza grandi giornate in rosso, ignorando la volatilità dei giorni buoni. Serie giornaliera sulle sedute feriali, con le giornate senza trade contate a rendimento 0.",
   formula:
     "Sortino = √252 × (media ritorni − MAR) / √(Σ min(r − MAR, 0)² / N) · MAR = 0 · r = P&L giorno / equity inizio giornata",
+  note: DAY_UNIT_NOTES.session,
 };

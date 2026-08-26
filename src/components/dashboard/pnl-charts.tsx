@@ -44,10 +44,46 @@ function withZeroStart(points: ChartPoint[]): ChartPoint[] {
   return [{ day: "", value: 0, cumulative: 0 }, ...points];
 }
 
+/**
+ * Aggiunge a ogni punto la banda [curva, picco corrente] dell'overlay di
+ * drawdown. Funzione di MODULO e non codice dentro il componente: durante il
+ * render nulla si riassegna, ed è verificabile a parte.
+ *
+ * `null` quando il punto È il picco: una banda a spessore zero non aggiunge
+ * informazione e lascerebbe una riga di colore lungo tutta la curva.
+ */
+export function withDrawdownBand(
+  points: ChartPoint[],
+): (ChartPoint & { drawdownBand: [number, number] | null })[] {
+  let peak = Number.NEGATIVE_INFINITY;
+  const out: (ChartPoint & { drawdownBand: [number, number] | null })[] = [];
+  for (const point of points) {
+    peak = Math.max(peak, point.cumulative);
+    out.push({
+      ...point,
+      drawdownBand:
+        peak > point.cumulative ? [point.cumulative, peak] : null,
+    });
+  }
+  return out;
+}
+
 function tooltipFormatter(masked: boolean, suffix: string) {
-  return (value: number | string | readonly (number | string)[] | undefined) => {
+  return (
+    value: number | string | readonly (number | string)[] | undefined,
+    name?: number | string,
+  ) => {
     if (masked) return "•••";
-    const num = Array.isArray(value) ? Number(value[0]) : Number(value ?? 0);
+    // La banda del drawdown è un range [curva, picco]: nel tooltip non si
+    // mostrano i due estremi ma la PROFONDITÀ, col segno che ha davvero.
+    if (Array.isArray(value)) {
+      const depth = Number(value[0]) - Number(value[1]);
+      if (name === "Sotto il picco") {
+        return `${depth.toLocaleString("it-IT", { maximumFractionDigits: 2 })}${suffix}`;
+      }
+      return `${Number(value[0]).toLocaleString("it-IT", { maximumFractionDigits: 2 })}${suffix}`;
+    }
+    const num = Number(value ?? 0);
     return `${num.toLocaleString("it-IT", { maximumFractionDigits: 2 })}${suffix}`;
   };
 }
@@ -67,9 +103,21 @@ export function CumulativePnlChart({
   const animate = useChartAnimation();
   const last = points.at(-1)?.cumulative ?? 0;
   const color = pnlChartColor(last === 0 ? 1 : last);
+
+  /* OVERLAY DEL DRAWDOWN. La curva e la buca erano due card separate con due
+     assi X diversi: per leggerle insieme — che è l'unico modo di leggerle —
+     l'occhio doveva saltare fra due grafici, e uno dei due poteva essere
+     nascosto dal menu widget. Qui la banda fra il PICCO CORRENTE e la curva
+     è disegnata sotto la curva stessa: dove la banda è spessa, eri sott'acqua.
+
+     È un'area RANGE [curva, picco] di Recharts, la stessa forma delle bande σ
+     dell'equity simulator. Il picco si deriva qui dai punti già in pagina:
+     nessun dato nuovo dal server, nessuna seconda convenzione di calcolo. */
+  const data = withDrawdownBand(withZeroStart(points));
+
   return (
     <ResponsiveContainer width="100%" height={height}>
-      <AreaChart data={withZeroStart(points)} margin={CHART.margin}>
+      <AreaChart data={data} margin={CHART.margin}>
         <defs>
           <linearGradient id="cumulative-fill" x1="0" y1="0" x2="0" y2="1">
             <stop offset="0%" stopColor={color} stopOpacity={CHART.areaFillFrom} />
@@ -96,6 +144,20 @@ export function CumulativePnlChart({
           contentStyle={CHART.tooltipStyle}
           itemStyle={CHART.tooltipItemStyle}
           labelStyle={CHART.tooltipLabelStyle}
+        />
+        {/* Banda del drawdown DIETRO la curva: la curva resta l'oggetto
+            principale, la buca è contesto. Tinta --loss a bassa opacità,
+            quindi segue la coppia P&L scelta in Impostazioni. */}
+        <Area
+          isAnimationActive={animate}
+          type="monotone"
+          dataKey="drawdownBand"
+          name="Sotto il picco"
+          stroke="none"
+          fill="var(--loss)"
+          fillOpacity={0.14}
+          connectNulls={false}
+          activeDot={false}
         />
         <Area
           isAnimationActive={animate}

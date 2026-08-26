@@ -7,6 +7,7 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
+import { cn } from "@/lib/utils";
 
 /**
  * Area di hover/tocco invisibile sopra un pallino del radar Score, col
@@ -26,16 +27,23 @@ export function ScoreDotTooltip({
   top,
 }: {
   label: string;
-  /** Valore 0-100 del fattore, identico a quello disegnato sul radar. */
-  value: number;
+  /**
+   * Valore 0-100 del fattore, identico a quello disegnato sul radar.
+   * `null` = fattore non calcolabile: resta fuori dalla media dello Score e
+   * qui lo si dichiara invece di mostrare uno zero che sembra un risultato.
+   */
+  value: number | null;
   /** Posizione del pallino in percentuale del riquadro del radar. */
   left: string;
   top: string;
 }) {
   const [open, setOpen] = useState(false);
-  const text = `${label}: ${value.toLocaleString("it-IT", {
-    maximumFractionDigits: 0,
-  })}/100`;
+  const text =
+    value === null
+      ? `${label}: non calcolabile (fuori dalla media)`
+      : `${label}: ${value.toLocaleString("it-IT", {
+          maximumFractionDigits: 0,
+        })}/100`;
 
   return (
     <TooltipProvider>
@@ -45,7 +53,10 @@ export function ScoreDotTooltip({
             type="button"
             aria-label={text}
             onClick={() => setOpen((v) => !v)}
-            className="absolute size-4 -translate-x-1/2 -translate-y-1/2 cursor-default rounded-full focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
+            className={cn(
+              "absolute size-4 -translate-x-1/2 -translate-y-1/2 cursor-default rounded-full focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring",
+              value === null && "ring-1 ring-dashed ring-muted-foreground/60",
+            )}
             style={{ left, top }}
           />
         </TooltipTrigger>

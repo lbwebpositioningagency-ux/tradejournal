@@ -1,7 +1,7 @@
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
-import { contrast, hex, outOfGamut } from "../../scripts/contrast.mjs";
+import { contrast, hex, oklchToSrgb, outOfGamut } from "../../scripts/contrast.mjs";
 
 /**
  * I contrasti del tema si CALCOLANO, non si stimano: è la regola del progetto
@@ -345,4 +345,83 @@ describe("E-1 — blocco @media print: il tema scuro non finisce sulla carta", (
     expect(PRINT_MEDIA).toMatch(/header,[\s\S]*?display:\s*none/);
     expect(PRINT_MEDIA).toMatch(/aside,/);
   });
+});
+
+/**
+ * F4 — SUPERFICI TINTE: il contrasto va ricontrollato dove il fondo NON è
+ * la card ma la card più una velatura del colore stesso.
+ *
+ * È il caso introdotto dalle nuove viste (matrice di correlazione, spunte
+ * della checklist, «ho seguito il piano») e già presente nelle celle dei
+ * calendari: `text-loss` su `bg-loss/20` è testo colorato su un fondo che
+ * tende allo stesso colore, quindi il rapporto scende sotto quello misurato
+ * su card. Se una di queste combinazioni non regge AA, il numero resta
+ * leggibile solo per chi ci vede bene — e il colore, in questo progetto,
+ * non è mai l'unica informazione ma deve comunque essere leggibile.
+ */
+
+/** Composizione alpha di `fg` su `bg`, entrambi sRGB 0-1. */
+function over(fg: number[], bg: number[], alpha: number): number[] {
+  return fg.map((c, i) => c * alpha + bg[i] * (1 - alpha));
+}
+
+function srgbContrast(a: number[], b: number[]): number {
+  const lum = ([r, g, bl]: number[]) => {
+    const lin = (c: number) =>
+      c <= 0.04045 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4;
+    return 0.2126 * lin(r) + 0.7152 * lin(g) + 0.0722 * lin(bl);
+  };
+  const [la, lb] = [lum(a), lum(b)];
+  const [hi, lo] = la > lb ? [la, lb] : [lb, la];
+  return (hi + 0.05) / (lo + 0.05);
+}
+
+describe("F4 — testo su fondo velato di un token P&L", () => {
+  /**
+   * REGOLA, misurata e non stimata: su una superficie velata di --profit o
+   * --loss il testo NON può essere lo stesso token. Il rapporto crolla —
+   * --loss su card + 30% di --loss vale 3,51:1 in dark, e in light la
+   * velatura massima che regge AA è il 7%, troppo pallida per una heatmap.
+   * Il testo resta `foreground` (6,2-17:1 su ogni velatura fino al 40%): il
+   * colore lo porta il fondo, il segno lo porta il + o il − del numero.
+   *
+   * Le combinazioni qui sotto sono quelle realmente rese: celle dei tre
+   * calendari, matrice di correlazione, bottoni della revisione.
+   */
+  const CASES: [string, string, string, number][] = [
+    ["matrice correlazione · alta", "foreground", "loss", 0.25],
+    ["matrice correlazione · media", "foreground", "warning", 0.2],
+    ["matrice correlazione · bassa", "foreground", "profit", 0.2],
+    ["revisione · piano seguito", "foreground", "profit", 0.15],
+    ["revisione · piano tradito", "foreground", "loss", 0.15],
+    ["calendario giorno · cella piena", "foreground", "profit", 0.3],
+    ["calendario giorno · cella piena (loss)", "foreground", "loss", 0.3],
+    ["mini calendario · cella", "foreground", "loss", 0.15],
+    ["calendario mensile · cella piena", "foreground", "profit", 0.3],
+  ];
+
+  for (const [theme, tokens] of [
+    ["light", light],
+    ["dark", dark],
+  ] as const) {
+    const surface = tokens.get("card")!;
+    it.each(CASES)(
+      `${theme}: %s regge AA`,
+      (_name, textToken, tintToken, alpha) => {
+        const text = tokens.get(textToken)!;
+        const tint = tokens.get(tintToken)!;
+        expect(text, `token --${textToken} in ${theme}`).toBeDefined();
+        const background = over(
+          oklchToSrgb(...tint),
+          oklchToSrgb(...surface),
+          alpha,
+        );
+        const ratio = srgbContrast(oklchToSrgb(...text), background);
+        expect(
+          ratio,
+          `${_name} in ${theme}: ${ratio.toFixed(2)}:1 su card + ${Math.round(alpha * 100)}% di --${tintToken}`,
+        ).toBeGreaterThanOrEqual(4.5);
+      },
+    );
+  }
 });

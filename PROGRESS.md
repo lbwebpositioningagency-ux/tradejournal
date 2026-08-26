@@ -1438,3 +1438,81 @@ tema scuro).
 46% del payload), l'overflow strutturale del popover della scala, e i sei
 rilievi P1 dell'audit non toccati in questo giro (versamenti/prelievi, drill-down
 dalle tabelle, ora di uscita, autosave del journal, tagging in blocco, MAE/MFE).
+
+## ✅ AUDIT JOURNAL — seconda onda F1-F7 (26/08/2026)
+
+Chiusura di **tutto il resto** di `docs/audit/06-premium-journal.md`, compresa
+la metà "premium" che la prima onda non aveva toccato. Criterio applicato a
+ogni voce: **se non è top, si cambia o si toglie**. Branch
+`audit/journal-onda2`, worktree dedicato, tutte le verifiche contro il
+Postgres locale.
+
+**F1 — lo Score intero, non un fattore.** La prima onda aveva corretto il solo
+Max Drawdown, e con lo strumento sbagliato. Su processo stazionario (stesso
+edge, cambia solo la finestra) lo Score derivava di **+9,9 punti** fra 30 e 500
+sedute: recovery factor +40, consistency +14, max drawdown +9 *nonostante* la
+normalizzazione √n — che funziona senza deriva ma su un conto profittevole
+ribalta il bias (dispersione 1,72× grezza → 2,37× normalizzata). Due regole
+nuove: **ogni fattore è un tasso o una media**, mai un massimo né un totale
+(max drawdown → Ulcer Index; consistency → coefficiente di variazione delle
+giornate positive, con deviazione campionaria; recovery factor → **disciplina**,
+quota di trade con piano completo, l'unico asse che misura un comportamento);
+e **un contratto di scala unico** — 0 allarme, 50 neutro, 100 eccellente su
+tutti e sei — che chiude il debito delle "unità miste" (un PF di 1, pareggio
+esatto, valeva 40 mentre un payoff di 1 valeva 50, e poi si sommavano a peso
+uguale). Dopo: deriva **−0,5**. Un fattore non calcolabile vale `null` e resta
+fuori dalla media, che dichiara su quanti fattori è stata fatta.
+
+**F2 — metriche mancanti.** Swap di posizione (colonna additiva, segno libero,
+`netPnl = lordo − fee − swap`); **VaR e CVaR** storici al 95% con cancello a 60
+sedute e coda sempre dichiarata; **ora di uscita** oltre a quella di ingresso
+(selettore in query string); **correlazione fra strategie** sui P&L giornalieri,
+calendario comune con lo zero dove non si opera, matrice triangolare;
+**confronto col buy & hold** — copertura verificata PRIMA di implementare
+(473 trade su 623, 75,9%: GC, CL ed ES coperti, NQ no) e per i simboli scoperti
+la riga dice «serie non disponibile», mai un proxy; **vocabolario unico delle
+giornate** (giornata operativa / seduta / giorno di calendario), perché l'app
+contava i giorni in tre modi e li chiamava tutti "giorni".
+
+**F3 — il journaling diventa un flusso.** Piano e revisione separati
+(`Note.tradePhase`), revisione **strutturata** a tre domande più
+`followedPlan` — l'unico campo aggregabile, con tre stati perché «non ancora
+risposto» non è «no» — e **checklist pre-trade riutilizzabile** con
+l'etichetta congelata sulla spunta. Due breakdown nuovi nei Reports: per
+categoria di tag e **piano rispettato**, che è la riga che trasforma il
+journaling da diario a misura.
+
+**F4 — visualizzazioni.** Una sola convenzione per le heatmap (soglie assolute,
+due scale dichiarate: prima il calendario giornaliero coloravа relativamente al
+giorno più grande del mese e due mesi non erano confrontabili); **overlay del
+drawdown** sulla curva di equity; il popover della scala diventa una **finestra**
+— risolto il contenitore, non i testi; e un **difetto AA preesistente su tutte
+le celle colorate**: `--loss` su un fondo velato di `--loss` vale 3,51:1 in
+dark, e in light la velatura massima che regge AA è il 7%. Il testo passa a
+`foreground` (6,2-17:1), il colore lo porta il fondo e il segno il numero.
+
+**F5 — report periodico.** Da settimanale a settimana/mese/trimestre/anno, con
+gli estremi in un modulo puro e testato (l'estremo destro è ESCLUSO: sbagliarlo
+perde un giorno di trade in silenzio), più `/api/export/report` — il CSV del
+**rendiconto**, non dei trade grezzi, in formato lungo.
+
+**F6 — tolto.** Zod fuori dal bundle di auth e impostazioni: `/register`
+137 → **74 kB gz**, `/settings` 160 → 97, `/settings/accounts` 157 → 94.
+Rimossi `stage-timing.ts` e i sei call-site `TODO(P-04)` (dichiarati
+temporanei un mese fa e ancora attivi in produzione), la rotta `/notebook`,
+`PagePlaceholder` e `formatDate`. `docs/audit/` entra nel repo.
+
+**Verificato:** lint ✅ · typecheck ✅ · **2081/2082 test** ✅ (da 1985) · build
+di produzione ✅ · controllo visivo su build reale contro Postgres locale
+(Score coi sei assi nuovi, overlay del drawdown, VaR/CVaR, benchmark con la
+riga «serie non disponibile», matrice di correlazione, selettore ora di
+apertura/chiusura, piano+checklist+revisione sul trade, checklist in
+Impostazioni, breakdown «piano rispettato», calendario con la nuova
+gradazione, report mensile col selettore, dialog della scala con overflow
+azzerato).
+
+**Resta a debito, dichiarato:** revisione strutturata degli SCREENSHOT
+allegati a un trade (gli allegati restano una lista piatta con miniature e
+lightbox); `/import` continua a portare zod nel client perché lì lo schema
+serve davvero a validare le righe nel browser; MAE/MFE fuori per vincolo dati
+dichiarato dall'utente.

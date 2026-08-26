@@ -1,6 +1,7 @@
 import Decimal from "decimal.js";
 import { describe, expect, it } from "vitest";
 import {
+  INTENSITY_THRESHOLDS,
   monthlyReturnGrids,
   returnIntensity,
 } from "./monthly-returns";
@@ -162,5 +163,46 @@ describe("golden su SIM1 (verificati a mano)", () => {
     expect(rets.some((r) => new Decimal(r).lt(0))).toBe(true);
     const intensities = new Set(rets.map((r) => returnIntensity(r)));
     expect(intensities.size).toBeGreaterThanOrEqual(3);
+  });
+});
+
+/**
+ * F4 — UNA SOLA CONVENZIONE PER LE HEATMAP. Prima il calendario giornaliero
+ * colorava relativamente al giorno più grande del mese e quello mensile su
+ * soglie assolute: due mesi non erano confrontabili, e la stessa gradazione
+ * voleva dire due cose a seconda della pagina.
+ */
+describe("returnIntensity — soglie assolute, due scale dichiarate", () => {
+  it("mese: soglie all'1% e al 4%", () => {
+    expect(returnIntensity("0.0399")).toBe(2);
+    expect(returnIntensity("0.04")).toBe(3);
+    expect(returnIntensity("0.0099")).toBe(1);
+    expect(returnIntensity("0.01")).toBe(2);
+  });
+
+  it("giorno: un quarto delle soglie del mese", () => {
+    expect(returnIntensity("0.01", "day")).toBe(3);
+    expect(returnIntensity("0.0025", "day")).toBe(2);
+    expect(returnIntensity("0.0024", "day")).toBe(1);
+    expect(INTENSITY_THRESHOLDS.day.high).toBe("0.01");
+    expect(INTENSITY_THRESHOLDS.month.high).toBe("0.04");
+  });
+
+  it("il segno non conta: la gradazione misura la MAGNITUDINE", () => {
+    expect(returnIntensity("-0.05")).toBe(returnIntensity("0.05"));
+    expect(returnIntensity("-0.02", "day")).toBe(returnIntensity("0.02", "day"));
+  });
+
+  it("null = nessun dato (0), zero esatto = pareggio (1): sono cose diverse", () => {
+    expect(returnIntensity(null)).toBe(0);
+    expect(returnIntensity("0")).toBe(1);
+  });
+
+  it("ASSOLUTE, non relative: lo stesso ritorno dà la stessa tinta sempre", () => {
+    // È la proprietà che rende confrontabili due mesi diversi, ed è quella
+    // che la vecchia regola "relativa al massimo del mese" non aveva.
+    const mesePiatto = returnIntensity("0.02");
+    const meseConPicco = returnIntensity("0.02");
+    expect(mesePiatto).toBe(meseConPicco);
   });
 });

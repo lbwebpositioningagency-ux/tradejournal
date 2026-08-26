@@ -274,25 +274,43 @@ export interface HourPerformanceRow extends SegmentAggregatesR {
 }
 
 /**
- * §2 — performance per fascia oraria di UN'ORA sull'orario di APERTURA.
+ * §2 — performance per fascia oraria di UN'ORA, sull'APERTURA o sulla
+ * CHIUSURA del trade.
+ *
+ * Le due basi rispondono a due domande diverse, ed è per questo che ci sono
+ * entrambe: «a che ora entro bene» è una domanda sul setup, «a che ora esco
+ * bene» è una domanda sulla gestione. Un sistema può avere l'ingresso
+ * migliore alle 9 e l'uscita peggiore alle 16 — con la sola apertura quella
+ * seconda metà non era osservabile.
  *
  * FUSO: quello dell'utente (`User.timezone`), con il doppio `AT TIME ZONE`
- * che il progetto usa ovunque — `openedAt` è un timestamp naive salvato in
- * UTC, il singolo passaggio lo interpreterebbe come ora locale. È la stessa
+ * che il progetto usa ovunque — i timestamp sono naive salvati in UTC, il
+ * singolo passaggio li interpreterebbe come ora locale. È la stessa
  * convenzione del breakdown orario dei Reports, così le due viste non
  * possono raccontare cose diverse sullo stesso trade. La pagina dichiara il
  * fuso in chiaro: una fascia oraria senza fuso esplicito è fuorviante.
+ *
+ * Sulla base CHIUSURA i trade ancora aperti non hanno un'ora: `closedAt` è
+ * null e la riga non entra. Il filtro dell'analytics tiene già solo i trade
+ * chiusi, quindi in pratica non cambia nulla — la clausola resta per
+ * chiarezza, non per difesa.
  */
+export const HOUR_BASES = ["open", "close"] as const;
+export type HourBasis = (typeof HOUR_BASES)[number];
+
 export async function getHourPerformance(
   filter: AnalyticsFilter,
   timezone: string,
+  basis: HourBasis = "open",
 ): Promise<HourPerformanceRow[]> {
+  const column =
+    basis === "close" ? Prisma.sql`t."closedAt"` : Prisma.sql`t."openedAt"`;
   return prisma.$queryRaw<HourPerformanceRow[]>(Prisma.sql`
     SELECT
-      EXTRACT(HOUR FROM (t."openedAt" AT TIME ZONE 'UTC') AT TIME ZONE ${timezone})::int AS "hour",
+      EXTRACT(HOUR FROM (${column} AT TIME ZONE 'UTC') AT TIME ZONE ${timezone})::int AS "hour",
       ${SEGMENT_COLUMNS}
     ${FROM_TRADES}
-    WHERE ${analyticsWhere(filter)}
+    WHERE ${analyticsWhere(filter)} AND ${column} IS NOT NULL
     GROUP BY 1
     ORDER BY 1 ASC
   `);
@@ -521,4 +539,84 @@ export async function getTopConcentration(
     FROM vincenti
   `);
   return rows[0];
+}
+
+export interface StrategyDayPnlRow {
+  strategyId: string;
+  strategyName: string;
+  day: string;
+  netPnl: string;
+  trades: number;
+}
+
+/**
+ * P&L per GIORNATA e per STRATEGIA, base della matrice di correlazione.
+ *
+ * Doppio `AT TIME ZONE` sul giorno di CHIUSURA, come ogni altro bucket
+ * giornaliero dell'app: la correlazione deve leggere le stesse giornate del
+ * calendario e della curva di equity, altrimenti confronta due calendari.
+ *
+ * I trade senza strategia restano FUORI: "nessuna strategia" non è una
+ * strategia, e una riga che raccoglie tutto ciò che non è stato classificato
+ * si correlerebbe con chiunque per costruzione.
+ */
+export async function getStrategyDayPnl(
+  filter: AnalyticsFilter,
+  timezone: string,
+): Promise<StrategyDayPnlRow[]> {
+  return prisma.$queryRaw<StrategyDayPnlRow[]>(Prisma.sql`
+    SELECT
+      s."id"                                              AS "strategyId",
+      s."name"                                            AS "strategyName",
+      to_char((t."closedAt" AT TIME ZONE 'UTC') AT TIME ZONE ${timezone},
+              'YYYY-MM-DD')                               AS "day",
+      COALESCE(SUM(t."netPnl"), 0)::text                  AS "netPnl",
+      COUNT(*)::int                                       AS "trades"
+    ${FROM_TRADES}
+    JOIN "Strategy" s ON s."id" = t."strategyId"
+    WHERE ${analyticsWhere(filter)}
+    GROUP BY 1, 2, 3
+    ORDER BY 2 ASC, 3 ASC
+  `);
+}
+
+export interface SymbolTradingRow {
+  symbol: string;
+  trades: number;
+  netPnl: string;
+  /** Quantità media per trade (per il buy & hold "della tua size"). */
+  avgQuantity: string;
+  /** Valore punto medio: i contratti dello stesso simbolo lo condividono. */
+  pointValue: string;
+  firstDay: string;
+  lastDay: string;
+}
+
+/**
+ * Quanto ha fatto l'utente su ciascun simbolo, e in quale finestra di giorni.
+ * Base del confronto col buy & hold (v. `queries/benchmark.ts`): sta qui e
+ * non lì perché usa `FROM_TRADES` e `analyticsWhere`, che sono la definizione
+ * di "quali trade contano" di questa pagina — duplicarla altrove creerebbe
+ * due perimetri per la stessa domanda.
+ */
+export async function getSymbolTrading(
+  filter: AnalyticsFilter,
+  timezone: string,
+): Promise<SymbolTradingRow[]> {
+  return prisma.$queryRaw<SymbolTradingRow[]>(Prisma.sql`
+    SELECT
+      t."symbol"                                          AS "symbol",
+      COUNT(*)::int                                       AS "trades",
+      COALESCE(SUM(t."netPnl"), 0)::text                  AS "netPnl",
+      COALESCE(AVG(t."quantity"), 0)::text                AS "avgQuantity",
+      COALESCE(AVG(t."pointValue"), 1)::text              AS "pointValue",
+      to_char(MIN((t."closedAt" AT TIME ZONE 'UTC') AT TIME ZONE ${timezone}),
+              'YYYY-MM-DD')                               AS "firstDay",
+      to_char(MAX((t."closedAt" AT TIME ZONE 'UTC') AT TIME ZONE ${timezone}),
+              'YYYY-MM-DD')                               AS "lastDay"
+    ${FROM_TRADES}
+    WHERE ${analyticsWhere(filter)}
+    GROUP BY 1
+    ORDER BY 2 DESC
+  `);
 }

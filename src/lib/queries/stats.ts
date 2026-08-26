@@ -189,6 +189,11 @@ export async function getTradeAggregates(
       COALESCE(SUM(t."netPnl") FILTER (WHERE t."netPnl" > 0), 0)::text AS "winSum",
       COALESCE(SUM(t."netPnl") FILTER (WHERE t."netPnl" < 0), 0)::text AS "lossSum",
       COALESCE(SUM(t."fees"), 0)::text                         AS "fees",
+      -- Fattore DISCIPLINA dello Score: trade chiusi con un piano COMPLETO
+      -- (stop e target entrambi pianificati). Conteggio, non media: la
+      -- quota la fa il modulo puro, qui si contano soltanto le righe.
+      (COUNT(*) FILTER (WHERE t."plannedStop" IS NOT NULL
+                          AND t."plannedTarget" IS NOT NULL))::int AS "plannedTrades",
       (COUNT(*) FILTER (WHERE t."rMultiple" IS NOT NULL))::int AS "rCount",
       (COUNT(*) FILTER (WHERE t."rMultiple" > 0))::int         AS "rWins",
       (COUNT(*) FILTER (WHERE t."rMultiple" < 0))::int         AS "rLosses",

@@ -82,6 +82,19 @@ export const tradeInputSchema = z.object({
     .trim()
     .transform((v) => (v === "" ? undefined : v))
     .optional(),
+  /**
+   * Swap / rollover in valuta conto. SEGNO LIBERO: su una coppia con
+   * differenziale favorevole è un accredito, e un `min(0)` lo renderebbe
+   * inesprimibile. Virgola accettata come separatore, come per gli altri
+   * importi.
+   */
+  swap: z
+    .string()
+    .trim()
+    .regex(/^-?\d+([.,]\d{1,2})?$/, "Swap non valido (max 2 decimali)")
+    .transform((v) => v.replace(",", "."))
+    .optional()
+    .or(z.literal("").transform(() => undefined)),
   rating: z.number().int().min(1).max(5).optional(),
   notes: z.string().trim().max(5000, "Nota troppo lunga").optional(),
   tags: z.array(tagInputSchema).max(10, "Massimo 10 tag").default([]),
