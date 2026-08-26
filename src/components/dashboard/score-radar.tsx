@@ -213,7 +213,20 @@ export function ScoreRadar({ result }: { result: RadarScore | null }) {
                 transform: labelTransform(side),
               }}
             >
-              <span>{SCORE_FACTOR_LABELS[key]}</span>
+              {/* Un asse non misurato lo dice anche a PAROLE: il vertice al
+                  centro, da solo, si legge come «punteggio zero» invece che
+                  «non misurato», e il colore o la forma non bastano mai come
+                  unico canale. */}
+              <span
+                className={cn(
+                  result !== null &&
+                    result.factors[key] === null &&
+                    "italic opacity-70",
+                )}
+              >
+                {SCORE_FACTOR_LABELS[key]}
+                {result !== null && result.factors[key] === null ? " —" : ""}
+              </span>
               <MetricInfo info={scoreFactorInfo(key, result)} size="sm" />
             </div>
           );
@@ -268,6 +281,32 @@ export function ScoreRadar({ result }: { result: RadarScore | null }) {
           </div>
         </div>
       </div>
+
+      {/* FATTORI NON MISURABILI. Un punteggio costruito su cinque fattori non
+          è confrontabile con uno costruito su sei: se non lo si dice, i due
+          numeri sembrano la stessa scala. Il motivo sta accanto al conteggio
+          — «non calcolabile» da solo si legge come un guasto. */}
+      {result !== null && result.computed < SCORE_FACTOR_KEYS.length ? (
+        <div className="w-full rounded-md border border-dashed px-2.5 py-2">
+          <p className="text-xs font-medium">
+            Media di {result.computed} fattori su {SCORE_FACTOR_KEYS.length}:
+            non è confrontabile con un punteggio calcolato su tutti e sei.
+          </p>
+          <ul className="mt-1 flex flex-col gap-0.5">
+            {SCORE_FACTOR_KEYS.filter((key) => result.factors[key] === null).map(
+              (key) => (
+                <li key={key} className="text-2xs text-muted-foreground">
+                  <span className="font-medium">
+                    {SCORE_FACTOR_LABELS[key]}
+                  </span>
+                  {": "}
+                  {result.missingReasons[key] ?? "non calcolabile nel periodo."}
+                </li>
+              ),
+            )}
+          </ul>
+        </div>
+      ) : null}
 
       {lowSample && result !== null ? (
         <p className="text-xs text-muted-foreground">

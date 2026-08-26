@@ -1427,6 +1427,11 @@ nella finestra corta win rate e profit factor sono davvero più alti. La prova
 che la componente meccanica è sparita sta nel test su processo stazionario, non
 in questi numeri.
 
+> ⚠️ **Numeri SUPERATI dalla seconda onda.** La tabella qui sopra resta come
+> registro di ciò che questa onda ha misurato, ma lo Score è stato riscritto:
+> i valori correnti — e la spiegazione del perché il divario su SIM1 è
+> AUMENTATO invece di scendere — stanno nella nota della seconda onda.
+
 **Verificato:** lint ✅ · typecheck ✅ · **1909/1910 test** ✅ (+41) · build di
 produzione ✅ · screenshot su build reale contro Postgres locale (Score dark e
 light, popover Sortino con e senza cancello, popover Calmar e fattore Max
@@ -1516,3 +1521,98 @@ allegati a un trade (gli allegati restano una lista piatta con miniature e
 lightbox); `/import` continua a portare zod nel client perché lì lo schema
 serve davvero a validare le righe nel browser; MAE/MFE fuori per vincolo dati
 dichiarato dall'utente.
+
+## ✅ AUDIT JOURNAL — coda della seconda onda (26/08/2026)
+
+Cinque punti rimasti aperti dopo la seconda onda. Branch
+`audit/journal-coda2`, worktree dedicato, verifiche contro il Postgres locale.
+
+**1. Le due voci F2 che erano rimaste fuori dal resoconto senza dichiararlo.**
+
+*Distribuzione R.* Verificata prima l'affidabilità dello stop: su SIM1 tutti i
+623 trade hanno rischio, stop e target; sui conti realistici la copertura del
+RISCHIO è 82% e 86%, quella dello STOP pianificato 62% e 54%. **53 trade hanno
+il rischio senza lo stop**: l'R è calcolabile lo stesso, quindi «senza stop»
+non vuol dire «fuori dall'istogramma» — il denominatore giusto è il rischio,
+ed è già quello che l'app usa. Quello che mancava è il **denaro**: 22 trade su
+120 sono il 18% delle righe ma portavano **+5.470,80 USD**, il 16% del
+movimento, e nulla lo diceva. Ora la copertura dichiara la quota di movimento
+rappresentata e l'importo escluso, e la dichiarazione è **azionabile**: nuovo
+filtro «Rischio» nella Trade View, con la sua chip, linkato dalla riga.
+
+*Durata ed esito.* La tabella per fascia rispondeva bucket per bucket ma non
+diceva se fra le righe ci fosse un andamento: con sette fasce e poche decine
+di trade per fascia una riga all'80% su cinque trade sembra un segnale e non
+lo è. Aggiunta la **correlazione punto-biseriale** fra durata ed esito su tutti
+i trade insieme, più le durate mediane di vincenti e perdenti. Sul conto
+futures: −0,13 su 120 trade → «nessun legame apprezzabile», mentre la tabella
+mostrava 80% a 15-30 min e 71% a 1-2 h.
+
+**2. Disciplina: «non misurabile» invece di zero.** Prima la premessa va
+corretta sui dati: il fattore **non legge** followedPlan, revisioni o
+checklist — legge `plannedStop`/`plannedTarget`, campi che esistono dal primo
+giorno. SIM1 ha 0 revisioni e disciplina 100, misurata su 623 su 623.
+
+Il difetto reale è un altro: chi importa da CSV senza colonne di piano si
+ritrova ogni trade senza piano, il rapporto vale 0 e il fattore emette il
+giudizio peggiore possibile su un dato assente. Ora il fattore guarda anche la
+**copertura del campo** (`DISCIPLINE_MIN_COVERAGE` = 20%): sotto quella soglia
+vale `null`, esce dalla media e la UI dichiara «media di 5 fattori su 6: non è
+confrontabile con un punteggio calcolato su tutti e sei», col motivo e i
+numeri. L'asse del radar porta il trattino e il corsivo: forma, testo e
+spiegazione, mai il colore da solo.
+
+| Slice · solo trade importati senza piano | Prima | Dopo |
+|---|---|---|
+| Conto futures | 78,00 (disciplina 0, 6/6) | **93,57** (disciplina —, 5/6) |
+| Conto forex | 76,33 (disciplina 0, 6/6) | **91,64** (disciplina —, 5/6) |
+
+**3. Numero stale corretto.** La nota della prima onda citava 5,21 punti di
+divario residuo su SIM1: è il valore del vecchio Score. Col motore nuovo è
+**12,31** sulla stessa coppia di finestre (72,02 contro 84,33) e **14,52**
+sulla coppia dell'onda 2 (72,02 contro 86,54). È aumentato, e il motivo va
+detto: la vecchia consistency lo mascherava con un errore di segno opposto
+(97,85 contro 75,65) e il drawdown ora riflette davvero che l'Ulcer di SIM1
+vale 4,76% su tutto lo storico contro 0,42% nell'ultimo mese. Tolti gli
+artefatti è emersa la differenza vera che si stavano in parte cancellando. La
+prova che la componente MECCANICA è sparita resta il test su processo
+stazionario: −0,5 punti.
+
+**4. PDF: era solo la stampa del browser, ora c'è un export vero.**
+`/api/export/report/pdf`, impaginato su un generatore PDF minimo scritto per
+l'occasione — zero dipendenze, font standard, A4, una pagina. Restano
+entrambe le strade e ora si chiamano per quello che sono: «Stampa» apre
+l'anteprima del browser, «PDF» scarica un documento uguale su ogni macchina.
+Due difetti trovati aprendo il file e non dal gate: la freccia del sottotitolo
+usciva come «?» (U+2192 non esiste in WinAnsi) e la perdita media usciva col
+segno «+». Un test fissa ora il vocabolario tipografico rappresentabile.
+
+**5. Coppie daltoniche: verificate, non più solo asserite.** I colori passano
+per una simulazione vera di dicromatismo (Viénot, Brignell & Mollon 1999) e la
+distanza si misura in OKLab.
+
+| coppia | vista normale | dicromatico (peggior tipo) |
+|---|---|---|
+| classic light / dark | 0,327 / 0,381 | 0,100 / 0,107 |
+| blue-red light / dark | 0,490 / 0,373 | **0,376 / 0,282** |
+| green-violet light / dark | 0,389 / 0,392 | **0,302 / 0,291** |
+
+Il claim regge: le due coppie dichiarate adatte stanno fra 2,6× e 3,8× la
+classica. **Nessun colore cambiato** — c'era da misurare, non da correggere.
+L'invariante che il test fissa è che *ciò che l'interfaccia afferma
+corrisponda alla misura*: la lista da verificare si ricava da
+`PNL_PALETTE_HINTS`. Verificate anche le serie categoriche: chart-1/chart-2
+(Sharpe e Sortino) restano a 0,29/0,28; chart-1/chart-5 collassano a 0,013 ma
+compaiono insieme solo fra i percorsi dell'equity simulator, dove sono texture
+decorativa a opacità 0,14-0,07 — esclusione dichiarata nel test.
+
+**Verificato:** lint ✅ · typecheck ✅ · **2130/2131 test** ✅ (da 2073) · build
+di produzione ✅ · controllo visivo su build reale (Score in stato «disciplina
+non misurabile», copertura R con importo e link, filtro Rischio nella Trade
+View, riquadro durata/esito, PDF scaricato e aperto).
+
+**Resta aperto:** revisione strutturata degli screenshot allegati a un trade;
+`/import` porta ancora zod nel client perché lì lo schema valida davvero le
+righe nel browser; MAE/MFE fuori per vincolo dati; il test
+`segreti-nel-repo` (di un'altra sessione) va in timeout a 5 s su filesystem
+freddo e passa a caldo in 1,6 s — non è codice di questo perimetro.

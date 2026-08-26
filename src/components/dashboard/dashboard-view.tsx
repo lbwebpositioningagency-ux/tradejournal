@@ -189,6 +189,8 @@ export interface DashboardData {
   fees: string;
   netR: string;
   rCount: number;
+  /** P&L netto dei trade senza R (fuori dall'istogramma). */
+  netPnlWithoutR: string;
   winRate: string | null;
   dayWinRate: string | null;
   dayWins: number;
@@ -1137,8 +1139,20 @@ export function DashboardView({ data }: { data: DashboardData }) {
                   <p className="stat-sub mt-1">
                     {data.rCount} trade su {data.totalTrades} con rischio
                     definito · fasce di 0,5R
-                    {data.totalTrades > data.rCount &&
-                      ` · ${data.totalTrades - data.rCount} senza rischio, fuori dall'istogramma`}
+                    {data.totalTrades > data.rCount && (
+                      <>
+                        {" · "}
+                        <Link
+                          href="/trades?risk=missing"
+                          className="underline underline-offset-2"
+                        >
+                          {data.totalTrades - data.rCount} senza rischio
+                        </Link>
+                        {" fuori dall'istogramma, con "}
+                        {money(data.netPnlWithoutR, null)}
+                        {" di P&L"}
+                      </>
+                    )}
                   </p>
                 </>
               ) : (

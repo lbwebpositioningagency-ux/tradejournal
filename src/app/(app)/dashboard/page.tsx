@@ -324,6 +324,7 @@ export default async function DashboardPage({
     // che cresce con la finestra) né il P&L netto (un totale).
     ulcer,
     plannedTrades: agg.plannedTrades,
+    tradesWithAnyPlan: agg.tradesWithAnyPlan,
     daily,
   });
   const expectancyR =
@@ -386,6 +387,8 @@ export default async function DashboardPage({
     fees: agg.fees,
     netR: rTotal.toFixed(2),
     rCount: agg.rCount,
+    // Denaro fuori dall'istogramma R: il conteggio dei trade non basta.
+    netPnlWithoutR: agg.netPnlWithoutR,
     winRate: winRate(agg.wins, agg.total),
     dayWinRate,
     dayWins,

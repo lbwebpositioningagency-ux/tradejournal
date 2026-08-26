@@ -38,6 +38,7 @@ export {
   SCORE_FACTOR_INFO,
   scoreFactorInfo,
   SCORE_MIN_TRADES,
+  DISCIPLINE_MIN_COVERAGE,
   anchoredScore,
   positiveDayCv,
   SCORE_ANCHORS,
@@ -100,6 +101,13 @@ export {
   formatDayCount,
   type DayUnit,
 } from "./day-vocabulary";
+export {
+  holdingTimeOutcome,
+  holdingTimeInfo,
+  HOLDING_MIN_TRADES,
+  type HoldingTimeInput,
+  type HoldingTimeOutcome,
+} from "./holding-time";
 export { ulcerIndex, ulcerInfo } from "./ulcer";
 export {
   valueAtRisk,

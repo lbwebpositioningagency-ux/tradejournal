@@ -95,14 +95,42 @@ export interface RadarScoreInput {
    * serie giornaliera del resto della dashboard. null = non calcolabile.
    */
   ulcer: string | null;
-  /** Trade chiusi con stop E target pianificati (fattore disciplina). */
+  /** Trade chiusi con stop E target pianificati (numeratore della disciplina). */
   plannedTrades: number;
+  /**
+   * Trade chiusi che portano ALMENO UNO dei due campi di piano (stop oppure
+   * target). È il segnale che distingue «non pianifico» da «il campo non è
+   * in uso»: v. DISCIPLINE_MIN_COVERAGE.
+   */
+  tradesWithAnyPlan: number;
   /** Serie giornaliera del periodo (per la consistency). */
   daily: { netPnl: string }[];
 }
 
 /** Stessa soglia di significatività di SQN/Optimal f (30 trade). */
 export const SCORE_MIN_TRADES = 30;
+
+/**
+ * COPERTURA MINIMA DEI CAMPI DI PIANO perché la disciplina sia misurabile.
+ *
+ * Il problema, che è reale e non ipotetico: chi importa lo storico da un CSV
+ * senza colonne di stop e target si ritrova ogni trade privo di piano. Il
+ * rapporto `piani completi / trade` varrebbe 0 e il fattore direbbe
+ * «disciplina pessima» — un giudizio, per giunta il peggiore possibile, su
+ * un dato che semplicemente non c'è. Misurato sui conti realistici del seed:
+ * 46 trade su 120 e 42 su 91 non hanno NESSUNO dei due campi.
+ *
+ * La regola: se i campi di piano sono usati su meno di questa quota dei
+ * trade, non sono in uso — e un fattore che non si può misurare vale `null`
+ * ed esce dalla media, che dichiara su quanti fattori è stata fatta. Sopra
+ * la soglia il campo è in uso, e allora un trade senza piano è davvero un
+ * trade senza piano.
+ *
+ * Il verso dell'errore è deliberato. Dire «non misurabile» a un trader che è
+ * davvero indisciplinato gli nasconde un giudizio; dire 0 a chi non ha il
+ * dato gliene inventa uno. Fra i due, questo progetto non inventa.
+ */
+export const DISCIPLINE_MIN_COVERAGE = "0.20";
 
 /**
  * Ancore di un fattore. `lowerIsBetter` inverte il verso senza cambiare il
@@ -173,6 +201,12 @@ export interface RadarScore {
   factors: RadarScoreFactors;
   /** Quanti fattori sono entrati nella media (≤ 6): la UI lo dichiara. */
   computed: number;
+  /**
+   * Perché un fattore non è calcolabile, quando la ragione è un DATO che
+   * manca e non una divisione impossibile. La UI la mostra accanto al
+   * punteggio: «non calcolabile» senza il motivo si legge come un guasto.
+   */
+  missingReasons: Partial<Record<ScoreFactorKey, string>>;
   /** true sotto SCORE_MIN_TRADES: il numero va presentato come indicativo. */
   lowSample: boolean;
   total: number;
@@ -275,11 +309,15 @@ export function radarScore(input: RadarScoreInput): RadarScore | null {
         : new Decimal(0)
       : factorOf("avgWinLoss", payoff);
 
-  // DISCIPLINA — quota di trade chiusi con piano completo.
-  const disciplineScore = factorOf(
-    "discipline",
-    new Decimal(input.plannedTrades).div(input.total).toFixed(6),
-  );
+  // DISCIPLINA — quota di trade chiusi con piano completo, ma solo se i
+  // campi di piano risultano in uso (v. DISCIPLINE_MIN_COVERAGE).
+  const planCoverage = new Decimal(input.tradesWithAnyPlan).div(input.total);
+  const disciplineScore = planCoverage.lt(DISCIPLINE_MIN_COVERAGE)
+    ? null
+    : factorOf(
+        "discipline",
+        new Decimal(input.plannedTrades).div(input.total).toFixed(6),
+      );
 
   // DRAWDOWN (Ulcer) e CONSISTENCY (CV): null se non calcolabili.
   const drawdownScore = factorOf("drawdown", input.ulcer);
@@ -304,12 +342,26 @@ export function radarScore(input: RadarScoreInput): RadarScore | null {
     .div(computable.length)
     .toDecimalPlaces(2, Decimal.ROUND_HALF_UP);
 
+  const missingReasons: Partial<Record<ScoreFactorKey, string>> = {};
+  if (disciplineScore === null) {
+    missingReasons.discipline = `Stop e target pianificati compilati su ${input.tradesWithAnyPlan} trade su ${input.total}: sotto il ${new Decimal(DISCIPLINE_MIN_COVERAGE).times(100).toFixed(0)}% il campo non risulta in uso, e un rapporto calcolato su un dato assente sarebbe un giudizio inventato.`;
+  }
+  if (drawdownScore === null) {
+    missingReasons.drawdown =
+      "Ulcer Index non calcolabile sul periodo: serve una serie giornaliera con equity positiva.";
+  }
+  if (consistencyScore === null) {
+    missingReasons.consistency =
+      "Servono almeno due giornate positive: con una sola la dispersione è zero per definizione.";
+  }
+
   return {
     score: score.toFixed(2),
     factors: Object.fromEntries(
       SCORE_FACTOR_KEYS.map((k) => [k, toFactor(scores[k])]),
     ) as RadarScoreFactors,
     computed: computable.length,
+    missingReasons,
     lowSample: input.total < SCORE_MIN_TRADES,
     total: input.total,
   };

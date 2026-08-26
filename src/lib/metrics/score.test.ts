@@ -13,6 +13,7 @@ import {
   SCORE_FACTOR_INFO,
   SCORE_FACTOR_KEYS,
   SCORE_MIN_TRADES,
+  DISCIPLINE_MIN_COVERAGE,
   ulcerIndex,
 } from "./index";
 import type { RadarScoreInput } from "./index";
@@ -31,6 +32,7 @@ const base: RadarScoreInput = {
   lossSum: "-4500.00",
   ulcer: "0.0500", // esattamente il neutro della scala Ulcer
   plannedTrades: 50, // esattamente il neutro della disciplina
+  tradesWithAnyPlan: 50, // campo di piano in uso su tutti i trade
   daily: [
     { netPnl: "1500.00" },
     { netPnl: "1500.00" },
@@ -128,6 +130,7 @@ describe("radarScore — fattori e composizione", () => {
       lossSum: "-6000.00", // PF 1,00 = pareggio; payoff 150/100 → 1,5
       ulcer: "0.0500",
       plannedTrades: 50,
+      tradesWithAnyPlan: 50,
       daily: [{ netPnl: "100" }, { netPnl: "300" }],
     })!;
     expect(neutral.factors.winRate).toBe(50);
@@ -145,6 +148,7 @@ describe("radarScore — fattori e composizione", () => {
       lossSum: "0.00",
       ulcer: "0.0000",
       plannedTrades: 40,
+      tradesWithAnyPlan: 40,
       daily: [
         { netPnl: "1000.00" },
         { netPnl: "1000.00" },
@@ -168,6 +172,7 @@ describe("radarScore — fattori e composizione", () => {
       lossSum: "-3000.00",
       ulcer: "0.3000",
       plannedTrades: 27, // 90% → disciplina al massimo
+      tradesWithAnyPlan: 27,
       daily: [{ netPnl: "-1500.00" }, { netPnl: "-1500.00" }],
     })!;
     expect(result.factors.winRate).toBe(0);
@@ -202,6 +207,7 @@ describe("radarScore — fattori e composizione", () => {
         lossSum: "0",
         ulcer: null,
         plannedTrades: 0,
+        tradesWithAnyPlan: 0,
         daily: [],
       }),
     ).toBeNull();
@@ -222,6 +228,7 @@ describe("radarScore — fattori e composizione", () => {
       lossSum: "-100.00",
       ulcer: "0.0001",
       plannedTrades: 50,
+      tradesWithAnyPlan: 50,
       daily: [{ netPnl: "25000.00" }, { netPnl: "24900.00" }],
     })!;
     for (const key of SCORE_FACTOR_KEYS) {
@@ -234,9 +241,98 @@ describe("radarScore — fattori e composizione", () => {
   });
 
   it("la disciplina è un tasso: dipende dalla QUOTA di piani, non dal loro numero", () => {
-    const pochi = radarScore({ ...base, total: 40, plannedTrades: 36 })!;
-    const molti = radarScore({ ...base, total: 400, plannedTrades: 360 })!;
+    const pochi = radarScore({
+      ...base,
+      total: 40,
+      plannedTrades: 36,
+      tradesWithAnyPlan: 36,
+    })!;
+    const molti = radarScore({
+      ...base,
+      total: 400,
+      plannedTrades: 360,
+      tradesWithAnyPlan: 360,
+    })!;
     expect(pochi.factors.discipline).toBe(molti.factors.discipline);
+  });
+});
+
+/**
+ * DATO DI PIANO ASSENTE: il caso che un import CSV senza colonne di stop e
+ * target produce su tutto lo storico. Il rapporto «piani completi / trade»
+ * varrebbe 0 e il fattore direbbe «disciplina pessima» — il giudizio
+ * peggiore possibile, su un dato che non c'è.
+ */
+describe("disciplina — quando il campo di piano non è in uso", () => {
+  it("nessun trade porta un campo di piano → null, MAI zero", () => {
+    const result = radarScore({
+      ...base,
+      plannedTrades: 0,
+      tradesWithAnyPlan: 0,
+    })!;
+    expect(result.factors.discipline).toBeNull();
+    expect(result.computed).toBe(5);
+  });
+
+  it("il motivo è dichiarato, coi numeri: «non calcolabile» da solo sembra un guasto", () => {
+    const result = radarScore({
+      ...base,
+      total: 200,
+      plannedTrades: 0,
+      tradesWithAnyPlan: 3,
+    })!;
+    expect(result.missingReasons.discipline).toContain("3 trade su 200");
+    expect(result.missingReasons.discipline).toContain("20%");
+  });
+
+  it("la media si ricalcola sui SOLI fattori misurati, senza il buco", () => {
+    const conDato = radarScore(base)!;
+    const senzaDato = radarScore({
+      ...base,
+      plannedTrades: 0,
+      tradesWithAnyPlan: 0,
+    })!;
+    const media = (r: typeof conDato) =>
+      SCORE_FACTOR_KEYS.map((k) => r.factors[k])
+        .filter((v): v is number => v !== null)
+        .reduce((a, b) => a + b, 0) / r.computed;
+    expect(Number(senzaDato.score)).toBeCloseTo(media(senzaDato), 1);
+    expect(senzaDato.computed).toBe(5);
+    expect(conDato.computed).toBe(6);
+  });
+
+  it("sopra la soglia di copertura il campo È in uso: un trade senza piano conta", () => {
+    // 50 trade su 100 hanno un campo di piano (50% > 20%), ma solo 20 lo
+    // hanno completo: la disciplina è misurata e vale poco. È un giudizio
+    // legittimo, perché il dato c'è.
+    const result = radarScore({
+      ...base,
+      total: 100,
+      plannedTrades: 20,
+      tradesWithAnyPlan: 50,
+    })!;
+    expect(result.factors.discipline).not.toBeNull();
+    expect(result.factors.discipline!).toBeLessThan(50);
+    expect(result.missingReasons.discipline).toBeUndefined();
+  });
+
+  it("esattamente alla soglia il fattore si calcola: il confine è incluso", () => {
+    const result = radarScore({
+      ...base,
+      total: 100,
+      plannedTrades: 10,
+      tradesWithAnyPlan: 20,
+    })!;
+    expect(result.factors.discipline).not.toBeNull();
+    expect(DISCIPLINE_MIN_COVERAGE).toBe("0.20");
+  });
+
+  it("uno Score senza disciplina NON è confrontabile con uno che ce l'ha, e lo dichiara", () => {
+    const senza = radarScore({ ...base, plannedTrades: 0, tradesWithAnyPlan: 0 })!;
+    expect(senza.computed).toBeLessThan(SCORE_FACTOR_KEYS.length);
+    // È `computed` il campo che la UI deve mostrare: senza, due punteggi
+    // costruiti su un numero diverso di fattori sembrano la stessa scala.
+    expect(senza.computed).toBe(5);
   });
 });
 
@@ -304,6 +400,7 @@ describe("Q-1 — lo Score è piatto su un processo stazionario", () => {
           lossSum: s.lossSum,
           ulcer: ulcerIndex(series, EQUITY),
           plannedTrades: s.plannedTrades,
+          tradesWithAnyPlan: s.plannedTrades,
           daily: s.days,
         })!;
         score += Number(r.score);

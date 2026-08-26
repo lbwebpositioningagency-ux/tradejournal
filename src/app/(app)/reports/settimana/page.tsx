@@ -2,7 +2,13 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import Decimal from "decimal.js";
-import { ArrowLeft, ChevronLeft, ChevronRight, Download } from "lucide-react";
+import {
+  ArrowLeft,
+  ChevronLeft,
+  ChevronRight,
+  Download,
+  FileDown,
+} from "lucide-react";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { resolveTradeScope } from "@/lib/demo-account";
@@ -238,6 +244,19 @@ export default async function WeeklyReportPage({
             >
               <Download className="size-4" />
               CSV
+            </a>
+          </Button>
+          <Button asChild variant="outline" size="sm">
+            {/* Export PDF VERO: un file, non la finestra di stampa. Stessa
+                uscita su ogni macchina, nome deterministico, allegabile. */}
+            <a
+              href={`/api/export/report/pdf?r=${range}&w=${start}${
+                scope.active ? `&cur=${scope.active}` : ""
+              }`}
+              download
+            >
+              <FileDown className="size-4" />
+              PDF
             </a>
           </Button>
           <PrintButton />
