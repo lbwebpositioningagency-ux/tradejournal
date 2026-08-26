@@ -1,5 +1,10 @@
 import { describe, expect, it } from "vitest";
-import { statusPerEsito, verificaEsitoJob, type EsitoSerie } from "./job-esito";
+import {
+  perditaOhlc,
+  statusPerEsito,
+  verificaEsitoJob,
+  type EsitoSerie,
+} from "./job-esito";
 import {
   RITARDO_SIGNIFICATIVO_GIORNI,
   ritardoRelativo,
@@ -149,5 +154,117 @@ describe("ritardoRelativo", () => {
       { codice: "C", ultimoDato: d("2026-08-14") },
     ]);
     expect(esito.inRitardo.map((s) => s.codice)).toEqual(["B", "C"]);
+  });
+});
+
+/* ── perdita di OHLC ─────────────────────────────────────────────────── */
+
+describe("perditaOhlc", () => {
+  it("la fonte le dava, nel database non ci sono: FALLIMENTO", () => {
+    // è il difetto vissuto fino al 26/08/2026: l'adattatore riceveva
+    // open/high/low e scriveva la sola chiusura, e il job restava verde
+    const motivo = perditaOhlc({
+      fornito: true,
+      dallaFonte: 8256,
+      scritteConOhlc: 0,
+      scartatePerIncoerenza: 0,
+    });
+    expect(motivo).not.toBeNull();
+    expect(motivo).toContain("perso in scrittura");
+    expect(motivo).toContain("8256");
+  });
+
+  it("nessuna tolleranza: anche una sola seduta persa è un fallimento", () => {
+    expect(
+      perditaOhlc({ fornito: true, dallaFonte: 100, scritteConOhlc: 99, scartatePerIncoerenza: 0 }),
+    ).not.toBeNull();
+  });
+
+  it("il provider le promette e non ne manda nessuna: FALLIMENTO a monte", () => {
+    const motivo = perditaOhlc({
+      fornito: true,
+      dallaFonte: 0,
+      scritteConOhlc: 0,
+      scartatePerIncoerenza: 0,
+    });
+    expect(motivo).toContain("forma della risposta cambiata");
+  });
+
+  it("un provider a valore singolo (FRED) non fallisce mai per questo", () => {
+    expect(
+      perditaOhlc({ fornito: false, dallaFonte: 0, scritteConOhlc: 0, scartatePerIncoerenza: 0 }),
+    ).toBeNull();
+  });
+
+  it("scritte quante ne dava la fonte: nessun problema", () => {
+    expect(
+      perditaOhlc({ fornito: true, dallaFonte: 8256, scritteConOhlc: 8256, scartatePerIncoerenza: 0 }),
+    ).toBeNull();
+  });
+
+  it("senza contabilità non si inventa un verdetto", () => {
+    expect(perditaOhlc(undefined)).toBeNull();
+  });
+});
+
+describe("verificaEsitoJob — la perdita di OHLC affonda il job", () => {
+  const conOhlc = (codice: string, ohlc: EsitoSerie["ohlc"]): EsitoSerie => ({
+    codice,
+    stato: "aggiornato",
+    scritte: 10,
+    ohlc,
+  });
+
+  it("una serie «aggiornata» che ha perso l'OHLC diventa un ERRORE", () => {
+    const v = verificaEsitoJob(
+      ["XAUUSD"],
+      [conOhlc("XAUUSD", { fornito: true, dallaFonte: 8256, scritteConOhlc: 0, scartatePerIncoerenza: 0 })],
+    );
+    expect(v.riuscito).toBe(false);
+    expect(v.inErrore).toEqual(["XAUUSD"]);
+    expect(statusPerEsito(v)).toBe(500);
+  });
+
+  it("il messaggio dice COSA è successo, non solo su quale serie", () => {
+    const v = verificaEsitoJob(
+      ["XAUUSD"],
+      [conOhlc("XAUUSD", { fornito: true, dallaFonte: 8256, scritteConOhlc: 0, scartatePerIncoerenza: 0 })],
+    );
+    expect(v.perditeOhlc).toHaveLength(1);
+    expect(v.messaggio).toContain("XAUUSD");
+    expect(v.messaggio).toContain("perso in scrittura");
+  });
+
+  it("le serie sane non vengono trascinate giù da quella guasta", () => {
+    const v = verificaEsitoJob(
+      ["XAUUSD", "WTI"],
+      [
+        conOhlc("XAUUSD", { fornito: true, dallaFonte: 100, scritteConOhlc: 0, scartatePerIncoerenza: 0 }),
+        conOhlc("WTI", { fornito: false, dallaFonte: 0, scritteConOhlc: 0, scartatePerIncoerenza: 0 }),
+      ],
+    );
+    expect(v.inErrore).toEqual(["XAUUSD"]);
+  });
+
+  it("un job tutto sano resta verde e non cambia comportamento", () => {
+    const v = verificaEsitoJob(
+      ["XAUUSD", "WTI"],
+      [
+        conOhlc("XAUUSD", { fornito: true, dallaFonte: 100, scritteConOhlc: 100, scartatePerIncoerenza: 0 }),
+        conOhlc("WTI", { fornito: false, dallaFonte: 0, scritteConOhlc: 0, scartatePerIncoerenza: 0 }),
+      ],
+    );
+    expect(v.riuscito).toBe(true);
+    expect(v.perditeOhlc).toEqual([]);
+    expect(statusPerEsito(v)).toBe(200);
+  });
+
+  it("una serie senza contabilità si comporta esattamente come prima", () => {
+    const v = verificaEsitoJob(
+      ["A"],
+      [{ codice: "A", stato: "invariato", scritte: 0 }],
+    );
+    expect(v.riuscito).toBe(true);
+    expect(v.invariate).toEqual(["A"]);
   });
 });

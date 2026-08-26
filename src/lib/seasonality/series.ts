@@ -16,10 +16,39 @@
 
 import { isoWeek, isoWeekYear, isoWeeksInYear } from "@/lib/seasonality/buckets";
 
+/**
+ * Una seduta.
+ *
+ * `close` è il motore di tutto ciò che questo modulo calcola: rendimenti,
+ * medie, livelli. `open/high/low` sono FACOLTATIVE perché non tutte le fonti
+ * le pubblicano — le serie FRED a valore singolo (WTI spot, VIX, GVZ, OVX)
+ * hanno solo la chiusura — e nessuna funzione qui dentro le usa: aggiungerle
+ * non può cambiare un solo numero già calcolato.
+ */
 export interface DailyBar {
   /** "YYYY-MM-DD" */
   date: string;
   close: number;
+  open?: number;
+  high?: number;
+  low?: number;
+}
+
+/**
+ * Vero se la barra porta tutte e tre le facce oltre alla chiusura. Usata dove
+ * serve separare le sedute con OHLC da quelle senza, invece di mescolarle.
+ */
+export function hasOhlc(
+  bar: DailyBar,
+): bar is DailyBar & { open: number; high: number; low: number } {
+  return (
+    typeof bar.open === "number" &&
+    Number.isFinite(bar.open) &&
+    typeof bar.high === "number" &&
+    Number.isFinite(bar.high) &&
+    typeof bar.low === "number" &&
+    Number.isFinite(bar.low)
+  );
 }
 
 export interface DailyReturn {
@@ -67,14 +96,43 @@ function parseDate(date: string): { year: number; month: number; day: number } {
  * fantasma, che sporcherebbe hit rate e deviazione standard.
  */
 export function normalizeBars(bars: DailyBar[]): DailyBar[] {
-  const byDate = new Map<string, number>();
+  const byDate = new Map<string, DailyBar>();
   for (const b of bars) {
     if (!Number.isFinite(b.close) || b.close <= 0) continue; // prezzo nullo o negativo: non è un prezzo
-    byDate.set(b.date, b.close);
+    /* Si conserva la BARRA INTERA, non la sola chiusura: fino al 26/08/2026
+       questa funzione ricostruiva `{date, close}` e buttava open/high/low
+       arrivate dalla fonte. Era il punto in cui l'escursione vera della
+       giornata spariva, molto prima del database. */
+    byDate.set(b.date, plausibile(b));
   }
-  return [...byDate.entries()]
-    .map(([date, close]) => ({ date, close }))
-    .sort((a, b) => (a.date < b.date ? -1 : a.date > b.date ? 1 : 0));
+  return [...byDate.values()].sort((a, b) =>
+    a.date < b.date ? -1 : a.date > b.date ? 1 : 0,
+  );
+}
+
+/**
+ * Scarta un OHLC internamente incoerente invece di salvarlo.
+ *
+ * Il vincolo è quello che definisce una barra: `low ≤ min(open, close)` e
+ * `high ≥ max(open, close)`, con tutti i valori positivi. Una barra che lo
+ * viola non è "un po' imprecisa", è corrotta — in questo progetto un bug del
+ * punto decimale ha già mandato in produzione valori ×1000 — e produrrebbe
+ * un'escursione negativa o assurda. La chiusura resta: è il dato che tutto il
+ * resto usa e non dipende dalle altre tre.
+ */
+function plausibile(b: DailyBar): DailyBar {
+  const { open, high, low, close } = b;
+  const tutte =
+    typeof open === "number" &&
+    typeof high === "number" &&
+    typeof low === "number";
+  if (!tutte) return { date: b.date, close };
+  const finiti = [open, high, low].every((v) => Number.isFinite(v) && v > 0);
+  const coerenti =
+    low <= Math.min(open, close) && high >= Math.max(open, close) && low <= high;
+  return finiti && coerenti
+    ? { date: b.date, close, open, high, low }
+    : { date: b.date, close };
 }
 
 /**

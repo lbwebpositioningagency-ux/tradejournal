@@ -245,3 +245,87 @@ piu** fra quelle tre per la parte di contesto: livello, rango, variazione e
 movimento arrivano da `SeasonalityDailyBar`, aggiornata ogni notte. Restano
 dal report gli indici che solo lui porta (VVIX, SKEW, put/call, MOVE) e il
 commento del giorno, entrambi etichettati come tali con la data del report.
+
+## OHLC giornaliero: cosa copre e cosa no (26/08/2026)
+
+Le colonne `open/high/low` esistono su `SeasonalityDailyBar` e il desk mostra
+l'escursione vera `(high-low)/close`. Quello che segue e cio che NON copre.
+
+### Il WTI resta senza escursione vera
+
+La catena del WTI e FRED `DCOILWTICO` (primaria) e Dukascopy `lightcmdusd`
+(riserva). FRED risponde, quindi la riserva non viene mai raggiunta, e FRED
+pubblica una serie a VALORE SINGOLO: la chiusura spot di Cushing, senza
+massimo e minimo. Su WTI la pagina dichiara «dato non disponibile» col motivo.
+
+Le due strade per chiuderlo sono entrambe decisioni, non lavoro:
+
+- **passare al front future** (Yahoo `CL=F`, OHLC completo e otto giorni piu
+  fresco dello spot). Ma **cambia la serie**: la stagionalita calcolata sul
+  future non e quella calcolata sullo spot, e i numeri storici si muovono. E
+  una migrazione, non un aggiornamento — v. voce (b)7 di
+  `docs/macro-desk/ANALISI-TERMINALE-PRO.md`;
+- **prendere high/low da Dukascopy tenendo la chiusura FRED**: da scartare.
+  Mescolerebbe in una riga sola il massimo di un CFD col la chiusura di un
+  altro strumento, ed e esattamente il genere di silenzio che questo desk
+  toglie.
+
+### Gli indici di volatilita non hanno OHLC da FRED, ma ce l'hanno da CBOE
+
+VIX, GVZ e OVX arrivano da FRED a valore singolo. Il CDN di CBOE pubblica gli
+stessi indici con OHLC completo e un giorno piu fresco (verificato il
+26/08/2026: `VIX_History.csv` ha `DATE,OPEN,HIGH,LOW,CLOSE`). E la voce (a)3-4
+del piano terminale, non di questo passo.
+
+### DIFETTO NOTO DELLA FONTE STORICA: 122 barre dell'oro con la chiusura fuori dal range
+
+**Strumento**: XAUUSD · **fonte**: Dukascopy `xauusd`, candele `d1` bid
+**Intervallo**: dal **15/06/1999** al **01/10/2002**
+**Numero**: **122 sedute** su 8.256 (1,5% della serie)
+
+| Anno | Sedute |
+|---|---|
+| 1999 | 28 |
+| 2000 | 52 |
+| 2001 | 20 |
+| 2002 | 22 |
+| **totale** | **122** |
+
+**In cosa consiste.** La chiusura cade di qualche centesimo SOTTO il minimo
+della stessa barra, cioe la candela viola il proprio vincolo interno
+`low <= min(open, close)`. Esempi presi dalla fonte:
+
+```
+02/07/2002  O=314,65  H=315,90  L=312,80  C=312,70
+08/08/2002  O=313,80  H=314,70  L=310,60  C=310,40
+25/09/2002  O=325,90  H=326,30  L=322,50  C=322,00
+```
+
+L'origine e a monte: su quei dati la chiusura giornaliera e presa da un
+insieme di tick diverso da quello su cui sono aggregati massimo e minimo.
+Riguarda **solo** l'oro e **solo** i primi anni della serie: dal 2003 in poi
+non se ne presenta piu nessuna.
+
+**Cosa fa il codice.** `normalizeBars` rifiuta l'OHLC di quelle barre e tiene
+la sola chiusura: nessuna riparazione, nessuna sostituzione del minimo con la
+chiusura. Su una barra corrotta si preferisce non avere l'escursione piuttosto
+che averne una sbagliata — ed e la stessa guardia che protegge dal bug del
+punto decimale gia visto in produzione su DV1X.
+
+**Perche non si corregge.** Sarebbe riscrivere dati della fonte su
+un'inferenza nostra, per l'1,5% di una serie e su sedute di oltre vent'anni
+fa. Il numero non e nascosto: la pagina dichiara «calcolata sulle 8.134 sedute
+su 8.256» e il job lo riporta a ogni esecuzione
+(`ContoOhlc.scartatePerIncoerenza`). Se un giorno diventassero migliaia, la
+causa sarebbe un'altra e quel conteggio e l'unico modo per accorgersene.
+
+### La serie giornaliera dell'oro contiene barre della DOMENICA
+
+1.206 sedute su 8.256, circa una per settimana, presenti da sempre (1.154
+c'erano gia prima di questo intervento: non e una novita introdotta qui).
+Sono le poche ore di apertura domenicale del CFD. Non entrano nelle
+statistiche per giorno della settimana (lun-ven), ma entrano nei rendimenti
+giornalieri e quindi nelle serie mensili e settimanali. Il modello expected
+move del progetto esterno le fonde nel lunedi o le scarta; qui non lo
+facciamo. Da valutare a se: cambiarlo sposterebbe numeri storici gia
+pubblicati.

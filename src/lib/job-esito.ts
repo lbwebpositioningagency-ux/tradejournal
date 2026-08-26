@@ -21,6 +21,33 @@
 
 export type StatoSerie = "aggiornato" | "invariato" | "errore";
 
+/**
+ * Contabilità dell'OHLC per una serie, dal confine della fonte a quello del
+ * database. Esiste per rendere impossibile il caso descritto in `perditaOhlc`.
+ */
+export interface ContoOhlc {
+  /** Il provider che ha risposto pubblica anche open/high/low? */
+  fornito: boolean;
+  /**
+   * Barre con un OHLC valido dopo il controllo di coerenza, cioè quelle che
+   * il job INTENDEVA scrivere. Non è il conteggio grezzo della fonte: le
+   * barre internamente incoerenti sono scartate a monte di proposito, e
+   * pretenderle nel database farebbe fallire il job per una scelta corretta.
+   */
+  dallaFonte: number;
+  /** Righe in cui le tre facce sono finite nel DATABASE. */
+  scritteConOhlc: number;
+  /**
+   * Barre che la fonte portava con open/high/low ma il controllo di coerenza
+   * ha rifiutato. NON è un fallimento — sull'oro sono 122 sedute fra il 1999
+   * e il 2002 con la chiusura di qualche centesimo fuori dal proprio minimo,
+   * un artefatto dell'archivio — ma va DETTO: se un giorno diventassero
+   * migliaia, la causa sarebbe un'altra e il numero è l'unico modo per
+   * accorgersene.
+   */
+  scartatePerIncoerenza: number;
+}
+
 export interface EsitoSerie {
   /** Codice della serie, come nel catalogo. */
   codice: string;
@@ -29,6 +56,46 @@ export interface EsitoSerie {
   scritte?: number;
   /** Perché è fallita, quando lo stato è "errore". */
   dettaglio?: string;
+  /** Contabilità OHLC; assente per le serie che non la producono. */
+  ohlc?: ContoOhlc;
+}
+
+/**
+ * PERDITA DI OHLC — lo stesso punto cieco delle serie mai tentate, applicato
+ * alle colonne invece che alle righe.
+ *
+ * Fino al 26/08/2026 l'adattatore riceveva open/high/low e scriveva solo la
+ * chiusura. Il job restava verde: aveva scritto righe, nessuna eccezione,
+ * niente da segnalare. Il difetto è vissuto finché qualcuno non è andato a
+ * leggere il codice della fonte.
+ *
+ * Due condizioni, entrambe fallimenti, distinte perché dicono cose diverse:
+ *
+ *  - `scritteConOhlc < dallaFonte` — la fonte le aveva, noi no. È un difetto
+ *    NOSTRO e non ammette tolleranza: la differenza è esattamente il numero
+ *    di sedute in cui abbiamo buttato un dato che avevamo in mano;
+ *  - `fornito && dallaFonte === 0` — il provider dichiara di pubblicarle e non
+ *    ne è arrivata nessuna. È un cambio di forma a MONTE, ed è così che una
+ *    serie smette di avere l'escursione vera senza che la pagina se ne accorga.
+ *
+ * Un provider che non le pubblica (FRED, serie a valore singolo) non produce
+ * mai nessuno dei due casi: `fornito` è falso e zero è la risposta giusta.
+ */
+export function perditaOhlc(conto: ContoOhlc | undefined): string | null {
+  if (!conto) return null;
+  if (conto.scritteConOhlc < conto.dallaFonte) {
+    return (
+      `OHLC perso in scrittura: la fonte ne ha dato ${conto.dallaFonte}, ` +
+      `nel database ne sono finite ${conto.scritteConOhlc}`
+    );
+  }
+  if (conto.fornito && conto.dallaFonte === 0) {
+    return (
+      "la fonte pubblica open/high/low ma non ne ha mandata nessuna: " +
+      "forma della risposta cambiata a monte"
+    );
+  }
+  return null;
 }
 
 export interface VerificaEsito {
@@ -40,6 +107,8 @@ export interface VerificaEsito {
   mancanti: string[];
   /** Serie ferme perché l'upstream non aveva niente di nuovo: legittimo. */
   invariate: string[];
+  /** Serie che hanno perso open/high/low, col motivo per esteso. */
+  perditeOhlc: string[];
   /** Righe scritte in totale. */
   scritte: number;
   /** Frase pronta per il log e per il corpo della risposta. */
@@ -59,6 +128,7 @@ export function verificaEsitoJob(
   const inErrore: string[] = [];
   const mancanti: string[] = [];
   const invariate: string[] = [];
+  const perditeOhlc: string[] = [];
   let scritte = 0;
 
   for (const codice of attese) {
@@ -67,8 +137,15 @@ export function verificaEsitoJob(
       mancanti.push(codice);
       continue;
     }
-    if (esito.stato === "errore") inErrore.push(codice);
-    if (esito.stato === "invariato") invariate.push(codice);
+    /* La perdita di OHLC promuove la serie a ERRORE anche se il job l'aveva
+       dichiarata riuscita: è esattamente il caso che il job non sa vedere da
+       solo, ed è per questo che il controllo sta qui e non là dentro. */
+    const perdita = perditaOhlc(esito.ohlc);
+    if (esito.stato === "errore" || perdita !== null) {
+      inErrore.push(codice);
+      if (perdita !== null) perditeOhlc.push(`${codice}: ${perdita}`);
+    }
+    if (esito.stato === "invariato" && perdita === null) invariate.push(codice);
     scritte += esito.scritte ?? 0;
   }
 
@@ -85,6 +162,9 @@ export function verificaEsitoJob(
   const parti: string[] = [];
   if (mancanti.length > 0) parti.push(`mai tentate: ${mancanti.join(", ")}`);
   if (inErrore.length > 0) parti.push(`in errore: ${inErrore.join(", ")}`);
+  // Il motivo per esteso, non solo il codice: «WTI in errore» non dice cosa
+  // guardare, «WTI: OHLC perso in scrittura» sì.
+  if (perditeOhlc.length > 0) parti.push(perditeOhlc.join(" · "));
   if (riuscito) {
     parti.push(
       invariate.length === attese.length
@@ -98,6 +178,7 @@ export function verificaEsitoJob(
     inErrore,
     mancanti,
     invariate,
+    perditeOhlc,
     scritte,
     messaggio: parti.join(" · "),
   };

@@ -3,14 +3,20 @@ import { prisma } from "@/lib/db";
 import type { SeasonalityInstrument } from "@/generated/prisma/client";
 import { SEASONALITY_BY_CODE } from "@/lib/seasonality/instruments";
 import {
+  escursioneDi,
+  escursioneOsservata,
+  escursioneUltimaSeduta,
   etaInGiorni,
   movimentoOsservato,
   rangoStorico,
   variazioni,
   volRealizzata,
+  type EscursioneOsservata,
+  type EscursioneUltimaSeduta,
   type MovimentoOsservato,
   type PuntoSerie,
   type RangoStorico,
+  type SedutaOhlc,
   type VariazioneFinestra,
   type VolRealizzata,
 } from "@/lib/volatilita-fatti";
@@ -123,6 +129,16 @@ export interface RigaContestoVol {
   realizzata: VolRealizzata[];
   /** Distribuzione del movimento giornaliero osservato, per finestra. */
   movimento: MovimentoOsservato[];
+  /**
+   * Distribuzione dell'ESCURSIONE VERA `(high−low)/close`, per finestra.
+   * Vuota quando la fonte del sottostante non pubblica high e low — è il caso
+   * del WTI, che arriva dallo spot Cushing di FRED a valore singolo.
+   */
+  escursione: EscursioneOsservata[];
+  /** L'escursione dell'ultima seduta, col suo rango storico. */
+  escursioneUltima: EscursioneUltimaSeduta | null;
+  /** Sedute dell'archivio con high/low, e totali: il campione, dichiarato. */
+  coperturaOhlc: { conOhlc: number; totali: number };
   /** Ultima chiusura del sottostante: serve a rendere il movimento in valuta. */
   ultimaChiusura: number | null;
 }
@@ -133,21 +149,34 @@ export interface ContestoVolatilita {
   oggi: string;
 }
 
-async function caricaSerie(
+/**
+ * Le sedute con tutto quello che la tabella ha: chiusura sempre, high e low
+ * quando la fonte li ha dati. Da qui escono DUE viste della stessa serie —
+ * `PuntoSerie` per le misure sulla chiusura, `SedutaOhlc` per l'escursione
+ * vera — così nessuna funzione riceve più dati di quanti gliene servano.
+ */
+async function caricaSedute(
   instrument: SeasonalityInstrument,
-): Promise<PuntoSerie[]> {
+): Promise<SedutaOhlc[]> {
   const barre = await prisma.seasonalityDailyBar.findMany({
     where: { instrument },
     orderBy: { date: "asc" },
     take: MAX_BARRE,
-    select: { date: true, close: true },
+    select: { date: true, close: true, high: true, low: true },
   });
   return barre.map((b) => ({
     // `date` è una colonna DATE: la sua parte UTC È il giorno civile, e
     // convertirla nel fuso utente la farebbe slittare di un giorno.
     giorno: b.date.toISOString().slice(0, 10),
-    valore: Number(b.close),
+    close: Number(b.close),
+    high: b.high === null ? null : Number(b.high),
+    low: b.low === null ? null : Number(b.low),
   }));
+}
+
+/** Vista «solo chiusura»: è ciò che consumano rango, variazioni e realizzata. */
+function chiusure(sedute: readonly SedutaOhlc[]): PuntoSerie[] {
+  return sedute.map((s) => ({ giorno: s.giorno, valore: s.close }));
 }
 
 function fatti(
@@ -178,10 +207,12 @@ export const getContestoVolatilita = cache(
     try {
       const righe = await Promise.all(
         COPPIE_VOL.map(async (c): Promise<RigaContestoVol> => {
-          const [serieIv, seriePrezzo] = await Promise.all([
-            caricaSerie(c.indice),
-            c.prezzo ? caricaSerie(c.prezzo) : Promise.resolve([]),
+          const [seduteIv, sedutePrezzo] = await Promise.all([
+            caricaSedute(c.indice),
+            c.prezzo ? caricaSedute(c.prezzo) : Promise.resolve([]),
           ]);
+          const serieIv = chiusure(seduteIv);
+          const seriePrezzo = chiusure(sedutePrezzo);
 
           const def = SEASONALITY_BY_CODE.get(c.indice);
           const iv = fatti(serieIv, c.indice, oggi);
@@ -207,6 +238,15 @@ export const getContestoVolatilita = cache(
             movimento: [20, 60]
               .map((s) => movimentoOsservato(seriePrezzo, s as 20 | 60))
               .filter((m): m is MovimentoOsservato => m !== null),
+            escursione: [20, 60]
+              .map((s) => escursioneOsservata(sedutePrezzo, s as 20 | 60))
+              .filter((e): e is EscursioneOsservata => e !== null),
+            escursioneUltima: escursioneUltimaSeduta(sedutePrezzo),
+            coperturaOhlc: {
+              conOhlc: sedutePrezzo.filter((s) => escursioneDi(s) !== null)
+                .length,
+              totali: sedutePrezzo.length,
+            },
             ultimaChiusura:
               seriePrezzo.length > 0
                 ? seriePrezzo[seriePrezzo.length - 1].valore
