@@ -369,6 +369,67 @@ export function escursioneUltimaSeduta(
   return { ...ultima, rango: rangoStorico(conOhlc) };
 }
 
+/* ── struttura a termine della volatilità ────────────────────────────── */
+
+/**
+ * Il rapporto fra due scadenze della stessa curva di volatilità implicita.
+ *
+ * `VIX9D/VIX` dice se la parte a nove giorni costa più o meno di quella a
+ * trenta; `VIX/VIX3M` la stessa cosa su un orizzonte più lungo. Sopra 1 la
+ * scadenza corta costa più della lunga, sotto 1 il contrario — e questo è
+ * TUTTO ciò che il numero dice. Che cosa il mercato «si aspetti» non è
+ * deducibile da qui, e questo modulo non lo deduce.
+ */
+export interface RapportoTermine {
+  /** Sigla della scadenza corta, es. "VIX9D". */
+  corta: string;
+  /** Sigla della scadenza lunga, es. "VIX". */
+  lunga: string;
+  valoreCorta: number;
+  valoreLunga: number;
+  /** corta ÷ lunga. */
+  rapporto: number;
+  /** Rango del rapporto su tutta la storia in cui ESISTONO entrambe. */
+  rango: RangoStorico | null;
+  /** Giorno civile a cui i due valori si riferiscono — lo stesso per entrambi. */
+  giorno: string;
+}
+
+/**
+ * Rapporto fra due scadenze e suo rango storico, allineando le serie PER DATA.
+ *
+ * L'allineamento è la parte che conta. Due indici di volatilità hanno
+ * calendari quasi uguali ma non identici, e un rapporto fra il valore di oggi
+ * di uno e quello di ieri dell'altro sarebbe un numero inventato con l'aria di
+ * essere giusto. Si usano SOLO le date presenti in entrambe, e il rango è
+ * calcolato sulla stessa base — così il campione dichiarato è davvero quello
+ * su cui il rapporto è misurabile.
+ */
+export function rapportoTermine(
+  corta: { sigla: string; serie: readonly PuntoSerie[] },
+  lunga: { sigla: string; serie: readonly PuntoSerie[] },
+): RapportoTermine | null {
+  const perData = new Map(lunga.serie.map((p) => [p.giorno, p.valore]));
+  const rapporti: PuntoSerie[] = [];
+  let ultimo: { giorno: string; c: number; l: number } | null = null;
+  for (const p of corta.serie) {
+    const l = perData.get(p.giorno);
+    if (l === undefined || !(l > 0) || !(p.valore > 0)) continue;
+    rapporti.push({ giorno: p.giorno, valore: p.valore / l });
+    ultimo = { giorno: p.giorno, c: p.valore, l };
+  }
+  if (ultimo === null) return null;
+  return {
+    corta: corta.sigla,
+    lunga: lunga.sigla,
+    valoreCorta: ultimo.c,
+    valoreLunga: ultimo.l,
+    rapporto: ultimo.c / ultimo.l,
+    rango: rangoStorico(rapporti),
+    giorno: ultimo.giorno,
+  };
+}
+
 /* ── età del dato ────────────────────────────────────────────────────── */
 
 /**

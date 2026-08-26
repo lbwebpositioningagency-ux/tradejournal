@@ -22,6 +22,7 @@ import type {
   ContestoVolatilita,
   RigaContestoVol,
   SerieFatti,
+  StrutturaTermine,
 } from "@/lib/queries/volatilita-contesto";
 import type {
   EscursioneOsservata,
@@ -143,6 +144,15 @@ function BloccoIv({ riga }: { riga: RigaContestoVol }) {
       <p className="text-[11px] leading-relaxed text-[var(--md-muted)]">
         Fonte: {f.fonte}. {f.notaFonte}
       </p>
+      {/* Chi ha DAVVERO risposto all'ultimo aggiornamento. Si mostra sempre,
+          non solo quando cambia: una riga che compare solo nei giorni storti
+          non viene letta nei giorni normali, e quando compare non si sa se è
+          nuova o se c'è sempre stata. */}
+      {f.fonteUsata ? (
+        <p className="md-mono text-[11px] leading-relaxed text-[var(--md-muted)]">
+          Ultimo aggiornamento servito da: {f.fonteUsata}
+        </p>
+      ) : null}
     </div>
   );
 }
@@ -419,6 +429,92 @@ function Riga({
   );
 }
 
+/**
+ * STRUTTURA A TERMINE DEL VIX — tre scadenze della stessa curva.
+ *
+ * Dice se la volatilità implicita costa di più sui nove giorni o sui tre mesi,
+ * e dove sta quel rapporto rispetto alla propria storia. NON dice cosa il
+ * mercato «si aspetta»: quella è una lettura, e questa sezione non ne fa. Il
+ * report giornaliero la scrive già a parole («VIX1D 13,4 contro VIX9D 17,8»);
+ * qui ci sono i numeri, il rango e la data, che è ciò che la frase non ha.
+ */
+function BloccoTermine({
+  struttura,
+  oggi,
+}: {
+  struttura: StrutturaTermine;
+  oggi: string;
+}) {
+  return (
+    <div className="md-card md-fade flex flex-col gap-2.5 p-4" style={fade(0)}>
+      <div className="flex flex-wrap items-baseline justify-between gap-x-2 gap-y-1">
+        <PanelLabel>Struttura a termine del VIX</PanelLabel>
+        <span className="md-mono text-[11px] text-[var(--md-muted)]">
+          al {dataIt(struttura.livelli[0].giorno)} ·{" "}
+          {eta(struttura.livelli[0].etaGiorni)}
+        </span>
+      </div>
+
+      <div className="flex flex-wrap items-baseline gap-x-5 gap-y-1">
+        {struttura.livelli.map((l) => (
+          <span key={l.sigla} className="flex items-baseline gap-1.5">
+            <span className="md-mono text-[11px] text-[var(--md-muted)]">
+              {l.sigla}
+            </span>
+            <span className="md-mono text-xl font-bold text-[var(--md-text)]">
+              {nf(2).format(l.valore)}
+            </span>
+          </span>
+        ))}
+      </div>
+
+      {struttura.rapporti.map((r) => (
+        <div
+          key={`${r.corta}/${r.lunga}`}
+          className="flex flex-col gap-0.5 border-t pt-2"
+          style={{ borderColor: "var(--md-border)" }}
+        >
+          <div className="flex flex-wrap items-baseline gap-x-2 gap-y-0.5">
+            <span className="md-mono text-xs text-[var(--md-muted)]">
+              {r.corta} ÷ {r.lunga}
+            </span>
+            <span className="md-mono text-base font-semibold text-[var(--md-text)]">
+              {nf(3).format(r.rapporto)}
+            </span>
+            {r.rango ? (
+              <span className="text-xs leading-relaxed text-[var(--md-text-2)]">
+                più alto del{" "}
+                <span className="md-mono font-semibold">
+                  {nf(0).format(r.rango.percentile)}%
+                </span>{" "}
+                delle sedute dal {r.rango.primoGiorno.slice(0, 4)}{" "}
+                <span className="text-[var(--md-muted)]">
+                  (n={nf(0).format(r.rango.n)})
+                </span>
+              </span>
+            ) : null}
+          </div>
+          {r.rango ? (
+            <RangeBar
+              position={r.rango.percentile}
+              color="var(--md-info)"
+              ariaLabel={`${r.corta} diviso ${r.lunga} al ${nf(0).format(r.rango.percentile)}° percentile della propria storia`}
+              title={`${nf(0).format(r.rango.percentile)}° percentile su ${r.rango.n} sedute`}
+            />
+          ) : null}
+        </div>
+      ))}
+
+      <span className="text-[11px] leading-relaxed text-[var(--md-muted)]">
+        Sopra 1 la scadenza corta costa più della lunga, sotto 1 il contrario:
+        è tutto quello che il rapporto dice. Ogni rango è calcolato sulle sole
+        sedute in cui esistono entrambe le scadenze, non sulla più lunga delle
+        due. Fonte: {struttura.fonte}. Età calcolata rispetto a {dataIt(oggi)}.
+      </span>
+    </div>
+  );
+}
+
 export function ContestoVolatilitaPanel({
   contesto,
 }: {
@@ -443,6 +539,13 @@ export function ContestoVolatilitaPanel({
         aggiornato ogni notte — non dal report, che è generato a mano — quindi
         ogni riga porta la propria data e la propria fonte.
       </Callout>
+
+      {contesto.strutturaTermine ? (
+        <BloccoTermine
+          struttura={contesto.strutturaTermine}
+          oggi={contesto.oggi}
+        />
+      ) : null}
 
       <div className="grid gap-3 lg:grid-cols-2">
         {contesto.righe.map((r, i) => (

@@ -42,6 +42,7 @@ function riga(over: Partial<RigaContestoVol> = {}): RigaContestoVol {
       ],
       fonte: "CBOE Global Markets via FRED",
       notaFonte: "Volatilità implicita dell'ETF sull'oro, chiusure CBOE dal 2008.",
+      fonteUsata: "CBOE GVZ + storico FRED GVZCLS (327 sedute)",
     },
     motivoIvAssente: null,
     prezzo: {
@@ -52,6 +53,7 @@ function riga(over: Partial<RigaContestoVol> = {}): RigaContestoVol {
       variazioni: [],
       fonte: "Dukascopy Bank SA",
       notaFonte: "Spot oro/dollaro.",
+      fonteUsata: "Dukascopy xauusd",
     },
     realizzata: [{ sedute: 20, annualizzata: 0.183, n: 20 }],
     movimento: [
@@ -81,9 +83,13 @@ function riga(over: Partial<RigaContestoVol> = {}): RigaContestoVol {
   };
 }
 
-const contesto = (righe: RigaContestoVol[]): ContestoVolatilita => ({
+const contesto = (
+  righe: RigaContestoVol[],
+  strutturaTermine: ContestoVolatilita["strutturaTermine"] = null,
+): ContestoVolatilita => ({
   righe,
   oggi: "2026-08-25",
+  strutturaTermine,
 });
 
 function resa(righe: RigaContestoVol[]) {
@@ -329,6 +335,7 @@ describe("ContestoVolatilita — il campione dell'escursione non si mescola mai"
           variazioni: [],
           fonte: "U.S. Energy Information Administration via FRED",
           notaFonte: "Prezzo spot Cushing.",
+          fonteUsata: "FRED DCOILWTICO",
         },
       }),
     ]);

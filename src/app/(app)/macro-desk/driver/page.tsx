@@ -9,6 +9,9 @@ import { getDriverDeskData } from "@/lib/queries/driver-desk";
 import { cn } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
 import { DriverDeskPanel } from "@/components/macro-desk/driver-desk-panel";
+import { SpreadTassiPanel } from "@/components/macro-desk/spread-tassi-panel";
+import { getSpreadTassi } from "@/lib/queries/spread-tassi";
+import { todayKeyInZone } from "@/lib/dates";
 import { MacroDeskSectionNav } from "@/components/macro-desk/section-nav";
 
 export const metadata: Metadata = { title: "Driver · Macro Desk" };
@@ -38,12 +41,13 @@ export default async function MacroDriverPage() {
   const session = await auth();
   if (!session?.user?.id) redirect("/login");
 
-  const [data, user] = await Promise.all([
+  const user = await prisma.user.findUniqueOrThrow({
+    where: { id: session.user.id },
+    select: { timezone: true },
+  });
+  const [data, spread] = await Promise.all([
     getDriverDeskData(),
-    prisma.user.findUniqueOrThrow({
-      where: { id: session.user.id },
-      select: { timezone: true },
-    }),
+    getSpreadTassi(todayKeyInZone(user.timezone)),
   ]);
 
   return (
@@ -79,6 +83,12 @@ export default async function MacroDriverPage() {
         )}
         style={{ borderColor: "var(--md-border)" }}
       >
+        {/* Lo spread fra i due decennali sta PRIMA delle schede: è un livello
+            con un rango, cioè un fatto che si legge in tre secondi, mentre le
+            schede sono un approfondimento. */}
+        <div className="mb-4">
+          <SpreadTassiPanel spread={spread} />
+        </div>
         <DriverDeskPanel data={data} timeZone={user.timezone} />
       </div>
     </div>

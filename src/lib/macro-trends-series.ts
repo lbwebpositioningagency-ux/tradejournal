@@ -693,6 +693,28 @@ export const TRENDS_SERIES: TrendsSeriesDef[] = [
       "Il tasso che sconta tutto: mutui, equity duration, oro. Il livello conta meno della velocità.",
   },
   {
+    /* IL TASSO REALE, non il breakeven. Il desk mostrava da sempre `T10YIE`,
+       che è l'inflazione ATTESA, e non il tasso reale che ne è l'altra metà:
+       nominale = reale + breakeven. Sull'oro conta soprattutto questo — è il
+       costo opportunità di tenere un metallo che non paga cedole, ed è la
+       variabile che spiega la maggior parte dei movimenti del metallo.
+       Fonte verificata il 26/08/2026: FRED CSV keyless, 6.168 osservazioni
+       dal 02/01/2003, ultimo dato al 24/08/2026, 432 ms. */
+    key: "real-10y",
+    fredIds: ["DFII10"],
+    section: "tassi",
+    label: "Tasso reale 10Y (TIPS)",
+    unit: "%",
+    transform: "level",
+    decimals: 2,
+    cadence: "daily",
+    goodDirection: "neutral",
+    deltaMode: "abs",
+    refLine: 0,
+    reading:
+      "Il rendimento del decennale al netto dell'inflazione attesa: è il costo opportunità di tenere oro, che cedole non ne paga. Sopra lo zero (linea) tenere oro costa; sotto, no.",
+  },
+  {
     key: "dgs30",
     fredIds: ["DGS30"],
     section: "tassi",

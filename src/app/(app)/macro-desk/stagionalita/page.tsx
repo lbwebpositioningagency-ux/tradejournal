@@ -397,7 +397,13 @@ export default async function StagionalitaPage({
           {/* ── Selettori ─────────────────────────────────────────────── */}
           <div className="md-panel flex flex-col gap-3 p-3">
             <ChipGroup label="Strumento">
-              {SEASONALITY_INSTRUMENTS.map((i) => (
+              {/* `fuoriDallaStagionalita` esclude VIX9D e VIX3M: sono
+                  raccolti per il confronto fra scadenze nella sezione
+                  Volatilità, e come schede di calendario non avrebbero
+                  destinatario. */}
+              {SEASONALITY_INSTRUMENTS.filter(
+                (i) => !i.fuoriDallaStagionalita,
+              ).map((i) => (
                 <Chip
                   key={i.code}
                   href={

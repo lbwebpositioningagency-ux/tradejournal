@@ -7,6 +7,7 @@ import {
   escursioneOsservata,
   escursioneUltimaSeduta,
   etaInGiorni,
+  rapportoTermine,
   movimentoOsservato,
   rangoStorico,
   variazioni,
@@ -15,6 +16,7 @@ import {
   type EscursioneUltimaSeduta,
   type MovimentoOsservato,
   type PuntoSerie,
+  type RapportoTermine,
   type RangoStorico,
   type SedutaOhlc,
   type VariazioneFinestra,
@@ -107,10 +109,21 @@ export interface SerieFatti {
   etaGiorni: number;
   rango: RangoStorico | null;
   variazioni: VariazioneFinestra[];
-  /** Chi possiede il dato e chi lo ridistribuisce. */
+  /** Chi possiede il dato e chi lo ridistribuisce (dal catalogo). */
   fonte: string;
   /** Nota della catena di fonti: perché quella e non un'altra. */
   notaFonte: string;
+  /**
+   * La fonte che ha DAVVERO risposto all'ultimo aggiornamento, registrata dal
+   * job in `SeasonalityCoverage.dailySource`.
+   *
+   * Il campo sopra è l'attribuzione di catalogo — chi possiede il dato — e non
+   * cambia mai. Questo cambia: se un giorno il CBOE non risponde e si scende
+   * su FRED, o se lo storico viene cucito da due fonti, è qui che si vede. La
+   * differenza va mostrata, altrimenti una riserva silenziosa resta silenziosa.
+   * `null` finché il job non ha mai scritto per questo strumento.
+   */
+  fonteUsata: string | null;
 }
 
 export interface RigaContestoVol {
@@ -147,6 +160,21 @@ export interface ContestoVolatilita {
   righe: RigaContestoVol[];
   /** Giorno civile nel fuso dell'utente rispetto a cui sono calcolate le età. */
   oggi: string;
+  /**
+   * Struttura a termine del VIX: i tre livelli e i due rapporti fra scadenze
+   * adiacenti, ciascuno col proprio rango storico. Vuota se le serie non ci
+   * sono ancora — è il caso finché il job non le ha raccolte la prima volta.
+   */
+  strutturaTermine: StrutturaTermine | null;
+}
+
+export interface StrutturaTermine {
+  /** I tre livelli, dalla scadenza più corta alla più lunga. */
+  livelli: Array<{ sigla: string; valore: number; giorno: string; etaGiorni: number }>;
+  /** I rapporti fra scadenze adiacenti: 9g/30g e 30g/3m. */
+  rapporti: RapportoTermine[];
+  /** Chi pubblica gli indici. */
+  fonte: string;
 }
 
 /**
@@ -183,11 +211,13 @@ function fatti(
   serie: PuntoSerie[],
   instrument: SeasonalityInstrument,
   oggi: string,
+  fonteUsata: string | null,
 ): SerieFatti | null {
   if (serie.length === 0) return null;
   const ultimo = serie[serie.length - 1];
   const def = SEASONALITY_BY_CODE.get(instrument);
   return {
+    fonteUsata,
     livello: ultimo.valore,
     giorno: ultimo.giorno,
     etaGiorni: etaInGiorni(ultimo.giorno, oggi),
@@ -199,12 +229,70 @@ function fatti(
 }
 
 /**
+ * Struttura a termine del VIX: 9 giorni, 30 giorni, 3 mesi.
+ *
+ * Le tre serie hanno storie di lunghezza diversa (VIX dal 1990, VIX3M dal
+ * 2009, VIX9D dal 2011) e il rango di ogni rapporto è calcolato sulle sole
+ * date in cui ESISTONO entrambe le scadenze coinvolte: dichiarare «dal 1990»
+ * un rapporto che esiste dal 2011 sarebbe una profondità inventata.
+ *
+ * `null` finché il job non ha raccolto le serie la prima volta: la sezione
+ * mostra il motivo invece di un blocco vuoto.
+ */
+async function caricaStrutturaTermine(
+  oggi: string,
+): Promise<StrutturaTermine | null> {
+  const codici = ["VIX9D", "VIX", "VIX3M"] as const;
+  const serie = await Promise.all(codici.map((c) => caricaSedute(c)));
+  if (serie.some((s) => s.length === 0)) return null;
+
+  const livelli = codici.map((sigla, i) => {
+    const ultima = serie[i][serie[i].length - 1];
+    return {
+      sigla,
+      valore: ultima.close,
+      giorno: ultima.giorno,
+      etaGiorni: etaInGiorni(ultima.giorno, oggi),
+    };
+  });
+
+  const punti = serie.map((s) => chiusure(s));
+  const rapporti = [
+    rapportoTermine(
+      { sigla: "VIX9D", serie: punti[0] },
+      { sigla: "VIX", serie: punti[1] },
+    ),
+    rapportoTermine(
+      { sigla: "VIX", serie: punti[1] },
+      { sigla: "VIX3M", serie: punti[2] },
+    ),
+  ].filter((r): r is RapportoTermine => r !== null);
+  if (rapporti.length === 0) return null;
+
+  return {
+    livelli,
+    rapporti,
+    fonte: SEASONALITY_BY_CODE.get("VIX")?.attribution ?? "CBOE Global Markets",
+  };
+}
+
+/**
  * DIFENSIVA come le altre query del desk: qualunque errore degrada a contesto
  * vuoto con log, e la pagina mostra lo stato vuoto invece di cadere.
  */
 export const getContestoVolatilita = cache(
   async (oggi: string): Promise<ContestoVolatilita> => {
     try {
+      /* La fonte che ha davvero risposto, per strumento. Una sola query per
+         tutta la pagina invece di una per riga: sono sette righe di tabella. */
+      const coperture = new Map(
+        (
+          await prisma.seasonalityCoverage.findMany({
+            select: { instrument: true, dailySource: true },
+          })
+        ).map((c) => [c.instrument, c.dailySource]),
+      );
+
       const righe = await Promise.all(
         COPPIE_VOL.map(async (c): Promise<RigaContestoVol> => {
           const [seduteIv, sedutePrezzo] = await Promise.all([
@@ -215,7 +303,7 @@ export const getContestoVolatilita = cache(
           const seriePrezzo = chiusure(sedutePrezzo);
 
           const def = SEASONALITY_BY_CODE.get(c.indice);
-          const iv = fatti(serieIv, c.indice, oggi);
+          const iv = fatti(serieIv, c.indice, oggi, coperture.get(c.indice) ?? null);
 
           return {
             indice: c.indice,
@@ -230,7 +318,7 @@ export const getContestoVolatilita = cache(
                   "serie non presente nell'archivio giornaliero"),
             prezzo:
               c.prezzo && seriePrezzo.length > 0
-                ? fatti(seriePrezzo, c.prezzo, oggi)
+                ? fatti(seriePrezzo, c.prezzo, oggi, coperture.get(c.prezzo) ?? null)
                 : null,
             realizzata: [20, 60]
               .map((s) => volRealizzata(seriePrezzo, s as 20 | 60))
@@ -254,10 +342,10 @@ export const getContestoVolatilita = cache(
           };
         }),
       );
-      return { righe, oggi };
+      return { righe, oggi, strutturaTermine: await caricaStrutturaTermine(oggi) };
     } catch (e: unknown) {
       console.error("[volatilita] contesto non caricato:", e);
-      return { righe: [], oggi };
+      return { righe: [], oggi, strutturaTermine: null };
     }
   },
 );

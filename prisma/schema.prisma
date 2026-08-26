@@ -472,6 +472,11 @@ enum SeasonalityInstrument {
   OVX
   VDAX
   VIX
+  // Struttura a termine della volatilità: stessa famiglia del VIX, raccolti
+  // per il confronto fra scadenze. Fuori dalla Stagionalità in UI (v.
+  // `fuoriDallaStagionalita`): servono come serie, non come schede.
+  VIX9D
+  VIX3M
 }
 
 enum SeasonalityKind {
@@ -727,6 +732,10 @@ enum DriverDeskSeries {
   DTWEXBGS
   EURUSD
   BUND10Y
+  // Nominale USA a dieci anni: serve allo spread contro il Bund, che è il
+  // canale con cui il differenziale di tassi si trasmette all'euro e da lì
+  // agli esportatori del DAX.
+  DGS10
 }
 
 // Chiusure giornaliere grezze. Chiave (series, date): l'ingest sostituisce

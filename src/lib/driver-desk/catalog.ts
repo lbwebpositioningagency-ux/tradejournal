@@ -193,6 +193,16 @@ export const DRIVER_SERIES: DriverSeriesDef[] = [
       "in salita = euro più forte sul dollaro",
   },
   {
+    code: "DGS10",
+    label: "Treasury 10Y",
+    transform: "diff",
+    daily: [{ provider: "fred", ids: ["DGS10"] }],
+    unit: "punti percentuali",
+    attribution: "Federal Reserve via FRED",
+    risingMeans:
+      "in salita = rendimento del decennale americano più alto",
+  },
+  {
     code: "BUND10Y",
     label: "Bund 10Y",
     transform: "diff",

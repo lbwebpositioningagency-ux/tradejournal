@@ -329,3 +329,52 @@ giornalieri e quindi nelle serie mensili e settimanali. Il modello expected
 move del progetto esterno le fonde nel lunedi o le scarta; qui non lo
 facciamo. Da valutare a se: cambiarlo sposterebbe numeri storici gia
 pubblicati.
+
+## Calendario macro: la lacuna che resta, e cosa e stato provato (26/08/2026)
+
+Il desk mostra ora un calendario di eventi programmati, ma **senza consenso di
+mercato e senza valore precedente**. Non e una scelta: nessuna fonte gratuita,
+verificabile e automaticamente aggiornata li pubblica. Provate tutte, con la
+chiamata vera:
+
+| Fonte | Esito misurato |
+|---|---|
+| Trading Economics `api.tradingeconomics.com/calendar?c=guest:guest` | **410 Gone** — «the guest account has been discontinued» |
+| Finnhub `/calendar/economic` | **401** senza chiave. Lo swagger ufficiale (`finnhub.io/static/swagger.json`, 200, 588 KB) CONFERMA che l'endpoint esiste e ha i campi giusti (`actual`, `prev`, `estimate`, `impact`, `time`) e dice solo che «historical events and surprises are available for Enterprise clients». **Quale piano copra gli eventi FUTURI non e verificabile senza registrare un account**, e registrare account non e una cosa che faccio |
+| Financial Modeling Prep `/economic_calendar` | **401 Invalid API KEY** |
+| Nasdaq Data Link `data.nasdaq.com/api/v3/...` | **403**, muro anti-bot |
+| BLS `bls.gov/schedule/...` e `bls.gov/schedule/news_release/bls.ics` | **403** a qualunque chiamata non da browser, anche con user agent. Il calendario dei rilasci di NFP e CPI e pubblicato ma non leggibile da un server |
+| BLS API v1 `api.bls.gov/publicAPI/v1/timeseries/data/` | **200, 85 ms, keyless** — ma restituisce i DATI pubblicati, non il calendario dei rilasci. Utile per altro, inutile qui |
+| FRED `fred/releases/dates` | richiede una chiave gratuita, non configurata in questo ambiente e non richiedibile da me |
+| ECB calendario in formato macchina | **nessuno**: la pagina ufficiale e HTML (200), gli unici ICS sono di terze parti (`luispfonseca.com`, `centralbank.watch`, `smartcalendars.ai`) e la provenienza incerta li esclude |
+
+**Cosa c'e al posto**, e perche vale: FOMC, BCE, EIA e COT pubblicano i propri
+orari IN ANTICIPO, e sono una categoria diversa da un dato di mercato — le date
+del FOMC del 2027 sono gia note oggi. EIA (mercoledi 10:30 ET) e COT (venerdi
+15:30 ET) sono generati dalla loro cadenza fissa, quindi non si trascrive
+nulla. FOMC e BCE sono trascritti dalle pagine ufficiali il 26/08/2026 con
+l'URL accanto, e la tabella dichiara `VALIDO_FINO_AL`: passata quella data i
+due spariscono dal calendario e la pagina lo dice, invece di mostrare un
+calendario vuoto senza spiegazione.
+
+**Cosa manca ancora, esplicitamente**: NFP e CPI. Le loro date sono pubblicate
+dal BLS ma bls.gov risponde 403 a chiamate non da browser, e trascriverle a
+memoria significherebbe inventarle. Restano fuori finche non esiste una fonte
+leggibile.
+
+## Dukascopy restituisce un numero di barre DIVERSO fra una chiamata e l'altra
+
+Misurato il 26/08/2026 sull'oro, a poche ore di distanza e con gli stessi
+parametri: **8.256 barre** in una esecuzione, **7.944** in un'altra. La
+differenza e l'intero anno **2021**, che compare e sparisce.
+
+Non e un difetto del nostro codice — la vecchia normalizzazione applicata alla
+stessa risposta produce lo stesso insieme di righe — ma e un rischio reale: il
+job riscrive l'intera serie a ogni esecuzione, quindi una notte in cui
+l'archivio pubblico risponde corto lascia un buco nello storico, e le
+statistiche stagionali si spostano senza che nessuno lo abbia chiesto.
+
+Non e stato corretto qui perche la correzione giusta non e banale: servirebbe
+o un confronto con la lunghezza precedente che rifiuti una serie
+improvvisamente piu corta, o un merge invece di una sostituzione. Entrambe
+cambiano la semantica della scrittura e vanno decise, non improvvisate.

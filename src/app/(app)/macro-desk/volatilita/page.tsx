@@ -23,6 +23,17 @@ import { Badge } from "@/components/ui/badge";
 import { MacroDeskSectionNav } from "@/components/macro-desk/section-nav";
 import { VolatilitaPanel } from "@/components/macro-desk/volatilita-panel";
 import { ContestoVolatilitaPanel } from "@/components/macro-desk/contesto-volatilita";
+import {
+  CalendarioEventi,
+  type EventoReso,
+} from "@/components/macro-desk/calendario-eventi";
+import {
+  TRASCRITTO_IL,
+  VALIDO_FINO_AL,
+  prossimiEventi,
+  tabellaValida,
+} from "@/lib/calendario-macro";
+import { formatDateTime } from "@/lib/dates";
 
 export const metadata: Metadata = { title: "Volatilità · Macro Desk" };
 
@@ -38,6 +49,21 @@ const fontMono = JetBrains_Mono({
   weight: ["500", "600", "700"],
   variable: "--md-font-mono",
 });
+
+/**
+ * «fra 2 ore», «domani», «fra 3 giorni». Non è decorazione: la distanza
+ * conta più della data assoluta quando si decide se restare in posizione, e
+ * calcolarla a mente da un orario in un altro fuso è esattamente il tipo di
+ * attrito che un terminale toglie.
+ */
+function fraQuanto(istante: Date, adesso: Date): string {
+  const minuti = Math.round((istante.getTime() - adesso.getTime()) / 60_000);
+  if (minuti < 60) return `fra ${Math.max(0, minuti)} min`;
+  const ore = Math.round(minuti / 60);
+  if (ore < 24) return `fra ${ore} ${ore === 1 ? "ora" : "ore"}`;
+  const giorni = Math.round(ore / 24);
+  return giorni === 1 ? "domani" : `fra ${giorni} giorni`;
+}
 
 function reportDateLabel(date: Date): string {
   return new Intl.DateTimeFormat("it-IT", {
@@ -73,7 +99,19 @@ export default async function MacroVolatilitaPage() {
     where: { id: session.user.id },
     select: { timezone: true },
   });
-  const oggi = todayKeyInZone(utente?.timezone ?? "Europe/Rome");
+  const fuso = utente?.timezone ?? "Europe/Rome";
+  const oggi = todayKeyInZone(fuso);
+
+  /* IL CALENDARIO STA IN CIMA perché risponde alla domanda che viene prima di
+     tutte le altre: fra quanto succede qualcosa. È aritmetica su una tabella
+     in codice — nessuna query, nessuna rete — quindi non ha bisogno di stare
+     nella Promise.all qui sotto. */
+  const adesso = new Date();
+  const eventi: EventoReso[] = prossimiEventi(oggi, 7, adesso).map((e) => ({
+    ...e,
+    quando: formatDateTime(e.istante, fuso),
+    fraQuanto: fraQuanto(e.istante, adesso),
+  }));
 
   const [data, freschezza, degrado, contesto] = await Promise.all([
     getVolatilitaData(),
@@ -131,6 +169,23 @@ export default async function MacroVolatilitaPage() {
       {/* Il CONTESTO non dipende dal report; gli indici del report sì, e per
           quelli il ritardo va dichiarato. */}
       {freschezza ? <BandaFreschezza esito={freschezza} /> : null}
+
+      <div
+        className={cn(
+          "macro-report overflow-hidden rounded-[var(--md-r-lg)] border p-4 sm:p-6",
+          fontUi.variable,
+          fontMono.variable,
+        )}
+        style={{ borderColor: "var(--md-border)" }}
+      >
+        <CalendarioEventi
+          eventi={eventi}
+          tabellaValida={tabellaValida(oggi)}
+          validoFinoAl={VALIDO_FINO_AL}
+          trascrittoIl={TRASCRITTO_IL}
+          fusoUtente={fuso}
+        />
+      </div>
 
       {/* Terminale: identità visiva propria, scoped a .macro-report */}
       <div

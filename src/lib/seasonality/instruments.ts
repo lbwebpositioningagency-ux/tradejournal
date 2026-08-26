@@ -21,7 +21,9 @@ import type {
 export type DailySourceRef =
   | { provider: "fred"; ids: string[] }
   | { provider: "yahoo"; symbol: string }
-  | { provider: "dukascopy"; symbol: string };
+  | { provider: "dukascopy"; symbol: string }
+  /** CDN pubblico del CBOE: la fonte PRIMARIA degli indici di volatilità. */
+  | { provider: "cboe"; symbol: string };
 
 export interface SeasonalityInstrumentDef {
   code: SeasonalityInstrument;
@@ -34,6 +36,34 @@ export interface SeasonalityInstrumentDef {
   colorToken: string;
   /** Catena di fonti giornaliere, in ordine di preferenza. */
   daily: DailySourceRef[];
+  /**
+   * Vero = le fonti della catena che NON hanno risposto per prime vengono
+   * comunque interrogate, e da loro si prendono SOLO le date precedenti
+   * all'inizio della serie primaria.
+   *
+   * Serve dove la fonte migliore per freschezza è peggiore per profondità: il
+   * CBOE pubblica GVZ e OVX dal 18/09/2009, FRED li ripubblica dal 2008 e dal
+   * 2007. Senza questo, passare al CBOE accorcerebbe di 331 e 599 sedute il
+   * rango storico — che è il fatto su cui la sezione Volatilità poggia.
+   *
+   * È lecito SOLO perché le due fonti sono state confrontate sulle date
+   * comuni e coincidono esattamente (scarto massimo 0,0000 su 4.256 sedute,
+   * misurato il 26/08/2026). Cucire due serie che divergono produrrebbe un
+   * gradino artificiale, cioè un dato falso con l'aria di essere vero.
+   */
+  estendiStorico?: boolean;
+  /**
+   * Vero = lo strumento viene raccolto e conservato, ma NON compare fra le
+   * schede della Stagionalità.
+   *
+   * VIX9D e VIX3M servono a una cosa sola: il confronto fra scadenze nella
+   * sezione Volatilità. Studiarne la stagionalità mensile non ha destinatario,
+   * e due schede in più su una pagina già densa sarebbero rumore. Il dato però
+   * passa dalla stessa catena di fonti, dalla stessa contabilità OHLC e dalla
+   * stessa verifica di esito del job: non è una scorciatoia, è una scelta di
+   * resa.
+   */
+  fuoriDallaStagionalita?: boolean;
   /**
    * Strumento Dukascopy per le candele orarie. `null` = niente drill
    * sessione/ora (è il caso degli indici di volatilità).
@@ -134,11 +164,41 @@ export const SEASONALITY_INSTRUMENTS: SeasonalityInstrumentDef[] = [
     ticker: "VIX",
     kind: "LEVEL",
     colorToken: "var(--md-cross)",
-    daily: [{ provider: "fred", ids: ["VIXCLS"] }],
+    daily: [
+      { provider: "cboe", symbol: "VIX" },
+      { provider: "fred", ids: ["VIXCLS"] },
+    ],
+    estendiStorico: true,
     hourly: null,
     sourceNote:
-      "Volatilità implicita a 30 giorni dell'S&P 500, chiusure CBOE dal 1990.",
-    attribution: "CBOE Global Markets via FRED",
+      "Volatilità implicita a 30 giorni dell'S&P 500, chiusure CBOE dal 1990. Dal 26/08/2026 arriva dal CDN del CBOE, che la pubblica un giorno prima di FRED e con l'OHLC; FRED resta la riserva.",
+    attribution: "CBOE Global Markets (riserva e storico: FRED)",
+  },
+  {
+    code: "VIX9D",
+    label: "VIX 9 giorni",
+    ticker: "VIX9D",
+    kind: "LEVEL",
+    colorToken: "var(--md-cross)",
+    daily: [{ provider: "cboe", symbol: "VIX9D" }],
+    hourly: null,
+    fuoriDallaStagionalita: true,
+    sourceNote:
+      "Volatilità implicita dell'S&P 500 a 9 giorni, chiusure CBOE dal 2011.",
+    attribution: "CBOE Global Markets",
+  },
+  {
+    code: "VIX3M",
+    label: "VIX 3 mesi",
+    ticker: "VIX3M",
+    kind: "LEVEL",
+    colorToken: "var(--md-cross)",
+    daily: [{ provider: "cboe", symbol: "VIX3M" }],
+    hourly: null,
+    fuoriDallaStagionalita: true,
+    sourceNote:
+      "Volatilità implicita dell'S&P 500 a 3 mesi, chiusure CBOE dal 2009.",
+    attribution: "CBOE Global Markets",
   },
   {
     code: "GVZ",
@@ -146,11 +206,15 @@ export const SEASONALITY_INSTRUMENTS: SeasonalityInstrumentDef[] = [
     ticker: "GVZ",
     kind: "LEVEL",
     colorToken: "var(--md-gold)",
-    daily: [{ provider: "fred", ids: ["GVZCLS"] }],
+    daily: [
+      { provider: "cboe", symbol: "GVZ" },
+      { provider: "fred", ids: ["GVZCLS"] },
+    ],
+    estendiStorico: true,
     hourly: null,
     sourceNote:
-      "Volatilità implicita dell'ETF sull'oro, chiusure CBOE dal 2008.",
-    attribution: "CBOE Global Markets via FRED",
+      "Volatilità implicita dell'ETF sull'oro. Il CBOE la pubblica dal 18/09/2009 e un giorno prima di FRED, che però la ridistribuisce dal 2008: la serie usa il CBOE e le 327 sedute precedenti vengono da FRED, che sulle date comuni coincide esattamente.",
+    attribution: "CBOE Global Markets (riserva e storico: FRED)",
   },
   {
     code: "OVX",
@@ -158,11 +222,15 @@ export const SEASONALITY_INSTRUMENTS: SeasonalityInstrumentDef[] = [
     ticker: "OVX",
     kind: "LEVEL",
     colorToken: "var(--md-oil)",
-    daily: [{ provider: "fred", ids: ["OVXCLS"] }],
+    daily: [
+      { provider: "cboe", symbol: "OVX" },
+      { provider: "fred", ids: ["OVXCLS"] },
+    ],
+    estendiStorico: true,
     hourly: null,
     sourceNote:
-      "Volatilità implicita dell'ETF sul petrolio, chiusure CBOE dal 2007.",
-    attribution: "CBOE Global Markets via FRED",
+      "Volatilità implicita dell'ETF sul petrolio. Stessa cucitura dell'oro: CBOE dal 18/09/2009, e le 595 sedute precedenti da FRED, che sulle date comuni coincide esattamente.",
+    attribution: "CBOE Global Markets (riserva e storico: FRED)",
   },
   {
     code: "VDAX",
