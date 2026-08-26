@@ -1714,3 +1714,70 @@ scelto: meglio un asse che si astiene di un asse che giudica su otto perdite.
 **Verificato:** lint ✅ · typecheck ✅ · **2136/2137 test** ✅ (da 2130) · build
 di produzione ✅ · controllo visivo prima/dopo su tre conti più lo stato
 «disciplina non misurabile» e la (i) del fattore riscritta.
+
+## ✅ TRE RITOCCHI AL JOURNAL (26/08/2026)
+
+Tre richieste puntuali dopo l'uso reale dell'app. Branch
+`journal/tre-ritocchi`, worktree dedicato, verifiche contro il Postgres
+locale.
+
+**1. Overlay del drawdown sul P&L cumulativo: da riempimento a linea.** Le
+fasce rosse piene fra il picco precedente e la curva coprivano mezzo grafico
+su uno storico con buche lunghe (SIM1: la buca di primavera 2025 e il
+plateau estivo diventavano due lastre rosse) e vincevano sull'equity, che è
+ciò per cui il grafico esiste.
+
+Delle quattro strade possibili la scelta è ricaduta sulla **linea del massimo
+precedente** (high-water mark), tratteggiata e sottile, disegnata PRIMA della
+curva e quindi dietro:
+
+- **abbassare l'opacità** non risolve: il problema è l'AREA, non la
+  saturazione — una lastra tenue resta una lastra grande;
+- **spostare il drawdown in un pannello sotto** duplicherebbe l'underwater
+  plot, che sulla dashboard c'è già col suo asse in percentuale;
+- la linea, invece, toglie l'area e non l'informazione: dove la curva è al
+  massimo la linea sparisce sotto di essa, dove è sotto si apre lo spazio, e
+  **quello spazio è il drawdown**. Il tooltip continua a dire la profondità
+  in valuta («Sotto il picco», oppure «al picco» quando sei sul massimo).
+
+`withDrawdownBand` → `withPeakLine`: la funzione ora restituisce `peak` e
+`depth` (≤ 0) invece della coppia `[curva, picco]`. Test riscritti, più uno
+nuovo sull'invariante che la profondità non è mai positiva.
+
+**2. Rimossa la sezione «Il tuo trading vs stare fermo».** Decisione
+dell'utente; la copertura del confronto era intanto scesa a 305 trade su 623
+(48,96%), sotto la metà che il brief originale indicava come soglia di stop.
+
+**3. Rimosso il grafico «Target R vs R realizzato».** Decisione dell'utente.
+Restano — sono cose diverse — l'istogramma della distribuzione degli R
+realizzati, la tabella «Ritorni per target R» e il fattore disciplina dello
+Score.
+
+**Codice orfano eliminato di conseguenza** (nessun altro chiamante, verificato
+uno per uno):
+
+| file | perché |
+|---|---|
+| `components/analytics/benchmark-table.tsx` | tabella della sezione rimossa |
+| `lib/metrics/benchmark-compare.ts` + test | calcolo del confronto |
+| `lib/queries/benchmark.ts` (intero) | `instrumentForSymbol` e `getInstrumentCloses` servivano solo lì |
+| `getSymbolTrading` in `queries/analytics.ts` | era la base del buy & hold e nient'altro |
+| `getTargetVsRealized` in `queries/analytics.ts` | serie dello scatter |
+| `components/charts/target-scatter-chart.tsx` + voce in `lazy-charts` | il grafico |
+
+La serie di chiusure di mercato (`SeasonalityDailyBar`) **resta al suo posto**:
+è il dato del Macro Desk, che la scrive e la legge per conto suo. Qui è
+sparito solo il lettore che il journal ci aveva appoggiato sopra.
+
+Sparisce anche il **secondo stadio di query** della pagina: il buy & hold era
+l'unica cosa che doveva aspettare i risultati del primo (`getSymbolTrading`)
+per sapere quali strumenti caricare. `/analytics` ora fa un solo giro di
+query. La pagina passa da 1482 a 1343 righe.
+
+**Verificato:** lint ✅ · typecheck ✅ · **2125/2126 test** ✅ · build di
+produzione ✅ · controllo visivo su build reale in **dark e light**: curva
+cumulativa prima/dopo su SIM1 (che ha le buche più lunghe), cucitura di
+/analytics dove stava il buy & hold (Concentrazione → Correlazione fra
+strategie, nessun vuoto) e coda della pagina dove stava lo scatter (finisce
+su «Performance per durata», nessuna card mozza). Screenshot in
+`docs/audit/j3/`.
