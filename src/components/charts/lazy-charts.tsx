@@ -82,11 +82,6 @@ export const StreakDistributionChart = dynamic(
   { ssr: false, loading: () => <ChartFallback /> },
 );
 
-export const TargetScatterChart = dynamic(
-  () => import("./target-scatter-chart").then((m) => m.TargetScatterChart),
-  { ssr: false, loading: () => <ChartFallback /> },
-);
-
 /* Il simulatore non è solo un grafico: è un form con sei campi più l'area
    disegnata (348px) più legenda e statistiche. Lo scheletro riproduce quella
    struttura, non un rettangolo unico, altrimenti allo swap la card cambia

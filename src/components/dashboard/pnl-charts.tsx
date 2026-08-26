@@ -45,46 +45,50 @@ function withZeroStart(points: ChartPoint[]): ChartPoint[] {
 }
 
 /**
- * Aggiunge a ogni punto la banda [curva, picco corrente] dell'overlay di
- * drawdown. Funzione di MODULO e non codice dentro il componente: durante il
- * render nulla si riassegna, ed è verificabile a parte.
+ * Aggiunge a ogni punto il MASSIMO CORRENTE della curva (high-water mark) e
+ * la profondità sotto di esso. Funzione di MODULO e non codice dentro il
+ * componente: durante il render nulla si riassegna, ed è verificabile a parte.
  *
- * `null` quando il punto È il picco: una banda a spessore zero non aggiunge
- * informazione e lascerebbe una riga di colore lungo tutta la curva.
+ * Sostituisce `withDrawdownBand`, che restituiva la banda piena [curva,
+ * picco]: su uno storico con buche lunghe quel riempimento copriva mezzo
+ * grafico e vinceva sulla curva, che è l'informazione principale. Il picco
+ * come LINEA dice la stessa cosa — la distanza fra linea e curva È il
+ * drawdown — senza occupare area. La profondità resta nel tooltip, e la
+ * versione quantitativa vive già nel suo widget (underwater plot).
+ *
+ * `depth` è ≤ 0 e vale 0 sui nuovi massimi, dove la linea coincide con la
+ * curva e le resta dietro.
  */
-export function withDrawdownBand(
+export function withPeakLine(
   points: ChartPoint[],
-): (ChartPoint & { drawdownBand: [number, number] | null })[] {
+): (ChartPoint & { peak: number; depth: number })[] {
   let peak = Number.NEGATIVE_INFINITY;
-  const out: (ChartPoint & { drawdownBand: [number, number] | null })[] = [];
+  const out: (ChartPoint & { peak: number; depth: number })[] = [];
   for (const point of points) {
     peak = Math.max(peak, point.cumulative);
-    out.push({
-      ...point,
-      drawdownBand:
-        peak > point.cumulative ? [point.cumulative, peak] : null,
-    });
+    out.push({ ...point, peak, depth: point.cumulative - peak });
   }
   return out;
 }
+
+const itDecimal = (n: number, suffix: string) =>
+  `${n.toLocaleString("it-IT", { maximumFractionDigits: 2 })}${suffix}`;
 
 function tooltipFormatter(masked: boolean, suffix: string) {
   return (
     value: number | string | readonly (number | string)[] | undefined,
     name?: number | string,
+    item?: { payload?: { depth?: number } },
   ) => {
     if (masked) return "•••";
-    // La banda del drawdown è un range [curva, picco]: nel tooltip non si
-    // mostrano i due estremi ma la PROFONDITÀ, col segno che ha davvero.
-    if (Array.isArray(value)) {
-      const depth = Number(value[0]) - Number(value[1]);
-      if (name === "Sotto il picco") {
-        return `${depth.toLocaleString("it-IT", { maximumFractionDigits: 2 })}${suffix}`;
-      }
-      return `${Number(value[0]).toLocaleString("it-IT", { maximumFractionDigits: 2 })}${suffix}`;
+    // La serie del picco nel tooltip NON mostra il livello del massimo — che
+    // da solo non dice niente — ma la distanza da lì: è la profondità della
+    // buca in cui ti trovavi quel giorno.
+    if (name === "Sotto il picco") {
+      const depth = item?.payload?.depth ?? 0;
+      return depth === 0 ? "al picco" : itDecimal(depth, suffix);
     }
-    const num = Number(value ?? 0);
-    return `${num.toLocaleString("it-IT", { maximumFractionDigits: 2 })}${suffix}`;
+    return itDecimal(Number(value ?? 0), suffix);
   };
 }
 
@@ -104,16 +108,19 @@ export function CumulativePnlChart({
   const last = points.at(-1)?.cumulative ?? 0;
   const color = pnlChartColor(last === 0 ? 1 : last);
 
-  /* OVERLAY DEL DRAWDOWN. La curva e la buca erano due card separate con due
-     assi X diversi: per leggerle insieme — che è l'unico modo di leggerle —
-     l'occhio doveva saltare fra due grafici, e uno dei due poteva essere
-     nascosto dal menu widget. Qui la banda fra il PICCO CORRENTE e la curva
-     è disegnata sotto la curva stessa: dove la banda è spessa, eri sott'acqua.
+  /* LINEA DEL MASSIMO PRECEDENTE (high-water mark). La curva e la buca erano
+     due card separate con due assi X diversi: per leggerle insieme — che è
+     l'unico modo di leggerle — l'occhio doveva saltare fra due grafici. La
+     prima versione risolveva riempiendo di rosso lo spazio fra picco e curva,
+     ma su uno storico con drawdown lunghi quel riempimento diventa metà del
+     grafico e vince sull'equity, che è ciò che si è venuti a vedere.
 
-     È un'area RANGE [curva, picco] di Recharts, la stessa forma delle bande σ
-     dell'equity simulator. Il picco si deriva qui dai punti già in pagina:
-     nessun dato nuovo dal server, nessuna seconda convenzione di calcolo. */
-  const data = withDrawdownBand(withZeroStart(points));
+     Qui il picco è una LINEA sottile tratteggiata, disegnata PRIMA della
+     curva e quindi dietro: dove la curva è al massimo la linea sparisce sotto
+     di essa, dove è sotto si apre lo spazio, e quello spazio è il drawdown.
+     Stessa informazione, zero area colorata. Il picco si deriva dai punti già
+     in pagina: nessun dato nuovo dal server, nessuna seconda convenzione. */
+  const data = withPeakLine(withZeroStart(points));
 
   return (
     <ResponsiveContainer width="100%" height={height}>
@@ -145,18 +152,20 @@ export function CumulativePnlChart({
           itemStyle={CHART.tooltipItemStyle}
           labelStyle={CHART.tooltipLabelStyle}
         />
-        {/* Banda del drawdown DIETRO la curva: la curva resta l'oggetto
-            principale, la buca è contesto. Tinta --loss a bassa opacità,
-            quindi segue la coppia P&L scelta in Impostazioni. */}
+        {/* Massimo precedente: solo tratto, nessun riempimento (`fill=none`),
+            dietro la curva. Tinta --loss, quindi segue la coppia P&L scelta
+            in Impostazioni, ma tenue e tratteggiata: è contesto, non un
+            secondo protagonista. */}
         <Area
           isAnimationActive={animate}
           type="monotone"
-          dataKey="drawdownBand"
+          dataKey="peak"
           name="Sotto il picco"
-          stroke="none"
-          fill="var(--loss)"
-          fillOpacity={0.14}
-          connectNulls={false}
+          stroke="var(--loss)"
+          strokeOpacity={0.55}
+          strokeWidth={1}
+          strokeDasharray="4 4"
+          fill="none"
           activeDot={false}
         />
         <Area
