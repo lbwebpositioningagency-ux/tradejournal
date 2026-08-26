@@ -497,12 +497,26 @@ enum SeasonalityClock {
   ROME
 }
 
-// Chiusure giornaliere grezze. Chiave logica (instrument, date): il job
+// Barre giornaliere grezze. Chiave logica (instrument, date): il job
 // riscrive solo le date nuove o cambiate (le fonti revisionano il passato).
+//
+// `close` è OBBLIGATORIA e resta il motore di tutto ciò che esisteva prima:
+// rendimenti, stagionalità, volatilità realizzata. Nessun calcolo storico
+// cambia valore per il fatto che ora ci sono anche le altre tre.
+//
+// `open/high/low` sono NULLABILI, e non per pigrizia: non tutte le fonti le
+// pubblicano. FRED espone serie a valore singolo (WTI spot Cushing, VIX, GVZ,
+// OVX): per quegli strumenti la chiusura è tutto ciò che esiste, e una colonna
+// vuota è la rappresentazione onesta del fatto. Dukascopy e Yahoo le danno
+// tutte e quattro. Chi consuma high/low deve dichiarare su quale campione sta
+// lavorando invece di mescolare in silenzio giorni con e senza il dato.
 model SeasonalityDailyBar {
   instrument SeasonalityInstrument
   date       DateTime              @db.Date
   close      Decimal               @db.Decimal(18, 8)
+  open       Decimal?              @db.Decimal(18, 8)
+  high       Decimal?              @db.Decimal(18, 8)
+  low        Decimal?              @db.Decimal(18, 8)
 
   @@id([instrument, date])
 }

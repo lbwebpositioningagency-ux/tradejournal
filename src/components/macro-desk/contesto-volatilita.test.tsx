@@ -58,6 +58,24 @@ function riga(over: Partial<RigaContestoVol> = {}): RigaContestoVol {
       { sedute: 20, mediana: 0.0072, q25: 0.0034, q75: 0.0118, massimo: 0.0241, n: 20 },
       { sedute: 60, mediana: 0.0081, q25: 0.0039, q75: 0.0131, massimo: 0.0402, n: 60 },
     ],
+    escursione: [
+      { sedute: 20, mediana: 0.0143, q25: 0.0091, q75: 0.0212, massimo: 0.0388, n: 20, senzaOhlc: 0 },
+      { sedute: 60, mediana: 0.0151, q25: 0.0096, q75: 0.0224, massimo: 0.0501, n: 54, senzaOhlc: 6 },
+    ],
+    escursioneUltima: {
+      giorno: "2026-08-24",
+      relativa: 0.0166,
+      assoluta: 67.7,
+      rango: {
+        percentile: 62.4,
+        n: 6412,
+        primoGiorno: "1999-06-03",
+        ultimoGiorno: "2026-08-24",
+        minimo: 0.0009,
+        massimo: 0.0912,
+      },
+    },
+    coperturaOhlc: { conOhlc: 6412, totali: 7945 },
     ultimaChiusura: 4076.4,
     ...over,
   };
@@ -158,9 +176,11 @@ describe("ContestoVolatilita — movimento osservato", () => {
     expect(html).toContain("n=60");
   });
 
-  it("dichiara che è chiusura-chiusura e che STA SOTTO l'ampiezza vera", () => {
-    expect(html).toContain("non escursione massima intragiornaliera");
+  it("dichiara che è chiusura-chiusura e che STA SOTTO l'escursione vera", () => {
+    expect(html).toContain("Variazione fra due chiusure");
     expect(html).toContain("SOTTO");
+    // la differenza fra le due misure è scritta, non lasciata dedurre
+    expect(html).toContain("torna in pari vale zero qui");
   });
 
   it("la cifra in valuta dichiara su quale chiusura è calcolata", () => {
@@ -211,5 +231,112 @@ describe("ContestoVolatilita — assenze dichiarate", () => {
 
   it("contesto vuoto degrada a un messaggio, non a una pagina bianca", () => {
     expect(resa([])).toContain("Contesto di volatilità non disponibile");
+  });
+});
+
+describe("ContestoVolatilita — escursione vera accanto alla chiusura-chiusura", () => {
+  const html = resa([riga()]);
+
+  it("le DUE misure convivono e sono distinguibili a schermo", () => {
+    // sostituirne una con l'altra sarebbe perdere informazione: rispondono a
+    // due domande diverse sulla stessa giornata
+    expect(html).toContain("Escursione vera della giornata");
+    expect(html).toContain("Movimento giornaliero osservato");
+    expect(html.indexOf("Escursione vera")).toBeLessThan(
+      html.indexOf("Movimento giornaliero"),
+    );
+  });
+
+  it("l'ultima seduta porta livello, ampiezza in prezzo, data e rango", () => {
+    expect(html).toContain("1,66%");
+    expect(html).toContain("67,70 di ampiezza il 24/08/2026");
+    expect(html).toContain("più ampia del");
+    expect(html).toContain("62%");
+    expect(html).toContain("delle sedute dal 1999");
+    expect(html).toContain("n=6412");
+  });
+
+  it("l'escursione mediana è più ampia del movimento sulla stessa finestra", () => {
+    // proprietà del dato, non del testo: |close-close| <= high-low per costruzione
+    expect(html).toContain("1,43%"); // escursione mediana a 20 sedute
+    expect(html).toContain("0,72%"); // movimento mediano a 20 sedute
+  });
+
+  it("una seduta ancora aperta è dichiarata tale, non spacciata per chiusa", () => {
+    // la sua escursione può solo crescere: mostrarla come «l'escursione di
+    // ieri» sarebbe un numero destinato a smentirsi entro sera
+    const viva = resa([
+      riga({
+        escursioneUltima: {
+          giorno: "2026-08-25", // = `oggi` del contesto di prova
+          relativa: 0.0051,
+          assoluta: 133.43,
+          rango: {
+            percentile: 19,
+            n: 9775,
+            primoGiorno: "1987-12-30",
+            ultimoGiorno: "2026-08-25",
+            minimo: 0.0006,
+            massimo: 0.14,
+          },
+        },
+      }),
+    ]);
+    expect(viva).toContain("seduta ancora aperta");
+    expect(viva).toContain("non è ancora chiusa");
+    // e il caso normale non porta il rumore
+    expect(html).not.toContain("seduta ancora aperta");
+  });
+
+  it("dichiara come è definita e da dove viene, senza formule implicite", () => {
+    expect(html).toContain("Massimo meno minimo della seduta, diviso la chiusura");
+    expect(html).toContain("quello che uno stop incontra");
+    expect(html).toContain("Dukascopy Bank SA");
+  });
+});
+
+describe("ContestoVolatilita — il campione dell'escursione non si mescola mai", () => {
+  it("dichiara quante sedute dell'archivio hanno massimo e minimo, su quante", () => {
+    const html = resa([riga()]);
+    expect(html).toContain("6412");
+    expect(html).toContain("7945");
+    expect(html).toContain("che hanno massimo e minimo");
+  });
+
+  it("una finestra parziale dichiara le sedute escluse invece di tacerle", () => {
+    const html = resa([riga()]);
+    // la finestra a 60 del fixture ha 54 sedute utili su 60
+    expect(html).toContain("n=54 su 60 (6 sedute senza massimo e minimo, escluse)");
+  });
+
+  it("una finestra piena non aggiunge rumore", () => {
+    const html = resa([riga()]);
+    expect(html).toContain("massimo 3,88% · n=20<");
+  });
+
+  it("senza high/low il blocco dichiara perché, e non ricostruisce niente", () => {
+    const html = resa([
+      riga({
+        etichetta: "Petrolio WTI",
+        escursione: [],
+        escursioneUltima: null,
+        coperturaOhlc: { conOhlc: 0, totali: 10225 },
+        prezzo: {
+          livello: 86.48,
+          giorno: "2026-08-18",
+          etaGiorni: 7,
+          rango: null,
+          variazioni: [],
+          fonte: "U.S. Energy Information Administration via FRED",
+          notaFonte: "Prezzo spot Cushing.",
+        },
+      }),
+    ]);
+    expect(html).toContain("Escursione vera della giornata");
+    expect(html).toContain("dato non disponibile");
+    expect(html).toContain("pubblica solo la chiusura");
+    expect(html).toContain("non si ricostruisce dalla");
+    // e soprattutto: nessun numero inventato al posto del dato mancante
+    expect(html).not.toContain("più ampia del");
   });
 });

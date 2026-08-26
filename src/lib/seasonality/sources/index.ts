@@ -13,7 +13,7 @@
 
 import { fetchFredSeries } from "@/lib/fred";
 import type { DailyBar } from "@/lib/seasonality/series";
-import { normalizeBars } from "@/lib/seasonality/series";
+import { hasOhlc, normalizeBars } from "@/lib/seasonality/series";
 import type {
   DailySourceRef,
   SeasonalityInstrumentDef,
@@ -25,10 +25,34 @@ export interface ResolvedSeries {
   /** Etichetta mostrata in pagina, es. "FRED DCOILWTICO". */
   source: string;
   bars: DailyBar[];
+  /**
+   * Vero se il PROVIDER che ha risposto pubblica anche open/high/low.
+   *
+   * Non descrive il risultato: è una PROMESSA sul provider, ed è questo che
+   * la rende utile. Se la promessa c'è e le barre con OHLC sono zero, la
+   * forma della risposta è cambiata e il job deve fallire invece di scrivere
+   * solo chiusure come se fosse normale (v. `job-esito.ts`).
+   *
+   * FRED espone serie a valore singolo: per lui è `false`, le colonne restano
+   * vuote per sempre e nessuno lo considera un guasto.
+   */
+  fornisceOhlc: boolean;
+  /** Barre con un OHLC valido dopo il controllo di coerenza di `normalizeBars`. */
+  barreConOhlc: number;
+  /**
+   * Barre che la fonte portava con tutte e tre le facce ma il controllo di
+   * coerenza ha rifiutato. Va riportato, non nascosto: v. `ContoOhlc`.
+   */
+  barreScartatePerIncoerenza: number;
 }
 
 /** Dukascopy vuole un intervallo: si parte da prima di qualunque storico. */
 const DUKASCOPY_FLOOR = new Date("1990-01-01T00:00:00Z");
+
+/** Chi pubblica anche open/high/low, e chi no. È una proprietà del provider. */
+function providerFornisceOhlc(ref: DailySourceRef): boolean {
+  return ref.provider !== "fred";
+}
 
 function sourceLabel(ref: DailySourceRef): string {
   switch (ref.provider) {
@@ -80,7 +104,18 @@ export async function resolveDailySeries(
         errors.push(`${sourceLabel(ref)}: nessuna barra utilizzabile`);
         continue;
       }
-      return { source, bars: normalized };
+      /* Il confronto è fra ciò che la fonte PORTAVA e ciò che è sopravvissuto
+         al controllo di coerenza: la differenza è la sola cosa che questo
+         punto del codice butta via, e va contata dove la si butta. */
+      const grezzeConOhlc = bars.filter(hasOhlc).length;
+      const barreConOhlc = normalized.filter(hasOhlc).length;
+      return {
+        source,
+        bars: normalized,
+        fornisceOhlc: providerFornisceOhlc(ref),
+        barreConOhlc,
+        barreScartatePerIncoerenza: Math.max(0, grezzeConOhlc - barreConOhlc),
+      };
     } catch (error) {
       errors.push(`${sourceLabel(ref)}: ${String(error)}`);
     }

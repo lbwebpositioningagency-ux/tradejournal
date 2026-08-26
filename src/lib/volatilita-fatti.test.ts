@@ -1,5 +1,8 @@
 import { describe, expect, it } from "vitest";
 import {
+  escursioneDi,
+  escursioneOsservata,
+  escursioneUltimaSeduta,
   etaInGiorni,
   movimentoOsservato,
   quantile,
@@ -9,6 +12,7 @@ import {
   variazioni,
   volRealizzata,
   type PuntoSerie,
+  type SedutaOhlc,
 } from "./volatilita-fatti";
 
 /**
@@ -159,5 +163,113 @@ describe("etaInGiorni", () => {
 
   it("una data futura non produce un'età negativa", () => {
     expect(etaInGiorni("2026-08-30", "2026-08-24")).toBe(0);
+  });
+});
+
+/* ── escursione vera ─────────────────────────────────────────────────── */
+
+function seduta(
+  giorno: string,
+  close: number,
+  high?: number | null,
+  low?: number | null,
+): SedutaOhlc {
+  return { giorno, close, high, low };
+}
+
+describe("escursioneDi", () => {
+  it("è (massimo − minimo) diviso la chiusura", () => {
+    expect(escursioneDi(seduta("2026-01-02", 100, 102, 98))).toBeCloseTo(0.04, 10);
+  });
+
+  it("senza massimo o senza minimo → null, MAI ricostruita dalla chiusura", () => {
+    expect(escursioneDi(seduta("2026-01-02", 100, 102, null))).toBeNull();
+    expect(escursioneDi(seduta("2026-01-02", 100, null, 98))).toBeNull();
+    expect(escursioneDi(seduta("2026-01-02", 100))).toBeNull();
+  });
+
+  it("un massimo sotto il minimo è una barra corrotta, non un numero piccolo", () => {
+    expect(escursioneDi(seduta("2026-01-02", 100, 98, 102))).toBeNull();
+  });
+
+  it("una giornata piatta vale zero, non null: è un fatto osservato", () => {
+    expect(escursioneDi(seduta("2026-01-02", 100, 100, 100))).toBe(0);
+  });
+});
+
+describe("escursioneOsservata", () => {
+  const piena = Array.from({ length: 30 }, (_, i) =>
+    seduta(`2026-01-${String(i + 1).padStart(2, "0")}`, 100, 101, 99),
+  );
+
+  it("mediana, banda e massimo sul campione utile, col conteggio", () => {
+    const e = escursioneOsservata(piena, 20);
+    expect(e).not.toBeNull();
+    expect(e!.n).toBe(20);
+    expect(e!.senzaOhlc).toBe(0);
+    expect(e!.mediana).toBeCloseTo(0.02, 10);
+  });
+
+  it("le sedute senza massimo e minimo sono ESCLUSE e CONTATE, non ignorate", () => {
+    const mista = [...piena];
+    for (let i = 0; i < 6; i += 1) {
+      const j = mista.length - 1 - i;
+      mista[j] = seduta(mista[j].giorno, 100);
+    }
+    const e = escursioneOsservata(mista, 20);
+    expect(e!.n).toBe(14);
+    expect(e!.senzaOhlc).toBe(6);
+    // n + senzaOhlc copre l'intera finestra richiesta: nessuna seduta sparisce
+    expect(e!.n + e!.senzaOhlc).toBe(20);
+  });
+
+  it("sotto le dieci sedute utili → null, anche con la finestra piena di righe", () => {
+    const quasiVuota = piena.map((s) => seduta(s.giorno, s.close));
+    quasiVuota[0] = seduta(quasiVuota[0].giorno, 100, 101, 99);
+    expect(escursioneOsservata(quasiVuota, 20)).toBeNull();
+  });
+});
+
+describe("escursioneUltimaSeduta", () => {
+  const serie = [
+    seduta("2026-01-01", 100, 101, 99),
+    seduta("2026-01-02", 100), // senza OHLC: non deve diventare "l'ultima"
+    seduta("2026-01-03", 200, 206, 194),
+  ];
+
+  it("prende l'ultima seduta CHE HA il dato, non l'ultima riga", () => {
+    const u = escursioneUltimaSeduta(serie);
+    expect(u!.giorno).toBe("2026-01-03");
+    expect(u!.assoluta).toBeCloseTo(12, 10);
+    expect(u!.relativa).toBeCloseTo(0.06, 10);
+  });
+
+  it("il rango è calcolato SOLO sulle sedute con OHLC", () => {
+    // due sole osservazioni valide, 0,02 e 0,06: l'ultima è la più ampia
+    const u = escursioneUltimaSeduta(serie);
+    expect(u!.rango?.n).toBe(2);
+    expect(u!.rango?.percentile).toBeGreaterThan(50);
+  });
+
+  it("una serie senza nessun OHLC → null, non uno zero", () => {
+    expect(
+      escursioneUltimaSeduta([seduta("2026-01-01", 100), seduta("2026-01-02", 101)]),
+    ).toBeNull();
+  });
+});
+
+describe("escursione contro movimento: la relazione che giustifica entrambe", () => {
+  it("l'escursione di una giornata è sempre ≥ del movimento fra le sue chiusure", () => {
+    /* Il caso che rende evidente perché servono due misure: sale del 2% e
+       torna in pari. Movimento zero, escursione 2%. Chi dimensiona uno stop
+       sul primo numero lo mette dentro il rumore della giornata. */
+    const s = [
+      seduta("2026-01-01", 100, 100, 100),
+      seduta("2026-01-02", 100, 102, 100),
+    ];
+    const escursione = escursioneDi(s[1])!;
+    const movimento = Math.abs(s[1].close / s[0].close - 1);
+    expect(movimento).toBe(0);
+    expect(escursione).toBeGreaterThan(movimento);
   });
 });

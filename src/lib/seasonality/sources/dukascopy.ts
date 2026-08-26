@@ -40,9 +40,16 @@ export async function fetchDukascopyDaily(
     if (typeof close !== "number" || !Number.isFinite(close) || close <= 0) {
       continue;
     }
+    /* Dukascopy restituisce la candela intera. Fino al 26/08/2026 qui si
+       teneva la sola chiusura, ed è la ragione per cui il desk misurava le
+       giornate chiusura-contro-chiusura pur avendo high e low sotto mano.
+       La plausibilità dell'OHLC la verifica `normalizeBars`. */
     out.push({
       date: new Date(bar.timestamp).toISOString().slice(0, 10),
       close,
+      open: bar.open,
+      high: bar.high,
+      low: bar.low,
     });
   }
   if (out.length === 0) {

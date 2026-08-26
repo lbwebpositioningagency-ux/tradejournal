@@ -24,6 +24,8 @@ import type {
   SerieFatti,
 } from "@/lib/queries/volatilita-contesto";
 import type {
+  EscursioneOsservata,
+  EscursioneUltimaSeduta,
   MovimentoOsservato,
   VariazioneFinestra,
 } from "@/lib/volatilita-fatti";
@@ -221,9 +223,9 @@ function BloccoMovimento({
         </div>
       ))}
       <span className="text-[11px] leading-relaxed text-[var(--md-muted)]">
-        Variazione assoluta fra due chiusure, non escursione massima
-        intragiornaliera: l&apos;archivio conserva solo la chiusura, quindi
-        questa misura sta SOTTO l&apos;ampiezza vera della giornata.
+        Variazione fra due chiusure: un giorno che sale del 2% e torna in pari
+        vale zero qui. Sta SOTTO l&apos;escursione vera, che è il blocco
+        accanto.
         {ultimaChiusura !== null && prezzo
           ? ` Cifra in valuta calcolata sull'ultima chiusura ${nf(2).format(ultimaChiusura)} del ${dataIt(prezzo.giorno)} (${eta(prezzo.etaGiorni)}).`
           : ""}
@@ -237,7 +239,154 @@ function BloccoMovimento({
   );
 }
 
-function Riga({ riga, indice }: { riga: RigaContestoVol; indice: number }) {
+/**
+ * L'ESCURSIONE VERA della giornata: `(high − low)/close`.
+ *
+ * Sta ACCANTO al movimento chiusura-chiusura, non al suo posto: sono due
+ * misure diverse della stessa giornata e chi legge deve sapere quale sta
+ * guardando. Il movimento dice quanto la giornata ha portato via da dove era
+ * partita; l'escursione dice quanto spazio ha attraversato — ed è quella che
+ * uno stop incontra.
+ *
+ * Il campione è dichiarato sempre, anche quando è pieno: l'archivio ha righe
+ * senza high e low (storico precedente al 26/08/2026, serie FRED a valore
+ * singolo) e una mediana su 12 sedute su 20 non è la mediana delle ultime 20.
+ */
+function BloccoEscursione({
+  escursione,
+  ultima,
+  copertura,
+  ultimaChiusura,
+  prezzo,
+  oggi,
+}: {
+  escursione: EscursioneOsservata[];
+  ultima: EscursioneUltimaSeduta | null;
+  copertura: { conOhlc: number; totali: number };
+  ultimaChiusura: number | null;
+  prezzo: SerieFatti | null;
+  /** Giorno civile nel fuso dell'utente: serve a riconoscere la seduta viva. */
+  oggi: string;
+}) {
+  /* Una seduta ANCORA APERTA ha un'escursione che può solo crescere: mostrarla
+     come «l'escursione di ieri» sarebbe un numero destinato a smentirsi entro
+     sera. Il dato resta — è osservato — ma la pagina dice che non è finito. */
+  const sedutaViva = ultima !== null && ultima.giorno === oggi;
+  if (escursione.length === 0 && ultima === null) {
+    return (
+      <div
+        className="flex flex-col gap-1 border-t pt-2"
+        style={{ borderColor: "var(--md-border)" }}
+      >
+        <span className="text-xs text-[var(--md-muted)]">
+          Escursione vera della giornata
+        </span>
+        <span className="md-mono text-sm text-[var(--md-muted)]">
+          dato non disponibile
+        </span>
+        <span className="text-[11px] leading-relaxed text-[var(--md-muted)]">
+          La fonte che ha risposto per questo prezzo pubblica solo la chiusura:
+          senza massimo e minimo l&apos;escursione non si calcola, e non si
+          ricostruisce dalla chiusura.
+        </span>
+      </div>
+    );
+  }
+
+  return (
+    <div
+      className="flex flex-col gap-1.5 border-t pt-2"
+      style={{ borderColor: "var(--md-border)" }}
+    >
+      <span className="text-xs text-[var(--md-muted)]">
+        Escursione vera della giornata
+      </span>
+
+      {ultima ? (
+        <div className="flex flex-wrap items-baseline gap-x-2 gap-y-0.5">
+          <span className="md-mono text-lg font-semibold text-[var(--md-text)]">
+            {pct(ultima.relativa, 2)}
+          </span>
+          <span className="md-mono text-xs text-[var(--md-text-2)]">
+            {nf(2).format(ultima.assoluta)} di ampiezza il{" "}
+            {dataIt(ultima.giorno)}
+          </span>
+          {sedutaViva ? (
+            <span
+              className="md-mono rounded px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-[0.08em]"
+              style={{
+                color: "var(--md-warn)",
+                border: "1px dashed var(--md-warn)",
+              }}
+            >
+              seduta ancora aperta
+            </span>
+          ) : null}
+          {ultima.rango ? (
+            <span className="text-xs leading-relaxed text-[var(--md-text-2)]">
+              più ampia del{" "}
+              <span className="md-mono font-semibold">
+                {nf(0).format(ultima.rango.percentile)}%
+              </span>{" "}
+              delle sedute dal {ultima.rango.primoGiorno.slice(0, 4)}{" "}
+              <span className="text-[var(--md-muted)]">
+                (n={nf(0).format(ultima.rango.n)})
+              </span>
+            </span>
+          ) : null}
+        </div>
+      ) : null}
+
+      {escursione.map((e) => (
+        <div
+          key={e.sedute}
+          className="flex flex-wrap items-baseline gap-x-2 gap-y-0.5"
+        >
+          <span className="md-mono text-[11px] text-[var(--md-muted)]">
+            {e.sedute} sedute
+          </span>
+          <span className="md-mono text-sm font-semibold text-[var(--md-text)]">
+            {pct(e.mediana, 2)}
+            {ultimaChiusura !== null
+              ? ` · ${nf(2).format(e.mediana * ultimaChiusura)}`
+              : ""}
+          </span>
+          <span className="md-mono text-[11px] text-[var(--md-muted)]">
+            banda 25-75%: {pct(e.q25, 2)} – {pct(e.q75, 2)} · massimo{" "}
+            {pct(e.massimo, 2)} · n={e.n}
+            {e.senzaOhlc > 0
+              ? ` su ${e.n + e.senzaOhlc} (${e.senzaOhlc} sedute senza massimo e minimo, escluse)`
+              : ""}
+          </span>
+        </div>
+      ))}
+
+      <span className="text-[11px] leading-relaxed text-[var(--md-muted)]">
+        Massimo meno minimo della seduta, diviso la chiusura: è lo spazio che
+        il prezzo ha attraversato, e quello che uno stop incontra.
+        {sedutaViva
+          ? " La seduta più recente è quella di oggi e non è ancora chiusa: la sua escursione può solo crescere."
+          : ""}{" "}
+        Calcolata sulle{" "}
+        <span className="md-mono">{nf(0).format(copertura.conOhlc)}</span>{" "}
+        sedute dell&apos;archivio che hanno massimo e minimo, su{" "}
+        <span className="md-mono">{nf(0).format(copertura.totali)}</span>{" "}
+        totali.
+        {prezzo ? ` Fonte: ${prezzo.fonte}.` : ""}
+      </span>
+    </div>
+  );
+}
+
+function Riga({
+  riga,
+  indice,
+  oggi,
+}: {
+  riga: RigaContestoVol;
+  indice: number;
+  oggi: string;
+}) {
   return (
     <div className="md-card md-card-hover md-fade flex flex-col gap-3 p-4" style={fade(indice + 1)}>
       <span className="text-sm font-semibold text-[var(--md-text)]">
@@ -245,6 +394,14 @@ function Riga({ riga, indice }: { riga: RigaContestoVol; indice: number }) {
       </span>
       <BloccoIv riga={riga} />
       <BloccoConfronto riga={riga} />
+      <BloccoEscursione
+        escursione={riga.escursione}
+        ultima={riga.escursioneUltima}
+        copertura={riga.coperturaOhlc}
+        ultimaChiusura={riga.ultimaChiusura}
+        prezzo={riga.prezzo}
+        oggi={oggi}
+      />
       <BloccoMovimento
         movimento={riga.movimento}
         ultimaChiusura={riga.ultimaChiusura}
@@ -281,7 +438,7 @@ export function ContestoVolatilitaPanel({
 
       <div className="grid gap-3 lg:grid-cols-2">
         {contesto.righe.map((r, i) => (
-          <Riga key={r.indice} riga={r} indice={i} />
+          <Riga key={r.indice} riga={r} indice={i} oggi={contesto.oggi} />
         ))}
       </div>
 

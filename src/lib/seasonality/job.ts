@@ -54,6 +54,8 @@ import {
   ingestQuartersStep,
 } from "@/lib/seasonality/quarter-ingest";
 import { resolveDailySeries } from "@/lib/seasonality/sources";
+import type { ContoOhlc } from "@/lib/job-esito";
+import { hasOhlc } from "@/lib/seasonality/series";
 
 /** Postgres accetta al massimo 65535 parametri per statement: le righe di
  * statistica hanno 18 colonne, quindi si resta molto sotto il limite. */
@@ -134,6 +136,13 @@ export interface EsitoStrumento {
   anniCompleti: number | null;
   messaggio: string | null;
   intraday: EsitoIntraday | null;
+  /**
+   * Contabilità di open/high/low per questa serie, dalla fonte al database.
+   * `null` quando in questo giro non si è scritto niente (serie già fresca,
+   * rinviata per budget, senza fonte): non si può perdere ciò che non si è
+   * nemmeno letto. La regola che la valuta sta in `lib/job-esito.ts`.
+   */
+  ohlc: ContoOhlc | null;
 }
 
 export interface EsitoJob {
@@ -234,6 +243,7 @@ export async function runSeasonalityDailyJob(
       anniCompleti: null,
       messaggio: def.unavailable,
       intraday: null,
+      ohlc: null,
     });
   }
 
@@ -261,6 +271,7 @@ export async function runSeasonalityDailyJob(
         anniCompleti: null,
         messaggio: null,
         intraday: null,
+        ohlc: null,
       });
       continue;
     }
@@ -279,13 +290,20 @@ export async function runSeasonalityDailyJob(
         messaggio:
           "Budget esaurito: giornaliero rinviato alla prossima esecuzione.",
         intraday: null,
+        ohlc: null,
       });
       prossimo ??= `giornaliero di ${def.code}`;
       continue;
     }
 
     try {
-      const { source, bars } = await resolveDailySeries(def, now);
+      const {
+        source,
+        bars,
+        fornisceOhlc,
+        barreConOhlc,
+        barreScartatePerIncoerenza,
+      } = await resolveDailySeries(def, now);
       const result = precomputeDaily({
         instrument: def.code,
         kind: def.kind,
@@ -307,10 +325,17 @@ export async function runSeasonalityDailyJob(
           });
           await insertInChunks(bars, (chunk) =>
             tx.seasonalityDailyBar.createMany({
+              /* `hasOhlc` decide per la barra INTERA: o si scrivono tutte e
+                 tre le facce o nessuna. Una riga con high e senza low non è
+                 una barra a metà, è una barra da cui si calcolerebbe
+                 un'escursione sbagliata. */
               data: chunk.map((b) => ({
                 instrument: def.code,
                 date: new Date(`${b.date}T00:00:00Z`),
                 close: dec(b.close),
+                ...(hasOhlc(b)
+                  ? { open: dec(b.open), high: dec(b.high), low: dec(b.low) }
+                  : {}),
               })),
             }),
           );
@@ -428,6 +453,12 @@ export async function runSeasonalityDailyJob(
         data: { dailyDoneAt: now },
       });
 
+      /* Il conteggio delle righe CON OHLC si rifà sulle barre appena scritte,
+         non si copia da `barreConOhlc`: confrontare un numero con se stesso
+         non verificherebbe niente. Il criterio è lo stesso usato per
+         decidere cosa scrivere, quindi una divergenza fra i due può nascere
+         solo da un difetto vero nella scrittura. */
+      const scritteConOhlc = bars.filter(hasOhlc).length;
       push({
         strumento: def.code,
         esito: "aggiornato",
@@ -440,8 +471,21 @@ export async function runSeasonalityDailyJob(
         anniCompleti,
         messaggio: null,
         intraday: null,
+        ohlc: {
+          fornito: fornisceOhlc,
+          dallaFonte: barreConOhlc,
+          scritteConOhlc,
+          scartatePerIncoerenza: barreScartatePerIncoerenza,
+        },
       });
-      log(`  ${def.code}: giornaliero aggiornato (${bars.length} barre)`);
+      log(
+        `  ${def.code}: giornaliero aggiornato (${bars.length} barre, ` +
+          `${scritteConOhlc} con OHLC` +
+          (barreScartatePerIncoerenza > 0
+            ? `, ${barreScartatePerIncoerenza} scartate perché incoerenti`
+            : "") +
+          ")",
+      );
     } catch (error) {
       const messaggio = String(error);
       console.error(`[stagionalita] ${def.code}: ${messaggio}`);
@@ -462,6 +506,7 @@ export async function runSeasonalityDailyJob(
         anniCompleti: null,
         messaggio,
         intraday: null,
+        ohlc: null,
       });
     }
   }

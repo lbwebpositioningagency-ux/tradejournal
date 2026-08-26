@@ -247,6 +247,128 @@ export function movimentoOsservato(
   };
 }
 
+/* ── escursione vera della giornata ──────────────────────────────────── */
+
+/**
+ * Una seduta con, forse, le sue tre facce oltre alla chiusura.
+ *
+ * `high`/`low` sono facoltativi perché per molte serie non esistono: FRED
+ * pubblica il WTI spot e gli indici di volatilità come valore singolo. Il
+ * tipo lo dichiara, invece di lasciarlo scoprire a chi legge i risultati.
+ */
+export interface SedutaOhlc {
+  /** "YYYY-MM-DD". */
+  giorno: string;
+  close: number;
+  high?: number | null;
+  low?: number | null;
+}
+
+/**
+ * L'escursione di UNA seduta, in frazione della chiusura: `(high − low)/close`.
+ *
+ * È la grandezza che il movimento chiusura-chiusura sottostima. Un giorno che
+ * sale del 2% e torna in pari ha escursione del 2% e movimento zero: due
+ * numeri diversi che rispondono a due domande diverse, e la pagina deve dire
+ * quale sta mostrando.
+ *
+ * `null` quando la seduta non porta entrambe le facce o sono incoerenti. Non
+ * si ricostruisce nulla dalla chiusura: un high inventato è peggio di un high
+ * assente.
+ */
+export function escursioneDi(s: SedutaOhlc): number | null {
+  const { high, low, close } = s;
+  if (typeof high !== "number" || typeof low !== "number") return null;
+  if (!Number.isFinite(high) || !Number.isFinite(low)) return null;
+  if (!(close > 0) || high < low) return null;
+  return (high - low) / close;
+}
+
+export interface EscursioneOsservata {
+  sedute: FinestraVariazione;
+  /** Frazioni della chiusura: 0,0143 = 1,43%. */
+  mediana: number;
+  q25: number;
+  q75: number;
+  massimo: number;
+  /** Sedute della finestra su cui la misura è calcolata. */
+  n: number;
+  /** Sedute della stessa finestra SCARTATE perché senza high/low. */
+  senzaOhlc: number;
+}
+
+/**
+ * Distribuzione dell'escursione vera sulle ultime `sedute` sedute.
+ *
+ * IL CAMPIONE NON SI MESCOLA. `n` conta solo le sedute che avevano davvero
+ * high e low; `senzaOhlc` conta quelle della stessa finestra che non li
+ * avevano. Chi rende questi numeri deve mostrare entrambi: una mediana su 12
+ * sedute su 20 non è la mediana delle ultime 20, e presentarla come tale
+ * sarebbe lo stesso silenzio che questo desk sta togliendo.
+ */
+export function escursioneOsservata(
+  serie: readonly SedutaOhlc[],
+  sedute: FinestraVariazione,
+): EscursioneOsservata | null {
+  const finestra = serie.slice(-sedute);
+  const valori: number[] = [];
+  let senzaOhlc = 0;
+  for (const s of finestra) {
+    const e = escursioneDi(s);
+    if (e === null) senzaOhlc += 1;
+    else valori.push(e);
+  }
+  if (valori.length < MINIMO_RENDIMENTI_VOL) return null;
+  return {
+    sedute,
+    mediana: quantile(valori, 0.5),
+    q25: quantile(valori, 0.25),
+    q75: quantile(valori, 0.75),
+    massimo: Math.max(...valori),
+    n: valori.length,
+    senzaOhlc,
+  };
+}
+
+export interface EscursioneUltimaSeduta {
+  giorno: string;
+  /** Frazione della chiusura. */
+  relativa: number;
+  /** In unità di prezzo: `high − low`. */
+  assoluta: number;
+  /** Rango sull'intera storia CON OHLC; `null` se non ce n'è. */
+  rango: RangoStorico | null;
+}
+
+/**
+ * L'escursione dell'ultima seduta disponibile, col suo rango su tutta la
+ * storia che ha OHLC. È la riga da terminale: non «1,43%» ma «1,43%, più
+ * ampia del 62% delle sedute dal 1999».
+ *
+ * Il rango è calcolato SOLO sulle sedute con high e low: un percentile che
+ * includesse quelle senza il dato starebbe misurando la copertura
+ * dell'archivio, non l'ampiezza del mercato.
+ */
+export function escursioneUltimaSeduta(
+  serie: readonly SedutaOhlc[],
+): EscursioneUltimaSeduta | null {
+  const conOhlc: PuntoSerie[] = [];
+  let ultima: { giorno: string; relativa: number; assoluta: number } | null =
+    null;
+  for (const s of serie) {
+    const e = escursioneDi(s);
+    if (e === null) continue;
+    conOhlc.push({ giorno: s.giorno, valore: e });
+    ultima = {
+      giorno: s.giorno,
+      relativa: e,
+      assoluta: (s.high as number) - (s.low as number),
+    };
+  }
+  if (ultima === null) return null;
+  return { ...ultima, rango: rangoStorico(conOhlc) };
+}
+
 /* ── età del dato ────────────────────────────────────────────────────── */
 
 /**

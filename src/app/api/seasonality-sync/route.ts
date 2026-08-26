@@ -117,6 +117,10 @@ export async function GET(request: Request) {
           : "invariato",
     scritte: s.barre,
     dettaglio: s.messaggio ?? undefined,
+    /* Colonne perse = fallimento, come le serie mai tentate. Se la fonte
+       dava open/high/low e nel database è finita la sola chiusura, il cron
+       risponde 500 invece di dichiararsi verde: v. `perditaOhlc`. */
+    ohlc: s.ohlc ?? undefined,
   }));
   const verificaStagionalita = verificaEsitoJob(
     AVAILABLE_INSTRUMENTS.map((i) => i.code),

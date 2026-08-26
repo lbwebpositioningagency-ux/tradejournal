@@ -7,6 +7,7 @@ import {
   logToPercent,
   monthlyLogReturns,
   monthlyMeanLevels,
+  hasOhlc,
   normalizeBars,
   weeklyLogReturns,
   weeklyMeanLevels,
@@ -33,6 +34,48 @@ describe("normalizeBars", () => {
       { date: "2024-01-04", close: 10 },
     ]);
     expect(out).toEqual([{ date: "2024-01-04", close: 10 }]);
+  });
+
+  /* Questa funzione è il punto in cui, fino al 26/08/2026, l'OHLC spariva:
+     ricostruiva `{date, close}` e buttava le altre tre facce molto prima del
+     database. I test qui sotto lo rendono impossibile di nuovo. */
+  it("CONSERVA open/high/low quando la fonte le ha date", () => {
+    const out = normalizeBars([
+      { date: "2024-01-02", close: 10, open: 9.5, high: 10.5, low: 9.2 },
+    ]);
+    expect(out).toEqual([
+      { date: "2024-01-02", close: 10, open: 9.5, high: 10.5, low: 9.2 },
+    ]);
+  });
+
+  it("una barra con la sola chiusura resta con la sola chiusura", () => {
+    const out = normalizeBars([{ date: "2024-01-02", close: 10 }]);
+    expect(out[0].high).toBeUndefined();
+    expect(out[0].low).toBeUndefined();
+  });
+
+  it("scarta un OHLC incoerente ma TIENE la chiusura", () => {
+    // massimo sotto la chiusura: barra corrotta, e in questo progetto un bug
+    // del punto decimale ha già mandato in produzione valori ×1000
+    const out = normalizeBars([
+      { date: "2024-01-02", close: 10, open: 9.5, high: 9.8, low: 9.2 },
+    ]);
+    expect(out).toEqual([{ date: "2024-01-02", close: 10 }]);
+  });
+
+  it("scarta un OHLC parziale invece di scrivere mezza barra", () => {
+    const out = normalizeBars([
+      { date: "2024-01-02", close: 10, high: 10.5 },
+    ]);
+    expect(out).toEqual([{ date: "2024-01-02", close: 10 }]);
+  });
+
+  it("hasOhlc distingue le due forme", () => {
+    expect(
+      hasOhlc({ date: "d", close: 10, open: 9, high: 11, low: 8 }),
+    ).toBe(true);
+    expect(hasOhlc({ date: "d", close: 10 })).toBe(false);
+    expect(hasOhlc({ date: "d", close: 10, high: 11 })).toBe(false);
   });
 });
 

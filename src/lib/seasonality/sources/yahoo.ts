@@ -49,8 +49,24 @@ export function parseYahooChart(payload: unknown): DailyBar[] {
   if (indicators === null || typeof indicators !== "object") return [];
   const quotes = (indicators as { quote?: unknown }).quote;
   if (!Array.isArray(quotes) || quotes.length === 0) return [];
-  const closes = (quotes[0] as { close?: unknown })?.close;
+  const quote = quotes[0] as Record<string, unknown> | undefined;
+  const closes = quote?.close;
   if (!Array.isArray(closes)) return [];
+
+  /* Le altre tre facce sono FACOLTATIVE: se Yahoo cambia forma e smette di
+     mandarle, si torna alla sola chiusura invece di far cadere la serie. Chi
+     deve accorgersene è la verifica di esito del job, non il parser. */
+  const serie = (nome: string): unknown[] | null => {
+    const v = quote?.[nome];
+    return Array.isArray(v) ? v : null;
+  };
+  const opens = serie("open");
+  const highs = serie("high");
+  const lows = serie("low");
+  const num = (a: unknown[] | null, i: number): number | undefined => {
+    const v = a?.[i];
+    return typeof v === "number" && Number.isFinite(v) && v > 0 ? v : undefined;
+  };
 
   const out: DailyBar[] = [];
   for (let i = 0; i < timestamps.length; i += 1) {
@@ -60,7 +76,13 @@ export function parseYahooChart(payload: unknown): DailyBar[] {
     if (typeof close !== "number" || !Number.isFinite(close) || close <= 0) {
       continue;
     }
-    out.push({ date: utcDateKey(ts), close });
+    out.push({
+      date: utcDateKey(ts),
+      close,
+      open: num(opens, i),
+      high: num(highs, i),
+      low: num(lows, i),
+    });
   }
   return out;
 }

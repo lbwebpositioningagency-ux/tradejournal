@@ -245,3 +245,53 @@ piu** fra quelle tre per la parte di contesto: livello, rango, variazione e
 movimento arrivano da `SeasonalityDailyBar`, aggiornata ogni notte. Restano
 dal report gli indici che solo lui porta (VVIX, SKEW, put/call, MOVE) e il
 commento del giorno, entrambi etichettati come tali con la data del report.
+
+## OHLC giornaliero: cosa copre e cosa no (26/08/2026)
+
+Le colonne `open/high/low` esistono su `SeasonalityDailyBar` e il desk mostra
+l'escursione vera `(high-low)/close`. Quello che segue e cio che NON copre.
+
+### Il WTI resta senza escursione vera
+
+La catena del WTI e FRED `DCOILWTICO` (primaria) e Dukascopy `lightcmdusd`
+(riserva). FRED risponde, quindi la riserva non viene mai raggiunta, e FRED
+pubblica una serie a VALORE SINGOLO: la chiusura spot di Cushing, senza
+massimo e minimo. Su WTI la pagina dichiara «dato non disponibile» col motivo.
+
+Le due strade per chiuderlo sono entrambe decisioni, non lavoro:
+
+- **passare al front future** (Yahoo `CL=F`, OHLC completo e otto giorni piu
+  fresco dello spot). Ma **cambia la serie**: la stagionalita calcolata sul
+  future non e quella calcolata sullo spot, e i numeri storici si muovono. E
+  una migrazione, non un aggiornamento — v. voce (b)7 di
+  `docs/macro-desk/ANALISI-TERMINALE-PRO.md`;
+- **prendere high/low da Dukascopy tenendo la chiusura FRED**: da scartare.
+  Mescolerebbe in una riga sola il massimo di un CFD col la chiusura di un
+  altro strumento, ed e esattamente il genere di silenzio che questo desk
+  toglie.
+
+### Gli indici di volatilita non hanno OHLC da FRED, ma ce l'hanno da CBOE
+
+VIX, GVZ e OVX arrivano da FRED a valore singolo. Il CDN di CBOE pubblica gli
+stessi indici con OHLC completo e un giorno piu fresco (verificato il
+26/08/2026: `VIX_History.csv` ha `DATE,OPEN,HIGH,LOW,CLOSE`). E la voce (a)3-4
+del piano terminale, non di questo passo.
+
+### 122 sedute dell'oro senza OHLC, tutte fra il 1999 e il 2002
+
+Dukascopy le restituisce con la chiusura di qualche centesimo FUORI dal
+proprio minimo (es. 02/07/2002: L=312,80 C=312,70). Il controllo di coerenza
+in `normalizeBars` le rifiuta e tiene la sola chiusura. Non e un difetto da
+correggere: e un artefatto dell'archivio su dati di vent'anni fa, il numero e
+dichiarato in pagina (8.134 sedute su 8.256) e riportato dal job.
+
+### La serie giornaliera dell'oro contiene barre della DOMENICA
+
+1.206 sedute su 8.256, circa una per settimana, presenti da sempre (1.154
+c'erano gia prima di questo intervento: non e una novita introdotta qui).
+Sono le poche ore di apertura domenicale del CFD. Non entrano nelle
+statistiche per giorno della settimana (lun-ven), ma entrano nei rendimenti
+giornalieri e quindi nelle serie mensili e settimanali. Il modello expected
+move del progetto esterno le fonde nel lunedi o le scarta; qui non lo
+facciamo. Da valutare a se: cambiarlo sposterebbe numeri storici gia
+pubblicati.
