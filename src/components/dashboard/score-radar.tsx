@@ -81,9 +81,14 @@ function labelTransform(side: "left" | "center" | "right"): string {
 }
 
 export function ScoreRadar({ result }: { result: RadarScore | null }) {
-  const fractions = SCORE_FACTOR_KEYS.map((key) =>
-    result === null ? 0 : result.factors[key] / 100,
-  );
+  /* Un fattore non calcolabile vale null e NON entra nella media: sul
+     radar il suo vertice sta al centro (frazione 0) ma il pallino diventa
+     vuoto e il tooltip dice "non calcolabile", così un asse assente non si
+     confonde con un asse a punteggio zero. */
+  const fractions = SCORE_FACTOR_KEYS.map((key) => {
+    const value = result === null ? null : result.factors[key];
+    return value === null ? 0 : value / 100;
+  });
   const score = result === null ? null : Number(result.score);
   const lowSample = result?.lowSample ?? false;
 
@@ -102,7 +107,10 @@ export function ScoreRadar({ result }: { result: RadarScore | null }) {
             result === null
               ? "Radar dello score: nessun dato"
               : `Radar dello score: ${SCORE_FACTOR_KEYS.map(
-                  (key) => `${SCORE_FACTOR_LABELS[key]} ${result.factors[key]}`,
+                  (key) =>
+                    `${SCORE_FACTOR_LABELS[key]} ${
+                      result.factors[key] ?? "non calcolabile"
+                    }`,
                 ).join(", ")}`
           }
         >

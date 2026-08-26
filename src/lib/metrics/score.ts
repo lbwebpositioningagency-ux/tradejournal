@@ -1,44 +1,83 @@
 import Decimal from "decimal.js";
 import { profitFactor } from "./profit-factor";
 import { avgLoss, avgWin, payoffRatio } from "./averages";
-import { TRADING_DAYS_PER_YEAR } from "./daily-series";
 import type { MetricInfoData } from "./types";
 
 /**
- * SCORE a 6 fattori per il radar chart (sostituisce il compositeScore a 3
- * componenti del F35).
+ * SCORE a 6 fattori per il radar chart.
  *
- * Sei fattori, ognuno normalizzato 0-100, combinati a PESO UGUALE (100/6
- * ciascuno): è la scelta di partenza esplicita — senza un motivo per pesare
- * diversamente, ogni peso diverso sarebbe arbitrario due volte. Da tarare
- * eventualmente dopo aver visto i punteggi reali su SIM1 e sui conti veri.
+ * ────────────────────────────────────────────────────────────────────────
+ * DUE REGOLE, e sono il motivo per cui questo modulo è stato riscritto.
  *
- * Normalizzazioni (i tetti riusano i precedenti del progetto dove esistono):
- * - WIN %: winRate / 60% — il 60%+ vale il massimo (stesso tetto del
- *   vecchio Day Win, DAY_WIN_CEILING: un win rate oltre il 60% non rende
- *   il sistema "più sano" in proporzione, dipende dal payoff).
- * - PROFIT FACTOR: PF / 2.5 (tetto storico PF_CEILING). Nessuna perdita:
- *   100 se c'è almeno un profitto, 0 se solo breakeven.
- * - AVG WIN/LOSS (payoff ratio): rapporto / 2.0 — vincita media doppia
- *   della perdita media = massimo. Nessuna perdita: come sopra. Nessuna
- *   vincita: 0.
- * - RECOVERY FACTOR: profitto netto / max drawdown ($), / 3.0 — recuperare
- *   3 volte la buca peggiore vale il massimo. Profitto ≤ 0 → 0. Zero
- *   drawdown: 100 con profitto, 0 senza.
- * - MAX DRAWDOWN: 1 − maxDD% NORMALIZZATO / 20% (tetto storico DD_CEILING).
- *   La normalizzazione è il fix Q-1: v. `normalizedDrawdownPct` qui sotto.
- *   Percentuale non definibile (picco ≤ 0) → 50 neutro.
- * - CONSISTENCY: 1 − (miglior GIORNATA / somma delle giornate positive) —
- *   quanto il risultato è distribuito nel tempo invece che concentrato:
- *   tutto il profitto in un giorno solo vale 0, profitto spalmato su molte
- *   giornate tende a 100. Stessa domanda della "Concentrazione top-N" di
- *   /analytics, ma sulle GIORNATE (serie già in dashboard) e ridotta a un
- *   numero. Nessuna giornata positiva → 0.
+ * ① OGNI FATTORE È UNA STATISTICA INVARIANTE ALLA FINESTRA — un tasso o una
+ *    media, mai un massimo e mai un totale. Un massimo (il max drawdown, la
+ *    giornata migliore) cresce per costruzione più a lungo lo si osserva; un
+ *    totale (il P&L netto) cresce col numero di trade. Normalizzarli su un
+ *    tetto fisso trasformava il punteggio in una misura della LUNGHEZZA
+ *    DELLO STORICO: su un processo stazionario — stesso edge, stesse regole,
+ *    cambia solo il filtro periodo — la versione precedente misurava
+ *
+ *      finestra           30    60   120   250   500 sedute
+ *      recovery factor  59,0  69,4  81,3  95,2  99,4   ← +40 punti dal nulla
+ *      consistency      85,0  91,9  95,8  98,0  99,0   ← +14
+ *      max drawdown     77,2  77,9  79,2  83,0  86,6   ← +9
+ *      SCORE            72,2  75,0  77,4  80,7  82,1   ← +10
+ *
+ *    Nota storica: il fattore max drawdown era già stato corretto una volta
+ *    con una normalizzazione ×√(252/sedute). Quella correzione funzionava
+ *    sul cammino SENZA deriva ma non su un conto profittevole, dove il
+ *    massimo drawdown cresce più lentamente di √n e la correzione ribaltava
+ *    il bias (misurato: dispersione fra finestre 1,72× grezza → 2,37×
+ *    normalizzata). La soluzione non era una costante migliore: era smettere
+ *    di usare un massimo. Ora il fattore legge l'ULCER INDEX, che è la media
+ *    quadratica dell'underwater (1,20× di dispersione sulle stesse finestre).
+ *
+ * ② TUTTI I FATTORI HANNO LO STESSO CONTRATTO DI SCALA — tre ancore con lo
+ *    STESSO significato su ogni asse:
+ *
+ *      0   = `floor`   soglia d'allarme: sotto, il fattore non discrimina più
+ *      50  = `neutral` il valore di riferimento "né bene né male"
+ *      100 = `target`  valore eccellente
+ *
+ *    Prima ogni fattore era `valore / tetto`, con tetti scelti uno per uno:
+ *    un profit factor di 1 (pareggio ESATTO) valeva 40, un payoff di 1
+ *    (vincita media = perdita media) valeva 50 e un win rate del 30% valeva
+ *    50. Tre grandezze al loro punto neutro davano tre punteggi diversi, e
+ *    poi venivano sommate a peso uguale. È il debito delle "unità miste":
+ *    la media di sei numeri ha senso solo se 50 vuol dire la stessa cosa su
+ *    tutti e sei.
+ * ────────────────────────────────────────────────────────────────────────
+ *
+ * I SEI FATTORI
+ *
+ * - WIN %: quota di trade chiusi in profitto. Tasso, invariante.
+ * - PROFIT FACTOR: Σ vincite / |Σ perdite|. Rapporto fra due somme che
+ *   crescono insieme, quindi invariante; e ha un punto neutro VERO (1 =
+ *   pareggio) invece di un tetto scelto a mano.
+ * - AVG WIN/LOSS: vincita media / perdita media. Rapporto fra due medie,
+ *   invariante; neutro vero a 1.
+ * - DRAWDOWN: Ulcer Index, radice della media dei quadrati dell'underwater
+ *   giornaliero — profondità E durata insieme. Media, non massimo. Le ancore
+ *   sono le soglie che il progetto già pubblica in `ULCER_BENCHMARK`.
+ * - CONSISTENCY: coefficiente di variazione delle GIORNATE POSITIVE, cioè
+ *   quanto si somigliano fra loro. Invariante alla scala e alla lunghezza
+ *   della finestra (misurato: 0,66 → 0,70 fra 30 e 500 sedute). Sostituisce
+ *   `1 − miglior giornata / Σ giornate positive`, che dipendeva da un
+ *   MASSIMO e aveva un pavimento meccanico di 1−1/n.
+ * - DISCIPLINA: quota di trade chiusi con un piano completo (stop E target
+ *   pianificati). Sostituisce il RECOVERY FACTOR, che era il peggior
+ *   derivante della finestra (+40 punti), ridondante col drawdown — misura
+ *   la stessa buca — e saturo a 100 su ogni periodo di SIM1. È l'unico asse
+ *   che misura un COMPORTAMENTO invece di un risultato, quindi l'unico
+ *   davvero indipendente dagli altri cinque.
  *
  * CAUTELA STATISTICA: sotto SCORE_MIN_TRADES trade chiusi (30, la stessa
- * soglia di significatività di SQN e Optimal f) il risultato è marcato
- * `lowSample`: la UI lo dichiara invece di mostrare un numero netto
- * calcolato su un campione che non lo regge.
+ * soglia di SQN e Optimal f) il risultato è marcato `lowSample`.
+ *
+ * MAI UN NUMERO FINTO: un fattore non calcolabile vale `null` e resta FUORI
+ * dalla media, che dichiara su quanti fattori è stata fatta. La versione
+ * precedente metteva 50 "neutro" quando il drawdown non era definibile: uno
+ * zero travestito da misura.
  *
  * Zero trade chiusi → null (nessun punteggio finto).
  */
@@ -51,21 +90,13 @@ export interface RadarScoreInput {
   winSum: string;
   /** Somma dei netPnl negativi (≤ 0, col segno). */
   lossSum: string;
-  /** P&L netto del periodo. */
-  netPnl: string;
-  /** Max drawdown in valuta (≥ 0) dalla curva giornaliera. */
-  maxDrawdown: string;
-  /** Frazione 0-1 (da maxDrawdown().maxDrawdownPct); null = non definibile. */
-  maxDrawdownPct: string | null;
   /**
-   * Q-1 — numero di SEDUTE della serie su cui `maxDrawdownPct` è stato
-   * misurato, cioè `dailyReturns(...).length`, non la durata del periodo
-   * selezionato né il numero di giorni con trade. È il denominatore della
-   * normalizzazione del fattore Max Drawdown (v. `normalizedDrawdownPct`):
-   * passare la grandezza sbagliata non produce un errore, produce un
-   * punteggio scalato male, quindi il campo è obbligatorio e documentato.
+   * Ulcer Index del periodo (frazione 0-1), da `ulcerIndex()` sulla stessa
+   * serie giornaliera del resto della dashboard. null = non calcolabile.
    */
-  observations: number;
+  ulcer: string | null;
+  /** Trade chiusi con stop E target pianificati (fattore disciplina). */
+  plannedTrades: number;
   /** Serie giornaliera del periodo (per la consistency). */
   daily: { netPnl: string }[];
 }
@@ -73,74 +104,53 @@ export interface RadarScoreInput {
 /** Stessa soglia di significatività di SQN/Optimal f (30 trade). */
 export const SCORE_MIN_TRADES = 30;
 
-const WIN_RATE_CEILING = new Decimal("0.60");
-const PF_CEILING = new Decimal("2.5");
-const PAYOFF_CEILING = new Decimal("2.0");
-const RECOVERY_CEILING = new Decimal("3.0");
-const DD_CEILING = new Decimal("0.20");
-
 /**
- * Q-1 — FINESTRA DI RIFERIMENTO della normalizzazione del drawdown: un anno
- * di sedute. Riusa la costante del progetto (`TRADING_DAYS_PER_YEAR`, la
- * stessa del √252 dei rapporti) invece di introdurne una nuova, così il
- * tetto DD_CEILING conserva il suo significato originale — «un calo del 20%
- * su un anno di operatività vale 0».
+ * Ancore di un fattore. `lowerIsBetter` inverte il verso senza cambiare il
+ * significato delle tre soglie: `neutral` resta il 50 e `target` il 100.
  */
-export const DD_REFERENCE_SESSIONS = TRADING_DAYS_PER_YEAR;
-
-/**
- * Q-1 — DRAWDOWN MASSIMO NORMALIZZATO SULLA LUNGHEZZA DELLA FINESTRA.
- *
- * IL PROBLEMA. Il max drawdown è un MASSIMO CORRENTE: per costruzione non
- * può che crescere allungando la finestra osservata. Normalizzarlo su un
- * tetto fisso rendeva quindi il fattore una misura della lunghezza dello
- * storico invece che della qualità del trading — lo stesso difetto già
- * corretto sull'SQN col cap a 100. Misurato su SIM1 prima del fix: fattore
- * 42,05 su tutto lo storico (442 sedute) contro 94,50 sugli ultimi 30
- * giorni (25 sedute), e il punteggio complessivo passava da 77,00 a 89,13
- * senza che il trading fosse cambiato.
- *
- * LA CORREZIONE. Sotto la convenzione standard del cammino casuale
- * l'ampiezza attesa di un massimo drawdown cresce come √n nel numero di
- * osservazioni. Si riporta quindi il drawdown osservato alla finestra di
- * riferimento:
- *
- *   maxDD normalizzato = maxDD osservato × √(252 / sedute)
- *
- * cioè «quanto varrebbe questo drawdown se fosse misurato su un anno di
- * sedute». Serie più corte della finestra vengono scalate in su, più lunghe
- * in giù: la componente meccanica sparisce e resta la differenza vera.
- *
- * LIMITI, dichiarati perché sono reali e non trascurabili:
- * - la legge √n vale a rigore per un cammino SENZA deriva. Con deriva
- *   positiva il massimo drawdown cresce più lentamente (tende a ~ln n), e
- *   quindi su un conto molto profittevole la correzione è GENEROSA: scala
- *   in giù un po' più del dovuto le finestre lunghe. È il verso prudente —
- *   toglie una penalità meccanica, non ne aggiunge una;
- * - resta una normalizzazione di forma, non una stima: non usa la
- *   volatilità del conto, che introdurrebbe un secondo numero stimato (e
- *   il suo rumore) dentro un punteggio che deve essere leggibile.
- *
- * `observations ≤ 0` (nessuna seduta) → il drawdown torna invariato: senza
- * un denominatore non si scala nulla, e inventare un fattore sarebbe peggio.
- */
-export function normalizedDrawdownPct(
-  maxDrawdownPct: string | null,
-  observations: number,
-): string | null {
-  if (maxDrawdownPct === null) return null;
-  if (!Number.isFinite(observations) || observations <= 0) return maxDrawdownPct;
-  const scale = new Decimal(DD_REFERENCE_SESSIONS).div(observations).sqrt();
-  return new Decimal(maxDrawdownPct).times(scale).toFixed(8);
+export interface FactorAnchors {
+  floor: string;
+  neutral: string;
+  target: string;
+  lowerIsBetter?: boolean;
 }
+
+/**
+ * ANCORE DEI SEI FATTORI, tutte dichiarate qui perché è l'unico posto in cui
+ * si possono confrontare fra loro — che è il punto del contratto unico.
+ *
+ * Da dove vengono i numeri:
+ * - WIN %: il neutro è il break-even win rate di un sistema con payoff 1,5
+ *   (= 1/(1+1,5) = 40%), che è l'assunzione dichiarata; il win rate NON ha
+ *   un punto neutro universale, dipende dal payoff, e questa è l'unica
+ *   scorciatoia onesta che resta senza accoppiare l'asse a un altro asse.
+ * - PROFIT FACTOR e AVG WIN/LOSS: il neutro è 1, che è il pareggio esatto —
+ *   nessuna scelta arbitraria.
+ * - DRAWDOWN: le soglie di `ULCER_BENCHMARK` (5% e 10%), già pubblicate in
+ *   app con la loro fonte; il target al 2% è il "molto sotto la soglia
+ *   ottima".
+ * - CONSISTENCY: calibrata sui dati. Giornate tutte uguali → CV 0; una serie
+ *   realistica di giornate diverse → CV ~0,48; una giornata sola che vale
+ *   metà del profitto → CV 2,1-7,0 a seconda della lunghezza.
+ * - DISCIPLINA: metà dei trade pianificati è il neutro, il 90% l'eccellenza.
+ *   Il 100% non è il target perché un trade preso al volo capita a tutti.
+ */
+export const SCORE_ANCHORS = {
+  winRate: { floor: "0.25", neutral: "0.40", target: "0.60" },
+  profitFactor: { floor: "0.80", neutral: "1.00", target: "2.00" },
+  avgWinLoss: { floor: "0.50", neutral: "1.00", target: "2.00" },
+  drawdown: { floor: "0.10", neutral: "0.05", target: "0.02", lowerIsBetter: true },
+  consistency: { floor: "1.60", neutral: "0.80", target: "0.40", lowerIsBetter: true },
+  discipline: { floor: "0.00", neutral: "0.50", target: "0.90" },
+} as const satisfies Record<string, FactorAnchors>;
 
 /** Ordine degli assi del radar (senso orario dal vertice in alto). */
 export const SCORE_FACTOR_KEYS = [
   "winRate",
   "profitFactor",
   "avgWinLoss",
-  "recoveryFactor",
-  "maxDrawdown",
+  "discipline",
+  "drawdown",
   "consistency",
 ] as const;
 export type ScoreFactorKey = (typeof SCORE_FACTOR_KEYS)[number];
@@ -149,191 +159,215 @@ export const SCORE_FACTOR_LABELS: Record<ScoreFactorKey, string> = {
   winRate: "Win %",
   profitFactor: "Profit factor",
   avgWinLoss: "Avg win/loss",
-  recoveryFactor: "Recovery factor",
-  maxDrawdown: "Max drawdown",
+  discipline: "Disciplina",
+  drawdown: "Drawdown",
   consistency: "Consistency",
 };
 
-/** Fattori normalizzati 0-100 (display: assi del radar). */
-export type RadarScoreFactors = Record<ScoreFactorKey, number>;
+/** Fattori normalizzati 0-100; null = non calcolabile, mai un 50 di comodo. */
+export type RadarScoreFactors = Record<ScoreFactorKey, number | null>;
 
 export interface RadarScore {
-  /** 0-100 con due decimali. */
+  /** 0-100 con due decimali: media dei soli fattori calcolabili. */
   score: string;
   factors: RadarScoreFactors;
+  /** Quanti fattori sono entrati nella media (≤ 6): la UI lo dichiara. */
+  computed: number;
   /** true sotto SCORE_MIN_TRADES: il numero va presentato come indicativo. */
   lowSample: boolean;
   total: number;
 }
 
-function clamp01(value: Decimal): Decimal {
-  if (value.lt(0)) return new Decimal(0);
-  if (value.gt(1)) return new Decimal(1);
-  return value;
+/**
+ * Mappa un valore sulle sue tre ancore: floor → 0, neutral → 50,
+ * target → 100, lineare a tratti e clampata fuori dagli estremi.
+ *
+ * Due tratti e non una retta sola perché le tre ancore hanno un significato
+ * diverso l'una dall'altra: la distanza fra "allarme" e "neutro" non vale la
+ * stessa quantità di punteggio della distanza fra "neutro" ed "eccellente",
+ * e forzarle sulla stessa pendenza rimetterebbe dentro l'arbitrio che il
+ * contratto esiste per togliere.
+ */
+export function anchoredScore(
+  value: Decimal,
+  anchors: FactorAnchors,
+): Decimal {
+  const floor = new Decimal(anchors.floor);
+  const neutral = new Decimal(anchors.neutral);
+  const target = new Decimal(anchors.target);
+  // Con lowerIsBetter il verso si ribalta specchiando il valore attorno allo
+  // zero: le tre ancore restano nell'ordine floor < neutral < target.
+  const flip = (d: Decimal) => (anchors.lowerIsBetter ? d.negated() : d);
+  const v = flip(value);
+  const lo = flip(floor);
+  const mid = flip(neutral);
+  const hi = flip(target);
+
+  if (v.lte(lo)) return new Decimal(0);
+  if (v.gte(hi)) return new Decimal(100);
+  if (v.lte(mid)) {
+    return v.minus(lo).div(mid.minus(lo)).times(50);
+  }
+  return v.minus(mid).div(hi.minus(mid)).times(50).plus(50);
 }
 
-/** Frazione 0-1 → punteggio 0-100 arrotondato al display (2 decimali). */
-function toFactor(fraction: Decimal): number {
-  return clamp01(fraction).times(100).toDecimalPlaces(2).toNumber();
+/** Frazione 0-100 → numero display a 2 decimali. */
+function toFactor(score: Decimal | null): number | null {
+  return score === null ? null : score.toDecimalPlaces(2).toNumber();
+}
+
+/**
+ * CONSISTENCY: coefficiente di variazione delle giornate positive.
+ *
+ * `null` con meno di due giornate positive: con una sola giornata la
+ * dispersione è zero per definizione, e chiamarla "consistenza perfetta"
+ * sarebbe la bugia opposta a quella che questo modulo sta togliendo.
+ */
+export function positiveDayCv(daily: { netPnl: string }[]): string | null {
+  const positives = daily
+    .map((d) => new Decimal(d.netPnl))
+    .filter((d) => d.gt(0));
+  if (positives.length < 2) return null;
+
+  const n = new Decimal(positives.length);
+  const mean = positives.reduce((a, b) => a.plus(b), new Decimal(0)).div(n);
+  if (mean.lte(0)) return null;
+  // Deviazione standard CAMPIONARIA (÷ n−1) e non di popolazione: con poche
+  // giornate quella di popolazione sottostima la dispersione, e il fattore
+  // premiava le finestre corte — misurato, era l'ultima deriva rimasta
+  // (68,7 su 30 sedute contro 62,3 su 500). Qui il campione È un campione.
+  const variance = positives
+    .reduce((a, b) => a.plus(b.minus(mean).pow(2)), new Decimal(0))
+    .div(n.minus(1));
+  return variance.sqrt().div(mean).toFixed(6);
 }
 
 export function radarScore(input: RadarScoreInput): RadarScore | null {
   if (input.total === 0) return null;
 
-  // WIN %
-  const winRateFraction = new Decimal(input.wins).div(input.total);
-  const winRateScore = winRateFraction.div(WIN_RATE_CEILING);
+  const factorOf = (
+    key: ScoreFactorKey,
+    value: string | null,
+  ): Decimal | null =>
+    value === null ? null : anchoredScore(new Decimal(value), SCORE_ANCHORS[key]);
 
-  // PROFIT FACTOR
+  // WIN %
+  const winRate = new Decimal(input.wins).div(input.total).toFixed(6);
+
+  // PROFIT FACTOR — null dal modulo = nessuna perdita: il rapporto è infinito,
+  // quindi il fattore è al massimo se c'è almeno una vincita.
   const pf = profitFactor(input.winSum, input.lossSum);
   const pfScore =
     pf === null
       ? input.wins > 0
-        ? new Decimal(1)
+        ? new Decimal(100)
         : new Decimal(0)
-      : new Decimal(pf).div(PF_CEILING);
+      : factorOf("profitFactor", pf);
 
-  // AVG WIN/LOSS (payoff ratio)
+  // AVG WIN/LOSS — stessa regola: senza perdite è il massimo, senza vincite 0.
   const aWin = avgWin(input.winSum, input.wins);
   const aLoss = avgLoss(input.lossSum, input.losses);
   const payoff = payoffRatio(aWin, aLoss);
   const payoffScore =
-    payoff !== null
-      ? new Decimal(payoff).div(PAYOFF_CEILING)
-      : aWin !== null
-        ? new Decimal(1) // vincite senza perdite
-        : new Decimal(0); // nessuna vincita
+    payoff === null
+      ? aWin !== null
+        ? new Decimal(100)
+        : new Decimal(0)
+      : factorOf("avgWinLoss", payoff);
 
-  // RECOVERY FACTOR: profitto netto / max drawdown ($)
-  const net = new Decimal(input.netPnl);
-  const dd = new Decimal(input.maxDrawdown);
-  const recoveryScore = net.lte(0)
-    ? new Decimal(0)
-    : dd.isZero()
-      ? new Decimal(1)
-      : net.div(dd).div(RECOVERY_CEILING);
-
-  // MAX DRAWDOWN (Q-1: normalizzato sulla lunghezza della finestra)
-  const ddNormalized = normalizedDrawdownPct(
-    input.maxDrawdownPct,
-    input.observations,
+  // DISCIPLINA — quota di trade chiusi con piano completo.
+  const disciplineScore = factorOf(
+    "discipline",
+    new Decimal(input.plannedTrades).div(input.total).toFixed(6),
   );
-  const ddScore =
-    ddNormalized === null
-      ? new Decimal("0.5")
-      : new Decimal(1).minus(new Decimal(ddNormalized).div(DD_CEILING));
 
-  // CONSISTENCY: 1 − miglior giornata / somma giornate positive
-  let bestDay = new Decimal(0);
-  let positiveDaysSum = new Decimal(0);
-  for (const day of input.daily) {
-    const pnl = new Decimal(day.netPnl);
-    if (pnl.gt(0)) {
-      positiveDaysSum = positiveDaysSum.plus(pnl);
-      if (pnl.gt(bestDay)) bestDay = pnl;
-    }
-  }
-  const consistencyScore = positiveDaysSum.isZero()
-    ? new Decimal(0)
-    : new Decimal(1).minus(bestDay.div(positiveDaysSum));
+  // DRAWDOWN (Ulcer) e CONSISTENCY (CV): null se non calcolabili.
+  const drawdownScore = factorOf("drawdown", input.ulcer);
+  const consistencyScore = factorOf("consistency", positiveDayCv(input.daily));
 
-  const factors: RadarScoreFactors = {
-    winRate: toFactor(winRateScore),
-    profitFactor: toFactor(pfScore),
-    avgWinLoss: toFactor(payoffScore),
-    recoveryFactor: toFactor(recoveryScore),
-    maxDrawdown: toFactor(ddScore),
-    consistency: toFactor(consistencyScore),
+  const scores: Record<ScoreFactorKey, Decimal | null> = {
+    winRate: factorOf("winRate", winRate),
+    profitFactor: pfScore,
+    avgWinLoss: payoffScore,
+    discipline: disciplineScore,
+    drawdown: drawdownScore,
+    consistency: consistencyScore,
   };
 
-  // Peso uguale: 100/6 per fattore — media aritmetica dei sei, in Decimal
-  // sulle frazioni clampate (non sui numeri display già arrotondati).
-  const score = [
-    winRateScore,
-    pfScore,
-    payoffScore,
-    recoveryScore,
-    ddScore,
-    consistencyScore,
-  ]
-    .reduce((acc, f) => acc.plus(clamp01(f)), new Decimal(0))
-    .div(6)
-    .times(100)
+  const computable = SCORE_FACTOR_KEYS.map((k) => scores[k]).filter(
+    (s): s is Decimal => s !== null,
+  );
+  if (computable.length === 0) return null;
+
+  const score = computable
+    .reduce((acc, s) => acc.plus(s), new Decimal(0))
+    .div(computable.length)
     .toDecimalPlaces(2, Decimal.ROUND_HALF_UP);
 
   return {
     score: score.toFixed(2),
-    factors,
+    factors: Object.fromEntries(
+      SCORE_FACTOR_KEYS.map((k) => [k, toFactor(scores[k])]),
+    ) as RadarScoreFactors,
+    computed: computable.length,
     lowSample: input.total < SCORE_MIN_TRADES,
     total: input.total,
   };
 }
 
 /**
- * Testo per l'icona (i) accanto a OGNI etichetta del radar — una per asse,
- * distinta da `scoreInfo` che spiega il punteggio nel suo complesso.
+ * Testo per l'icona (i) accanto a OGNI etichetta del radar.
  *
- * REGOLA DI MANUTENZIONE (come per ogni MetricInfoData): il testo vive
- * accanto alla formula. Le stringhe `formula` qui sotto sono la
- * trascrizione LETTERALE delle normalizzazioni di `radarScore`, tetti
- * inclusi: se una costante cambia (WIN_RATE_CEILING, PF_CEILING, …) va
- * cambiata anche la riga corrispondente.
+ * REGOLA DI MANUTENZIONE: le stringhe `formula` sono la trascrizione
+ * LETTERALE delle ancore di `SCORE_ANCHORS`. Un test verifica che i tre
+ * numeri di ogni ancora compaiano nella formula del fattore corrispondente:
+ * se una soglia cambia e il testo no, il gate se ne accorge.
  */
 export const SCORE_FACTOR_INFO: Record<ScoreFactorKey, MetricInfoData> = {
   winRate: {
     label: "Win % (fattore dello Score)",
     description:
-      "Quota di trade chiusi in profitto. Vale il massimo dal 60% in su: oltre quella soglia un win rate più alto non rende il sistema più sano in proporzione — dipende da quanto guadagnano le vincite rispetto alle perdite.",
-    formula: "clamp 0-1 di ((vincenti / totale) ÷ 60%) × 100 — tetto 60%",
+      "Quota di trade chiusi in profitto. Il neutro è il 40%, cioè il pareggio di un sistema che guadagna una volta e mezza quello che perde: il win rate da solo non ha un punto neutro universale, dipende da quanto valgono le vincite rispetto alle perdite, e l'assunzione va detta invece di nasconderla in un tetto.",
+    formula: "0 sotto il 25% · 50 al 40% · 100 dal 60% in su",
   },
   profitFactor: {
     label: "Profit factor (fattore dello Score)",
     description:
-      "Quanti euro guadagnati per ogni euro perso. Vale il massimo da 2,5 in su. Se nel periodo non ci sono perdite: 100 quando c'è almeno una vincita, 0 se sono tutti breakeven.",
+      "Quanti euro guadagnati per ogni euro perso. Il neutro è 1 perché 1 è il pareggio esatto, non una soglia scelta a mano. Se nel periodo non ci sono perdite: 100 quando c'è almeno una vincita, 0 se sono tutti breakeven.",
     formula:
-      "clamp 0-1 di ((Σ vincite / |Σ perdite|) ÷ 2,5) × 100 — tetto 2,5 · nessuna perdita → 100 (0 senza vincite)",
+      "0 sotto 0,80 · 50 a 1,00 (pareggio) · 100 da 2,00 in su · nessuna perdita → 100",
   },
   avgWinLoss: {
     label: "Avg win/loss (fattore dello Score)",
     description:
-      "Payoff ratio: quanto vale in media una vincita rispetto a una perdita. Vale il massimo da 2,0 in su (vincita media doppia della perdita media). Nessuna perdita → 100; nessuna vincita → 0.",
-    formula:
-      "clamp 0-1 di ((vincita media / |perdita media|) ÷ 2,0) × 100 — tetto 2,0",
+      "Payoff ratio: quanto vale in media una vincita rispetto a una perdita. Anche qui il neutro è 1, cioè vincita media uguale a perdita media. Nessuna perdita → 100; nessuna vincita → 0.",
+    formula: "0 sotto 0,50 · 50 a 1,00 (vincita media = perdita media) · 100 da 2,00 in su",
   },
-  recoveryFactor: {
-    label: "Recovery factor (fattore dello Score)",
+  discipline: {
+    label: "Disciplina (fattore dello Score)",
     description:
-      "Quante volte il profitto netto copre la buca peggiore: misura la capacità di recuperare dal drawdown. Vale il massimo da 3 in su. Profitto netto ≤ 0 → 0; drawdown nullo → 100 se sei in profitto.",
-    formula:
-      "clamp 0-1 di ((P&L netto / max drawdown in valuta) ÷ 3,0) × 100 — tetto 3,0",
+      "Quota di trade chiusi con un piano completo: stop E target pianificati prima di entrare. È l'unico asse che misura un comportamento invece di un risultato, quindi l'unico indipendente dagli altri cinque — ed è anche l'unico su cui puoi agire domani mattina. Il target non è il 100%: un trade preso al volo capita a tutti.",
+    formula: "0 senza piani · 50 alla metà dei trade · 100 dal 90% in su",
   },
-  maxDrawdown: {
-    label: "Max drawdown (fattore dello Score)",
+  drawdown: {
+    label: "Drawdown (fattore dello Score)",
     description:
-      "Il calo massimo dal picco di equity: più è basso, più il punteggio è alto. Ma il drawdown massimo è un massimo, quindi cresce da solo più a lungo lo si osserva: prima del confronto col tetto del 20% viene riportato a una finestra di un anno di sedute, altrimenti il fattore misurerebbe la lunghezza del tuo storico invece della tua gestione del rischio. La percentuale della card Max Drawdown resta quella vera, non normalizzata.",
-    formula:
-      "clamp 0-1 di (1 − maxDD% normalizzato ÷ 20%) × 100 · maxDD% normalizzato = maxDD% × √(252 ÷ sedute) · tetto 20% · percentuale non definibile → 50",
-    note: "La legge √n vale per un cammino senza deriva: su un conto molto profittevole è un po' generosa con gli storici lunghi.",
+      "Ulcer Index: la media quadratica di quanto sei stato sotto il picco di equity, giorno per giorno — profondità e durata insieme. Qui più è basso, più il punteggio è alto. Non è il drawdown MASSIMO di proposito: un massimo cresce da solo più a lungo lo si osserva, e il fattore finirebbe per misurare la lunghezza del tuo storico invece della tua gestione del rischio. Le soglie sono quelle della scala Ulcer già pubblicata in app.",
+    formula: "0 sopra il 10% · 50 al 5% · 100 sotto il 2% · scala invertita",
   },
   consistency: {
     label: "Consistency (fattore dello Score)",
     description:
-      "Quanto il profitto è distribuito nel tempo invece che concentrato in una sola giornata: tutto il guadagno in un giorno solo vale 0, profitto spalmato su molte giornate tende a 100. Stessa domanda della «Concentrazione top-N» di Analytics, ma sulle giornate.",
+      "Quanto si somigliano fra loro le tue giornate positive, misurato col coefficiente di variazione: basso vuol dire profitto distribuito, alto vuol dire che poche giornate portano quasi tutto. Serve almeno una seconda giornata positiva per calcolarlo — con una sola la dispersione è zero per definizione, e chiamarla consistenza perfetta sarebbe falso.",
     formula:
-      "(1 − miglior giornata / Σ giornate positive) × 100 · nessuna giornata positiva → 0",
+      "coefficiente di variazione delle giornate positive · 0 sopra 1,60 · 50 a 0,80 · 100 sotto 0,40 · scala invertita",
   },
 };
 
 /**
  * Info di un fattore per la sua icona (i), con la nota sul campione corto
- * aggiunta quando si applica: chi apre la spiegazione di un asse deve
- * leggere LÌ che il punteggio è indicativo, senza cercare la riga sotto la
- * barra. Sopra la soglia (o senza risultato) torna il testo statico.
- *
- * La nota del campione corto si AGGIUNGE a quella statica del fattore, non
- * la sostituisce: il Max Drawdown ne ha già una propria (il limite della
- * normalizzazione √n) e sovrascriverla la farebbe sparire proprio nel caso
- * in cui il lettore ha più bisogno di contesto.
+ * aggiunta quando si applica. La nota si AGGIUNGE a quella statica del
+ * fattore, non la sostituisce.
  */
 export function scoreFactorInfo(
   key: ScoreFactorKey,
@@ -352,8 +386,8 @@ export function scoreFactorInfo(
 export const scoreInfo: MetricInfoData = {
   label: "Score",
   description:
-    "Indice composito 0-100 dello stato del tuo trading: sei fattori (win rate, profit factor, avg win/loss, recovery factor, max drawdown, consistency), ognuno normalizzato 0-100 e combinato a peso uguale. Il radar mostra dove il sistema è forte e dove no; il numero riassume. Sotto 30 trade il punteggio è indicativo.",
+    "Indice composito 0-100 dello stato del tuo trading: sei fattori (win rate, profit factor, avg win/loss, disciplina, drawdown, consistency) combinati a peso uguale. Su ogni asse 50 vuol dire la STESSA cosa — il valore di riferimento né buono né cattivo — ed è la condizione perché una media a peso uguale abbia senso. Ogni fattore è un tasso o una media, mai un massimo o un totale: così il punteggio non sale da solo allungando il filtro periodo. Sotto 30 trade è indicativo.",
   formula:
-    "Score = media dei 6 fattori (peso 100/6 ciascuno) · Win%/60 · PF/2.5 · payoff/2.0 · (netto/maxDD)/3 · 1−maxDD% normalizzato/20% · 1−miglior giornata/giornate positive",
-  note: "Il fattore Max Drawdown è riportato a una finestra di un anno di sedute prima del confronto col tetto: senza, il punteggio salirebbe accorciando il filtro periodo invece che migliorando il trading.",
+    "Score = media dei fattori calcolabili (peso uguale) · ogni fattore: 0 alla soglia d'allarme, 50 al valore neutro, 100 al valore eccellente · un fattore non calcolabile resta fuori dalla media",
+  note: "Un fattore che non si può calcolare vale «—» e non entra nella media, che dichiara su quanti fattori è stata fatta.",
 };

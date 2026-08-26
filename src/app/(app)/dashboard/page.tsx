@@ -321,19 +321,19 @@ export default async function DashboardPage({
   const aLoss = avgLoss(agg.lossSum, agg.losses);
 
   const rTotal = new Decimal(agg.rSum);
+  // L'Ulcer alimenta sia la card sia il fattore drawdown dello Score: una
+  // sola chiamata, mai due convenzioni per la stessa buca.
+  const ulcer = ulcerIndex(dailySeries, equityStart);
   const score = radarScore({
     total: agg.total,
     wins: agg.wins,
     losses: agg.losses,
     winSum: agg.winSum,
     lossSum: agg.lossSum,
-    netPnl: agg.netPnl,
-    maxDrawdown: dd.maxDrawdown,
-    maxDrawdownPct: dd.maxDrawdownPct,
-    // Q-1 — sedute della serie su cui il drawdown è stato misurato (non i
-    // giorni del periodo, non i giorni con trade): è il denominatore della
-    // normalizzazione √n del fattore Max Drawdown.
-    observations: dailySeries.length,
+    // Ogni fattore è un tasso o una media: mai il max drawdown (un massimo,
+    // che cresce con la finestra) né il P&L netto (un totale).
+    ulcer,
+    plannedTrades: agg.plannedTrades,
     daily,
   });
   const expectancyR =
@@ -447,7 +447,7 @@ export default async function DashboardPage({
     sharpe: sharpeRatio(ratioWindow.window),
     calmar: calmarRatio(daily, equityStart, dd.maxDrawdownPct),
     sqn: sqn(agg.rCount, agg.rSum, agg.rSumSq),
-    ulcer: ulcerIndex(dailySeries, equityStart),
+    ulcer,
     tradeStreak: currentStreak(outcomes),
     dayStreak: currentDayStreak([...daily].reverse()),
     // Score a 6 fattori per il radar (peso uguale 100/6, v. lib/metrics/score.ts).

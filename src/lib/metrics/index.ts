@@ -38,12 +38,14 @@ export {
   SCORE_FACTOR_INFO,
   scoreFactorInfo,
   SCORE_MIN_TRADES,
-  normalizedDrawdownPct,
-  DD_REFERENCE_SESSIONS,
+  anchoredScore,
+  positiveDayCv,
+  SCORE_ANCHORS,
   type RadarScore,
   type RadarScoreFactors,
   type RadarScoreInput,
   type ScoreFactorKey,
+  type FactorAnchors,
 } from "./score";
 export {
   benchmarkTier,

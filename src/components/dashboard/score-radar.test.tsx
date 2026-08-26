@@ -28,10 +28,8 @@ const input: RadarScoreInput = {
   losses: 45,
   winSum: "9000.00",
   lossSum: "-4500.00",
-  netPnl: "4500.00",
-  maxDrawdown: "500.00",
-  maxDrawdownPct: "0.0500",
-  observations: 252,
+  ulcer: "0.0400",
+  plannedTrades: 70,
   daily: [{ netPnl: "3000.00" }, { netPnl: "2000.00" }, { netPnl: "-500.00" }],
 };
 
@@ -57,7 +55,7 @@ describe("ScoreRadar — icona (i) per ogni fattore", () => {
     // L'aria-label del trigger è anche il testo del tooltip: stesso valore
     // `factors[key]` che posiziona il pallino, arrotondato all'intero.
     for (const key of SCORE_FACTOR_KEYS) {
-      const value = Math.round(result!.factors[key]).toLocaleString("it-IT");
+      const value = Math.round(result!.factors[key] ?? 0).toLocaleString("it-IT");
       expect(markup).toContain(
         `${SCORE_FACTOR_LABELS[key]}: ${value}/100`,
       );
@@ -109,6 +107,6 @@ describe("ScoreRadar — icona (i) per ogni fattore", () => {
   it("senza risultato mostra comunque le sei etichette con le loro icone", () => {
     const markup = render(null);
     expect(markup.match(/<button/g)).toHaveLength(SCORE_FACTOR_KEYS.length);
-    expect(markup).toContain("Recovery factor");
+    expect(markup).toContain("Disciplina");
   });
 });
