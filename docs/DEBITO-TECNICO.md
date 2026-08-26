@@ -513,3 +513,76 @@ Nella stessa passata le due righe di stagionalita (mese e giorno della
 settimana) hanno preso l'orizzonte scritto accanto: la loro ampiezza
 differiva di un ordine di grandezza — 6,15 punti ad agosto contro 0,19 punti
 di mercoledi — solo perche una somma ventuno sedute e l'altra una.
+
+## Gli indici di volatilita passano alle fonti automatiche (26/08/2026)
+
+Cinque dei sei indici che il report giornaliero portava a mano — VIX, VVIX,
+SKEW, GVZ, OVX — arrivano ora dal CDN del CBOE con il resto dell'archivio.
+GVZ, OVX e VIX c'erano gia; VVIX e SKEW sono entrati in questa passata.
+
+Il motivo non e di eleganza. Il 26/08/2026 la sezione Volatilita mostrava
+sulla STESSA PAGINA:
+
+| | Livello | Data | Lettura |
+|---|---|---|---|
+| GVZ dal report | 23,92 | vintage 14-18/08 (Investing.com) | «IV oro bassa in assoluto» |
+| GVZ dall'archivio | 27,69 | 25/08 (CBOE) | 92° percentile dal 2008, +15,5% in 5 sedute |
+
+Due valori della stessa misura, due letture opposte, e nessun modo per chi
+legge di sapere quale valesse. Verificato dopo la modifica: la stringa
+«23,92» non compare piu in pagina.
+
+**Chiamate di verifica, 26/08/2026:**
+
+| Serie | Esito |
+|---|---|
+| CBOE `VVIX_History.csv` | **200**, 566 ms, 5.090 sedute dal 03/06/2006 |
+| CBOE `SKEW_History.csv` | **200**, 527 ms, 9.213 sedute dal 02/01/1990 |
+| FRED `VVIXCLS` / `SKEWCLS` | **404** entrambe: nessuna riserva possibile |
+
+**Nessuna riserva, ed e dichiarato in pagina.** A differenza di GVZ e OVX, che
+hanno FRED come seconda strada, VVIX e SKEW dipendono dal solo CBOE: se quel
+CDN non risponde restano fermi e la verifica di esito del job lo dice.
+
+**Cosa resta al report, e solo quello:**
+
+- **MOVE** — indice proprietario ICE, FRED risponde 404. Arriva dal report col
+  vintage dichiarato, oppure non arriva.
+- **put/call** — il CBOE lo pubblica solo in una pagina generata da
+  JavaScript; i due percorsi CSV del CDN rispondono **403**. La pagina lo
+  dichiara come lacuna con il motivo, invece di lasciarlo sparire.
+
+Entrambe si mostrano SEMPRE, anche quando il report non le manda: una lacuna
+detta e un'informazione, una lacuna taciuta e un buco che nessuno colma.
+
+## Il termometro beve dall'archivio, e si data da solo (26/08/2026)
+
+Era l'ultima percentuale condizionale del desk e poggiava sul dato piu vecchio
+disponibile: il 26/08 classificava l'S&P `COMPRESSA` sul VIX del 20/08 (15,98,
+copiato a mano nel report) mentre sei righe piu in su la stessa pagina
+mostrava il VIX del 25/08 dal CBOE (15,45).
+
+Adesso gli ingressi vengono dalle stesse righe di contesto che la pagina rende
+(`ingressiTermometro` in `lib/volatilita-report.ts`, puro e testato), e la
+data dell'osservazione viaggia col valore: ogni carta dichiara «calcolata
+sulla chiusura VIX del 25/08/2026». Un verdetto senza la data del dato su cui
+poggia non si puo verificare.
+
+**Il cancello regge dopo il passaggio.** Con VIX 15,45 invece di 15,98 l'S&P
+resta `COMPRESSA` al 34° percentile e supera ancora la prova fuori campione
+(18,6 punti percentuali di separazione contro i 15 richiesti, n=150). Se non
+l'avesse superata sarebbe stato spento come oro e WTI.
+
+Sono spariti con questa modifica `estraiIvDaVolPanel`,
+`estraiChiusureDaBiasRecord` e `componiIngressi`: esistevano solo per leggere
+il report. Il `biasRecord` non serve piu al termometro — la chiusura per la
+cifra in valuta viene dall'archivio.
+
+## La Sintesi dichiara il ritardo del report (26/08/2026)
+
+Era l'unica delle cinque pagine dipendenti dal report a non avere la banda di
+freschezza. Adesso ce l'ha. Nella stessa passata e stata corretta
+l'attribuzione del fattore F4, che diceva «il GVZ rilevato dal report»: quel
+valore viene da FRED via Trends (`fonti.trends`, `sezione: "Trends —
+Volatilita"`), non dal report. L'osservazione era giusta — due letture della
+stessa misura, due date — l'attribuzione no.

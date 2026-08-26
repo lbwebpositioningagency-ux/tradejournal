@@ -7,6 +7,8 @@ import { auth } from "@/lib/auth";
 import { cn } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
 import { MacroDeskSectionNav } from "@/components/macro-desk/section-nav";
+import { BandaFreschezza } from "@/components/macro-desk/banda-freschezza";
+import { getFreschezzaReport } from "@/lib/queries/macro-desk-freschezza";
 import { AiAnalystView } from "@/components/macro-desk/ai-analyst-view";
 import { buildDossier } from "@/lib/ai-analyst/dossier";
 import { AI_ANALYST_INSTRUMENTS } from "@/lib/ai-analyst/instruments";
@@ -69,11 +71,10 @@ export default async function AiAnalystPage({
      ESPANSA e non da COMPRESSA. Lo stato si rilegge dagli stessi ingressi che
      il dossier userà, con la stessa funzione. */
   const degrado = await getDegradoTermometro();
+  const freschezza = await getFreschezzaReport();
   const senzaVerdetto = new Map<string, Dossier["termometroSenzaVerdetto"]>();
   for (const d of degrado) {
-    const lettura = fonti.report
-      ? leggiTermometro(d.simbolo, fonti.report.ingressi[d.simbolo])
-      : null;
+    const lettura = leggiTermometro(d.simbolo, fonti.ingressiTermometro[d.simbolo]);
     if (!lettura) continue;
     const esito = valutaCancello(d.simbolo, lettura.stato, d.esito.discrimina);
     if (esito.aperto) continue;
@@ -175,6 +176,12 @@ export default async function AiAnalystPage({
         </div>
         <MacroDeskSectionNav active="ai-analyst" />
       </div>
+
+      {/* IL RITARDO DEL REPORT SI DICHIARA ANCHE QUI. Fino al 26/08/2026 era
+          l'unica pagina del desk che dipendeva dal report senza dirlo: il
+          bias citato in fondo e la data della giornata venivano da lì. Le
+          altre quattro sezioni la banda ce l'avevano già. */}
+      {freschezza ? <BandaFreschezza esito={freschezza} /> : null}
 
       <div
         className={cn(

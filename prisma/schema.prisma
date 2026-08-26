@@ -478,6 +478,10 @@ enum SeasonalityInstrument {
   // `fuoriDallaStagionalita`): servono come serie, non come schede.
   VIX9D
   VIX3M
+  // Clima di copertura sull'azionario: prima arrivavano dal report
+  // giornaliero, copiati a mano. Solo CBOE, senza riserva (FRED 404).
+  VVIX
+  SKEW
   // WTI dal future front-month. NON sostituisce `WTI` (spot Cushing): le due
   // serie hanno rendimenti correlati 0,94, non 1, e sostituire sposterebbe
   // ogni statistica stagionale gia pubblicata. Convivono, ciascuna dove e

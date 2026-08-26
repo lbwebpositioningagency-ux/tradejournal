@@ -23,6 +23,8 @@ import {
   type VariazioneFinestra,
   type VolRealizzata,
 } from "@/lib/volatilita-fatti";
+import type { IngressoTermometro } from "@/lib/termometro-volatilita";
+import { ingressiTermometro } from "@/lib/volatilita-report";
 
 /**
  * CONTESTO DI VOLATILITÀ — la fonte di fatti della sezione omonima.
@@ -54,6 +56,14 @@ interface CoppiaVol {
   indice: SeasonalityInstrument;
   /** Codice della serie di prezzo del sottostante; null = non ne abbiamo una. */
   prezzo: SeasonalityInstrument | null;
+  /**
+   * Chiave dello stesso strumento nella tabella del termometro
+   * (`src/data/termometro-volatilita.json`). Serve dal 26/08/2026, da quando
+   * il termometro legge l'archivio invece del report: è qui che le due
+   * anagrafiche si incontrano, e tenerla accanto alla coppia impedisce che
+   * divergano in silenzio.
+   */
+  simboloTermometro: string;
   /** Nome dello strumento come lo chiama il desk. */
   etichetta: string;
   /** Decimali con cui si rende il livello dell'indice. */
@@ -71,6 +81,7 @@ interface CoppiaVol {
 export const COPPIE_VOL: CoppiaVol[] = [
   {
     indice: "GVZ",
+    simboloTermometro: "XAUUSD",
     prezzo: "XAUUSD",
     etichetta: "Oro",
     decimaliIv: 2,
@@ -79,6 +90,7 @@ export const COPPIE_VOL: CoppiaVol[] = [
   },
   {
     indice: "OVX",
+    simboloTermometro: "WTICOUSD",
     /* IL FUTURE, non lo spot. Dal 26/08/2026 i fatti di volatilità del WTI
        vengono dal contratto front-month: lo spot Cushing di FRED non pubblica
        massimo e minimo — quindi il WTI era l'unico dei tre strumenti senza
@@ -94,6 +106,7 @@ export const COPPIE_VOL: CoppiaVol[] = [
   },
   {
     indice: "VIX",
+    simboloTermometro: "SP500",
     prezzo: "SPX",
     etichetta: "S&P 500",
     decimaliIv: 2,
@@ -101,6 +114,7 @@ export const COPPIE_VOL: CoppiaVol[] = [
   },
   {
     indice: "VDAX",
+    simboloTermometro: "GER40",
     prezzo: "GER40",
     etichetta: "GER40 (DAX)",
     decimaliIv: 2,
@@ -176,6 +190,24 @@ export interface ContestoVolatilita {
   strutturaTermine: StrutturaTermine | null;
   /** Contango o backwardation del WTI: due contratti, la loro differenza. */
   strutturaWti: EsitoStrutturaWti;
+  /**
+   * Quanto si paga per coprirsi sull'azionario: VVIX e SKEW, livello e rango.
+   * Arrivavano dal report giornaliero, copiati a mano; dal 26/08/2026 dal CBOE
+   * ogni notte. Vuoto finché il job non li ha raccolti la prima volta.
+   */
+  climaCopertura: VoceClima[];
+}
+
+export interface VoceClima {
+  sigla: string;
+  /** Cosa misura, in una riga: la sigla da sola non dice niente a nessuno. */
+  descrizione: string;
+  valore: number;
+  giorno: string;
+  etaGiorni: number;
+  rango: RangoStorico | null;
+  variazioni: VariazioneFinestra[];
+  fonte: string;
 }
 
 export interface StrutturaTermine {
@@ -287,6 +319,54 @@ async function caricaStrutturaTermine(
 }
 
 /**
+ * VVIX e SKEW: il prezzo della copertura sull'azionario.
+ *
+ * Fino al 26/08/2026 erano due tessere del blocco «indici dal report», con il
+ * vintage di Investing.com — VVIX «chiusura 20 ago», SKEW «vintage 18 ago» —
+ * su una pagina del 26. Adesso stanno qui, dall'archivio, con il rango sulla
+ * storia intera che il report non poteva dare: 5.090 sedute dal 2006 per il
+ * VVIX, 9.213 dal 1990 per lo SKEW.
+ */
+const VOCI_CLIMA: ReadonlyArray<{
+  codice: SeasonalityInstrument;
+  descrizione: string;
+}> = [
+  {
+    codice: "VVIX",
+    descrizione:
+      "Quanto costano le opzioni SUL VIX: sale quando cresce la domanda di coprirsi da un salto della volatilità stessa.",
+  },
+  {
+    codice: "SKEW",
+    descrizione:
+      "Quanto si pagano le opzioni molto fuori dal denaro sull'S&P 500 rispetto a quelle vicine: sale quando le code vengono prezzate con più attenzione.",
+  },
+];
+
+async function caricaClimaCopertura(oggi: string): Promise<VoceClima[]> {
+  const fuori: VoceClima[] = [];
+  for (const voce of VOCI_CLIMA) {
+    const sedute = await caricaSedute(voce.codice);
+    if (sedute.length === 0) continue;
+    const punti = chiusure(sedute);
+    const ultima = sedute[sedute.length - 1];
+    fuori.push({
+      sigla: voce.codice,
+      descrizione: voce.descrizione,
+      valore: ultima.close,
+      giorno: ultima.giorno,
+      etaGiorni: etaInGiorni(ultima.giorno, oggi),
+      rango: rangoStorico(punti),
+      variazioni: variazioni(punti),
+      fonte:
+        SEASONALITY_BY_CODE.get(voce.codice)?.attribution ??
+        "CBOE Global Markets",
+    });
+  }
+  return fuori;
+}
+
+/**
  * DIFENSIVA come le altre query del desk: qualunque errore degrada a contesto
  * vuoto con log, e la pagina mostra lo stato vuoto invece di cadere.
  */
@@ -357,6 +437,7 @@ export const getContestoVolatilita = cache(
         oggi,
         strutturaTermine: await caricaStrutturaTermine(oggi),
         strutturaWti: await getStrutturaWti(),
+        climaCopertura: await caricaClimaCopertura(oggi),
       };
     } catch (e: unknown) {
       console.error("[volatilita] contesto non caricato:", e);
@@ -365,7 +446,18 @@ export const getContestoVolatilita = cache(
         oggi,
         strutturaTermine: null,
         strutturaWti: { ok: false, motivo: "front_non_disponibile" },
+        climaCopertura: [],
       };
     }
   },
 );
+
+/**
+ * Ingressi del termometro: la regola pura sta in `lib/volatilita-report.ts`,
+ * qui si passano solo le righe già caricate e la mappa indice → simbolo.
+ */
+export function ingressiTermometroDaContesto(
+  contesto: ContestoVolatilita,
+): Record<string, IngressoTermometro> {
+  return ingressiTermometro(contesto.righe, COPPIE_VOL);
+}

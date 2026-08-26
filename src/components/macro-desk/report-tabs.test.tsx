@@ -2,7 +2,6 @@ import { describe, expect, it } from "vitest";
 import { renderToStaticMarkup } from "react-dom/server";
 import sample from "../../../docs/macro-desk-sample-report.json";
 import { parseMacroPayload } from "@/lib/macro-desk-payload";
-import { componiIngressi } from "@/lib/termometro-volatilita";
 import {
   AssetsTab,
   EventsTab,
@@ -98,25 +97,28 @@ describe("tab con il sample completo", () => {
     expect(html).toContain("186.682"); // valore CoT nel testo
   });
 
-  it("Volatilità (sezione autonoma): asOf, tessere con valore/chg e commento", () => {
+  it("gli indici con fonte libera NON compaiono piu nel blocco del report", () => {
     const vol = full.volPanel;
     const html = renderToStaticMarkup(
       <VolatilitaPanel
-        ingressi={componiIngressi({ volItems: vol?.items })}
+        ingressi={{}}
         items={vol?.items ?? []}
         reading={vol?.reading}
-        asOf={vol?.asOf}
         cancelli={{}}
-        contesto={{ righe: [], oggi: "2026-08-25", strutturaTermine: null, strutturaWti: { ok: false, motivo: "front_non_disponibile" } }}
+        contesto={{ righe: [], oggi: "2026-08-25", strutturaTermine: null, strutturaWti: { ok: false, motivo: "front_non_disponibile" }, climaCopertura: [] }}
         giornoReport="2026-07-21"
       />,
     );
-    expect(html).toContain("Saxo Options Brief"); // asOf
-    for (const k of ["VIX", "VVIX", "SKEW", "GVZ", "OVX", "MOVE"]) {
-      expect(html).toContain(k);
+    /* Dal 26/08/2026 VIX, VVIX, SKEW, GVZ e OVX arrivano dal CBOE ogni notte
+       e stanno nel contesto: farli comparire anche qui, col vintage del
+       report, e' cio che il 26/08 metteva sulla stessa pagina un GVZ a 23,92
+       «vintage 14-18 agosto» e un GVZ a 27,69 del 25 agosto. */
+    for (const k of ["VVIX", "SKEW", "GVZ", "OVX"]) {
+      expect(html).not.toContain(`${k} · `);
     }
-    expect(html).toContain("102.82");
-    expect(html).toContain("+3.4%"); // chg OVX
+    // Restano le due senza fonte libera, dichiarate anche quando mancano.
+    expect(html).toContain("MOVE");
+    expect(html).toContain("PUT/CALL");
     expect(html).toContain("VIX1D 13,4"); // reading
   });
 
@@ -124,19 +126,18 @@ describe("tab con il sample completo", () => {
     const vol = full.volPanel;
     const html = renderToStaticMarkup(
       <VolatilitaPanel
-        ingressi={componiIngressi({ volItems: vol?.items })}
+        ingressi={{}}
         items={vol?.items ?? []}
         reading={vol?.reading}
-        asOf={vol?.asOf}
         cancelli={{}}
-        contesto={{ righe: [], oggi: "2026-08-25", strutturaTermine: null, strutturaWti: { ok: false, motivo: "front_non_disponibile" } }}
+        contesto={{ righe: [], oggi: "2026-08-25", strutturaTermine: null, strutturaWti: { ok: false, motivo: "front_non_disponibile" }, climaCopertura: [] }}
         giornoReport="2026-07-21"
       />,
     );
     // provenienza e vintage dichiarati: nessun numero senza fonte in pagina
-    expect(html).toContain("Indici dal report giornaliero del 21/07/2026");
+    expect(html).toContain("dal report del 21/07/2026");
     expect(html).toContain("Commento del report del 21/07/2026");
-    expect(html).toContain("si aggiornano");
+    expect(html).toContain("Le due misure senza fonte pubblica");
     // la prosa del report è marcata come prosa, non come misura
     expect(html).toContain("Prosa scritta dal report giornaliero");
   });

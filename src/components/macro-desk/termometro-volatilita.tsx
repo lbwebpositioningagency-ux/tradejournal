@@ -80,10 +80,13 @@ function CartaStrumento({
   lettura,
   indice,
   cancello,
+  giorno,
 }: {
   lettura: LetturaTermometro;
   indice: number;
   cancello: EsitoCancello;
+  /** Seduta dell'indice IV su cui la classificazione è calcolata (ISO). */
+  giorno: string | null;
 }) {
   const {
     etichetta,
@@ -135,6 +138,17 @@ function CartaStrumento({
         </div>
         <span className="md-mono text-[11px] text-[var(--md-muted)]">{finestraSchermo}</span>
       </div>
+
+      {/* LA DATA DELL'INGRESSO, sempre. Finché l'IV arrivava dal report la
+          classificazione compariva nuda: il 26/08/2026 l'S&P risultava
+          COMPRESSA sul VIX del 20 agosto, mentre la stessa pagina mostrava
+          già quello del 25. Un verdetto senza la data del dato su cui poggia
+          non si può verificare. */}
+      {giorno ? (
+        <p className="md-mono -mt-2 text-[11px] text-[var(--md-muted)]">
+          calcolata sulla chiusura {indiceIv} del {dataIt(giorno)}
+        </p>
+      ) : null}
 
       {soloContesto ? (
         <p className="-mt-1.5 text-[11px] leading-relaxed text-[var(--md-muted)]">
@@ -260,6 +274,7 @@ export function TermometroVolatilita({
       simbolo,
       lettura: leggiTermometro(simbolo, ingressi[simbolo]),
       cancello: cancelli[simbolo],
+      giorno: ingressi[simbolo]?.giorno ?? null,
     }));
 
   const aperti = letture.filter(
@@ -269,6 +284,7 @@ export function TermometroVolatilita({
       simbolo: string;
       lettura: LetturaTermometro;
       cancello: CancelloPerSimbolo;
+      giorno: string | null;
     } => x.lettura !== null && x.cancello?.esito.aperto === true,
   );
 
@@ -280,7 +296,7 @@ export function TermometroVolatilita({
       simbolo: x.simbolo,
       motivo:
         x.lettura === null
-          ? "l'indice di volatilità implicita non è fra quelli raccolti dal report giornaliero"
+          ? "l'indice di volatilità implicita non è fra quelli raccolti nell'archivio giornaliero"
           : (x.cancello?.testoDegenere ??
             x.cancello?.testoChiusura ??
             "nessuna prova fuori campione disponibile per lo stato di oggi"),
@@ -299,12 +315,13 @@ export function TermometroVolatilita({
 
       {aperti.length > 0 ? (
         <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
-          {aperti.map(({ simbolo, lettura, cancello }, i) => (
+          {aperti.map(({ simbolo, lettura, cancello, giorno }, i) => (
             <CartaStrumento
               key={simbolo}
               lettura={lettura}
               indice={i}
               cancello={cancello.esito}
+              giorno={giorno}
             />
           ))}
         </div>

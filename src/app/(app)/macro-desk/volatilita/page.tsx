@@ -8,7 +8,10 @@ import { prisma } from "@/lib/db";
 import { todayKeyInZone } from "@/lib/dates";
 import { getFreschezzaReport } from "@/lib/queries/macro-desk-freschezza";
 import { getVolatilitaData } from "@/lib/queries/volatilita";
-import { getContestoVolatilita } from "@/lib/queries/volatilita-contesto";
+import {
+  getContestoVolatilita,
+  ingressiTermometroDaContesto,
+} from "@/lib/queries/volatilita-contesto";
 import {
   getCalibrazioneTermometro,
   getDegradoTermometro,
@@ -123,14 +126,20 @@ export default async function MacroVolatilitaPage() {
     getInventariEia(oggi),
   ]);
 
+  /* GLI INGRESSI DEL TERMOMETRO VENGONO DALL'ARCHIVIO, non dal report: dal
+     26/08/2026 la classificazione legge le stesse righe di contesto che la
+     pagina mostra sopra di essa. Prima l'S&P veniva classificato col VIX
+     copiato a mano nel report — il 26/08 quello del 20/08, 15,98 — mentre
+     poche righe più su la pagina mostrava già il VIX del 25/08 dal CBOE. */
+  const ingressi = ingressiTermometroDaContesto(contesto);
+
   /* IL CANCELLO, composto qui perché è l'unico punto che ha entrambe le
-     informazioni: lo stato di oggi (che dipende dall'IV del report) e
-     l'esito del rilevatore di degrado (che dipende dall'archivio). Le due
-     regole vivono nei loro moduli puri; qui si mettono insieme. */
+     informazioni: lo stato di oggi e l'esito del rilevatore di degrado. Le
+     due regole vivono nei loro moduli puri; qui si mettono insieme. */
   const cancelli: Record<string, CancelloPerSimbolo> = {};
-  if (data) {
+  {
     for (const d of degrado) {
-      const lettura = leggiTermometro(d.simbolo, data.ingressi[d.simbolo]);
+      const lettura = leggiTermometro(d.simbolo, ingressi[d.simbolo]);
       if (!lettura) continue;
       const esito = valutaCancello(d.simbolo, lettura.stato, d.esito.discrimina);
       cancelli[d.simbolo] = {
@@ -202,10 +211,9 @@ export default async function MacroVolatilitaPage() {
       >
         {data ? (
           <VolatilitaPanel
-            ingressi={data.ingressi}
+            ingressi={ingressi}
             items={data.items}
             reading={data.reading}
-            asOf={data.asOf}
             cancelli={cancelli}
             calibrazione={calibrazione}
             contesto={contesto}
@@ -238,9 +246,10 @@ export default async function MacroVolatilitaPage() {
 
       {data ? (
         <p className="text-xs text-muted-foreground">
-          Gli indici del blocco «report» e il commento vengono dal report del{" "}
-          {reportDateLabel(data.reportDate)}. Il contesto in cima alla pagina no:
-          arriva dall&apos;archivio giornaliero e si aggiorna ogni notte.
+          Dal report del {reportDateLabel(data.reportDate)} vengono soltanto il
+          MOVE — che nessuna fonte gratuita pubblica — e il commento in fondo.
+          Tutto il resto di questa pagina arriva dall&apos;archivio giornaliero
+          e si aggiorna ogni notte, con la propria data accanto.
         </p>
       ) : null}
     </div>
