@@ -109,44 +109,6 @@ export async function getTargetRBuckets(
   return rows;
 }
 
-/** Un punto dello scatter target R (x) vs R realizzato (y). */
-export interface TargetVsRealizedPoint {
-  targetR: string;
-  realizedR: string;
-  symbol: string;
-  direction: string;
-  /** True se l'uscita ha raggiunto il target (fatto di prezzo). */
-  hit: boolean;
-}
-
-/**
- * Punti per lo scatter. Serie LIMITATA (`limit`): i grafici a dispersione
- * oltre qualche centinaio di punti diventano una macchia, e comunque non si
- * caricano liste di trade illimitate.
- */
-export async function getTargetVsRealized(
-  filter: AnalyticsFilter,
-  limit = 600,
-): Promise<TargetVsRealizedPoint[]> {
-  return prisma.$queryRaw<TargetVsRealizedPoint[]>(Prisma.sql`
-    SELECT "targetR", "realizedR", "symbol", "direction", "hit" FROM (
-      SELECT
-        t."targetR"::text   AS "targetR",
-        t."rMultiple"::text AS "realizedR",
-        t."symbol",
-        t."direction"::text AS "direction",
-        (${HIT_TARGET})     AS "hit",
-        ROW_NUMBER() OVER (ORDER BY t."closedAt" DESC, t."id" DESC) AS "rn"
-      ${FROM_TRADES}
-      WHERE ${analyticsWhere(filter)}
-        AND t."targetR" IS NOT NULL
-        AND t."rMultiple" IS NOT NULL
-    ) recenti
-    WHERE "rn" <= ${limit}
-    ORDER BY "targetR" ASC
-  `);
-}
-
 /** Conteggi di copertura: quanti trade hanno un piano e quanti no. */
 export interface PlanCoverage {
   /** Trade chiusi nello scope/periodo. */
@@ -592,47 +554,6 @@ export async function getStrategyDayPnl(
     WHERE ${analyticsWhere(filter)}
     GROUP BY 1, 2, 3
     ORDER BY 2 ASC, 3 ASC
-  `);
-}
-
-export interface SymbolTradingRow {
-  symbol: string;
-  trades: number;
-  netPnl: string;
-  /** Quantità media per trade (per il buy & hold "della tua size"). */
-  avgQuantity: string;
-  /** Valore punto medio: i contratti dello stesso simbolo lo condividono. */
-  pointValue: string;
-  firstDay: string;
-  lastDay: string;
-}
-
-/**
- * Quanto ha fatto l'utente su ciascun simbolo, e in quale finestra di giorni.
- * Base del confronto col buy & hold (v. `queries/benchmark.ts`): sta qui e
- * non lì perché usa `FROM_TRADES` e `analyticsWhere`, che sono la definizione
- * di "quali trade contano" di questa pagina — duplicarla altrove creerebbe
- * due perimetri per la stessa domanda.
- */
-export async function getSymbolTrading(
-  filter: AnalyticsFilter,
-  timezone: string,
-): Promise<SymbolTradingRow[]> {
-  return prisma.$queryRaw<SymbolTradingRow[]>(Prisma.sql`
-    SELECT
-      t."symbol"                                          AS "symbol",
-      COUNT(*)::int                                       AS "trades",
-      COALESCE(SUM(t."netPnl"), 0)::text                  AS "netPnl",
-      COALESCE(AVG(t."quantity"), 0)::text                AS "avgQuantity",
-      COALESCE(AVG(t."pointValue"), 1)::text              AS "pointValue",
-      to_char(MIN((t."closedAt" AT TIME ZONE 'UTC') AT TIME ZONE ${timezone}),
-              'YYYY-MM-DD')                               AS "firstDay",
-      to_char(MAX((t."closedAt" AT TIME ZONE 'UTC') AT TIME ZONE ${timezone}),
-              'YYYY-MM-DD')                               AS "lastDay"
-    ${FROM_TRADES}
-    WHERE ${analyticsWhere(filter)}
-    GROUP BY 1
-    ORDER BY 2 DESC
   `);
 }
 

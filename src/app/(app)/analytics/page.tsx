@@ -15,7 +15,6 @@ import {
   getPlanCoverage,
   getRHistogram,
   getTargetRBuckets,
-  getTargetVsRealized,
   getHourPerformance,
   HOUR_BASES,
   type HourBasis,
@@ -24,7 +23,6 @@ import {
   getRollingTradeWindow,
   getProAggregates,
   getStrategyDayPnl,
-  getSymbolTrading,
   getStreakRuns,
   getTopConcentration,
   type AnalyticsFilter,
@@ -36,9 +34,6 @@ import {
   breakEvenWinRateInfo,
   concentration,
   concentrationInfo,
-  benchmarkRows,
-  benchmarkCoverage,
-  benchmarkInfo,
   correlationMatrix,
   correlationInfo,
   CORRELATION_MIN_DAYS,
@@ -61,11 +56,6 @@ import {
 } from "@/lib/metrics";
 import { ConcentrationTable } from "@/components/analytics/concentration-table";
 import { CorrelationMatrixTable } from "@/components/analytics/correlation-matrix";
-import { BenchmarkTable } from "@/components/analytics/benchmark-table";
-import {
-  getInstrumentCloses,
-  instrumentForSymbol,
-} from "@/lib/queries/benchmark";
 import {
   DAY_WINDOWS,
   DURATION_BUCKETS,
@@ -107,7 +97,6 @@ import {
   RollingTradeChart,
   SegmentPerformanceChart,
   StreakDistributionChart,
-  TargetScatterChart,
 } from "@/components/charts/lazy-charts";
 import { RollingWindowControl } from "@/components/analytics/rolling-controls";
 import {
@@ -374,7 +363,6 @@ export default async function AnalyticsPage({
     coverage,
     bucketRows,
     histogram,
-    scatter,
     symbols,
     hourRows,
     durationRows,
@@ -393,14 +381,12 @@ export default async function AnalyticsPage({
     rAgg,
     streakRuns,
     strategyDays,
-    symbolTrading,
     concentrationRow,
     rollingRows,
   ] = await Promise.all([
     coveragePromise,
     getTargetRBuckets(filter),
     getRHistogram(filter),
-    getTargetVsRealized(filter),
     getAnalyticsSymbols({ ...base, currency: currencyScope.active }),
     getHourPerformance(filter, user.timezone, hourBasis),
     getDurationPerformance(filter, DURATION_BUCKETS),
@@ -416,7 +402,6 @@ export default async function AnalyticsPage({
     getTradeAggregates(accountFilter),
     getStreakRuns(filter),
     getStrategyDayPnl(filter, user.timezone),
-    getSymbolTrading(filter, user.timezone),
     getTopConcentration(filter),
     rollingRowsPromise,
   ]);
@@ -425,13 +410,6 @@ export default async function AnalyticsPage({
   const buckets = targetRBucketStats(bucketRows);
   const totals = targetRTotals(buckets);
   const histogramPoints = fillRDistribution(histogram, BE_BIN);
-  const scatterPoints = scatter.map((p) => ({
-    targetR: Number(p.targetR),
-    realizedR: Number(p.realizedR),
-    symbol: p.symbol,
-    direction: p.direction,
-    hit: p.hit,
-  }));
 
   // Valuta di visualizzazione: quella dello scope (mai una somma cross-valuta).
   const currency =
@@ -611,42 +589,6 @@ export default async function AnalyticsPage({
       .sort((a, b) => b.trades - a.trades);
   })();
   const correlations = correlationMatrix(strategySeries);
-
-  /* Confronto col buy & hold. Secondo stadio per forza: la finestra di
-     chiusure da leggere dipende dai giorni in cui l'utente ha davvero
-     operato, che si sanno solo dopo la query dei simboli. Una sola query in
-     più, sui soli strumenti che servono. */
-  const benchmarkWindow = {
-    from: symbolTrading.reduce<string | null>(
-      (min, r) => (min === null || r.firstDay < min ? r.firstDay : min),
-      null,
-    ),
-    to: symbolTrading.reduce<string | null>(
-      (max, r) => (max === null || r.lastDay > max ? r.lastDay : max),
-      null,
-    ),
-  };
-  const wantedInstruments = [
-    ...new Set(
-      symbolTrading
-        .map((r) => instrumentForSymbol(r.symbol))
-        .filter((i): i is string => i !== null),
-    ),
-  ];
-  const closes =
-    benchmarkWindow.from && benchmarkWindow.to && wantedInstruments.length > 0
-      ? await getInstrumentCloses(
-          wantedInstruments,
-          benchmarkWindow.from,
-          benchmarkWindow.to,
-        )
-      : [];
-  const benchmark = benchmarkRows(
-    symbolTrading,
-    new Map(closes.map((c) => [c.instrument, c])),
-    instrumentForSymbol,
-  );
-  const benchmarkCovered = benchmarkCoverage(benchmark);
 
   // Durata contro esito su TUTTI i trade insieme: la tabella per fascia dice
   // quanto rende ogni bucket, questa riga dice se fra i bucket ci sia un
@@ -1223,59 +1165,6 @@ export default async function AnalyticsPage({
             </CardContent>
           </Card>
 
-          {/* Il confronto che nessuna metrica interna fa: vs stare fermo. */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2 text-base">
-                Il tuo trading vs stare fermo
-                <MetricInfo info={benchmarkInfo} />
-              </CardTitle>
-              <CardDescription>
-                Per ogni simbolo: quanto hai realizzato, e quanto avrebbe reso
-                comprare la tua size media all&apos;inizio del periodo e non
-                toccarla più.
-                {benchmarkCovered.share !== null && (
-                  <>
-                    {" "}
-                    Confronto disponibile su{" "}
-                    <strong>
-                      {benchmarkCovered.covered} trade su{" "}
-                      {benchmarkCovered.total}
-                    </strong>{" "}
-                    ({formatPercent(benchmarkCovered.share)}): per gli altri
-                    simboli l&apos;istanza non ha una serie di chiusure, e non
-                    viene inventato un valore di ripiego.
-                  </>
-                )}
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="flex flex-col gap-3">
-              {benchmark.length > 0 ? (
-                <>
-                  <BenchmarkTable rows={benchmark} currency={currency} />
-                  <p className="rounded-md border border-dashed p-3 text-xs text-muted-foreground">
-                    <strong className="text-foreground">Come leggerlo.</strong>{" "}
-                    La serie di riferimento è il sottostante (oro spot, indice,
-                    future continuo), non il contratto esatto che hai tradato:
-                    su orizzonti lunghi il rollover fa divergere le due curve.
-                    Il buy &amp; hold è calcolato sulla tua size MEDIA tenuta
-                    per tutto il periodo — è un&apos;ipotesi di confronto, non
-                    una cosa che è successa. La variazione percentuale è sempre
-                    confrontabile; l&apos;importo in valuta solo se la valuta
-                    del conto coincide con quella dello strumento.
-                  </p>
-                </>
-              ) : (
-                <EmptyState
-                  compact
-                  icon={Activity}
-                  title="Nessun trade chiuso nel periodo"
-                  description="Il confronto si costruisce sui simboli che hai davvero tradato."
-                />
-              )}
-            </CardContent>
-          </Card>
-
           {/* Correlazione fra strategie: le strategie guardate INSIEME. */}
           <Card>
             <CardHeader>
@@ -1445,34 +1334,6 @@ export default async function AnalyticsPage({
                   </>
                 )}
               </div>
-            </CardContent>
-          </Card>
-
-          {/* ③ Scatter target vs realizzato. */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-base">
-                Target R vs R realizzato
-              </CardTitle>
-              <CardDescription>
-                Ogni punto è un trade. La diagonale tratteggiata è il piano
-                eseguito alla lettera: sopra hai fatto meglio del target, sotto
-                sei uscito prima. La linea orizzontale è il break-even.
-                {scatterPoints.length >= 600 &&
-                  " Mostrati i 600 trade più recenti."}
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              {scatterPoints.length > 0 ? (
-                <TargetScatterChart points={scatterPoints} />
-              ) : (
-                <EmptyState
-                  compact
-                  icon={Crosshair}
-                  title="Nessun trade con target pianificato"
-                  description="Servono stop e target sul trade per collocare il punto sull'asse orizzontale."
-                />
-              )}
             </CardContent>
           </Card>
         </>

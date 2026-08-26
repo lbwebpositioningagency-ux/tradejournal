@@ -88,15 +88,6 @@ export {
   type CorrelationSeries,
 } from "./correlation";
 export {
-  benchmarkRows,
-  benchmarkCoverage,
-  benchmarkInfo,
-  BENCHMARK_MIN_BARS,
-  type BenchmarkRow,
-  type InstrumentWindow,
-  type SymbolTrading,
-} from "./benchmark-compare";
-export {
   DAY_UNIT_LABELS,
   DAY_UNIT_NOTES,
   formatDayCount,
