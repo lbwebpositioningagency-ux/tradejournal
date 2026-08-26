@@ -141,3 +141,16 @@ export const TAG_CATEGORY_HINTS: Record<TagCategory, string> = {
   EMOTION: "lo stato emotivo (disciplina, tilt…)",
   CUSTOM: "nessuna delle precedenti",
 };
+
+/**
+ * P-02 — VALUTE DEI CONTI, qui e non in `validations/account.ts`.
+ *
+ * La lista la usano tre form client (registrazione, profilo, conti) e uno
+ * schema Zod. Finché viveva accanto allo schema, importarla trascinava zod
+ * nel bundle di quelle pagine: su `/register` erano 63 kB gz su 137, cioè il
+ * 46% del payload della prima pagina che un utente nuovo vede — per un elenco
+ * di cinque stringhe. Stessa medicina già usata per `ASSET_CLASSES` e per il
+ * layout della dashboard: le COSTANTI stanno qui, gli SCHEMI restano server.
+ */
+export const CURRENCIES = ["USD", "EUR", "GBP", "CHF", "JPY"] as const;
+export type Currency = (typeof CURRENCIES)[number];

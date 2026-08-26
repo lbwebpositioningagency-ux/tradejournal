@@ -3,7 +3,7 @@
 import { useActionState, useEffect, useMemo } from "react";
 import { toast } from "sonner";
 import { updateProfileAction } from "@/server/settings";
-import { CURRENCIES } from "@/lib/validations/account";
+import { CURRENCIES } from "@/lib/constants";
 import { Button } from "@/components/ui/button";
 import {
   Card,

@@ -8,7 +8,7 @@ import {
   updateAccountAction,
   type AccountFormState,
 } from "@/server/accounts";
-import { CURRENCIES } from "@/lib/validations/account";
+import { CURRENCIES } from "@/lib/constants";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,

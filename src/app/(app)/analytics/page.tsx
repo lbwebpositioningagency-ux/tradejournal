@@ -10,8 +10,6 @@ import { resolvePeriod } from "@/lib/period";
 import { periodCookieFallback } from "@/lib/period-cookie";
 import { resolveCurrencyScope } from "@/lib/currency-scope";
 import { getCurrencyBreakdown } from "@/lib/queries/stats";
-// TODO(P-04): import TEMPORANEO della misura stadi — rimuovere dopo la misura.
-import { createStageTimer } from "@/lib/stage-timing";
 import {
   getAnalyticsSymbols,
   getPlanCoverage,
@@ -291,11 +289,7 @@ export default async function AnalyticsPage({
 }: {
   searchParams: Promise<Record<string, string | string[] | undefined>>;
 }) {
-  // TODO(P-04): misura TEMPORANEA degli stadi (vedi lib/stage-timing.ts) —
-  // rimuovere timer e mark dopo la lettura dei numeri in produzione.
-  const timing = createStageTimer("/analytics");
   const session = await auth();
-  timing.mark("auth");
   if (!session?.user?.id) redirect("/login");
   const sessionUserId = session.user.id;
 
@@ -307,7 +301,6 @@ export default async function AnalyticsPage({
     resolveTradeScope(sessionUserId),
     searchParams,
   ]);
-  timing.mark("scope");
   const userId = tradeScope.userId;
   const accountId = tradeScope.accountId;
 
@@ -317,7 +310,6 @@ export default async function AnalyticsPage({
 
   // Stessa regola del resto dell'app: mai sommare valute diverse.
   const currencyTotals = await getCurrencyBreakdown(base);
-  timing.mark("currency");
   const currencyScope = resolveCurrencyScope(
     currencyTotals,
     typeof params.cur === "string" ? params.cur : undefined,
@@ -420,8 +412,6 @@ export default async function AnalyticsPage({
     getTopConcentration(filter),
     rollingRowsPromise,
   ]);
-  timing.mark("queries");
-  timing.flush();
   const startingEquity = new Decimal(mcStartBalance).plus(mcLifetime).toFixed(2);
 
   const buckets = targetRBucketStats(bucketRows);
