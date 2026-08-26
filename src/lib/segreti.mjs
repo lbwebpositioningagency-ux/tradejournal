@@ -4,6 +4,12 @@
  * sia al hook di pre-commit (`scripts/pre-commit.mjs`) sia al test che gira
  * nel gate (`src/lib/segreti-nel-repo.test.ts`), senza poter divergere.
  *
+ * Sta in `src/lib/` e non in `scripts/`, dove sarebbe stato più naturale,
+ * per una ragione precisa: `.vercelignore` esclude `scripts` dall'upload,
+ * mentre `tsconfig.json` include ogni file .ts del progetto — quindi un test
+ * in `src/` che importa da `scripts/` compila in locale e non trova il modulo
+ * sul build di Vercel. Il primo tentativo è finito esattamente così.
+ *
  * Perché esiste. Il 26/08/2026 `eia_f.json` è entrato in un commit con un
  * `git add -A`: era la risposta grezza di una sonda alle rotte EIA, e l'API
  * dell'EIA rimanda indietro i parametri della richiesta, `api_key` compresa.
@@ -98,7 +104,7 @@ export const JSON_AMMESSI_ALLA_RADICE = new Set([
 export const PERCORSI_ESENTI = new Set([
   ".env.example",
   ".gitignore",
-  "scripts/segreti.mjs",
+  "src/lib/segreti.mjs",
   "scripts/pre-commit.mjs",
   "src/lib/segreti-nel-repo.test.ts",
 ]);

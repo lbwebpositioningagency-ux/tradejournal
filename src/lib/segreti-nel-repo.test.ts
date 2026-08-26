@@ -3,7 +3,7 @@ import { readFileSync, statSync } from "node:fs";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 // Modulo .mjs condiviso con l'hook di pre-commit: nessun tipo, si dichiara qui.
-import * as segreti from "../../scripts/segreti.mjs";
+import * as segreti from "./segreti.mjs";
 
 const {
   violazioniIn,
