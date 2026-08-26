@@ -47,7 +47,6 @@ import {
   winRate as winRateOf,
   winRateMargin,
 } from "@/lib/metrics";
-import { StreakDistributionChart } from "@/components/analytics/streak-distribution-chart";
 import { ConcentrationTable } from "@/components/analytics/concentration-table";
 import {
   DAY_WINDOWS,
@@ -77,17 +76,23 @@ import {
   getNetPnlBefore,
   getTradeAggregates,
 } from "@/lib/queries/stats";
-import { EquitySimulator } from "@/components/analytics/equity-simulator";
+// T-1 — i grafici di /analytics passano dai wrapper lazy come quelli di
+// /dashboard e /trades: nessuno sta sopra la piega, e recharts+d3 usciva dal
+// percorso critico solo per le altre due route.
 import {
+  EquitySimulator,
+  RDistributionChart,
   RollingRatioChart,
   RollingTradeChart,
-} from "@/components/analytics/rolling-charts";
+  SegmentPerformanceChart,
+  StreakDistributionChart,
+  TargetScatterChart,
+} from "@/components/charts/lazy-charts";
 import { RollingWindowControl } from "@/components/analytics/rolling-controls";
 import {
   MetricRangeStrip,
   type MetricRangeRow,
 } from "@/components/analytics/metric-range-strip";
-import { SegmentPerformanceChart } from "@/components/analytics/segment-performance-chart";
 import { SegmentTable } from "@/components/analytics/segment-table";
 import {
   targetRBucketStats,
@@ -111,8 +116,6 @@ import { PeriodFilter } from "@/components/filters/period-filter";
 import { CurrencyFilter } from "@/components/filters/currency-filter";
 import { AnalyticsFilters } from "@/components/analytics/analytics-filters";
 import { TargetRTable } from "@/components/analytics/target-r-table";
-import { RDistributionChart } from "@/components/charts/r-distribution-chart";
-import { TargetScatterChart } from "@/components/charts/target-scatter-chart";
 import {
   Card,
   CardContent,

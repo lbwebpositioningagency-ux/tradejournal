@@ -31,6 +31,7 @@ const input: RadarScoreInput = {
   netPnl: "4500.00",
   maxDrawdown: "500.00",
   maxDrawdownPct: "0.0500",
+  observations: 252,
   daily: [{ netPnl: "3000.00" }, { netPnl: "2000.00" }, { netPnl: "-500.00" }],
 };
 

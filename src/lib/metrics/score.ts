@@ -1,6 +1,7 @@
 import Decimal from "decimal.js";
 import { profitFactor } from "./profit-factor";
 import { avgLoss, avgWin, payoffRatio } from "./averages";
+import { TRADING_DAYS_PER_YEAR } from "./daily-series";
 import type { MetricInfoData } from "./types";
 
 /**
@@ -24,8 +25,8 @@ import type { MetricInfoData } from "./types";
  * - RECOVERY FACTOR: profitto netto / max drawdown ($), / 3.0 — recuperare
  *   3 volte la buca peggiore vale il massimo. Profitto ≤ 0 → 0. Zero
  *   drawdown: 100 con profitto, 0 senza.
- * - MAX DRAWDOWN: 1 − maxDD% / 20% (tetto storico DD_CEILING: un calo
- *   ≥ 20% del picco vale 0; drawdown più basso = punteggio più alto).
+ * - MAX DRAWDOWN: 1 − maxDD% NORMALIZZATO / 20% (tetto storico DD_CEILING).
+ *   La normalizzazione è il fix Q-1: v. `normalizedDrawdownPct` qui sotto.
  *   Percentuale non definibile (picco ≤ 0) → 50 neutro.
  * - CONSISTENCY: 1 − (miglior GIORNATA / somma delle giornate positive) —
  *   quanto il risultato è distribuito nel tempo invece che concentrato:
@@ -56,6 +57,15 @@ export interface RadarScoreInput {
   maxDrawdown: string;
   /** Frazione 0-1 (da maxDrawdown().maxDrawdownPct); null = non definibile. */
   maxDrawdownPct: string | null;
+  /**
+   * Q-1 — numero di SEDUTE della serie su cui `maxDrawdownPct` è stato
+   * misurato, cioè `dailyReturns(...).length`, non la durata del periodo
+   * selezionato né il numero di giorni con trade. È il denominatore della
+   * normalizzazione del fattore Max Drawdown (v. `normalizedDrawdownPct`):
+   * passare la grandezza sbagliata non produce un errore, produce un
+   * punteggio scalato male, quindi il campo è obbligatorio e documentato.
+   */
+  observations: number;
   /** Serie giornaliera del periodo (per la consistency). */
   daily: { netPnl: string }[];
 }
@@ -68,6 +78,61 @@ const PF_CEILING = new Decimal("2.5");
 const PAYOFF_CEILING = new Decimal("2.0");
 const RECOVERY_CEILING = new Decimal("3.0");
 const DD_CEILING = new Decimal("0.20");
+
+/**
+ * Q-1 — FINESTRA DI RIFERIMENTO della normalizzazione del drawdown: un anno
+ * di sedute. Riusa la costante del progetto (`TRADING_DAYS_PER_YEAR`, la
+ * stessa del √252 dei rapporti) invece di introdurne una nuova, così il
+ * tetto DD_CEILING conserva il suo significato originale — «un calo del 20%
+ * su un anno di operatività vale 0».
+ */
+export const DD_REFERENCE_SESSIONS = TRADING_DAYS_PER_YEAR;
+
+/**
+ * Q-1 — DRAWDOWN MASSIMO NORMALIZZATO SULLA LUNGHEZZA DELLA FINESTRA.
+ *
+ * IL PROBLEMA. Il max drawdown è un MASSIMO CORRENTE: per costruzione non
+ * può che crescere allungando la finestra osservata. Normalizzarlo su un
+ * tetto fisso rendeva quindi il fattore una misura della lunghezza dello
+ * storico invece che della qualità del trading — lo stesso difetto già
+ * corretto sull'SQN col cap a 100. Misurato su SIM1 prima del fix: fattore
+ * 42,05 su tutto lo storico (442 sedute) contro 94,50 sugli ultimi 30
+ * giorni (25 sedute), e il punteggio complessivo passava da 77,00 a 89,13
+ * senza che il trading fosse cambiato.
+ *
+ * LA CORREZIONE. Sotto la convenzione standard del cammino casuale
+ * l'ampiezza attesa di un massimo drawdown cresce come √n nel numero di
+ * osservazioni. Si riporta quindi il drawdown osservato alla finestra di
+ * riferimento:
+ *
+ *   maxDD normalizzato = maxDD osservato × √(252 / sedute)
+ *
+ * cioè «quanto varrebbe questo drawdown se fosse misurato su un anno di
+ * sedute». Serie più corte della finestra vengono scalate in su, più lunghe
+ * in giù: la componente meccanica sparisce e resta la differenza vera.
+ *
+ * LIMITI, dichiarati perché sono reali e non trascurabili:
+ * - la legge √n vale a rigore per un cammino SENZA deriva. Con deriva
+ *   positiva il massimo drawdown cresce più lentamente (tende a ~ln n), e
+ *   quindi su un conto molto profittevole la correzione è GENEROSA: scala
+ *   in giù un po' più del dovuto le finestre lunghe. È il verso prudente —
+ *   toglie una penalità meccanica, non ne aggiunge una;
+ * - resta una normalizzazione di forma, non una stima: non usa la
+ *   volatilità del conto, che introdurrebbe un secondo numero stimato (e
+ *   il suo rumore) dentro un punteggio che deve essere leggibile.
+ *
+ * `observations ≤ 0` (nessuna seduta) → il drawdown torna invariato: senza
+ * un denominatore non si scala nulla, e inventare un fattore sarebbe peggio.
+ */
+export function normalizedDrawdownPct(
+  maxDrawdownPct: string | null,
+  observations: number,
+): string | null {
+  if (maxDrawdownPct === null) return null;
+  if (!Number.isFinite(observations) || observations <= 0) return maxDrawdownPct;
+  const scale = new Decimal(DD_REFERENCE_SESSIONS).div(observations).sqrt();
+  return new Decimal(maxDrawdownPct).times(scale).toFixed(8);
+}
 
 /** Ordine degli assi del radar (senso orario dal vertice in alto). */
 export const SCORE_FACTOR_KEYS = [
@@ -148,11 +213,15 @@ export function radarScore(input: RadarScoreInput): RadarScore | null {
       ? new Decimal(1)
       : net.div(dd).div(RECOVERY_CEILING);
 
-  // MAX DRAWDOWN
+  // MAX DRAWDOWN (Q-1: normalizzato sulla lunghezza della finestra)
+  const ddNormalized = normalizedDrawdownPct(
+    input.maxDrawdownPct,
+    input.observations,
+  );
   const ddScore =
-    input.maxDrawdownPct === null
+    ddNormalized === null
       ? new Decimal("0.5")
-      : new Decimal(1).minus(new Decimal(input.maxDrawdownPct).div(DD_CEILING));
+      : new Decimal(1).minus(new Decimal(ddNormalized).div(DD_CEILING));
 
   // CONSISTENCY: 1 − miglior giornata / somma giornate positive
   let bestDay = new Decimal(0);
@@ -241,9 +310,10 @@ export const SCORE_FACTOR_INFO: Record<ScoreFactorKey, MetricInfoData> = {
   maxDrawdown: {
     label: "Max drawdown (fattore dello Score)",
     description:
-      "Il calo massimo dal picco di equity, in percentuale: qui più è basso più il punteggio è alto. Un drawdown del 20% o peggio vale 0. Se la percentuale non è definibile (picco di equity ≤ 0) il fattore resta a 50, neutro.",
+      "Il calo massimo dal picco di equity: più è basso, più il punteggio è alto. Ma il drawdown massimo è un massimo, quindi cresce da solo più a lungo lo si osserva: prima del confronto col tetto del 20% viene riportato a una finestra di un anno di sedute, altrimenti il fattore misurerebbe la lunghezza del tuo storico invece della tua gestione del rischio. La percentuale della card Max Drawdown resta quella vera, non normalizzata.",
     formula:
-      "clamp 0-1 di (1 − maxDD% ÷ 20%) × 100 — tetto 20% · percentuale non definibile → 50",
+      "clamp 0-1 di (1 − maxDD% normalizzato ÷ 20%) × 100 · maxDD% normalizzato = maxDD% × √(252 ÷ sedute) · tetto 20% · percentuale non definibile → 50",
+    note: "La legge √n vale per un cammino senza deriva: su un conto molto profittevole è un po' generosa con gli storici lunghi.",
   },
   consistency: {
     label: "Consistency (fattore dello Score)",
@@ -259,6 +329,11 @@ export const SCORE_FACTOR_INFO: Record<ScoreFactorKey, MetricInfoData> = {
  * aggiunta quando si applica: chi apre la spiegazione di un asse deve
  * leggere LÌ che il punteggio è indicativo, senza cercare la riga sotto la
  * barra. Sopra la soglia (o senza risultato) torna il testo statico.
+ *
+ * La nota del campione corto si AGGIUNGE a quella statica del fattore, non
+ * la sostituisce: il Max Drawdown ne ha già una propria (il limite della
+ * normalizzazione √n) e sovrascriverla la farebbe sparire proprio nel caso
+ * in cui il lettore ha più bisogno di contesto.
  */
 export function scoreFactorInfo(
   key: ScoreFactorKey,
@@ -266,9 +341,10 @@ export function scoreFactorInfo(
 ): MetricInfoData {
   const info = SCORE_FACTOR_INFO[key];
   if (result === null || !result.lowSample) return info;
+  const lowSampleNote = `Indicativo: ${result.total} trade chiusi (sotto i ${SCORE_MIN_TRADES} della soglia di significatività).`;
   return {
     ...info,
-    note: `Indicativo: ${result.total} trade chiusi (sotto i ${SCORE_MIN_TRADES} della soglia di significatività).`,
+    note: info.note ? `${lowSampleNote} ${info.note}` : lowSampleNote,
   };
 }
 
@@ -278,5 +354,6 @@ export const scoreInfo: MetricInfoData = {
   description:
     "Indice composito 0-100 dello stato del tuo trading: sei fattori (win rate, profit factor, avg win/loss, recovery factor, max drawdown, consistency), ognuno normalizzato 0-100 e combinato a peso uguale. Il radar mostra dove il sistema è forte e dove no; il numero riassume. Sotto 30 trade il punteggio è indicativo.",
   formula:
-    "Score = media dei 6 fattori (peso 100/6 ciascuno) · Win%/60 · PF/2.5 · payoff/2.0 · (netto/maxDD)/3 · 1−maxDD%/20% · 1−miglior giornata/giornate positive",
+    "Score = media dei 6 fattori (peso 100/6 ciascuno) · Win%/60 · PF/2.5 · payoff/2.0 · (netto/maxDD)/3 · 1−maxDD% normalizzato/20% · 1−miglior giornata/giornate positive",
+  note: "Il fattore Max Drawdown è riportato a una finestra di un anno di sedute prima del confronto col tetto: senza, il punteggio salirebbe accorciando il filtro periodo invece che migliorando il trading.",
 };

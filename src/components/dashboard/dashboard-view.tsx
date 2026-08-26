@@ -58,6 +58,8 @@ import {
   CALMAR_RELIABLE_DAYS,
   SHARPE_BENCHMARK,
   SORTINO_BENCHMARK,
+  RATIO_MIN_OBSERVATIONS,
+  ratioSampleNote,
   SQN_BENCHMARK,
   ULCER_BENCHMARK,
   streaksInfo,
@@ -600,6 +602,14 @@ export function DashboardView({ data }: { data: DashboardData }) {
       ? "Sortino non calcolabile: nessuna seduta sotto il MAR nel periodo."
       : "Sharpe non calcolabile: rendimenti tutti uguali nel periodo.";
   })();
+  // Q-2 — cancello sul campione di Sortino e Sharpe: sotto le sedute minime
+  // il numero resta (è corretto), ma la scala non assegna nessuna fascia.
+  // Stessa forma del gate dell'SQN e del Calmar, che l'avevano già.
+  const ratioShortSample =
+    data.ratioWindow.observations < RATIO_MIN_OBSERVATIONS;
+  const ratioNote = [ratioSampleNote(data.ratioWindow.observations), ratioSeriesNote]
+    .filter(Boolean)
+    .join(" ");
   const calmarShort = data.daysCovered < CALMAR_MIN_DAYS;
   const calmarValue = calmarShort ? "—" : ratio(data.calmar);
   const sqnShort = data.rCount < SQN_MIN_TRADES;
@@ -848,9 +858,10 @@ export function DashboardView({ data }: { data: DashboardData }) {
             info={sortinoInfo}
             scale={{
               benchmark: SORTINO_BENCHMARK,
-              value: data.sortino,
+              value: ratioShortSample ? null : data.sortino,
               display: sortinoValue,
-              note: ratioSeriesNote,
+              muted: ratioShortSample,
+              note: ratioNote,
             }}
             value={sortinoValue}
             sub={
@@ -861,9 +872,10 @@ export function DashboardView({ data }: { data: DashboardData }) {
                     info={sharpeInfo}
                     scale={{
                       benchmark: SHARPE_BENCHMARK,
-                      value: data.sharpe,
+                      value: ratioShortSample ? null : data.sharpe,
                       display: sharpeValue,
-                      note: ratioSeriesNote,
+                      muted: ratioShortSample,
+                      note: ratioNote,
                     }}
                   />
                 </span>

@@ -25,7 +25,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
-import { TagPicker } from "@/components/trades/tag-picker";
+import { TagPicker, type TagValue } from "@/components/trades/tag-picker";
 
 const NO_STRATEGY = "__none__";
 
@@ -38,13 +38,13 @@ interface ReviewTrade {
   currency: string;
   strategyId: string;
   rating: number | null;
-  tags: string[];
+  tags: TagValue[];
 }
 
 interface TradeDraft {
   strategyId: string;
   rating: number | null;
-  tags: string[];
+  tags: TagValue[];
   note: string;
 }
 
@@ -62,7 +62,7 @@ export function ReviewWizard({
   date: string;
   trades: ReviewTrade[];
   strategies: { id: string; name: string }[];
-  tagSuggestions: string[];
+  tagSuggestions: TagValue[];
   postmarketInitial: string;
 }) {
   // step 0..trades.length-1 = trade · trades.length = Post-Market · +1 = fine

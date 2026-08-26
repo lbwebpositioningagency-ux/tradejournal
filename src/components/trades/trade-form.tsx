@@ -9,7 +9,7 @@ import type { TradeInput } from "@/lib/validations/trade";
 import { ASSET_CLASSES } from "@/lib/constants";
 import { suggestAssetClass, suggestPointValue } from "@/lib/instruments";
 import { plannedRiskFromStop } from "@/lib/trade-compute";
-import { TagPicker } from "@/components/trades/tag-picker";
+import { TagPicker, type TagValue } from "@/components/trades/tag-picker";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -58,7 +58,8 @@ export type TradeFormValues = {
   strategyId: string;
   rating: string;
   notes: string;
-  tags: string[];
+  /** J-1 — il tag porta la sua categoria, scelta nel picker. */
+  tags: TagValue[];
   executions: ExecutionRow[];
 };
 
@@ -84,8 +85,8 @@ export function TradeForm({
   tradeId?: string;
   accounts: { id: string; name: string; currency: string }[];
   strategies: { id: string; name: string }[];
-  /** F17 — tag esistenti dell'utente per i suggerimenti. */
-  tagSuggestions: string[];
+  /** F17 — tag esistenti dell'utente (con categoria, J-1) per i suggerimenti. */
+  tagSuggestions: TagValue[];
   initialValues: TradeFormValues;
 }) {
   const router = useRouter();

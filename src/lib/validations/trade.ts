@@ -1,6 +1,36 @@
 import { z } from "zod";
 import { hasValidCalendarDate } from "@/lib/dates";
-import { ASSET_CLASSES } from "@/lib/constants";
+import { ASSET_CLASSES, TAG_CATEGORIES } from "@/lib/constants";
+
+/**
+ * J-1 — TAG IN INGRESSO, in due forme accettate.
+ *
+ * La forma storica è la stringa nuda ed è ancora valida: la usano l'import
+ * CSV, il sync MT5 e i test, che un tag non lo categorizzano. La forma nuova
+ * è `{ name, category }` e la manda il form del trade, dove l'utente la
+ * categoria la può scegliere.
+ *
+ * `category` ASSENTE non è `CUSTOM`: significa «non pronunciarti». Su un tag
+ * che esiste già la categoria non viene toccata (v. `resolveTagIds`), ed è
+ * ciò che rende l'intervento additivo — nessun tag storico viene riscritto
+ * da un import o da un salvataggio che la categoria non la nomina nemmeno.
+ */
+const tagInputSchema = z
+  .union([
+    z.string().trim().min(1).max(30, "Tag troppo lungo"),
+    z.object({
+      name: z.string().trim().min(1).max(30, "Tag troppo lungo"),
+      category: z.enum(TAG_CATEGORIES).optional(),
+    }),
+  ])
+  .transform((value) =>
+    typeof value === "string"
+      ? { name: value, category: undefined }
+      : { name: value.name, category: value.category },
+  );
+
+/** Tag già normalizzato: nome più categoria eventuale. */
+export type ParsedTagInput = z.output<typeof tagInputSchema>;
 
 /**
  * Gli importi arrivano dai form come stringhe e RESTANO stringhe fino a
@@ -54,10 +84,7 @@ export const tradeInputSchema = z.object({
     .optional(),
   rating: z.number().int().min(1).max(5).optional(),
   notes: z.string().trim().max(5000, "Nota troppo lunga").optional(),
-  tags: z
-    .array(z.string().trim().min(1).max(30, "Tag troppo lungo"))
-    .max(10, "Massimo 10 tag")
-    .default([]),
+  tags: z.array(tagInputSchema).max(10, "Massimo 10 tag").default([]),
   executions: z
     .array(executionInputSchema)
     .min(1, "Aggiungi almeno una esecuzione")
@@ -74,7 +101,7 @@ export type ParsedTradeInput = z.output<typeof tradeInputSchema>;
 export const tradeReviewSchema = z.object({
   strategyId: z.string().optional(),
   rating: z.number().int().min(1).max(5).nullable(),
-  tags: z.array(z.string().trim().min(1).max(40)).max(20),
+  tags: z.array(tagInputSchema).max(20),
   note: z.string().trim().max(2000).optional(),
 });
 

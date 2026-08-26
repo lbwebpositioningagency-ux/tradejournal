@@ -63,6 +63,17 @@ export function MetricScale({
       <p className="text-2xs font-semibold tracking-wide text-muted-foreground uppercase">
         Scala di riferimento
       </p>
+      {/* La nota sta PRIMA delle bande, non dopo. È lei che spiega perché la
+          scala è attenuata e nessuna fascia è evidenziata ("campione
+          insufficiente", "storico troppo corto"): metterla in fondo la
+          faceva finire sotto tre bande più la riga di riepilogo, cioè fuori
+          dall'area visibile del popover sugli schermi bassi — misurato: il
+          contenuto sfora l'altezza concessa da Radix di 85px sul Sortino,
+          165px col cancello attivo. Qui costa zero pixel ed è la prima cosa
+          che si legge. */}
+      {note ? (
+        <p className="text-xs font-medium text-muted-foreground">{note}</p>
+      ) : null}
       {benchmark.lowerIsBetter ? (
         <p className="text-xs text-muted-foreground">
           Scala invertita: <strong className="font-semibold">più basso è meglio</strong>,
@@ -125,9 +136,6 @@ export function MetricScale({
           "Nessun valore da collocare: la scala resta come riferimento."
         )}
       </p>
-      {note ? (
-        <p className="text-xs font-medium text-muted-foreground">{note}</p>
-      ) : null}
       {/* provenienza e disclaimer in un blocco solo: il popover deve restare
           leggibile per intero anche su schermi bassi, dove Radix gli concede
           ~420px e la sola descrizione ne occupa già metà */}
