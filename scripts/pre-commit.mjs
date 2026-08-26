@@ -10,7 +10,7 @@
  * senza hook viene preso prima della pubblicazione.
  */
 import { execFileSync } from "node:child_process";
-import { violazioniIn } from "./segreti.mjs";
+import { violazioniIn } from "../src/lib/segreti.mjs";
 
 function git(...argomenti) {
   return execFileSync("git", argomenti, {
@@ -41,7 +41,7 @@ if (violazioni.length > 0) {
   console.error(
     "\nTogli i file dallo stage (`git restore --staged <file>`) e spostali " +
       "fuori dal progetto. Se il controllo sbaglia, l'eccezione va aggiunta " +
-      "a mano in scripts/segreti.mjs, motivata.\n",
+      "a mano in src/lib/segreti.mjs, motivata.\n",
   );
   process.exit(1);
 }

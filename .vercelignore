@@ -12,7 +12,12 @@ docs
 
 # Verifiche e strumenti che girano solo in locale.
 coverage
-scripts
+# `scripts/*` e non `scripts`: escludere la CARTELLA renderebbe impossibile
+# ri-ammettere un file al suo interno (stessa regola di .gitignore). Serve
+# perche' `prepare` gira anche sul build di Vercel e il file deve esistere,
+# altrimenti node muore con MODULE_NOT_FOUND e `npm install` esce 1.
+scripts/*
+!scripts/setup-hooks.mjs
 
 # Expert Advisor MetaTrader: si installa nel terminale, non sul server.
 mt5

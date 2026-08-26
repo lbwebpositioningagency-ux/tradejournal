@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "prepare": "node scripts/setup-hooks.mjs",
+    "prepare": "node scripts/setup-hooks.mjs || exit 0",
     "dev": "next dev",
     "build": "prisma generate && prisma migrate deploy && next build",
     "start": "next start",
