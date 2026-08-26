@@ -129,9 +129,15 @@ export const RATIO_MIN_OBSERVATIONS = 60;
  */
 export function ratioSampleNote(observations: number): string | undefined {
   if (observations >= RATIO_MIN_OBSERVATIONS) return undefined;
+  // Testo CORTO di proposito: il popover della scala ha l'altezza che Radix
+  // gli concede e su schermi bassi era già in overflow prima di questa nota
+  // (misurato: 85px di contenuto oltre il bordo sul Sortino). Il perché
+  // tecnico — l'annualizzazione ×√252 che amplifica una serie corta — sta
+  // già nella formula mostrata sopra, e la composizione della finestra nella
+  // nota di serie che segue: qui basta il verdetto.
   return `Campione insufficiente per un giudizio affidabile: ${observations} ${
     observations === 1 ? "seduta" : "sedute"
-  } sulle ${RATIO_MIN_OBSERVATIONS} minime. Il valore è corretto, ma l'annualizzazione ×√252 amplifica il caso di una serie corta: la fascia non viene assegnata.`;
+  } sulle ${RATIO_MIN_OBSERVATIONS} minime, quindi la fascia non viene assegnata. Il valore resta corretto.`;
 }
 
 export const SORTINO_BENCHMARK: MetricBenchmark = {

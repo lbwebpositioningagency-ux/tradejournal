@@ -39,9 +39,10 @@ describe("ratioSampleNote — la soglia e la sua nota", () => {
     const note = ratioSampleNote(25)!;
     expect(note).toContain("Campione insufficiente per un giudizio affidabile");
     expect(note).toContain("25 sedute");
+    expect(note).toContain("la fascia non viene assegnata");
     expect(note).toContain("60");
     // Il numero resta valido: la nota deve dirlo, non insinuare un errore.
-    expect(note).toContain("Il valore è corretto");
+    expect(note).toContain("Il valore resta corretto");
   });
 
   it("singolare e plurale, come ovunque nell'app", () => {

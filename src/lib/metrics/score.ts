@@ -310,10 +310,10 @@ export const SCORE_FACTOR_INFO: Record<ScoreFactorKey, MetricInfoData> = {
   maxDrawdown: {
     label: "Max drawdown (fattore dello Score)",
     description:
-      "Il calo massimo dal picco di equity: qui più è basso più il punteggio è alto. Il drawdown massimo però è un massimo, quindi cresce da solo più a lungo lo si osserva: prima di confrontarlo col tetto del 20% viene riportato a una finestra di un anno di sedute (× √(252 ÷ sedute della serie)), altrimenti il fattore misurerebbe la lunghezza del tuo storico invece della tua gestione del rischio. La percentuale mostrata nella card Max Drawdown resta quella vera, non normalizzata. Se non è definibile (picco di equity ≤ 0) il fattore resta a 50, neutro.",
+      "Il calo massimo dal picco di equity: più è basso, più il punteggio è alto. Ma il drawdown massimo è un massimo, quindi cresce da solo più a lungo lo si osserva: prima del confronto col tetto del 20% viene riportato a una finestra di un anno di sedute, altrimenti il fattore misurerebbe la lunghezza del tuo storico invece della tua gestione del rischio. La percentuale della card Max Drawdown resta quella vera, non normalizzata.",
     formula:
       "clamp 0-1 di (1 − maxDD% normalizzato ÷ 20%) × 100 · maxDD% normalizzato = maxDD% × √(252 ÷ sedute) · tetto 20% · percentuale non definibile → 50",
-    note: "La legge √n vale per un cammino senza deriva: su un conto molto profittevole la correzione è leggermente generosa con gli storici lunghi.",
+    note: "La legge √n vale per un cammino senza deriva: su un conto molto profittevole è un po' generosa con gli storici lunghi.",
   },
   consistency: {
     label: "Consistency (fattore dello Score)",
