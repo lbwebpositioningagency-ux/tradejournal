@@ -134,6 +134,8 @@ export {
 export {
   monthlyReturnGrids,
   returnIntensity,
+  INTENSITY_THRESHOLDS,
+  type IntensityScale,
   monthlyCalendarInfo,
   type MonthCell,
   type MonthlyReturn,

@@ -88,9 +88,11 @@ export function CorrelationMatrixTable({
                     title={title}
                     className={cn(
                       "rounded-md px-2 py-1.5 text-center tabular-nums",
-                      tone === "alta" && "bg-loss/20 font-semibold text-loss",
-                      tone === "media" && "bg-warning/15 text-foreground",
-                      tone === "bassa" && "bg-profit/15 text-profit",
+                      // Testo foreground su tinta: il token P&L sopra una
+                      // velatura di se stesso non regge AA (misurato).
+                      tone === "alta" && "bg-loss/25 font-semibold",
+                      tone === "media" && "bg-warning/20",
+                      tone === "bassa" && "bg-profit/20",
                       tone === null && "bg-muted/40 text-muted-foreground",
                     )}
                   >

@@ -4,7 +4,6 @@ import Link from "next/link";
 import Decimal from "decimal.js";
 import { ArrowRight } from "lucide-react";
 import { buildMonthWeeks } from "@/lib/calendar";
-import { pnlColorClass } from "@/lib/money";
 import { cn } from "@/lib/utils";
 import {
   Card,
@@ -93,7 +92,9 @@ export function MiniCalendar({
             const cellClass = cn(
               "flex aspect-square items-center justify-center rounded-md text-xs tabular-nums",
               tone,
-              data ? cn("font-semibold", pnlColorClass(data.netPnl)) : "text-muted-foreground",
+              // F4 — su cella tinta il testo resta foreground: il token P&L
+              // su una velatura di se stesso non regge AA.
+              data ? "font-semibold" : "text-muted-foreground",
               isToday && "ring-1 ring-primary",
             );
             return data ? (

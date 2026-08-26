@@ -338,8 +338,10 @@ function ReviewCard({ data }: { data: TradeJournalData }) {
                   }
                   className={cn(
                     "inline-flex items-center gap-1.5 rounded-md border px-3 py-1.5 text-sm transition-colors",
-                    active && option.tone === "profit" && "border-profit/50 bg-profit/10 text-profit",
-                    active && option.tone === "loss" && "border-loss/50 bg-loss/10 text-loss",
+                    // Fondo tinto + bordo colorato, testo foreground: il
+                    // token P&L su una velatura di se stesso non regge AA.
+                    active && option.tone === "profit" && "border-profit/60 bg-profit/15 font-medium",
+                    active && option.tone === "loss" && "border-loss/60 bg-loss/15 font-medium",
                     !active && "text-muted-foreground hover:bg-accent",
                     data.readOnly && "cursor-default",
                   )}

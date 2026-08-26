@@ -21,7 +21,13 @@ import {
   pnlColorClass,
 } from "@/lib/money";
 import { netPnlInfo } from "@/lib/metrics";
-import { getCurrencyBreakdown, getDailyPnl } from "@/lib/queries/stats";
+import {
+  getCurrencyBreakdown,
+  getDailyPnl,
+  getNetPnlBefore,
+  getStartingBalance,
+} from "@/lib/queries/stats";
+import { returnIntensity } from "@/lib/metrics";
 import { resolveCurrencyScope } from "@/lib/currency-scope";
 import { cn } from "@/lib/utils";
 import { CurrencyFilter } from "@/components/filters/currency-filter";
@@ -82,7 +88,7 @@ export default async function DayCalendarPage({
   const scope = resolveCurrencyScope(currencyTotals, params.cur);
   const currency = scope.active ?? activeAccount?.currency ?? user.baseCurrency;
 
-  const [daily, noteRows] = await Promise.all([
+  const [daily, noteRows, monthBaseBalance, pnlBeforeMonth] = await Promise.all([
     getDailyPnl(
       { ...monthFilter, currency: scope.active },
       user.timezone,
@@ -99,6 +105,14 @@ export default async function DayCalendarPage({
       },
       select: { dayDate: true },
     }),
+    // Equity a inizio mese: base delle tinte della heatmap. Senza, l'unica
+    // gradazione possibile sarebbe relativa al mese, e due mesi diversi non
+    // sarebbero confrontabili fra loro.
+    getStartingBalance({ userId, accountId: activeAccountId, currency: scope.active }),
+    getNetPnlBefore(
+      { userId, accountId: activeAccountId, currency: scope.active },
+      new Date(`${month}-01T00:00:00.000Z`),
+    ),
   ]);
   const byDay = new Map(daily.map((d) => [d.day, d]));
   const noteDays = new Set(
@@ -110,23 +124,26 @@ export default async function DayCalendarPage({
   const greenDays = daily.filter((d) => new Decimal(d.netPnl).gt(0)).length;
   const weeks = buildMonthWeeks(month);
 
-  // F42 — tinta SCALARE delle celle: l'intensità segue l'entità del giorno
-  // rispetto al giorno più grande del mese (3 fasce), non più binaria.
-  const maxAbsDay = daily.reduce((acc, d) => {
-    const abs = new Decimal(d.netPnl).abs();
-    return abs.gt(acc) ? abs : acc;
-  }, new Decimal(0));
+  /* HEATMAP: gradazione su soglie ASSOLUTE in frazione di equity, le stesse
+     del calendario mensile (una convenzione sola per tutte le heatmap
+     dell'app). Prima l'intensità era relativa al giorno più grande DEL MESE:
+     due mesi non erano confrontabili e un mese con una giornata eccezionale
+     schiacciava tutte le altre a tinta chiara.
+
+     Senza un'equity positiva a inizio mese non esiste un ritorno: le celle
+     restano tinte al livello più basso, che dice il SEGNO senza pretendere
+     di dire la magnitudine. */
+  const monthEquity = new Decimal(monthBaseBalance).plus(pnlBeforeMonth);
   function dayTone(netPnl: string): string {
     const value = new Decimal(netPnl);
     if (value.isZero()) return "bg-breakeven/10 hover:bg-breakeven/20";
-    const ratio = maxAbsDay.isZero()
-      ? new Decimal(1)
-      : value.abs().div(maxAbsDay);
-    const tier = ratio.gt("0.66") ? 3 : ratio.gt("0.33") ? 2 : 1;
-    const palette = value.gt(0)
-      ? ["bg-profit/10 hover:bg-profit/20", "bg-profit/20 hover:bg-profit/30", "bg-profit/30 hover:bg-profit/40"]
-      : ["bg-loss/10 hover:bg-loss/20", "bg-loss/20 hover:bg-loss/30", "bg-loss/30 hover:bg-loss/40"];
-    return palette[tier - 1];
+    const ret = monthEquity.gt(0) ? value.div(monthEquity).toFixed(8) : null;
+    const tier = ret === null ? 1 : returnIntensity(ret, "day");
+    const palette =
+      value.gt(0)
+        ? ["bg-profit/10 hover:bg-profit/20", "bg-profit/20 hover:bg-profit/30", "bg-profit/30 hover:bg-profit/40"]
+        : ["bg-loss/10 hover:bg-loss/20", "bg-loss/20 hover:bg-loss/30", "bg-loss/30 hover:bg-loss/40"];
+    return palette[Math.max(1, tier) - 1];
   }
 
   return (
@@ -254,12 +271,13 @@ export default async function DayCalendarPage({
                         </span>
                         {data ? (
                           <>
-                            <span
-                              className={cn(
-                                "text-2xs font-semibold tabular-nums sm:text-sm",
-                                pnlColorClass(data.netPnl),
-                              )}
-                            >
+                            {/* F4 — testo NON colorato sulla cella tinta: il
+                                token P&L sopra una velatura di se stesso non
+                                arriva a 4,5:1 (misurato: 3,51 in dark al 30%).
+                                Il segno resta leggibile — lo porta il + o il
+                                − del numero — e la tinta della cella resta a
+                                dire l'intensità. */}
+                            <span className="text-2xs font-semibold tabular-nums sm:text-sm">
                               <span className="sm:hidden">
                                 {formatSignedShort(data.netPnl)}
                               </span>

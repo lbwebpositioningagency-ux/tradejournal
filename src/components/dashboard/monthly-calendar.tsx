@@ -111,9 +111,9 @@ export function MonthlyCalendar({
               </span>
               <span
                 className={cn(
+                  // F4 — testo foreground sulla cella tinta (v. day/page):
+                  // il colore lo porta il fondo, il segno il numero.
                   "text-sm font-semibold tabular-nums",
-                  positive && "text-profit",
-                  negative && "text-loss",
                   ret === null && "text-muted-foreground",
                 )}
               >

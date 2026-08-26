@@ -1,6 +1,13 @@
 "use client";
 
 import { ChevronRight, Info } from "lucide-react";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
 import type { MetricBenchmark, MetricInfoData } from "@/lib/metrics";
 import { BENCHMARK_DISCLAIMER, benchmarkTier } from "@/lib/metrics";
 import { cn } from "@/lib/utils";
@@ -174,44 +181,75 @@ export function MetricInfo({
   scale?: MetricScaleData;
 }) {
   const sm = size === "sm";
+  const trigger = (
+    <button
+      type="button"
+      aria-label={`Cos'è ${info.label}?`}
+      className={cn(
+        "-my-1 inline-flex shrink-0 items-center justify-center rounded-full text-muted-foreground/70 hover:bg-accent hover:text-foreground focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring",
+        sm ? "size-5" : "size-6",
+      )}
+    >
+      <Info className={sm ? "size-3" : "size-3.5"} aria-hidden />
+    </button>
+  );
+
+  const body = (
+    <>
+      <p className="text-sm text-muted-foreground">{info.description}</p>
+      <code className="rounded-md bg-muted px-2 py-1.5 font-mono text-2xs text-foreground/90">
+        {info.formula}
+      </code>
+      {info.note ? (
+        <p className="text-xs text-muted-foreground">{info.note}</p>
+      ) : null}
+      {scale ? <MetricScale {...scale} /> : null}
+    </>
+  );
+
+  /*
+   * DUE CONTENITORI, E LA REGOLA È IL CONTENUTO.
+   *
+   * Il popover può essere alto solo quanto lo spazio che resta DA UN LATO
+   * del trigger: con l'icona a metà schermo, Radix ne concede ~430px su un
+   * viewport da 900. Misurato, una spiegazione CON la scala di riferimento
+   * ne occupa 470-590 — sforava sempre, e la parte tagliata era l'ultima,
+   * cioè le note e la provenienza delle soglie. Accorciare i testi caso per
+   * caso spostava il problema al testo successivo.
+   *
+   * La scala non è un suggerimento, è un documento: sei righe di bande, il
+   * valore corrente, la nota del campione e la fonte. Quando c'è, si apre in
+   * una finestra centrata sul viewport, che di altezza ne ha 85% — 765px su
+   * quel display, dove il contenuto ci sta intero. Senza scala il contenuto
+   * misura ~220px e il popover resta il contenitore giusto: leggero,
+   * ancorato al numero che sta spiegando, chiudibile con un clic fuori.
+   */
+  if (scale) {
+    return (
+      <Dialog>
+        <DialogTrigger asChild>{trigger}</DialogTrigger>
+        <DialogContent className="max-h-[85vh] overflow-y-auto sm:max-w-lg">
+          <DialogHeader>
+            <DialogTitle className="text-base">{info.label}</DialogTitle>
+          </DialogHeader>
+          <div className="flex flex-col gap-2">{body}</div>
+        </DialogContent>
+      </Dialog>
+    );
+  }
+
   return (
     <Popover>
-      <PopoverTrigger asChild>
-        <button
-          type="button"
-          aria-label={`Cos'è ${info.label}?`}
-          className={cn(
-            "-my-1 inline-flex shrink-0 items-center justify-center rounded-full text-muted-foreground/70 hover:bg-accent hover:text-foreground focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring",
-            sm ? "size-5" : "size-6",
-          )}
-        >
-          <Info className={sm ? "size-3" : "size-3.5"} aria-hidden />
-        </button>
-      </PopoverTrigger>
-      {/* la scala aggiunge ~150px: il popover si allarga (meno righe di testo
-          a capo) e usa tutta l'altezza che Radix misura sul lato scelto,
-          invece di un tetto fisso. Su schermi bassi (~720px) la descrizione
-          più lunga (SQN) sfora comunque: allora il contenuto SCORRE — niente
-          viene tagliato, la scala resta raggiungibile per intero */}
+      <PopoverTrigger asChild>{trigger}</PopoverTrigger>
       <PopoverContent
         side="top"
         align="start"
         collisionPadding={8}
-        className={cn(
-          "max-h-(--radix-popover-content-available-height) overflow-y-auto shadow-overlay",
-          scale ? "w-80" : "w-72",
-        )}
+        className="max-h-(--radix-popover-content-available-height) w-72 overflow-y-auto shadow-overlay"
       >
         <div className="flex flex-col gap-2">
           <p className="text-sm font-semibold">{info.label}</p>
-          <p className="text-sm text-muted-foreground">{info.description}</p>
-          <code className="rounded-md bg-muted px-2 py-1.5 font-mono text-2xs text-foreground/90">
-            {info.formula}
-          </code>
-          {info.note ? (
-            <p className="text-xs text-muted-foreground">{info.note}</p>
-          ) : null}
-          {scale ? <MetricScale {...scale} /> : null}
+          {body}
         </div>
       </PopoverContent>
     </Popover>
