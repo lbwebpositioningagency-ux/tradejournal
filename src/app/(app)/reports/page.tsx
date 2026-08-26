@@ -449,11 +449,13 @@ export default async function ReportsPage({
           ) : null}
         </div>
         <div className="flex flex-wrap items-center gap-2">
-          {/* W3 — la review del venerdì generata dai dati */}
+          {/* W3 — la review generata dai dati. Settimana, mese, trimestre
+              o anno: il mese è l'unità dei payout, il trimestre quella con
+              cui si giudica un sistema, l'anno quella fiscale. */}
           <Button asChild variant="outline">
             <Link href="/reports/settimana">
               <CalendarCheck className="size-4" />
-              Report settimanale
+              Report periodico
             </Link>
           </Button>
           {scope.multi ? (

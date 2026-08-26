@@ -2,14 +2,25 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import Decimal from "decimal.js";
-import { ArrowLeft, ChevronLeft, ChevronRight } from "lucide-react";
+import { ArrowLeft, ChevronLeft, ChevronRight, Download } from "lucide-react";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { resolveTradeScope } from "@/lib/demo-account";
 import { ALL_ACCOUNTS } from "@/lib/constants";
-import { addDays, isValidDateKey } from "@/lib/calendar";
+import { isValidDateKey } from "@/lib/calendar";
 import { formatDayKey, todayKeyInZone, zonedInputToUtc } from "@/lib/dates";
-import { mondayOf } from "@/lib/period";
+import {
+  endOfRange,
+  isReportRange,
+  nextStart,
+  previousStart,
+  REPORT_PREVIOUS_LABELS,
+  REPORT_RANGES,
+  REPORT_RANGE_LABELS,
+  reportRangeLabel,
+  startOfRange,
+  type ReportRange,
+} from "@/lib/report-period";
 import {
   expectancy,
   netPnlInfo,
@@ -47,21 +58,13 @@ import {
 } from "@/components/ui/card";
 import { PrintButton } from "./print-button";
 
-export const metadata: Metadata = { title: "Report settimanale" };
+export const metadata: Metadata = { title: "Report periodico" };
 
 /**
  * W3 — «Report del venerdì»: digest della settimana generato dalle STESSE
  * formule testate del resto dell'app (zero AI, zero allucinazioni, tutto
  * verificabile), impaginato per la stampa/PDF nativi del browser.
  */
-
-function weekLabel(monday: string): string {
-  const sunday = addDays(monday, 6);
-  const fmt = (key: string) =>
-    new Intl.DateTimeFormat("it-IT", { day: "numeric", month: "long", timeZone: "UTC" })
-      .format(new Date(`${key}T12:00:00Z`));
-  return `${fmt(monday)} – ${fmt(sunday)} ${sunday.slice(0, 4)}`;
-}
 
 /** Delta leggibile fra due importi (stringhe decimali). */
 function deltaLabel(current: string, previous: string): string {
@@ -72,7 +75,7 @@ function deltaLabel(current: string, previous: string): string {
 export default async function WeeklyReportPage({
   searchParams,
 }: {
-  searchParams: Promise<{ w?: string; cur?: string }>;
+  searchParams: Promise<{ w?: string; r?: string; cur?: string }>;
 }) {
   const session = await auth();
   if (!session?.user?.id) redirect("/login");
@@ -90,21 +93,32 @@ export default async function WeeklyReportPage({
   const userId = tradeScope.userId;
   const activeAccountId = tradeScope.accountId;
 
-  // Settimana richiesta (?w=lunedì) o quella corrente nel fuso utente.
+  /* Intervallo richiesto (?r=) e periodo richiesto (?w=): entrambi con
+     parsing LENIENT come ogni altro filtro dell'app — un valore non
+     riconosciuto torna al default invece di rompere la pagina. Il default è
+     la settimana corrente, che era l'unico comportamento possibile prima. */
+  const range: ReportRange = isReportRange(params.r) ? params.r : "settimana";
   const todayKey = todayKeyInZone(user.timezone);
-  const monday =
-    params.w && isValidDateKey(params.w) ? mondayOf(params.w) : mondayOf(todayKey);
-  const prevMonday = addDays(monday, -7);
+  const start = startOfRange(
+    params.w && isValidDateKey(params.w) ? params.w : todayKey,
+    range,
+  );
+  const prevStart = previousStart(start, range);
 
   const bounds = (fromKey: string): { from: Date; to: Date } => ({
     from: zonedInputToUtc(`${fromKey}T00:00`, user.timezone),
-    to: zonedInputToUtc(`${addDays(fromKey, 7)}T00:00`, user.timezone),
+    // Estremo destro ESCLUSO: il primo giorno del periodo successivo, mai
+    // l'ultimo di questo — sbagliarlo perde un giorno di trade in silenzio.
+    to: zonedInputToUtc(`${endOfRange(fromKey, range)}T00:00`, user.timezone),
   });
+
+  const hrefFor = (nextRange: ReportRange, nextKey: string) =>
+    `/reports/settimana?r=${nextRange}&w=${nextKey}`;
 
   const baseFilter: StatsFilter = {
     userId,
     accountId: activeAccountId,
-    ...bounds(monday),
+    ...bounds(start),
   };
 
   // F6 — stesso scope valuta dei Reports: mai sommare valute diverse.
@@ -115,12 +129,12 @@ export default async function WeeklyReportPage({
   const currencyTotals = await getCurrencyBreakdown({
     userId,
     accountId: activeAccountId,
-    from: bounds(prevMonday).from,
-    to: bounds(monday).to,
+    from: bounds(prevStart).from,
+    to: bounds(start).to,
   });
   const scope = resolveCurrencyScope(currencyTotals, params.cur);
   const filter: StatsFilter = { ...baseFilter, currency: scope.active };
-  const prevFilter: StatsFilter = { ...filter, ...bounds(prevMonday) };
+  const prevFilter: StatsFilter = { ...filter, ...bounds(prevStart) };
   const currency =
     scope.active ??
     (activeAccountId !== ALL_ACCOUNTS
@@ -167,23 +181,59 @@ export default async function WeeklyReportPage({
             </Link>
           </Button>
           <div>
-            <h1 className="page-title">Report settimanale</h1>
+            <h1 className="page-title">Report periodico</h1>
             <p className="page-subtitle">
-              La review del venerdì, generata dai tuoi numeri
+              La review, generata dai tuoi numeri
               {scope.multi ? ` · ${currency}` : ""}
             </p>
           </div>
         </div>
         <div className="flex items-center gap-2">
-          <Button asChild variant="outline" size="icon" aria-label="Settimana precedente">
-            <Link href={`/reports/settimana?w=${prevMonday}`}>
+          {/* Selettore dell'intervallo: link e non bottoni, la scelta vive
+              nella query string come ogni altro filtro dell'app. */}
+          <div
+            className="inline-flex items-center gap-1 rounded-md border p-0.5"
+            role="group"
+            aria-label="Intervallo del report"
+          >
+            {REPORT_RANGES.map((option) => (
+              <Link
+                key={option}
+                href={hrefFor(option, startOfRange(start, option))}
+                aria-current={option === range ? "true" : undefined}
+                className={cn(
+                  "rounded px-2.5 py-1 text-xs font-medium transition-colors",
+                  option === range
+                    ? "bg-primary/15 text-primary"
+                    : "text-muted-foreground hover:bg-accent hover:text-foreground",
+                )}
+              >
+                {REPORT_RANGE_LABELS[option]}
+              </Link>
+            ))}
+          </div>
+          <Button asChild variant="outline" size="icon" aria-label={`${REPORT_RANGE_LABELS[range]} precedente`}>
+            <Link href={hrefFor(range, prevStart)}>
               <ChevronLeft className="size-4" />
             </Link>
           </Button>
-          <Button asChild variant="outline" size="icon" aria-label="Settimana successiva">
-            <Link href={`/reports/settimana?w=${addDays(monday, 7)}`}>
+          <Button asChild variant="outline" size="icon" aria-label={`${REPORT_RANGE_LABELS[range]} successivo`}>
+            <Link href={hrefFor(range, nextStart(start, range))}>
               <ChevronRight className="size-4" />
             </Link>
+          </Button>
+          <Button asChild variant="outline" size="sm">
+            {/* CSV dei NUMERI del report, non dei trade grezzi: sono due
+                bisogni diversi e due file diversi. */}
+            <a
+              href={`/api/export/report?r=${range}&w=${start}${
+                scope.active ? `&cur=${scope.active}` : ""
+              }`}
+              download
+            >
+              <Download className="size-4" />
+              CSV
+            </a>
           </Button>
           <PrintButton />
         </div>
@@ -192,7 +242,9 @@ export default async function WeeklyReportPage({
       <Card>
         <CardHeader>
           <CardTitle className="flex flex-wrap items-baseline justify-between gap-2 text-base">
-            <span>Settimana {weekLabel(monday)}</span>
+            <span>
+              {REPORT_RANGE_LABELS[range]} {reportRangeLabel(start, range)}
+            </span>
             <span className="text-xs font-normal text-muted-foreground">
               L&B TradingSpace
             </span>
@@ -205,7 +257,7 @@ export default async function WeeklyReportPage({
             </p>
           ) : (
             <>
-              {/* Numeri chiave con confronto settimana precedente */}
+              {/* Numeri chiave, con confronto sul periodo precedente */}
               <div className="grid gap-4 sm:grid-cols-3">
                 <div>
                   <p className="stat-label flex items-center gap-1">
@@ -217,8 +269,8 @@ export default async function WeeklyReportPage({
                   </p>
                   <p className="stat-sub mt-0.5">
                     {prevAgg.total > 0
-                      ? `${deltaLabel(agg.netPnl, prevAgg.netPnl)} ${currency} vs settimana precedente`
-                      : "settimana precedente senza trade"}
+                      ? `${deltaLabel(agg.netPnl, prevAgg.netPnl)} ${currency} vs ${REPORT_PREVIOUS_LABELS[range]}`
+                      : `${REPORT_PREVIOUS_LABELS[range]} senza trade`}
                   </p>
                 </div>
                 <div>
