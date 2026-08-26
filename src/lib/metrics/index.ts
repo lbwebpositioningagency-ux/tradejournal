@@ -75,6 +75,25 @@ export { sortinoRatio, sortinoInfo } from "./sortino";
 export { sharpeRatio, sharpeInfo } from "./sharpe";
 export { sqn, sqnInfo, SQN_MIN_TRADES } from "./sqn";
 export { calmarRatio, calmarInfo, coveredDays, CALMAR_MIN_DAYS } from "./calmar";
+export {
+  correlationMatrix,
+  correlationTone,
+  correlationInfo,
+  pairKey,
+  CORRELATION_MIN_DAYS,
+  type CorrelationMatrix,
+  type CorrelationPair,
+  type CorrelationSeries,
+} from "./correlation";
+export {
+  benchmarkRows,
+  benchmarkCoverage,
+  benchmarkInfo,
+  BENCHMARK_MIN_BARS,
+  type BenchmarkRow,
+  type InstrumentWindow,
+  type SymbolTrading,
+} from "./benchmark-compare";
 export { ulcerIndex, ulcerInfo } from "./ulcer";
 export {
   valueAtRisk,

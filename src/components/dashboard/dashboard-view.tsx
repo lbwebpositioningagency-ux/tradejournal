@@ -1129,8 +1129,15 @@ export function DashboardView({ data }: { data: DashboardData }) {
               {data.rCount > 0 ? (
                 <>
                   <RDistributionChart points={data.rDistribution} />
+                  {/* La copertura del campione si dichiara QUI come su
+                      /analytics: l'istogramma mostra i soli trade con
+                      rischio definito, e chi lo guarda deve sapere quanti
+                      ne restano fuori invece di leggerlo come "tutti". */}
                   <p className="stat-sub mt-1">
-                    {data.rCount} trade con rischio definito · fasce di 0,5R
+                    {data.rCount} trade su {data.totalTrades} con rischio
+                    definito · fasce di 0,5R
+                    {data.totalTrades > data.rCount &&
+                      ` · ${data.totalTrades - data.rCount} senza rischio, fuori dall'istogramma`}
                   </p>
                 </>
               ) : (

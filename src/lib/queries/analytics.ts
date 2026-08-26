@@ -540,3 +540,83 @@ export async function getTopConcentration(
   `);
   return rows[0];
 }
+
+export interface StrategyDayPnlRow {
+  strategyId: string;
+  strategyName: string;
+  day: string;
+  netPnl: string;
+  trades: number;
+}
+
+/**
+ * P&L per GIORNATA e per STRATEGIA, base della matrice di correlazione.
+ *
+ * Doppio `AT TIME ZONE` sul giorno di CHIUSURA, come ogni altro bucket
+ * giornaliero dell'app: la correlazione deve leggere le stesse giornate del
+ * calendario e della curva di equity, altrimenti confronta due calendari.
+ *
+ * I trade senza strategia restano FUORI: "nessuna strategia" non è una
+ * strategia, e una riga che raccoglie tutto ciò che non è stato classificato
+ * si correlerebbe con chiunque per costruzione.
+ */
+export async function getStrategyDayPnl(
+  filter: AnalyticsFilter,
+  timezone: string,
+): Promise<StrategyDayPnlRow[]> {
+  return prisma.$queryRaw<StrategyDayPnlRow[]>(Prisma.sql`
+    SELECT
+      s."id"                                              AS "strategyId",
+      s."name"                                            AS "strategyName",
+      to_char((t."closedAt" AT TIME ZONE 'UTC') AT TIME ZONE ${timezone},
+              'YYYY-MM-DD')                               AS "day",
+      COALESCE(SUM(t."netPnl"), 0)::text                  AS "netPnl",
+      COUNT(*)::int                                       AS "trades"
+    ${FROM_TRADES}
+    JOIN "Strategy" s ON s."id" = t."strategyId"
+    WHERE ${analyticsWhere(filter)}
+    GROUP BY 1, 2, 3
+    ORDER BY 2 ASC, 3 ASC
+  `);
+}
+
+export interface SymbolTradingRow {
+  symbol: string;
+  trades: number;
+  netPnl: string;
+  /** Quantità media per trade (per il buy & hold "della tua size"). */
+  avgQuantity: string;
+  /** Valore punto medio: i contratti dello stesso simbolo lo condividono. */
+  pointValue: string;
+  firstDay: string;
+  lastDay: string;
+}
+
+/**
+ * Quanto ha fatto l'utente su ciascun simbolo, e in quale finestra di giorni.
+ * Base del confronto col buy & hold (v. `queries/benchmark.ts`): sta qui e
+ * non lì perché usa `FROM_TRADES` e `analyticsWhere`, che sono la definizione
+ * di "quali trade contano" di questa pagina — duplicarla altrove creerebbe
+ * due perimetri per la stessa domanda.
+ */
+export async function getSymbolTrading(
+  filter: AnalyticsFilter,
+  timezone: string,
+): Promise<SymbolTradingRow[]> {
+  return prisma.$queryRaw<SymbolTradingRow[]>(Prisma.sql`
+    SELECT
+      t."symbol"                                          AS "symbol",
+      COUNT(*)::int                                       AS "trades",
+      COALESCE(SUM(t."netPnl"), 0)::text                  AS "netPnl",
+      COALESCE(AVG(t."quantity"), 0)::text                AS "avgQuantity",
+      COALESCE(AVG(t."pointValue"), 1)::text              AS "pointValue",
+      to_char(MIN((t."closedAt" AT TIME ZONE 'UTC') AT TIME ZONE ${timezone}),
+              'YYYY-MM-DD')                               AS "firstDay",
+      to_char(MAX((t."closedAt" AT TIME ZONE 'UTC') AT TIME ZONE ${timezone}),
+              'YYYY-MM-DD')                               AS "lastDay"
+    ${FROM_TRADES}
+    WHERE ${analyticsWhere(filter)}
+    GROUP BY 1
+    ORDER BY 2 DESC
+  `);
+}

@@ -24,6 +24,8 @@ import {
   getDurationPerformance,
   getRollingTradeWindow,
   getProAggregates,
+  getStrategyDayPnl,
+  getSymbolTrading,
   getStreakRuns,
   getTopConcentration,
   type AnalyticsFilter,
@@ -35,6 +37,12 @@ import {
   breakEvenWinRateInfo,
   concentration,
   concentrationInfo,
+  benchmarkRows,
+  benchmarkCoverage,
+  benchmarkInfo,
+  correlationMatrix,
+  correlationInfo,
+  CORRELATION_MIN_DAYS,
   equityFitInfo,
   equityLinearFit,
   expectedLongestRun,
@@ -53,6 +61,12 @@ import {
   winRateMargin,
 } from "@/lib/metrics";
 import { ConcentrationTable } from "@/components/analytics/concentration-table";
+import { CorrelationMatrixTable } from "@/components/analytics/correlation-matrix";
+import { BenchmarkTable } from "@/components/analytics/benchmark-table";
+import {
+  getInstrumentCloses,
+  instrumentForSymbol,
+} from "@/lib/queries/benchmark";
 import {
   DAY_WINDOWS,
   DURATION_BUCKETS,
@@ -379,6 +393,8 @@ export default async function AnalyticsPage({
     accountAgg,
     rAgg,
     streakRuns,
+    strategyDays,
+    symbolTrading,
     concentrationRow,
     rollingRows,
   ] = await Promise.all([
@@ -399,6 +415,8 @@ export default async function AnalyticsPage({
     getProAggregates(accountFilter),
     getTradeAggregates(accountFilter),
     getStreakRuns(filter),
+    getStrategyDayPnl(filter, user.timezone),
+    getSymbolTrading(filter, user.timezone),
     getTopConcentration(filter),
     rollingRowsPromise,
   ]);
@@ -569,6 +587,68 @@ export default async function AnalyticsPage({
     ...concentrationRow,
     netPnl: proAgg.netPnl,
   });
+
+  /* Matrice di correlazione fra strategie: le righe SQL diventano una serie
+     per strategia con il suo calendario. Le strategie con meno di 10 trade
+     restano fuori — una correlazione costruita su una manciata di giornate
+     descrive quelle giornate, non la strategia. */
+  const strategySeries = (() => {
+    const byStrategy = new Map<
+      string,
+      { key: string; label: string; byDay: Map<string, string>; trades: number }
+    >();
+    for (const row of strategyDays) {
+      const entry = byStrategy.get(row.strategyId) ?? {
+        key: row.strategyId,
+        label: row.strategyName,
+        byDay: new Map<string, string>(),
+        trades: 0,
+      };
+      entry.byDay.set(row.day, row.netPnl);
+      entry.trades += row.trades;
+      byStrategy.set(row.strategyId, entry);
+    }
+    return [...byStrategy.values()]
+      .filter((s) => s.trades >= 10)
+      .sort((a, b) => b.trades - a.trades);
+  })();
+  const correlations = correlationMatrix(strategySeries);
+
+  /* Confronto col buy & hold. Secondo stadio per forza: la finestra di
+     chiusure da leggere dipende dai giorni in cui l'utente ha davvero
+     operato, che si sanno solo dopo la query dei simboli. Una sola query in
+     più, sui soli strumenti che servono. */
+  const benchmarkWindow = {
+    from: symbolTrading.reduce<string | null>(
+      (min, r) => (min === null || r.firstDay < min ? r.firstDay : min),
+      null,
+    ),
+    to: symbolTrading.reduce<string | null>(
+      (max, r) => (max === null || r.lastDay > max ? r.lastDay : max),
+      null,
+    ),
+  };
+  const wantedInstruments = [
+    ...new Set(
+      symbolTrading
+        .map((r) => instrumentForSymbol(r.symbol))
+        .filter((i): i is string => i !== null),
+    ),
+  ];
+  const closes =
+    benchmarkWindow.from && benchmarkWindow.to && wantedInstruments.length > 0
+      ? await getInstrumentCloses(
+          wantedInstruments,
+          benchmarkWindow.from,
+          benchmarkWindow.to,
+        )
+      : [];
+  const benchmark = benchmarkRows(
+    symbolTrading,
+    new Map(closes.map((c) => [c.instrument, c])),
+    instrumentForSymbol,
+  );
+  const benchmarkCovered = benchmarkCoverage(benchmark);
 
   const hourSegments = fillHourSegments(hourRows);
   /* Il link conserva TUTTI gli altri parametri: cambiare base oraria non
@@ -1110,6 +1190,96 @@ export default async function AnalyticsPage({
                   icon={Target}
                   title="Nessun trade vincente nel periodo"
                   description="La concentrazione si misura sul profitto lordo: senza vincenti non c'è nulla da ripartire."
+                />
+              )}
+            </CardContent>
+          </Card>
+
+          {/* Il confronto che nessuna metrica interna fa: vs stare fermo. */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2 text-base">
+                Il tuo trading vs stare fermo
+                <MetricInfo info={benchmarkInfo} />
+              </CardTitle>
+              <CardDescription>
+                Per ogni simbolo: quanto hai realizzato, e quanto avrebbe reso
+                comprare la tua size media all&apos;inizio del periodo e non
+                toccarla più.
+                {benchmarkCovered.share !== null && (
+                  <>
+                    {" "}
+                    Confronto disponibile su{" "}
+                    <strong>
+                      {benchmarkCovered.covered} trade su{" "}
+                      {benchmarkCovered.total}
+                    </strong>{" "}
+                    ({formatPercent(benchmarkCovered.share)}): per gli altri
+                    simboli l&apos;istanza non ha una serie di chiusure, e non
+                    viene inventato un valore di ripiego.
+                  </>
+                )}
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="flex flex-col gap-3">
+              {benchmark.length > 0 ? (
+                <>
+                  <BenchmarkTable rows={benchmark} currency={currency} />
+                  <p className="rounded-md border border-dashed p-3 text-xs text-muted-foreground">
+                    <strong className="text-foreground">Come leggerlo.</strong>{" "}
+                    La serie di riferimento è il sottostante (oro spot, indice,
+                    future continuo), non il contratto esatto che hai tradato:
+                    su orizzonti lunghi il rollover fa divergere le due curve.
+                    Il buy &amp; hold è calcolato sulla tua size MEDIA tenuta
+                    per tutto il periodo — è un&apos;ipotesi di confronto, non
+                    una cosa che è successa. La variazione percentuale è sempre
+                    confrontabile; l&apos;importo in valuta solo se la valuta
+                    del conto coincide con quella dello strumento.
+                  </p>
+                </>
+              ) : (
+                <EmptyState
+                  compact
+                  icon={Activity}
+                  title="Nessun trade chiuso nel periodo"
+                  description="Il confronto si costruisce sui simboli che hai davvero tradato."
+                />
+              )}
+            </CardContent>
+          </Card>
+
+          {/* Correlazione fra strategie: le strategie guardate INSIEME. */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2 text-base">
+                Correlazione fra strategie
+                <MetricInfo info={correlationInfo} />
+              </CardTitle>
+              <CardDescription>
+                Quanto si muovono insieme i P&amp;L giornalieri. Rosso = le due
+                vanno bene e male negli stessi giorni, quindi sommarle non
+                riduce il rischio; verde = si alternano, ed è lì che la
+                diversificazione fa il suo lavoro.
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="flex flex-col gap-3">
+              {correlations.keys.length >= 2 ? (
+                <>
+                  <CorrelationMatrixTable matrix={correlations} />
+                  <p className="text-xs text-muted-foreground">
+                    {strategySeries.length} strategie con almeno 10 trade nel
+                    periodo. Nei giorni in cui una strategia non opera il suo
+                    contributo è zero: è un fatto, non un dato mancante. Sotto{" "}
+                    {CORRELATION_MIN_DAYS} giornate comuni la cella resta
+                    vuota.
+                  </p>
+                </>
+              ) : (
+                <EmptyState
+                  compact
+                  icon={Crosshair}
+                  title="Servono almeno due strategie"
+                  description="La correlazione confronta strategie fra loro: assegna una strategia ai trade (almeno 10 per strategia) e questa matrice si popola."
                 />
               )}
             </CardContent>
