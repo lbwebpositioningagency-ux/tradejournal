@@ -19,6 +19,8 @@ import {
   getTargetRBuckets,
   getTargetVsRealized,
   getHourPerformance,
+  HOUR_BASES,
+  type HourBasis,
   getDurationPerformance,
   getRollingTradeWindow,
   getProAggregates,
@@ -42,6 +44,9 @@ import {
   payoffRatio,
   riskOfRuinAnalytic,
   riskOfRuinAnalyticInfo,
+  valueAtRisk,
+  valueAtRiskInfo,
+  VAR_MIN_OBSERVATIONS,
   streakDistribution,
   streakDistributionInfo,
   winRate as winRateOf,
@@ -94,6 +99,7 @@ import {
   type MetricRangeRow,
 } from "@/components/analytics/metric-range-strip";
 import { SegmentTable } from "@/components/analytics/segment-table";
+import { HourBasisToggle } from "@/components/analytics/hour-basis-toggle";
 import {
   targetRBucketStats,
   targetRTotals,
@@ -310,6 +316,15 @@ export default async function AnalyticsPage({
   const direction =
     params.dir === "LONG" || params.dir === "SHORT" ? params.dir : undefined;
 
+  // Base della performance oraria: apertura (default) o chiusura. Parsing
+  // LENIENT come ogni altro filtro: un valore non riconosciuto torna al
+  // default invece di rompere la pagina.
+  const hourBasis: HourBasis = (HOUR_BASES as readonly string[]).includes(
+    typeof params.hb === "string" ? params.hb : "",
+  )
+    ? (params.hb as HourBasis)
+    : "open";
+
   // Le metriche di CONTO (rolling, R², Kelly, risk of ruin, simulatore)
   // leggono l'equity intera e non possono rispettare un filtro strumento o
   // direzione. Con un filtro attivo lo dichiarano sulla card.
@@ -372,7 +387,7 @@ export default async function AnalyticsPage({
     getRHistogram(filter),
     getTargetVsRealized(filter),
     getAnalyticsSymbols({ ...base, currency: currencyScope.active }),
-    getHourPerformance(filter, user.timezone),
+    getHourPerformance(filter, user.timezone, hourBasis),
     getDurationPerformance(filter, DURATION_BUCKETS),
     getRMultiples(filter),
     getDailyPnl(filter, user.timezone),
@@ -490,6 +505,11 @@ export default async function AnalyticsPage({
   const accAvgLoss = avgLoss(accountAgg.lossSum, accountAgg.losses);
   const accPayoff = payoffRatio(accAvgWin, accAvgLoss);
 
+  // VaR/CVaR storici sulla stessa serie giornaliera di rolling e Sortino:
+  // sono metriche di CONTO, non di strumento — la serie non conosce i filtri
+  // simbolo/direzione, e dirlo sulla card è la stessa regola delle rolling.
+  const risk = valueAtRisk(returnsSeries);
+
   const kelly = kellyFraction(accWinRate, accPayoff);
   const optF = optimalF(mcR);
   const equityFit = equityLinearFit(returnsSeries.map((d) => d.equityStart));
@@ -551,6 +571,17 @@ export default async function AnalyticsPage({
   });
 
   const hourSegments = fillHourSegments(hourRows);
+  /* Il link conserva TUTTI gli altri parametri: cambiare base oraria non
+     deve resettare periodo, valuta, simbolo o finestra rolling. */
+  const hourBasisHref = (next: HourBasis) => {
+    const query = new URLSearchParams();
+    for (const [key, value] of Object.entries(params)) {
+      if (typeof value === "string" && key !== "hb") query.set(key, value);
+    }
+    if (next !== "open") query.set("hb", next);
+    const qs = query.toString();
+    return `/analytics${qs ? `?${qs}` : ""}#timing`;
+  };
   const durationSegments = fillDurationSegments(durationRows);
   const bestHour = bestAndWorst(hourSegments, (s) => s.avgR);
   const bestDuration = bestAndWorst(durationSegments, (s) => s.avgR);
@@ -935,6 +966,32 @@ export default async function AnalyticsPage({
                   accountScoped={instrumentFilterActive}
                 />
                 <StatBox
+                  label="VaR giornaliero (95%)"
+                  value={risk === null ? "—" : formatMoney(risk.var, currency)}
+                  sub={
+                    risk === null
+                      ? `servono ${VAR_MIN_OBSERVATIONS} sedute (${returnsSeries.length} nel periodo)`
+                      : risk.varPct !== null
+                        ? `${formatPercent(risk.varPct)} dell'equity · 1 seduta su 20`
+                        : "1 seduta su 20"
+                  }
+                  tone={risk !== null && Number(risk.var) > 0 ? "loss" : undefined}
+                  info={valueAtRiskInfo}
+                  accountScoped={instrumentFilterActive}
+                />
+                <StatBox
+                  label="CVaR giornaliero (95%)"
+                  value={risk === null ? "—" : formatMoney(risk.cvar, currency)}
+                  sub={
+                    risk === null
+                      ? `servono ${VAR_MIN_OBSERVATIONS} sedute (${returnsSeries.length} nel periodo)`
+                      : `media delle ${risk.tailDays} sedute peggiori su ${risk.observations}`
+                  }
+                  tone={risk !== null && Number(risk.cvar) > 0 ? "loss" : undefined}
+                  info={valueAtRiskInfo}
+                  accountScoped={instrumentFilterActive}
+                />
+                <StatBox
                   label="Risk of ruin (analitico)"
                   value={formatPercentSmall(ruinAnalytic)}
                   sub="formula chiusa, azzeramento del conto intero"
@@ -1058,16 +1115,25 @@ export default async function AnalyticsPage({
             </CardContent>
           </Card>
 
-          {/* §2 — performance per fascia oraria (ora di APERTURA). */}
+          {/* §2 — performance per fascia oraria: apertura O chiusura. */}
           <Card id="timing" className="scroll-mt-20">
             <CardHeader>
-              <CardTitle className="flex items-center gap-2 text-base">
-                Performance per fascia oraria
-                <MetricInfo info={hourPerformanceInfo} />
-              </CardTitle>
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <CardTitle className="flex items-center gap-2 text-base">
+                  Performance per fascia oraria
+                  <MetricInfo info={hourPerformanceInfo} />
+                </CardTitle>
+                <HourBasisToggle basis={hourBasis} hrefFor={hourBasisHref} />
+              </div>
               <CardDescription>
-                Fasce di un&apos;ora sull&apos;orario di <strong>apertura</strong>{" "}
-                del trade, nel tuo fuso ({user.timezone.replace("_", " ")}).
+                Fasce di un&apos;ora sull&apos;orario di{" "}
+                <strong>
+                  {hourBasis === "close" ? "chiusura" : "apertura"}
+                </strong>{" "}
+                del trade, nel tuo fuso ({user.timezone.replace("_", " ")}).{" "}
+                {hourBasis === "close"
+                  ? "Quando esci bene: è una domanda sulla gestione."
+                  : "Quando entri bene: è una domanda sul setup."}
                 {bestHour.best && bestHour.worst && (
                   <>
                     {" "}
@@ -1086,12 +1152,16 @@ export default async function AnalyticsPage({
               <SegmentPerformanceChart
                 points={hourSegments}
                 currency={currency}
-                ariaLabel="Performance per fascia oraria"
+                ariaLabel={`Performance per fascia oraria di ${
+                  hourBasis === "close" ? "chiusura" : "apertura"
+                }`}
               />
               <SegmentTable
                 rows={hourSegments.filter((s) => !s.empty)}
                 currency={currency}
-                segmentLabel="Fascia oraria"
+                segmentLabel={`Ora di ${
+                  hourBasis === "close" ? "chiusura" : "apertura"
+                }`}
               />
             </CardContent>
           </Card>

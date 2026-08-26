@@ -160,6 +160,11 @@ model Trade {
   avgExitPrice  Decimal? @db.Decimal(18, 8)
   grossPnl      Decimal  @default(0) @db.Decimal(14, 2)
   fees          Decimal  @default(0) @db.Decimal(14, 2)
+  // Swap / rollover / finanziamento notturno: costo di POSIZIONE, non di
+  // esecuzione — matura mentre il trade resta aperto, quindi non può stare
+  // sulla Execution come la fee. Segno libero: uno swap può essere un
+  // accredito. netPnl = grossPnl − fees − swap.
+  swap          Decimal  @default(0) @db.Decimal(14, 2)
   netPnl        Decimal  @default(0) @db.Decimal(14, 2)
 
   initialRisk   Decimal? @db.Decimal(14, 2) // rischio $ pianificato → R-multiple

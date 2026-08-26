@@ -75,6 +75,7 @@ async function prepareTradeData(userId: string, input: TradeInput) {
       initialRisk: data.initialRisk ?? null,
       plannedStop: data.plannedStop ?? null,
       plannedTarget: data.plannedTarget ?? null,
+      swap: data.swap ?? null,
     });
   } catch (error) {
     if (error instanceof TradeComputeError)
@@ -110,6 +111,7 @@ export async function createTradeAction(
       avgExitPrice: computed.avgExitPrice,
       grossPnl: computed.grossPnl,
       fees: computed.fees,
+      swap: computed.swap,
       netPnl: computed.netPnl,
       initialRisk: data.initialRisk ?? null,
       plannedStop: data.plannedStop ?? null,
@@ -191,6 +193,7 @@ export async function updateTradeAction(
         avgExitPrice: computed.avgExitPrice,
         grossPnl: computed.grossPnl,
         fees: computed.fees,
+        swap: computed.swap,
         netPnl: computed.netPnl,
         initialRisk: data.initialRisk ?? null,
         plannedStop: data.plannedStop ?? null,

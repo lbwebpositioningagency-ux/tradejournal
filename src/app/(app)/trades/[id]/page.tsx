@@ -200,6 +200,12 @@ export default async function TradeDetailPage({
     { label: "P&L lordo", value: formatSignedMoney(trade.grossPnl.toString(), currency) },
     { label: "Fee totali", value: formatMoney(trade.fees.toString(), currency) },
     {
+      label: "Swap / rollover",
+      value: trade.swap.isZero()
+        ? "—"
+        : formatSignedMoney(trade.swap.negated().toString(), currency),
+    },
+    {
       label: "Rischio iniziale",
       value: trade.initialRisk ? formatMoney(trade.initialRisk.toString(), currency) : "—",
     },

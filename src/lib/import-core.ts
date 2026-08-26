@@ -324,6 +324,7 @@ export async function persistTradeInputs(params: {
         avgExitPrice: computed.avgExitPrice,
         grossPnl: computed.grossPnl,
         fees: computed.fees,
+        swap: computed.swap,
         netPnl: computed.netPnl,
         initialRisk: data.initialRisk ?? null,
         rMultiple: computed.rMultiple,

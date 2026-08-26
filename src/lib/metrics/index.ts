@@ -77,6 +77,13 @@ export { sqn, sqnInfo, SQN_MIN_TRADES } from "./sqn";
 export { calmarRatio, calmarInfo, coveredDays, CALMAR_MIN_DAYS } from "./calmar";
 export { ulcerIndex, ulcerInfo } from "./ulcer";
 export {
+  valueAtRisk,
+  valueAtRiskInfo,
+  VAR_CONFIDENCE,
+  VAR_MIN_OBSERVATIONS,
+  type ValueAtRisk,
+} from "./value-at-risk";
+export {
   planVsOutcome,
   plannedRInfo,
   realizedPriceRInfo,
