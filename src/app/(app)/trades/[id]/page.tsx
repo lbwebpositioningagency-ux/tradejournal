@@ -41,8 +41,15 @@ import {
 } from "@/components/ui/table";
 import { DeleteTradeButton } from "@/components/trades/delete-trade-button";
 import { AttachmentsCard } from "@/components/attachments/attachments-card";
+import {
+  TradeJournal,
+  type TradeJournalData,
+} from "@/components/trades/trade-journal";
 
 export const metadata: Metadata = { title: "Dettaglio trade" };
+
+/** Riga vuota fra due note storiche accorpate nello stesso riquadro. */
+const LEGACY_NOTE_SEPARATOR = "\n\n";
 
 function trimZeros(value: string): string {
   return value.includes(".") ? value.replace(/\.?0+$/, "") : value;
@@ -79,6 +86,8 @@ export default async function TradeDetailPage({
         executions: { orderBy: { executedAt: "asc" } },
         tags: { include: { tag: true } },
         notes: { where: { type: "TRADE" }, orderBy: { createdAt: "asc" } },
+        review: true,
+        checklist: { include: { item: { select: { isArchived: true } } } },
       },
     }),
   ]);
@@ -88,7 +97,8 @@ export default async function TradeDetailPage({
   // Prev/next nella cronologia dell'utente (stesso ordine della lista trade:
   // openedAt, con id come tie-break stabile). "Precedente" = aperto prima.
   // Gli allegati sono in una query dedicata: MAI includere `data` nei listing.
-  const [prevTrade, nextTrade, attachments, macroReport] = await Promise.all([
+  const [prevTrade, nextTrade, attachments, checklistItems, macroReport] =
+    await Promise.all([
     prisma.trade.findFirst({
       where: {
         account: { userId },
@@ -116,6 +126,13 @@ export default async function TradeDetailPage({
       where: { userId: sessionUserId, tradeId: trade.id },
       orderBy: { createdAt: "asc" },
       select: { id: true, fileName: true, mimeType: true, size: true },
+    }),
+    // F3 — voci ATTIVE del modello di checklist: sono PERSONALI, quindi
+    // dell'utente loggato e mai dell'utente di sistema del conto demo.
+    prisma.checklistItem.findMany({
+      where: { userId: sessionUserId, isArchived: false },
+      orderBy: [{ position: "asc" }, { label: "asc" }],
+      select: { id: true, label: true },
     }),
     // W2 — bias del giorno di APERTURA per il badge col/contro bias.
     prisma.macroDeskReport.findUnique({
@@ -228,6 +245,48 @@ export default async function TradeDetailPage({
     { label: "Strategia", value: trade.strategy?.name ?? "—" },
     { label: "Valutazione", value: trade.rating ? "★".repeat(trade.rating) : "—" },
   ];
+
+  /* F3 — piano, checklist e revisione. Le voci della checklist sono quelle
+     ATTIVE del modello dell'utente, unite a quelle gia' spuntate su questo
+     trade anche se nel frattempo archiviate: una spunta che sparisce dalla
+     scheda del trade riscriverebbe cosa era stato verificato. */
+  const checkedById = new Map(
+    trade.checklist.map((c) => [c.itemId, c]),
+  );
+  const journal: TradeJournalData = {
+    tradeId: trade.id,
+    plan: trade.notes.find((n) => n.tradePhase === "PLAN")?.content ?? "",
+    review: {
+      followedPlan: trade.review?.followedPlan ?? null,
+      whatWorked: trade.review?.whatWorked ?? "",
+      whatFailed: trade.review?.whatFailed ?? "",
+      nextTime: trade.review?.nextTime ?? "",
+    },
+    checklist: [
+      ...checklistItems.map((item) => ({
+        itemId: item.id,
+        label: item.label,
+        checked: checkedById.get(item.id)?.checked ?? false,
+        archived: false,
+      })),
+      ...trade.checklist
+        .filter(
+          (c) => c.item.isArchived && !checklistItems.some((i) => i.id === c.itemId),
+        )
+        .map((c) => ({
+          itemId: c.itemId,
+          label: c.label,
+          checked: c.checked,
+          archived: true,
+        })),
+    ],
+    legacyNote:
+      trade.notes
+        .filter((n) => n.tradePhase === null)
+        .map((n) => n.content)
+        .join(LEGACY_NOTE_SEPARATOR) || null,
+    readOnly: isDemo,
+  };
 
   return (
     <div className="mx-auto flex w-full max-w-4xl flex-col gap-6">
@@ -481,20 +540,7 @@ export default async function TradeDetailPage({
         </CardContent>
       </Card>
 
-      {trade.notes.length > 0 ? (
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-base">Note</CardTitle>
-          </CardHeader>
-          <CardContent className="flex flex-col gap-3">
-            {trade.notes.map((note) => (
-              <p key={note.id} className="whitespace-pre-wrap text-sm">
-                {note.content}
-              </p>
-            ))}
-          </CardContent>
-        </Card>
-      ) : null}
+      <TradeJournal data={journal} />
     </div>
   );
 }

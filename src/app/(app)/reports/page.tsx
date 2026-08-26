@@ -50,6 +50,8 @@ import {
   getStreakStats,
   getSymbolBreakdown,
   getTagBreakdown,
+  getTagCategoryBreakdown,
+  getPlanAdherenceBreakdown,
   getWeekdayBreakdown,
   type BreakdownAggregates,
 } from "@/lib/queries/reports";
@@ -293,6 +295,13 @@ function BestWorstLine({
   );
 }
 
+/** Etichette dei tre bucket di aderenza al piano (F3). */
+const PLAN_ADHERENCE_LABELS: Record<string, string> = {
+  followed: "Piano rispettato",
+  broken: "Piano tradito",
+  unanswered: "Non ancora rivisto",
+};
+
 export default async function ReportsPage({
   searchParams,
 }: {
@@ -347,10 +356,12 @@ export default async function ReportsPage({
   const filter: StatsFilter = { ...baseFilter, currency: scope.active };
   const currency = scope.active ?? activeAccount?.currency ?? user.baseCurrency;
 
-  const [strategies, tags, symbols, directionAssets, months, hours, weekdays, streaks, outcomes, biasRows] =
+  const [strategies, tags, tagCategories, planAdherence, symbols, directionAssets, months, hours, weekdays, streaks, outcomes, biasRows] =
     await Promise.all([
       getStrategyBreakdown(filter),
       getTagBreakdown(filter),
+      getTagCategoryBreakdown(filter),
+      getPlanAdherenceBreakdown(filter),
       getSymbolBreakdown(filter),
       getDirectionAssetBreakdown(filter),
       getMonthBreakdown(filter, user.timezone),
@@ -536,6 +547,61 @@ export default async function ReportsPage({
                   </p>
                 </>
               )}
+          </CollapsibleCard>
+
+          <CollapsibleCard title="Per categoria di tag">
+            {tagCategories.length === 0 ? (
+              <p className="py-8 text-center text-sm text-muted-foreground">
+                Nessun tag sui trade del periodo. Assegna una categoria ai tag
+                dal form del trade: «errore» è quella che alimenta il costo
+                degli errori.
+              </p>
+            ) : (
+              <>
+                <BreakdownTable
+                  currency={currency}
+                  rows={tagCategories.map((row) => ({
+                    key: row.category,
+                    label:
+                      TAG_CATEGORY_LABELS[row.category as TagCategory] ??
+                      row.category,
+                    aggregates: row,
+                  }))}
+                />
+                <p className="mt-2 text-xs text-muted-foreground">
+                  Quanto pesano gli errori tutti insieme, invece che quindici
+                  tag da tre trade l&apos;uno. Dentro una categoria ogni trade
+                  conta una volta sola; fra categorie diverse le righe si
+                  sovrappongono — un trade può essere insieme un breakout e un
+                  errore.
+                </p>
+              </>
+            )}
+          </CollapsibleCard>
+
+          <CollapsibleCard title="Piano rispettato">
+            {planAdherence.length === 0 ? (
+              <p className="py-8 text-center text-sm text-muted-foreground">
+                Nessun trade chiuso nel periodo.
+              </p>
+            ) : (
+              <>
+                <BreakdownTable
+                  currency={currency}
+                  rows={planAdherence.map((row) => ({
+                    key: row.bucket,
+                    label: PLAN_ADHERENCE_LABELS[row.bucket] ?? row.bucket,
+                    aggregates: row,
+                  }))}
+                />
+                <p className="mt-2 text-xs text-muted-foreground">
+                  Dalla revisione del singolo trade. Se il win rate col piano
+                  rispettato non è più alto di quello senza, o il piano non
+                  vale niente o non lo stai davvero seguendo. «Non ancora
+                  rivisto» è una riga a sé: non è un piano tradito.
+                </p>
+              </>
+            )}
           </CollapsibleCard>
 
           {/* Tabelle a tutta larghezza: affiancate a 1280 taglierebbero le colonne */}

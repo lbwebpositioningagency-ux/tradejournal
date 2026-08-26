@@ -19,6 +19,7 @@ import { formatDateTime } from "@/lib/dates";
 import { parseMt5LastResult } from "@/lib/validations/mt5";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { AccentPicker } from "./accent-picker";
+import { ChecklistForm } from "./checklist-form";
 import { Mt5SyncSettings } from "./mt5-sync-settings";
 import { ProfileForm } from "./profile-form";
 import { PasswordForm } from "./password-form";
@@ -42,7 +43,7 @@ export default async function SettingsPage() {
     },
   });
 
-  const [mt5Sources, accounts] = await Promise.all([
+  const [mt5Sources, accounts, checklistItems] = await Promise.all([
     prisma.mt5SyncSource.findMany({
       where: { userId },
       orderBy: { createdAt: "asc" },
@@ -52,6 +53,12 @@ export default async function SettingsPage() {
       where: { userId, isArchived: false },
       orderBy: { createdAt: "asc" },
       select: { id: true, name: true },
+    }),
+    // F3 — modello di checklist pre-trade: voci ATTIVE, nell'ordine scelto.
+    prisma.checklistItem.findMany({
+      where: { userId, isArchived: false },
+      orderBy: [{ position: "asc" }, { label: "asc" }],
+      select: { id: true, label: true },
     }),
   ]);
   const withSource = new Set(mt5Sources.map((s) => s.tradingAccountId));
@@ -88,6 +95,8 @@ export default async function SettingsPage() {
 
       {/* F39 — sicurezza account */}
       <PasswordForm hasPassword={user.passwordHash !== null} />
+
+      <ChecklistForm initial={checklistItems} />
 
       <AccentPicker currentAccent={accent} currentPnl={pnlPalette} />
 
