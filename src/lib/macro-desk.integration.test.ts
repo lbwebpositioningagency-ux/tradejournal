@@ -51,8 +51,12 @@ describe.skipIf(!hasDb)("upsert Macro Desk su Postgres", () => {
   });
 
   it("re-invio dello stesso report → una sola riga, campi aggiornati", async () => {
-    const first = await upsertMacroDeskReport(prisma, input());
-    const second = await upsertMacroDeskReport(
+    /* `upsertMacroDeskReport` restituisce `{ report, rifiutate }` da quando
+       l'endpoint difende l'impegno della domenica. Il destructuring qui non è
+       cosmetico: con `const first = await …` questo test confronterebbe
+       `undefined` con `undefined` e passerebbe sempre. */
+    const { report: first } = await upsertMacroDeskReport(prisma, input());
+    const { report: second } = await upsertMacroDeskReport(
       prisma,
       input({
         generatedAt: "2026-07-21T08:00:00Z",
@@ -66,6 +70,7 @@ describe.skipIf(!hasDb)("upsert Macro Desk su Postgres", () => {
       }),
     );
 
+    expect(first.id).toBeTruthy();
     expect(second.id).toBe(first.id); // stessa riga, non un duplicato
     const rows = await prisma.macroDeskReport.findMany({ where });
     expect(rows).toHaveLength(1);
@@ -102,9 +107,14 @@ describe.skipIf(!hasDb)("payload v2 su Postgres", () => {
   const V2_DATE = "1999-12-30";
   const where = { reportDate: new Date(`${V2_DATE}T00:00:00.000Z`) };
 
+  /* SETTIMANA IMPROBABILE, per la stessa ragione per cui `TEST_DATE` è il
+     31/12/1999: da quando l'endpoint difende l'impegno della domenica, la
+     ricerca dell'archivio è per `weekStart` dentro il JSON. Con una settimana
+     verosimile questo test si sarebbe scontrato con un report reale della
+     stessa settimana e si sarebbe visto tenere i valori di quello. */
   const biasRecord = {
-    weekStart: "2026-08-02",
-    windowEnd: "2026-08-07",
+    weekStart: "1999-11-28",
+    windowEnd: "1999-12-03",
     assets: {
       xau: {
         bias: "RIALZISTA",
@@ -173,7 +183,7 @@ describe.skipIf(!hasDb)("payload v2 su Postgres", () => {
     expect(row.schemaVersion).toBe(2);
     expect(row.scorecardEligible).toBe(true);
     expect(row.trackRecordStart).toBe(true);
-    expect(row.biasRecord.weekStart).toBe("2026-08-02");
+    expect(row.biasRecord.weekStart).toBe("1999-11-28");
     expect(row.biasRecord.assets.xau.em).toBeCloseTo(150.3);
     expect(row.biasRecord.assets.xau.branches[0].id).toBe("b1");
     expect(row.monitor.xau.state).toBe("conferma");
@@ -204,5 +214,152 @@ describe.skipIf(!hasDb)("payload v2 su Postgres", () => {
     const row = await prisma.macroDeskReport.findFirst({ where });
     expect(row.biasRecord).toBeNull();
     expect(row.scorecardEligible).toBe(false);
+  });
+});
+
+/**
+ * L'IMPEGNO DELLA DOMENICA, provato contro il database.
+ *
+ * La regola è pura e testata in `macro-desk-impegno.test.ts`; qui si prova la
+ * parte che quella non può raggiungere: che l'upsert TROVI il record della
+ * stessa settimana già in archivio — anche se sta in un report con un'altra
+ * data — e che il rifiuto finisca in colonna invece di sparire in un log.
+ */
+describe.skipIf(!hasDb)("impegno della domenica su Postgres", () => {
+  /* eslint-disable @typescript-eslint/no-explicit-any */
+  let prisma: any;
+  let upsertMacroDeskReport: any;
+  /* eslint-enable @typescript-eslint/no-explicit-any */
+  const DOMENICA = "1999-12-26";
+  const LUNEDI = "1999-12-27";
+  const where = {
+    reportDate: {
+      in: [DOMENICA, LUNEDI].map((d) => new Date(`${d}T00:00:00.000Z`)),
+    },
+  };
+
+  const impegno = {
+    weekStart: "1999-12-26",
+    windowEnd: "1999-12-31",
+    assets: {
+      xau: {
+        bias: "RIALZISTA",
+        confidence: 62,
+        P0: 4074.56,
+        em: 150.3,
+        emSource: "iv",
+        ivUsed: 26.65,
+        branches: [
+          {
+            id: "b1",
+            event: "CPI",
+            condition: "core > 0,4% m/m",
+            effect: "RIBASSISTA",
+            status: "pending",
+          },
+        ],
+        invalidations: [
+          { id: "i1", condition: "chiusura sotto 3.980", type: "price", status: "armed" },
+        ],
+        status: "live",
+        mfe_EM: 0.4,
+        mae_EM: -0.2,
+        path: [{ date: "1999-12-27", px: 4102.1, move_EM: 0.18 }],
+      },
+    },
+  };
+
+  beforeAll(async () => {
+    ({ prisma } = await import("@/lib/db"));
+    ({ upsertMacroDeskReport } = await import("@/lib/macro-desk"));
+    await prisma.macroDeskReport.deleteMany({ where });
+  });
+
+  afterAll(async () => {
+    if (prisma) await prisma.macroDeskReport.deleteMany({ where });
+  });
+
+  it("la domenica passa intera: non c'è ancora niente da proteggere", async () => {
+    const { rifiutate } = await upsertMacroDeskReport(prisma, {
+      ...input({ type: "WEEKLY", reportDate: DOMENICA }),
+      schemaVersion: 2,
+      scorecardEligible: true,
+      biasRecord: impegno,
+    });
+    expect(rifiutate).toEqual([]);
+    const row = await prisma.macroDeskReport.findFirst({
+      where: { reportDate: new Date(`${DOMENICA}T00:00:00.000Z`) },
+    });
+    expect(row.biasRecord.assets.xau.P0).toBeCloseTo(4074.56);
+    expect(row.impegnoRifiutato).toBeNull();
+  });
+
+  it("IL LUNEDÌ NON RISCRIVE L'IMPEGNO, e il report si salva lo stesso", async () => {
+    const daily = JSON.parse(JSON.stringify(impegno));
+    // quello che il daily NON può cambiare
+    daily.assets.xau.bias = "RIBASSISTA";
+    daily.assets.xau.P0 = 4000;
+    daily.assets.xau.em = 999;
+    daily.assets.xau.branches[0].condition = "core > 9% m/m";
+    // quello che invece deve passare
+    daily.assets.xau.status = "branched";
+    daily.assets.xau.mfe_EM = 1.7;
+    daily.assets.xau.branches[0].status = "triggered";
+    daily.assets.xau.invalidations[0].status = "fired";
+    daily.assets.xau.path = [
+      ...daily.assets.xau.path,
+      { date: "1999-12-28", px: 4200, move_EM: 0.83 },
+    ];
+
+    const { rifiutate } = await upsertMacroDeskReport(prisma, {
+      ...input({ type: "DAILY", reportDate: LUNEDI }),
+      schemaVersion: 2,
+      scorecardEligible: true,
+      biasRecord: daily,
+    });
+
+    const row = await prisma.macroDeskReport.findFirst({
+      where: { reportDate: new Date(`${LUNEDI}T00:00:00.000Z`) },
+    });
+    const xau = row.biasRecord.assets.find
+      ? row.biasRecord.assets.find((a: { asset: string }) => a.asset === "xau")
+      : row.biasRecord.assets.xau;
+
+    // l'impegno è quello della domenica
+    expect(xau.bias).toBe("RIALZISTA");
+    expect(xau.p0 ?? xau.P0).toBeCloseTo(4074.56);
+    expect(xau.em).toBeCloseTo(150.3);
+    expect(xau.branches[0].condition).toBe("core > 0,4% m/m");
+    // il monitoraggio è quello del lunedì
+    expect(xau.status).toBe("branched");
+    expect(xau.mfeEm ?? xau.mfe_EM).toBeCloseTo(1.7);
+    expect(xau.branches[0].status).toBe("triggered");
+    expect(xau.invalidations[0].status).toBe("fired");
+    expect(xau.path).toHaveLength(2);
+
+    // e la discrepanza è in colonna, non solo in un log
+    expect(rifiutate.length).toBe(4);
+    expect(row.impegnoRifiutato).toHaveLength(4);
+    const campi = row.impegnoRifiutato.map((r: { campo: string }) => r.campo);
+    expect(campi).toContain("xau.bias");
+    expect(campi).toContain("xau.p0");
+    expect(campi).toContain("xau.em");
+    expect(campi).toContain("xau.ramo[b1].condition");
+  });
+
+  it("un daily onesto non lascia nessuna segnalazione", async () => {
+    const daily = JSON.parse(JSON.stringify(impegno));
+    daily.assets.xau.mae_EM = -0.5;
+    const { rifiutate } = await upsertMacroDeskReport(prisma, {
+      ...input({ type: "DAILY", reportDate: LUNEDI }),
+      schemaVersion: 2,
+      scorecardEligible: true,
+      biasRecord: daily,
+    });
+    expect(rifiutate).toEqual([]);
+    const row = await prisma.macroDeskReport.findFirst({
+      where: { reportDate: new Date(`${LUNEDI}T00:00:00.000Z`) },
+    });
+    expect(row.impegnoRifiutato).toBeNull();
   });
 });

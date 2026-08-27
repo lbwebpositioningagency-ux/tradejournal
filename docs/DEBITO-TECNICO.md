@@ -84,6 +84,44 @@ durata. Totali, win rate, profit factor ed expectancy sono rimasti identici, ed
 è il modo più rapido per verificare che una rigenerazione futura non abbia
 toccato altro.
 
+## Impegno della domenica: PROTETTO dal 27/08/2026
+
+Il Weekly Bias Record e' una dichiarazione fatta la domenica e la Scorecard
+misura quanto abbia retto. Fino al 27/08/2026 nessun controllo impediva a un
+DAILY di riscrivere bias, `p0`, `em` o le soglie dei rami della stessa
+settimana: la Scorecard avrebbe misurato l'ultima versione, e nessuno se ne
+sarebbe accorto. L'unica difesa era la disciplina scritta nelle istruzioni del
+task, e quelle istruzioni le applica un modello.
+
+Adesso l'endpoint confronta il record in arrivo con quello gia' registrato per
+lo stesso `weekStart`: i campi immutabili restano quelli dichiarati, i campi di
+monitoraggio passano. Regola in `src/lib/macro-desk-impegno.ts`.
+
+**Il report viene ACCETTATO lo stesso, non rifiutato con un 400.** Un 400 non
+e' recuperabile: il desk spedisce una volta, non c'e' coda di rispedizione, e
+rifiutare butterebbe via tutto il monitoraggio di quella giornata - percorso,
+MFE/MAE, stato dei rami - che e' l'unica parte che solo quel report possiede,
+mentre i campi immutabili sono gia' in archivio dalla domenica.
+
+**Due condizioni renderebbero sbagliata questa scelta**, e vanno guardate se
+cambia il perimetro:
+1. se il desk acquisisse una coda di rispedizione affidabile, un 400 tornerebbe
+   preferibile: costringerebbe a correggere la fonte invece di lasciare che
+   continui a spedire un impegno diverso;
+2. se le segnalazioni diventassero frequenti invece che eccezionali, vorrebbe
+   dire che il generatore ha un difetto sistematico, e accettare in silenzio
+   -- anche con la banda accesa -- smetterebbe di essere prudenza e
+   diventerebbe tolleranza.
+
+**Cosa NON copre.** Il confronto e' per `weekStart`: un desk che spedisse lo
+stesso impegno con una settimana diversa passerebbe come nuovo. E la prima
+versione ricevuta fa fede, chiunque l'abbia spedita: se il primo report della
+settimana fosse gia' sbagliato, l'errore verrebbe congelato invece che
+corretto. Entrambe sono scelte, non sviste: la seconda e' il prezzo di non
+avere un'autorita' esterna che dica quale versione e' quella buona.
+-> `src/lib/macro-desk-impegno.ts`, `src/lib/macro-desk.ts`,
+`src/app/api/macro-desk/route.ts`, `MacroDeskReport.impegnoRifiutato`
+
 ## Limiti dichiarati dei controlli di qualità dati
 
 - **Il rilevatore di chiusure fuori sessione vede solo il weekend.** Segnala

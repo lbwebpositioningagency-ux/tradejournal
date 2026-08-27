@@ -1906,3 +1906,47 @@ carattere, forza e «da ieri», commenti allineati al conteggio nuovo.
 verifica CDP su build di produzione, tema chiaro e scuro a 1440 e 375 px:
 `/macro-desk/posizionamento` risponde 404 pulito e su tutte e otto le pagine
 del desk non resta un solo collegamento verso la sezione.
+
+
+## ✅ «Due code dal debito tecnico» (27/08/2026)
+
+**1 — Seed rigenerato** (`b03b8b2`). Due voci chiuse insieme: le chiusure fuori
+seduta e il vantaggio irrealistico. Regola delle sedute in un modulo solo
+(`src/lib/demo/sessioni.ts`), condiviso dai due generatori. Numeri prima/dopo
+in `docs/DEBITO-TECNICO.md`; in sintesi, giornate negative 20,0% → 36,9% sul
+futures e 24,6% → 35,4% sul forex, Sortino 40,82 → 6,11 e 25,39 → 2,48, e zero
+sedute fantasma contro le 37 di prima.
+
+**2 — Impegno della domenica protetto** (`b6b3d5d`). L'endpoint confronta il
+Weekly Bias Record in arrivo con quello già registrato per lo stesso
+`weekStart`: bias, `p0`, `em`, confidenza e soglie dei rami non si cambiano a
+settimana aperta; stato, MFE/MAE, percorso e armamento delle invalidazioni sì.
+
+Il report viene **accettato**, non rifiutato con un 400: il desk spedisce una
+volta e rifiutare perderebbe tutto il monitoraggio della giornata, che è l'unica
+parte che solo quel report possiede. Le due condizioni che renderebbero
+sbagliata questa scelta sono scritte nel debito.
+
+La discrepanza non resta muta: torna nella risposta HTTP (`ok_con_rifiuti` con
+campo, valore tenuto e valore rifiutato), finisce in colonna
+(`MacroDeskReport.impegnoRifiutato`) e si vede in una banda in cima alla
+Scorecard — che è la pagina i cui numeri sarebbero stati falsati.
+
+**Due difetti presi dai test prima di uscire.** La ricerca dell'archivio era
+«gli ultimi dodici report per data»: bastava che dopo la domenica ne
+arrivassero più di dodici, o che uno arrivasse retrodatato, e il controllo
+smetteva di trovare l'impegno in silenzio — ora è una ricerca per `weekStart`
+dentro il JSON. E la fusione restituiva la forma NORMALIZZATA (`assets` array),
+mentre `parseWeeklyBiasRecord` legge solo il dizionario del desk e rifiuta gli
+array: salvarla avrebbe reso il record illeggibile al giro dopo, facendo
+sparire la settimana dalla Scorecard. Ora senza rifiuti si salva il payload
+originale intatto, e con rifiuti si riscrive nella forma del desk.
+
+**Verificato:** typecheck ✅ · eslint ✅ · **1726/1726 test** ✅ (19 sul modulo
+puro, 3 di integrazione su Postgres) · build ✅ · prova end-to-end sull'endpoint
+vero: domenica accettata pulita, daily che riscrive sette campi →
+`ok_con_rifiuti`, e in colonna bias RIALZISTA, P0 1600,5, em 40,2 e soglia
+«sopra 1.640» tenuti, mentre stato `branched`, ramo `triggered`, invalidazione
+`fired`, MFE 1,2 e i due punti del percorso sono passati · banda visibile nella
+Scorecard a 1440 e 375 px, tema chiaro e scuro, e assente quando non c'è nulla
+da segnalare.
