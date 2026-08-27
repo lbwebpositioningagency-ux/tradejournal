@@ -15,6 +15,7 @@ import { Badge } from "@/components/ui/badge";
 import { MacroDeskSectionNav } from "@/components/macro-desk/section-nav";
 import { VolatilitaPanel } from "@/components/macro-desk/volatilita-panel";
 import { ContestoVolatilitaPanel } from "@/components/macro-desk/contesto-volatilita";
+import { GuidaVolatilita } from "@/components/macro-desk/guida-volatilita";
 import {
   CalendarioEventi,
   type EventoReso,
@@ -127,6 +128,21 @@ export default async function MacroVolatilitaPage() {
       {/* Il CONTESTO non dipende dal report; gli indici del report sì, e per
           quelli il ritardo va dichiarato. */}
       {freschezza ? <BandaFreschezza esito={freschezza} /> : null}
+
+      {/* La guida, chiusa: si legge una volta, i dati si guardano ogni
+          mattina. Sta PRIMA del calendario perché è la sola cosa della pagina
+          che spiega il resto, e dopo la rimozione del termometro c'è di nuovo
+          una sezione che si può spiegare per intero in mezzo schermo. */}
+      <div
+        className={cn(
+          "macro-report overflow-hidden rounded-[var(--md-r-lg)] border p-4 sm:p-6",
+          fontUi.variable,
+          fontMono.variable,
+        )}
+        style={{ borderColor: "var(--md-border)" }}
+      >
+        <GuidaVolatilita />
+      </div>
 
       <div
         className={cn(
