@@ -19,7 +19,9 @@ import {
   getContestoVolatilita,
   type ContestoVolatilita,
   type RigaContestoVol,
+  type StrutturaTermine,
 } from "@/lib/queries/volatilita-contesto";
+import type { EsitoStrutturaWti } from "@/lib/queries/wti-termine";
 import {
   AI_ANALYST_DEFS,
   type AiAnalystInstrument,
@@ -97,6 +99,10 @@ export interface FontiCondivise {
    * fra una e otto scansioni.
    */
   contesto: Map<string, RigaContestoVol>;
+  /** Curva del VIX: serve alla scheda dell'S&P 500. */
+  strutturaTermine: StrutturaTermine | null;
+  /** Curva del WTI: serve alla scheda del WTI. */
+  strutturaWti: EsitoStrutturaWti;
 }
 
 const DRIVER_VUOTO: DriverDeskData = {
@@ -163,6 +169,8 @@ export const caricaFontiCondivise = cache(async (): Promise<FontiCondivise> => {
 
   return {
     report,
+    strutturaTermine: contestoVol.strutturaTermine,
+    strutturaWti: contestoVol.strutturaWti,
     cot,
     driver,
     coverage,
@@ -261,11 +269,18 @@ export async function caricaLetture(
     ),
   ]);
 
-  const rigaContesto = fonti.contesto.get(def.seasonalityIv);
+  /* DUE RIGHE DIVERSE, e la differenza non è teorica: fino al 27/08/2026 qui
+     c'era `fonti.contesto.get(def.seasonalityIv)` per entrambe, e per il DAX
+     `seasonalityIv` vale "VIX" — cioè la riga che porta i prezzi dell'S&P 500.
+     Il «movimento giornaliero recente del DAX» era quello dell'S&P: il
+     26/08/2026, 0,48% invece di 0,40%. L'indice IV sostitutivo è una scelta
+     dichiarata; i fatti di prezzo di un altro strumento no. */
+  const rigaIv = fonti.contesto.get(def.rigaContestoIv);
+  const rigaPrezzo = fonti.contesto.get(def.rigaContestoPrezzo);
 
   return {
-    ivArchivio: letturaIvArchivio(strumento, rigaContesto),
-    movimento: letturaMovimento(rigaContesto),
+    ivArchivio: letturaIvArchivio(strumento, rigaIv),
+    movimento: letturaMovimento(rigaPrezzo),
     iv: letturaIv(strumento, fonti.trends.get(def.indiceIv.toLowerCase())),
     cotPartecipazione: letturaCot(
       strumento,

@@ -22,6 +22,7 @@ import {
 import {
   TRASCRITTO_IL,
   VALIDO_FINO_AL,
+  fraQuanto,
   prossimiEventi,
   tabellaValida,
 } from "@/lib/calendario-macro";
@@ -43,21 +44,6 @@ const fontMono = JetBrains_Mono({
   weight: ["500", "600", "700"],
   variable: "--md-font-mono",
 });
-
-/**
- * «fra 2 ore», «domani», «fra 3 giorni». Non è decorazione: la distanza
- * conta più della data assoluta quando si decide se restare in posizione, e
- * calcolarla a mente da un orario in un altro fuso è esattamente il tipo di
- * attrito che un terminale toglie.
- */
-function fraQuanto(istante: Date, adesso: Date): string {
-  const minuti = Math.round((istante.getTime() - adesso.getTime()) / 60_000);
-  if (minuti < 60) return `fra ${Math.max(0, minuti)} min`;
-  const ore = Math.round(minuti / 60);
-  if (ore < 24) return `fra ${ore} ${ore === 1 ? "ora" : "ore"}`;
-  const giorni = Math.round(ore / 24);
-  return giorni === 1 ? "domani" : `fra ${giorni} giorni`;
-}
 
 function reportDateLabel(date: Date): string {
   return new Intl.DateTimeFormat("it-IT", {

@@ -25,6 +25,14 @@ export interface AiAnalystInstrumentDef {
   label: string;
   /** Notazione compatta per i chip mono. */
   ticker: string;
+  /**
+   * Unità in cui si mostra un movimento di prezzo, e con quanti decimali.
+   * Servono alle schede per strumento della Sintesi: «90 $» e «188 pt» si
+   * leggono, «0,0194» no. Stanno qui e non nel componente perché sono
+   * anagrafica dello strumento, non una scelta di resa.
+   */
+  unita: string;
+  decimaliPrezzo: number;
   /** Etichetta dell'indice di volatilità implicita usato per questo strumento. */
   indiceIv: string;
   /** ID FRED dell'indice IV (serie Trends, sezione Volatilità). */
@@ -38,6 +46,19 @@ export interface AiAnalystInstrumentDef {
   indiceIvProxy: boolean;
   /** Strumento COT, `null` dove la CFTC non pubblica (indici azionari). */
   cot: CodiceStrumentoCot | null;
+  /**
+   * Riga del contesto di volatilità (`COPPIE_VOL`, chiavata sull'indice IV) da
+   * cui prendere i FATTI DI PREZZO di questo strumento: escursione vera,
+   * movimento osservato, ultima chiusura.
+   *
+   * Non coincide con `rigaContestoIv` per il DAX, e la differenza è un bug che
+   * è stato vivo fino al 27/08/2026: il DAX leggeva i fatti di prezzo dalla
+   * riga del VIX, che porta l'S&P 500. Il «movimento giornaliero recente del
+   * DAX» era quindi quello dell'S&P — 0,48% invece di 0,40% il 26/08/2026.
+   */
+  rigaContestoPrezzo: SeasonalityInstrument;
+  /** Riga del contesto da cui prendere l'indice di volatilità implicita. */
+  rigaContestoIv: SeasonalityInstrument;
   /** Strumento della Stagionalità per la dispersione dei bucket di prezzo. */
   seasonality: SeasonalityInstrument;
   /** Strumento della Stagionalità per il livello medio mensile dell'indice IV. */
@@ -54,9 +75,13 @@ export const AI_ANALYST_DEFS: Record<
     code: "ORO",
     label: "Oro",
     ticker: "XAU/USD",
+    unita: "$",
+    decimaliPrezzo: 2,
     indiceIv: "GVZ",
     indiceIvFredId: "GVZCLS",
     indiceIvProxy: false,
+    rigaContestoPrezzo: "GVZ",
+    rigaContestoIv: "GVZ",
     cot: "GOLD",
     seasonality: "XAUUSD",
     seasonalityIv: "GVZ",
@@ -66,9 +91,13 @@ export const AI_ANALYST_DEFS: Record<
     code: "WTI",
     label: "Petrolio WTI",
     ticker: "WTI",
+    unita: "$",
+    decimaliPrezzo: 2,
     indiceIv: "OVX",
     indiceIvFredId: "OVXCLS",
     indiceIvProxy: false,
+    rigaContestoPrezzo: "OVX",
+    rigaContestoIv: "OVX",
     cot: "WTI",
     seasonality: "WTI",
     seasonalityIv: "OVX",
@@ -78,9 +107,13 @@ export const AI_ANALYST_DEFS: Record<
     code: "DAX",
     label: "DAX",
     ticker: "GER40",
+    unita: "pt",
+    decimaliPrezzo: 0,
     indiceIv: "VIX",
     indiceIvFredId: "VIXCLS",
     indiceIvProxy: true,
+    rigaContestoPrezzo: "VDAX",
+    rigaContestoIv: "VIX",
     cot: null,
     seasonality: "GER40",
     seasonalityIv: "VIX",
@@ -90,9 +123,13 @@ export const AI_ANALYST_DEFS: Record<
     code: "SP500",
     label: "S&P 500",
     ticker: "SPX",
+    unita: "pt",
+    decimaliPrezzo: 0,
     indiceIv: "VIX",
     indiceIvFredId: "VIXCLS",
     indiceIvProxy: false,
+    rigaContestoPrezzo: "VIX",
+    rigaContestoIv: "VIX",
     cot: null,
     seasonality: "SPX",
     seasonalityIv: "VIX",

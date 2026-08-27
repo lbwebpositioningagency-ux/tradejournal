@@ -11,10 +11,17 @@ import { BandaFreschezza } from "@/components/macro-desk/banda-freschezza";
 import { getFreschezzaReport } from "@/lib/queries/macro-desk-freschezza";
 import { AiAnalystView } from "@/components/macro-desk/ai-analyst-view";
 import { buildDossier } from "@/lib/ai-analyst/dossier";
-import { AI_ANALYST_INSTRUMENTS } from "@/lib/ai-analyst/instruments";
-import { ordinaRighe, rigaSintesi } from "@/lib/ai-analyst/sintesi-tabella";
-import { AiAnalystSintesi } from "@/components/macro-desk/ai-analyst-sintesi";
-import { addDays } from "@/lib/calendar";
+import {
+  AI_ANALYST_DEFS,
+  AI_ANALYST_INSTRUMENTS,
+  type AiAnalystInstrument,
+} from "@/lib/ai-analyst/instruments";
+import {
+  schedaStrumento,
+  type EventoScheda,
+} from "@/lib/ai-analyst/scheda-strumento";
+import { SchedeStrumento } from "@/components/macro-desk/schede-strumento";
+import { fraQuanto, prossimiEventi, type StrumentoColpito } from "@/lib/calendario-macro";
 import { formatDateTime } from "@/lib/dates";
 import { prisma } from "@/lib/db";
 import { parseAiAnalystInstrument } from "@/lib/ai-analyst/instruments";
@@ -43,6 +50,14 @@ const fontMono = JetBrains_Mono({
   variable: "--md-font-mono",
 });
 
+/** Il tag del calendario macro corrispondente a ogni strumento del catalogo. */
+const TAG_EVENTO: Record<AiAnalystInstrument, StrumentoColpito> = {
+  ORO: "oro",
+  WTI: "wti",
+  DAX: "dax",
+  SP500: "spx",
+};
+
 export default async function AiAnalystPage({
   searchParams,
 }: {
@@ -61,32 +76,48 @@ export default async function AiAnalystPage({
   const letture = await caricaLetture(strumento, giorno, fonti);
   const dossier = buildDossier(strumento, giorno, letture);
 
-  /* ── SINTESI IN TESTA (F2) ────────────────────────────────────────────
-     La pagina rispondeva a «cosa dice il desk su UNO strumento»; la domanda
-     vera è «come mi posiziono oggi, e cosa mi fa cambiare idea». Per
-     rispondere servono tutti gli strumenti insieme, e il confronto con ieri.
-     Il costo è basso: `caricaFontiCondivise` è dietro la cache di richiesta
-     di React, quindi le query al database restano quelle di prima e qui si
-     rifà solo la composizione, che è aritmetica in memoria. */
-  const ieri = addDays(giorno, -1);
-  const righe = ordinaRighe(
-    await Promise.all(
-      AI_ANALYST_INSTRUMENTS.map(async (code) => {
-        const [oggiLetture, ieriLetture] = await Promise.all([
-          caricaLetture(code, giorno, fonti),
-          caricaLetture(code, ieri, fonti),
-        ]);
-        return rigaSintesi(
-          buildDossier(code, giorno, oggiLetture),
-          buildDossier(code, ieri, ieriLetture),
-        );
-      }),
-    ),
-  );
+  /* ── LE SCHEDE PER STRUMENTO ──────────────────────────────────────────
+     La pagina apriva con UNA tabella per tutti e quattro gli strumenti, le cui
+     colonne parlavano dello stato interno dell'app — «2/2 misure concordi»,
+     «nessun conflitto», «termometro non disponibile» — e sotto ripeteva le
+     stesse cose in riquadri di testo. Adesso ci sono quattro schede, una per
+     strumento, e ogni riga è un fatto di mercato con un numero. La motivazione
+     riga per riga sta in `lib/ai-analyst/scheda-strumento.ts`.
+
+     Il costo è basso: `caricaFontiCondivise` è dietro la cache di richiesta di
+     React e ha già letto tutto il contesto di volatilità, quindi qui non si
+     apre nessuna query nuova — si compone, e la composizione è aritmetica in
+     memoria. */
+  const adesso = new Date();
+  const eventi = prossimiEventi(giorno, 7, adesso);
 
   const { timezone } = await prisma.user.findUniqueOrThrow({
     where: { id: session.user.id },
     select: { timezone: true },
+  });
+
+  const schede = AI_ANALYST_INSTRUMENTS.map((code) => {
+    const def = AI_ANALYST_DEFS[code];
+    const prossimo = eventi.find((e) => e.strumenti.includes(TAG_EVENTO[code]));
+    const evento: EventoScheda | null = prossimo
+      ? {
+          nome: prossimo.nome,
+          quando: formatDateTime(prossimo.istante, timezone),
+          fraQuanto: fraQuanto(prossimo.istante, adesso),
+        }
+      : null;
+    return schedaStrumento({
+      strumento: code,
+      prezzo: fonti.contesto.get(def.rigaContestoPrezzo),
+      iv: fonti.contesto.get(def.rigaContestoIv),
+      cot: fonti.cot.carte.filter((c) => c.strumento === def.cot),
+      evento,
+      /* La curva del VIX sta nella scheda dell'S&P 500 e in nessun'altra: sul
+         DAX sarebbe la struttura a termine di un indice già sostitutivo. */
+      strutturaVix: code === "SP500" ? fonti.strutturaTermine : null,
+      strutturaWti: code === "WTI" ? fonti.strutturaWti : null,
+      oggi: giorno,
+    });
   });
 
   /* VERSIONE DETERMINISTICA — decisione della release v1.0.
@@ -127,13 +158,14 @@ export default async function AiAnalystPage({
           </Link>
           <h1 className="page-title flex flex-wrap items-center gap-2.5">
             Sintesi
-            <Badge variant="outline">carattere della giornata, non direzione</Badge>
+            <Badge variant="outline">ampiezza della giornata, non direzione</Badge>
           </h1>
           <p className="page-subtitle">
-            Una lettura d&apos;insieme di ciò che le sezioni del Macro Desk dicono
-            oggi: quanto ampiamente lo strumento tende a muoversi in condizioni
-            come queste, su che campione lo sappiamo e che cosa invece non
-            sappiamo. Non dice mai se il prezzo salirà o scenderà.
+            Una scheda per strumento, con dentro quello che serve alle 7 del
+            mattino: quanto sarà larga la giornata, dove sta lo strumento
+            rispetto alla propria norma, e cosa c&apos;è in agenda. Ogni riga è
+            una misura con la sua fonte e il suo campione. Non dice mai se il
+            prezzo salirà o scenderà.
           </p>
         </div>
         <MacroDeskSectionNav active="ai-analyst" />
@@ -154,13 +186,13 @@ export default async function AiAnalystPage({
         style={{ borderColor: "var(--md-border)" }}
       >
         <div className="flex flex-col gap-4 p-4 sm:p-5">
-          <AiAnalystSintesi
-            righe={righe}
+          <SchedeStrumento
+            schede={schede}
             giorno={giorno}
-            generatoAlle={formatDateTime(new Date(), timezone)}
+            generatoAlle={formatDateTime(adesso, timezone)}
           />
         </div>
-        {/* Il discorsivo resta, ma SOTTO e subordinato: la tabella è il primo
+        {/* Il discorsivo resta, ma SOTTO e subordinato: le schede sono il primo
             oggetto della pagina, e questo ne è il dettaglio per lo strumento
             scelto. */}
         <AiAnalystView sintesi={sintesi} strumento={strumento} />

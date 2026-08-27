@@ -29,6 +29,7 @@ const ETICHETTA: Record<StrumentoColpito, string> = {
   oro: "oro",
   wti: "WTI",
   dax: "DAX",
+  spx: "S&P 500",
 };
 
 export function CalendarioEventi({
