@@ -86,8 +86,31 @@ export interface MacroNews {
   when?: string;
   title?: string;
   impl?: string;
+  /**
+   * Approfondimento, facoltativo: cosa è successo, perché conta per oro, WTI
+   * o indici, cosa guardare di conseguenza. In pagina sta dentro un blocco
+   * che si apre al click, chiuso di default — `impl` resta la riga sempre
+   * visibile.
+   *
+   * Facoltativo per davvero: una notizia senza `dettaglio` è valida e mostra
+   * solo titolo e riga di sintesi, senza nemmeno il comando di apertura.
+   * Troncato oltre `MAX_DETTAGLIO_NEWS`, mai causa di rifiuto: un
+   * approfondimento lungo è un fastidio, un report perso è un giorno perso.
+   */
+  dettaglio?: string;
   tags: string[];
 }
+
+/**
+ * Tetto al testo esteso di una notizia, in caratteri.
+ *
+ * Non c'è un limite al `payload` sul confine dell'endpoint — è `z.unknown()`
+ * con la sola condizione di non essere nullo — quindi il tetto va messo dove
+ * il testo viene letto, altrimenti non esiste. 4.000 caratteri sono circa
+ * seicento parole: abbondanti per spiegare l'impatto su tre strumenti, e
+ * lontani da qualunque limite di corpo della richiesta.
+ */
+export const MAX_DETTAGLIO_NEWS = 4000;
 export interface MacroHistoryRow {
   date?: string;
   xau?: string;
@@ -124,6 +147,14 @@ function num(v: unknown): number | undefined {
 function arr(v: unknown): unknown[] {
   return Array.isArray(v) ? v : [];
 }
+/** Tetto al testo esteso: si tronca con l'ellissi, non si rifiuta il report. */
+function troncaDettaglio(v: string | undefined): string | undefined {
+  if (v === undefined) return undefined;
+  return v.length > MAX_DETTAGLIO_NEWS
+    ? `${v.slice(0, MAX_DETTAGLIO_NEWS - 1)}…`
+    : v;
+}
+
 function obj(v: unknown): Record<string, unknown> | undefined {
   return v !== null && typeof v === "object" && !Array.isArray(v)
     ? (v as Record<string, unknown>)
@@ -263,6 +294,10 @@ export function parseMacroPayload(raw: unknown): MacroPayload {
           when: str(no.when),
           title: str(no.title),
           impl: str(no.impl),
+          /* `dettaglio` è il nome nostro; `detail` è accettato perché un
+             generatore esterno che evolve tende a mandare l'inglese, e
+             rifiutare un campo per il nome sarebbe perdere il contenuto. */
+          dettaglio: troncaDettaglio(str(no.dettaglio) ?? str(no.detail)),
           tags: arr(no.tags).flatMap((t) => (typeof t === "string" ? [t] : [])),
         },
       ];

@@ -207,6 +207,47 @@ describe("tab con il sample completo", () => {
     expect(html).not.toContain(">Global<");
   });
 
+  /**
+   * L'APPROFONDIMENTO si apre al click e parte CHIUSO. `details` senza
+   * `open` è chiuso per definizione del linguaggio: il test verifica che
+   * nessuno lo apra per sbaglio, e che una notizia senza dettaglio non
+   * mostri un comando che non apre niente.
+   */
+  it("News: il dettaglio è un blocco espandibile, chiuso di default", () => {
+    const conDettaglio = parseMacroPayload({
+      news: [
+        {
+          title: "L'oro rompe i 4.500",
+          impl: "Sintesi che resta sempre visibile.",
+          dettaglio: "Cosa è successo, e perché conta per l'oro.",
+          tags: ["gold"],
+        },
+      ],
+    });
+    const html = renderToStaticMarkup(<NewsTab payload={conDettaglio} />);
+
+    expect(html).toContain("<details");
+    expect(html).not.toContain("<details open");
+    expect(html).toContain("Approfondimento");
+    // Il testo esteso è nel DOM anche da chiuso: la ricerca del browser lo trova.
+    expect(html).toContain("perché conta per l&#x27;oro");
+    // Titolo e sintesi restano quelli di prima, fuori dal blocco.
+    const iDettagli = html.indexOf("<details");
+    expect(html.indexOf("L&#x27;oro rompe i 4.500")).toBeLessThan(iDettagli);
+    expect(html.indexOf("Sintesi che resta sempre visibile.")).toBeLessThan(iDettagli);
+  });
+
+  it("News: senza dettaglio non compare nessun comando di apertura", () => {
+    const senza = parseMacroPayload({
+      news: [{ title: "notizia semplice", impl: "solo la riga", tags: ["oil"] }],
+    });
+    const html = renderToStaticMarkup(<NewsTab payload={senza} />);
+    expect(html).toContain("notizia semplice");
+    expect(html).toContain("solo la riga");
+    expect(html).not.toContain("<details");
+    expect(html).not.toContain("Approfondimento");
+  });
+
   it("Storico: 5 righe con bias colorati per asset e note", () => {
     const html = renderToStaticMarkup(<HistoryTab payload={full} />);
     expect(html).toContain("2026-07-22");

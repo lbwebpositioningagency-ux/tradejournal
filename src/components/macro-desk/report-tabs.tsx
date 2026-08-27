@@ -1,4 +1,4 @@
-import { AlertTriangle, BellRing, Newspaper } from "lucide-react";
+import { AlertTriangle, BellRing, ChevronRight, Newspaper } from "lucide-react";
 import {
   assetAccentVar,
   biasTone,
@@ -595,6 +595,28 @@ function NewsCard({ item }: { item: MacroNews }) {
         <p className="border-l-2 pl-2.5 text-xs leading-relaxed text-[var(--md-text-2)]" style={{ borderColor: "var(--md-info)" }}>
           {item.impl}
         </p>
+      ) : null}
+
+      {/* L'APPROFONDIMENTO, chiuso di default e senza JavaScript: `details` fa
+          già tutto — apertura al click, tastiera, e il testo resta nel DOM per
+          la ricerca del browser. Titolo e riga di sintesi restano identici a
+          prima: qui sotto si aggiunge, non si sostituisce.
+
+          Una notizia senza `dettaglio` non mostra nemmeno il comando: un
+          «apri» che apre il vuoto è peggio di niente. */}
+      {item.dettaglio ? (
+        <details className="group/news mt-0.5">
+          <summary className="md-mono flex cursor-pointer list-none items-center gap-1.5 text-2xs text-[var(--md-muted)] transition-colors hover:text-[var(--md-text)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--md-info)]">
+            <ChevronRight
+              className="size-3 transition-transform group-open/news:rotate-90"
+              aria-hidden
+            />
+            Approfondimento
+          </summary>
+          <p className="mt-2 whitespace-pre-line border-l-2 pl-2.5 text-xs leading-relaxed text-[var(--md-text-2)]" style={{ borderColor: "var(--md-border)" }}>
+            {item.dettaglio}
+          </p>
+        </details>
       ) : null}
     </div>
   );

@@ -6,6 +6,7 @@ import {
   dirTone,
   groupNewsByCategory,
   isCriticalIssue,
+  MAX_DETTAGLIO_NEWS,
   parseMacroPayload,
   sanitizeInlineHtml,
   type MacroNews,
@@ -50,6 +51,45 @@ describe("parseMacroPayload — sample autoritativo", () => {
       "Q1 2026",
       "espansione moderata",
     ]);
+  });
+});
+
+/**
+ * L'APPROFONDIMENTO DELLE NOTIZIE è facoltativo per davvero: il campo è
+ * arrivato dopo, e i report che non lo mandano devono restare validi e
+ * mostrare titolo e riga di sintesi come prima.
+ */
+describe("parseMacroPayload — dettaglio della notizia", () => {
+  const conNotizia = (n: Record<string, unknown>) =>
+    parseMacroPayload({ news: [{ title: "t", tags: ["gold"], ...n }] }).news[0];
+
+  it("legge il campo quando c'è", () => {
+    expect(conNotizia({ dettaglio: "Cosa è successo e perché conta." }).dettaglio).toBe(
+      "Cosa è successo e perché conta.",
+    );
+  });
+
+  it("accetta anche il nome inglese: il generatore esterno evolve", () => {
+    expect(conNotizia({ detail: "In english." }).dettaglio).toBe("In english.");
+  });
+
+  it("assente o vuoto → undefined, e la notizia resta valida", () => {
+    expect(conNotizia({}).dettaglio).toBeUndefined();
+    expect(conNotizia({ dettaglio: "   " }).dettaglio).toBeUndefined();
+    expect(conNotizia({ dettaglio: 42 }).dettaglio).toBeUndefined();
+    expect(conNotizia({}).title).toBe("t");
+  });
+
+  it("oltre il tetto si TRONCA, non si rifiuta il report", () => {
+    const lungo = "a".repeat(MAX_DETTAGLIO_NEWS + 500);
+    const letto = conNotizia({ dettaglio: lungo }).dettaglio!;
+    expect(letto).toHaveLength(MAX_DETTAGLIO_NEWS);
+    expect(letto.endsWith("…")).toBe(true);
+  });
+
+  it("esattamente al tetto passa intatto", () => {
+    const esatto = "b".repeat(MAX_DETTAGLIO_NEWS);
+    expect(conNotizia({ dettaglio: esatto }).dettaglio).toBe(esatto);
   });
 });
 
