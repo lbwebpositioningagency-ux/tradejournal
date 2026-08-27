@@ -48,24 +48,41 @@ tutte cose **registrate, non risolte**.
 
 ## Dati di prova
 
-- **Il seed genera serie troppo regolari.** `prisma/seed.ts` produce conti con
-  il 23-34% di giornate negative, contro il 47% di SIM1: con Sortino e Sharpe
-  annualizzati i conti demo mostrano valori assurdi (Sortino ~25 e ~41 su una
-  scala che si ferma a 2). Non è un difetto dell'app — è il generatore — ma
-  rende i conti demo inutilizzabili per tarare a occhio le soglie. Da
-  rigenerare **da solo**, in un intervento separato da quello sulle metriche:
-  cambiare dataset e formule insieme rende impossibile attribuire i delta.
-  → `prisma/seed.ts`
-- **Il seed chiude i trade a mercato chiuso.** Nella stessa rigenerazione: il
-  generatore deve chiudere le posizioni SOLO in sedute valide. Oggi apre nei
-  giorni feriali (`weekdaysBetween`) ma lascia la durata libera fino allo
-  swing multi-giorno, quindi un trade aperto venerdì chiude di sabato; e
-  `closedAt` è UTC mentre il bucketing è in `Europe/Rome`, così un venerdì
-  sera scivola al sabato. Da lì nascono i **41 trade e 37 sedute fantasma** di
-  SIM1 (23 sabati + 14 domeniche), su CL/ES/GC/NQ — futures, con sabato e
-  domenica chiusi. Sono anche il motivo per cui la serie di SIM1 vale ~285
-  osservazioni/anno invece di 252.
-  → `src/lib/demo/sim1-dataset.ts` (`weekdaysBetween`, `holdMinutes`, `closedAt`)
+> **Entrambe le voci CHIUSE il 27/08/2026** con la rigenerazione del seed.
+> Restano qui come registro di che cosa era storto e di quanto è cambiato: i
+> numeri prima/dopo sono la sola difesa contro il rifarlo.
+
+- ~~**Il seed genera serie troppo regolari.**~~ `prisma/seed.ts` produceva
+  +0,565 R per trade (55% di vincenti, R vincenti 0,4-2,8 contro perdenti
+  −0,25/−1,15): con 3-4 trade al giorno una giornata negativa era quasi
+  impossibile. **Prima:** giornate negative 20,0% sul conto futures e 24,6%
+  sul forex, Sortino 40,82 e 25,39, Sharpe 10,59 e 6,18. **Dopo:** 36,9% e
+  35,4%, Sortino 6,11 e 2,48, Sharpe 3,45 e 1,40 — SIM1, che era il termine
+  di paragone, sta a 39,7% e Sortino 6,07. Il conto resta in utile, con un
+  vantaggio piccolo: è quello, e non il segno del risultato finale, a
+  produrre una quota realistica di giornate in rosso.
+  → `prisma/seed.ts` (`isWin`, `rMultiple`)
+- ~~**Il seed chiude i trade a mercato chiuso.**~~ **Prima:** 41 trade su 37
+  giornate di sabato o domenica in SIM1, su CL/ES/GC/NQ. **Dopo:** zero, su
+  tutti e tre i conti — e zero anche le aperture nel fine settimana e le
+  chiusure dentro la pausa giornaliera del CME, verificato in SQL sul
+  database seminato. La regola vive in un modulo solo,
+  `src/lib/demo/sessioni.ts`: una seduta è valida quando, letta **nel fuso in
+  cui l'app bucketa**, cade da lunedì a venerdì fra le 00:00 e le 22:00.
+  Restano fuori di proposito le festività di borsa e la riapertura della
+  domenica sera — un generatore deve non produrre MAI una chiusura non
+  valida, non deve produrre TUTTE quelle valide.
+  → `src/lib/demo/sessioni.ts`, `src/lib/demo/sim1-dataset.ts`, `prisma/seed.ts`
+
+**Conseguenza da conoscere, se un golden si sposta.** La durata di un trade
+che attraversa una finestra chiusa si conta ora in minuti di SEDUTA, non di
+orologio: uno swing aperto venerdì mattina chiude il martedì, non la domenica.
+Il P&L del singolo trade non cambia — non dipende dall'orario — ma cambiano la
+giornata a cui è attribuito e quindi la lunghezza della serie giornaliera (SIM1
+344 sedute invece di 374), il drawdown sulla curva e i bucket per mese e per
+durata. Totali, win rate, profit factor ed expectancy sono rimasti identici, ed
+è il modo più rapido per verificare che una rigenerazione futura non abbia
+toccato altro.
 
 ## Limiti dichiarati dei controlli di qualità dati
 
