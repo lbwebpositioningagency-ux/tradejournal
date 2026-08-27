@@ -1950,3 +1950,107 @@ vero: domenica accettata pulita, daily che riscrive sette campi →
 `fired`, MFE 1,2 e i due punti del percorso sono passati · banda visibile nella
 Scorecard a 1440 e 375 px, tema chiaro e scuro, e assente quando non c'è nulla
 da segnalare.
+---
+
+## Radar di settore — il registro del Macro Desk (27/08/2026)
+
+Il registro **settimanale** dei cambiamenti dell'ecosistema in cui si opera —
+borse, prop firm, broker, regolatori, piattaforme, dati — alimentato dal task
+programmato «RADAR SETTORE». È l'unica sezione del Macro Desk che **non parla
+di prezzi**, e da lì discende quasi tutto il resto del progetto.
+
+### Non una pillola in più: un terzo gruppo
+
+Era stata chiesta come «nona sezione». Non lo è più: mentre questo ramo era
+in lavorazione, su `main` è uscita **Posizionamento**, e il desk è passato a
+cinque quotidiane più due d'archivio. Il Radar è l'ottava — ma il numero non
+conta niente, ed è proprio il punto.
+
+`MACRO_DESK_SECTIONS` aveva due gruppi (`quotidiano` · `archivio`). Il Radar ne
+apre un terzo, `registro`, e sta **fuori dalla griglia** della barra, sotto un
+filo e allineato a destra. Metterlo in fila con le sezioni di mercato avrebbe
+detto il falso su cosa contiene, quali che siano le altre e quante siano.
+Stessa scelta nell'indice `/macro-desk`: un blocco «Registro» in fondo,
+separato.
+
+### Vuoto ≠ non verificabile, e la struttura lo impone
+
+Il requisito centrale: «area guardata e senza novità» e «area che non si è
+potuto verificare» non devono MAI essere confondibili. La prima è un
+risultato, la seconda è un avviso che la fonte non è stata letta.
+
+Sono **due tabelle distinte** (`RadarEmptyArea`, `RadarUnverifiableArea`) e non
+una tabella con una colonna «tipo»: con un discriminatore, renderle uguali
+sarebbe una dimenticanza; con due tabelle va scritto apposta il codice che le
+confonde. `reason` è obbligatorio sulla seconda, e il confine Zod rifiuta con
+400 sia un «non verificabile» senza motivo sia la stessa area dichiarata in
+entrambe le liste — sono gli unici due casi indecidibili del payload.
+
+In pagina: le vuote sono chip piatti e grigi con una spunta; le non
+verificabili sono card con bordo ambra a sinistra, icona di allarme, il motivo
+per esteso e una frase che dice che **non** è un «nessuna novità». E quando la
+stessa area si ripete, un conteggio «non verificabile da N settimane» più un
+contorno pieno la staccano dalle altre — un avviso che ricompare identico
+diventa rumore, e allora si smette di guardarlo.
+
+Anche le **Letture** (area G) hanno tabella propria: un paper non entra in
+vigore e non richiede un'azione. Se stesse nella tabella dei cambiamenti, la
+pagina direbbe che è successo qualcosa.
+
+### Round-26: fatti, non verdetti
+
+Nessuna probabilità, nessun punteggio, nessuna «rilevanza» calcolata. Le
+uniche cifre prodotte dall'app sono conteggi verificabili (voci, giorni di
+finestra, settimane consecutive) e la formattazione delle date. C'è un test
+che fallisce se in pagina compare anche solo un `%`.
+
+### Il confine, e la lezione del biasRecord
+
+Schema Zod **vero** su ogni campo, non `z.unknown()`. Ma un 400 non è
+recuperabile — il ponte non ritenta e il registro della settimana è perso —
+quindi si normalizza tutto il normalizzabile:
+
+| caso | esito |
+|---|---|
+| `weekOf` infrasettimanale | → domenica on-or-before (27/08 → 23/08) |
+| `weekOf` domenica FUTURA | **400** — occuperebbe la settimana del run successivo |
+| area «vuota» che però ha voci | tolta dalle vuote: le voci sono la prova |
+| `sourceUrl` malformato | diventa assente, la voce resta |
+| campo nuovo del task | conservato in `extra` |
+| `gia'` / `piu'` / `perche'` | accenti veri (elenco chiuso; `dell'`, `l'`, `un po'` intatti) |
+
+### Migrazione: additiva, e mai passata da un'anteprima
+
+Su Vercel `DATABASE_URL` ha lo stesso valore in Production e Preview e la build
+esegue `prisma migrate deploy`: un deploy di anteprima applicherebbe la
+migrazione al Neon di produzione. Il branch **non è mai stato pushato** prima
+del cancello verde — nessuna anteprima, nessuna migrazione bozza applicata in
+produzione e poi da rattoppare. Iterazione solo su Postgres locale, **un solo
+file di migrazione** definitivo.
+
+L'SQL è stato ispezionato riga per riga: 7 `CREATE TABLE`, 17 `CREATE INDEX`,
+6 `ALTER TABLE` che sono le foreign key **delle tabelle nuove**. Nessuna
+tabella esistente toccata. (Generato con `migrate diff` su una shadow database
+usa e getta: il DB di sviluppo è condiviso con un'altra sessione e `migrate
+dev` avrebbe preteso un reset.)
+
+### Il ponte
+
+`reports/radar.json` + `forward-radar.yml`, con `paths:` ristretto a quel solo
+file. `reports/latest.json`, `forward.yml`, `sentinella.yml` e `scripts/`
+hanno diff **vuoto**: un guasto del Radar non può far fallire l'inoltro del
+report giornaliero. Consegna manuale, come per i report.
+
+**Verificato:** lint ✅ · typecheck ✅ · **2217/2218 test** ✅ · build ✅ ·
+ispezione sulla pagina servita davvero, non solo sul markup dei test: ingest
+del payload vero (200, upsert idempotente al secondo invio, 401 senza token,
+400 sul payload non corretto), stili calcolati dal browser sui due blocchi
+(vuote `border-left: 0` e testo `rgb(139,152,173)`; non verificabili
+`border-left: 3px solid rgb(245,166,35)`, e contorno pieno solo su quelle
+ripetute), storico a due settimane, area G instradata in «Letture», stato
+vuoto reale a tabelle svuotate.
+
+**Difetto trovato e corretto in ispezione:** chiedendo `?settimana=` di una
+settimana inesistente la pagina mostrava «Nessun registro ancora» pur avendo
+registri a database. Ora ricade sull'ultima disponibile: lo stato vuoto deve
+significare una cosa sola, altrimenti non è più un'informazione.
