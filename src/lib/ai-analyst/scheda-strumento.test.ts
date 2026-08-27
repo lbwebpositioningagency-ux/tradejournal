@@ -97,16 +97,11 @@ function rigaOro(over: Partial<RigaContestoVol> = {}): RigaContestoVol {
 
 const COT_ORO: CartaCot = {
   strumento: "GOLD",
-  nomeStrumento: "ORO",
   metrica: "mm_net",
-  etichetta: "Posizionamento speculativo",
   valore: 141648,
-  posizioneBarra: 72.2,
   banda: "ALTO",
   rigaPrincipale: "Più alto che nel 72% delle settimane dal 2017",
-  rigaRarita: null,
   delta4Settimane: 10882,
-  ultimaVoltaSimile: "2026-04-14",
   aggiornatoAl: "2026-08-18",
 };
 
@@ -334,9 +329,29 @@ describe("le righe di contesto", () => {
   it("il COT è descrittivo e settimanale, e lo dichiara", () => {
     const r = riga("cot");
     expect(r.oggi).toContain("ALTO");
-    expect(r.oggi).toContain("141.648 contratti");
     expect(r.oggi).toContain("+10.882 in 4 settimane");
-    expect(r.nota).toContain("non cosa farà il prezzo");
+    expect(r.nota).toContain("nessuna conseguenza attesa sul prezzo");
+  });
+
+  it("il saldo COT porta SEMPRE il segno e la parola «netti»", () => {
+    /* `mm_net` è long − short. Senza il segno un saldo corto si legge come
+       lungo; senza «netti» il numero si legge come il conteggio delle
+       posizioni lunghe. È la confusione per cui la sezione Posizionamento
+       diceva «poche scommesse lunghe in essere» accanto a +87.479 contratti
+       netti lunghi, ed è il motivo per cui quella sezione non c'è più. */
+    expect(riga("cot").oggi).toContain("+141.648 contratti netti");
+
+    const corto = schedaStrumento(
+      ingressiOro({ cot: [{ ...COT_ORO, valore: -38154, banda: "MOLTO BASSO" }] }),
+    ).righe.find((x) => x.id === "cot")!;
+    expect(corto.oggi).toContain("−38.154 contratti netti");
+  });
+
+  it("non afferma mai quanti lunghi o quanti corti: i lordi non sono nei dati", () => {
+    const testo = `${riga("cot").oggi} ${riga("cot").norma} ${riga("cot").nota}`;
+    for (const vietata of ["scommesse lunghe", "posizioni lunghe", "lato corto", "da liquidare"]) {
+      expect(testo.toLowerCase()).not.toContain(vietata);
+    }
   });
 
   it("l'agenda mette la DISTANZA prima della data: è quella che decide", () => {

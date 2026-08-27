@@ -632,11 +632,21 @@ function rigaCot(i: IngressiScheda): RigaScheda | null {
   return {
     id: "cot",
     misura: "Posizionamento dei fondi (COT, settimanale)",
-    oggi: `${carta.banda} · ${conta(carta.valore)} contratti${carta.delta4Settimane === null ? "" : ` · ${segnato(carta.delta4Settimane, 0)} in 4 settimane`}`,
+    /* IL SEGNO SEMPRE, E LA PAROLA «NETTI» SEMPRE. `mm_net` è
+       long − short: senza il segno un saldo corto si legge come lungo, e
+       senza «netti» il numero si legge come il numero delle posizioni lunghe.
+       È la stessa confusione per cui la sezione Posizionamento diceva «poche
+       scommesse lunghe in essere» accanto a +87.479 contratti netti lunghi
+       (27/08/2026). I lordi non stanno in `CotWeek`, quindi qui non si può
+       dire nulla su quanti lunghi e quanti corti ci siano. */
+    oggi: `${carta.banda} · ${segnato(carta.valore, 0)} contratti netti${carta.delta4Settimane === null ? "" : ` · ${segnato(carta.delta4Settimane, 0)} in 4 settimane`}`,
     norma: `${carta.rigaPrincipale} · fotografia del martedì, pubblicata il venerdì`,
     assente: false,
     cardine: false,
-    nota: "Descrittivo: dice com'è messo il posizionamento, non cosa farà il prezzo. Resta lo stesso per tutta la settimana.",
+    /* Il test pre-registrato sulla capacità predittiva del COT è fallito su
+       tutti e tre i criteri (`dati/PRE_REG_cot_posizionamento.md`): questa
+       riga dice DOVE STA il saldo rispetto alla propria storia, e si ferma. */
+    nota: "Dove sta il saldo rispetto alla propria storia, e nient'altro: nessuna conseguenza attesa sul prezzo. Resta lo stesso per tutta la settimana.",
   };
 }
 

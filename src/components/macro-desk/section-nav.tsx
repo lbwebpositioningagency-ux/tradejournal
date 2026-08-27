@@ -4,7 +4,6 @@ import {
   CalendarRange,
   ChartSpline,
   FileText,
-  Scale,
   Sparkles,
   Target,
   Waypoints,
@@ -29,7 +28,6 @@ import { Button } from "@/components/ui/button";
  * Unica fonte di verità: la griglia dell'indice (`/macro-desk`) e la barra di
  * salto dentro le pagine di sezione leggono da qui.
  */
-
 export interface MacroDeskSection {
   key: string;
   href: string;
@@ -40,7 +38,6 @@ export interface MacroDeskSection {
   /** `archivio` = si consulta di rado, fuori dalla barra quotidiana. */
   gruppo: "quotidiano" | "archivio";
 }
-
 export const MACRO_DESK_SECTIONS = [
   {
     key: "ai-analyst",
@@ -58,15 +55,6 @@ export const MACRO_DESK_SECTIONS = [
     icon: Activity,
     description:
       "Eventi in arrivo, livelli di volatilità implicita col loro rango, escursione vera della giornata e scorte di greggio.",
-    gruppo: "quotidiano",
-  },
-  {
-    key: "posizionamento",
-    href: "/macro-desk/posizionamento",
-    label: "Posizionamento",
-    icon: Scale,
-    description:
-      "COT: come sono messi commercial e speculatori, e da quanto tempo lo sono.",
     gruppo: "quotidiano",
   },
   {
@@ -115,7 +103,6 @@ export const MACRO_DESK_SECTIONS = [
     gruppo: "archivio",
   },
 ] as const satisfies readonly MacroDeskSection[];
-
 /** Le sei di consultazione quotidiana, nell'ordine in cui si usano. */
 export const SEZIONI_QUOTIDIANE = MACRO_DESK_SECTIONS.filter(
   (s) => s.gruppo === "quotidiano",
@@ -124,9 +111,7 @@ export const SEZIONI_QUOTIDIANE = MACRO_DESK_SECTIONS.filter(
 export const SEZIONI_ARCHIVIO = MACRO_DESK_SECTIONS.filter(
   (s) => s.gruppo === "archivio",
 );
-
 export type MacroDeskSectionKey = (typeof MACRO_DESK_SECTIONS)[number]["key"];
-
 /**
  * Barra di salto fra sezioni, in alto a destra nelle PAGINE DI SEZIONE.
  *
@@ -163,7 +148,6 @@ export function MacroDeskSectionNav({
     corrente && corrente.gruppo === "archivio"
       ? [...SEZIONI_QUOTIDIANE, corrente]
       : SEZIONI_QUOTIDIANE;
-
   return (
     <nav
       aria-label="Sezioni del Macro Desk"

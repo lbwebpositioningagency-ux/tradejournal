@@ -600,36 +600,66 @@ valore viene da FRED via Trends (`fonti.trends`, `sezione: "Trends —
 Volatilita"`), non dal report. L'osservazione era giusta — due letture della
 stessa misura, due date — l'attribuzione no.
 
-## Pannello COT: le implicazioni meccaniche non discendono dalla definizione (27/08/2026)
+## Sezione Posizionamento (COT): RIMOSSA il 27/08/2026
 
-**Registrato, non risolto — la sezione non e stata toccata.** Analisi completa
-con i numeri e le query in `docs/macro-desk/VERDETTO-POSIZIONAMENTO.md`.
+**Chiusa, non da riaprire.** I dati restano: la tabella `CotWeek`, il job
+settimanale `cot-sync` e il suo cron non sono stati toccati, e una riga per
+strumento vive nelle schede della Sintesi. E' sparita la PAGINA che
+interpretava male quei numeri. Analisi completa, con le query rifacibili, in
+`docs/macro-desk/VERDETTO-POSIZIONAMENTO.md`.
 
-Il riquadro «Implicazione meccanica» dichiara che le sue frasi discendono
-dalla definizione della metrica. Quattro delle sei famiglie non lo fanno, e
-due sono false su casi ordinari:
+I numeri del pannello erano corretti: percentili leq, bande, delta a 4
+settimane e rarita ricalcolati dal database coincidevano campo per campo. Le
+INTERPRETAZIONI no, e il riquadro «Implicazione meccanica» dichiarava che
+discendevano dalla definizione della metrica.
 
-- **«Partecipazione ai minimi → mercato piu sottile».** L'open interest conta
-  le posizioni aperte, non gli ordini nel book: il legame con l'impatto di
-  prezzo e un'ipotesi di microstruttura. E il contratto e fisso a 100 once
-  mentre il prezzo no — l'oro e al 5° percentile in contratti e al **massimo
-  dell'intera serie in nozionale** (176 mld $ contro 49 nel gennaio 2017,
-  quando i contratti erano di piu). Nei dati non si vede: per quintile di OI
-  l'escursione della settimana successiva non e monotona su nessuno dei due
-  strumenti.
-- **«Esposizione netta ai minimi → pende dal lato corto».** MOLTO BASSO e il
-  decimo percentile, non il segno. Il 10° percentile di `mm_net` e **+15.253**
-  sull'oro e **+78.341** sul WTI: su quest'ultimo un MOLTO BASSO e net long in
-  495 settimane su 503.
-- **Tutte le frasi di `mm_net` parlano di «scommesse lunghe in essere»
-  partendo da un SALDO NETTO.** `CotWeek` salva solo i netti: i lordi non ci
-  sono, e un netto basso puo venire da pochi lunghi o da molti corti.
-- **«Ai massimi c'e piu da liquidare che da aggiungere»** e H3 della
-  pre-registrazione, l'ipotesi contrarian, che fu testata e **falli** — poi
-  rientrata in pagina come definizione.
+**I tre numeri che hanno motivato la rimozione** — sono qui perche fra sei mesi
+non si riapra la discussione da capo:
 
-Il test sul markup (`cot-panel.test.tsx`) vieta il **vocabolario** della
-previsione, non il contenuto: le implicazioni dicono in prosa non falsificabile
-quello che le probabilita avrebbero detto in cifre.
-→ `src/lib/cot-contesto.ts` (`IMPLICAZIONI_MECCANICHE`),
-`src/components/macro-desk/cot-panel.tsx`
+1. **L'open interest in contratti misura il prezzo, non la partecipazione.**
+   Il future COMEX vale 100 once fisse; il prezzo no. Il 18/08/2026 l'oro era
+   al **5,2° percentile in contratti** (406.260) e al **massimo assoluto della
+   serie in nozionale**: 176 mld $, contro i 49 mld $ del 03/01/2017, quando i
+   contratti erano **424.673**, cioe DI PIU'. La frase a schermo diceva
+   «mercato strutturalmente piu sottile».
+2. **Il legame «mercato sottile → oscillazioni piu ampie» non e monotono su
+   nessuno dei due strumenti.** Escursione media della settimana successiva
+   alla pubblicazione, per quintile di open interest, su tutte le 503
+   settimane: oro **1,372%** nel quintile piu sottile contro **1,339%** nel piu
+   affollato (i piu tranquilli sono quelli di mezzo); WTI **3,561%** contro
+   **3,530%**, con il massimo — **4,255%** — nel quintile MEDIANO.
+3. **«MOLTO BASSO» non implica «netto corto», e il netto non dice quanti
+   lunghi ci sono.** Il 10° percentile di `mm_net` e **+15.253** sull'oro e
+   **+78.341** sul WTI: su quest'ultimo un MOLTO BASSO e net long in **495
+   settimane su 503**. Il 27/08/2026 la pagina diceva «poche scommesse lunghe
+   in essere» accanto a **+87.479 contratti netti lunghi** — e i lordi in
+   `CotWeek` non ci sono nemmeno, quindi quella frase non era verificabile
+   contro i nostri dati.
+
+Piu una quarta, di metodo: «ai massimi c'e piu da liquidare che da aggiungere»
+era **H3** della pre-registrazione, l'ipotesi contrarian che il documento dava
+per persa e che il test boccio — rientrata in pagina come definizione. Il test
+sul markup vietava il VOCABOLARIO della previsione, non il contenuto.
+
+**Cosa resta in piedi e va lasciato stare:**
+- `prisma` → `CotWeek`, `src/lib/cot-sync.ts`, `src/app/api/cot-sync` (il cron
+  settimanale): i dati continuano ad arrivare ogni sabato;
+- `src/lib/cot-metrics.ts` e il suo test di regressione contro
+  `dati/cot_panel_produzione.json`: e la traduzione 1:1 del generatore Python
+  pre-registrato, e la pre-registrazione dice che qualunque «miglioria» li e
+  un bug finche non cambia il generatore. Continua a calcolare anche cio che
+  nessuno rende (`posizioneBarra`, `rigaRarita`, `ultimaVoltaSimile`):
+  sfoltirlo per far tornare i conti a valle sarebbe esattamente la miglioria
+  vietata;
+- `src/lib/cot-panel.ts`, che e composizione e non formule: sfoltito ai sette
+  campi che la riga della Sintesi legge davvero.
+
+**La riga della Sintesi non eredita nessuna delle interpretazioni sbagliate**:
+mostra banda, saldo col segno e la parola «netti», variazione a 4 settimane,
+rango sulla propria storia e martedi di riferimento. Un test le vieta per nome
+le parole «scommesse lunghe», «posizioni lunghe», «lato corto» e «da
+liquidare».
+
+**Cosa e uscito del tutto dalla UI:** l'open interest. E' la misura la cui
+interpretazione era piu sbagliata, e il suo posto naturale — se un giorno
+tornasse — e in nozionale, non in contratti.
