@@ -1781,3 +1781,70 @@ cumulativa prima/dopo su SIM1 (che ha le buche più lunghe), cucitura di
 strategie, nessun vuoto) e coda della pagina dove stava lo scatter (finisce
 su «Performance per durata», nessuna card mozza). Screenshot in
 `docs/audit/j3/`.
+
+
+## ✅ «Cinque interventi sul Macro Desk» (27/08/2026)
+
+Ramo `macro/cinque-interventi`, cinque blocchi pubblicati uno alla volta.
+
+**Verifica preliminare.** Il termometro di volatilità «doveva essere già stato
+rimosso» ma in produzione c'era ancora. Cercato in tutti i rami, worktree e
+stash: **quel lavoro non esisteva**. I soli commit sul termometro andavano
+nella direzione opposta — rilevatore di degenerazione (`0b7f6fb`), cancello di
+validità (`5f3ddba`), propagazione all'AI Analyst (`93913e9`). L'unico ramo con
+commit non pubblicati (`worktree-terminale-passo2`) riguarda il percorso
+dell'impegno e la scorecard EM, non il termometro. Rifatto da zero.
+
+**1 — Termometro rimosso** (`8a97bc0`). Via la carta per strumento, la colonna
+«Segnale» della Sintesi coi riquadri «senza classificazione oggi», il fattore
+F3 del dossier, il cancello (`termometro-cancello.ts`), il rilevatore
+(`classificatore-degenere.ts`), la query del degrado e la tabella tarata in
+`src/data`. Nessun fatto toccato: livelli, ranghi, variazioni, implicita
+contro realizzata, escursione vera, struttura a termine e scorte vengono
+dall'archivio e non dipendevano dal termometro. I fattori del dossier passano
+da 12 a 11; l'identificativo F3 resta un buco deliberato.
+
+**2 — Sintesi: una scheda per strumento** (`0503aad`). Quattro tabelle (XAU,
+WTI, GER40, SPX) al posto di una, tre colonne — misura, oggi, rispetto alla
+norma — e le informazioni di servizio in una riga sola in fondo. Ogni riga è un
+fatto di mercato con un numero: ampiezza attesa implicita
+(`chiusura × IV/√252`), escursione vera tipica a 20 contro 60 sedute,
+escursione dell'ultima seduta col rango, movimento chiusura-chiusura, livello
+IV col rango sulla storia intera, implicita contro realizzata, curva a termine,
+COT, prossimo evento con la distanza. **Tre correzioni di sostanza emerse dal
+rendering con dati veri**: il DAX leggeva i fatti di prezzo dalla riga del VIX,
+cioè i prezzi dell'S&P (0,48% invece di 0,40% il 26/08); con un indice IV
+sostitutivo non si calcolano né l'ampiezza attesa né implicita-contro-realizzata
+(sul DAX sarebbero usciti «± 257 pt» contro un'escursione misurata di 188); a
+375px le schede erano celle di griglia senza `min-w-0` e la terza colonna
+veniva tagliata.
+
+**3 — Driver: le schede stanno nello schermo** (`815d151`). Grafico e blocco
+delle relazioni affiancati da xl in su invece che impilati; il pavimento
+d'altezza scende da 650 a 420 perché a metà larghezza il vincolo 2:1 non morde
+più. Schede da 1.538 → 778 px a 1440 e da 1.651 → 727 a 1920; pagina da 5.208 →
+3.024 e da 5.433 → 2.789. Il monitor più grande è tornato a essere un vantaggio.
+Nuovo `diradaTicks` per le sigle dei mesi, che a 343 px di area di disegno si
+sovrapponevano.
+
+**4 — Stagionalità: «Dove siamo adesso»** (`7f5e2ee`). Tre righe in testa alla
+sezione — mese, settimana e giorno correnti — con gli stessi campi della
+tabella mensile, così i tre livelli si confrontano fra loro. Sempre
+`SCOPE_ALL`, sempre tre righe anche senza statistica, e il motivo accanto
+quando manca.
+
+**5 — Guida alla Volatilità** (`ceb304e`). In pagina un `<details>` chiuso
+con l'essenziale; in `docs/macro-desk/GUIDA-VOLATILITA.md` la guida estesa con
+l'aritmetica di stop e size e gli esempi sui numeri veri del 27/08.
+
+**Analisi del Posizionamento (COT), nessuna modifica**:
+`docs/macro-desk/VERDETTO-POSIZIONAMENTO.md`. I numeri sono corretti; due delle
+sei implicazioni meccaniche a schermo sono false (l'open interest non è la
+profondità del book — l'oro è al 5° percentile in contratti e al **massimo
+storico** in nozionale, 176 mld $ — e «MOLTO BASSO» non implica «netto corto»:
+il 10° percentile di `mm_net` è positivo su entrambi gli strumenti).
+
+**Verificato:** typecheck ✅ · eslint ✅ · **2009/2010 test** ✅ · build ✅ ·
+verifica visiva con l'harness CDP su build di produzione, dati veri, tema
+chiaro e scuro a 1440 e 375 px su Sintesi, Volatilità, Driver (anche 1920) e
+Stagionalità. Screenshot in `docs/macro-cinque/`.

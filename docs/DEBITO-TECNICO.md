@@ -133,6 +133,19 @@ di freschezza, che ora c'e su indice, Report, Scorecard e Volatilita.
 
 ## Termometro di volatilita: la soglia e scaduta (misurato 25/08/2026)
 
+> **CHIUSA IL 27/08/2026 — il termometro e stato rimosso dall'app.** Via la
+> carta per strumento, il fattore F3 del dossier, il cancello di validita
+> (`termometro-cancello.ts`), il rilevatore di degenerazione
+> (`classificatore-degenere.ts`), la query del degrado e la tabella tarata in
+> `src/data`. Nessun fatto e stato toccato: quello che il termometro
+> condizionava allo stato, il pannello di contesto lo misura e basta.
+>
+> La voce resta qui perche il **lavoro di ricerca sotto e ancora aperto**: la
+> variante a finestra mobile descritta piu sotto non e mai stata importata, e
+> se un giorno la si volesse, le ragioni per cui la versione a soglia assoluta
+> non reggeva sono scritte qui. I riferimenti ai file cancellati sono storici.
+> Guida alla sezione come e adesso: `docs/macro-desk/GUIDA-VOLATILITA.md`.
+
 **Lavoro di ricerca aperto, non un difetto da correggere in app.**
 
 La soglia che separa ESPANSA da COMPRESSA e assoluta e congelata: vive in
@@ -586,3 +599,37 @@ l'attribuzione del fattore F4, che diceva «il GVZ rilevato dal report»: quel
 valore viene da FRED via Trends (`fonti.trends`, `sezione: "Trends —
 Volatilita"`), non dal report. L'osservazione era giusta — due letture della
 stessa misura, due date — l'attribuzione no.
+
+## Pannello COT: le implicazioni meccaniche non discendono dalla definizione (27/08/2026)
+
+**Registrato, non risolto — la sezione non e stata toccata.** Analisi completa
+con i numeri e le query in `docs/macro-desk/VERDETTO-POSIZIONAMENTO.md`.
+
+Il riquadro «Implicazione meccanica» dichiara che le sue frasi discendono
+dalla definizione della metrica. Quattro delle sei famiglie non lo fanno, e
+due sono false su casi ordinari:
+
+- **«Partecipazione ai minimi → mercato piu sottile».** L'open interest conta
+  le posizioni aperte, non gli ordini nel book: il legame con l'impatto di
+  prezzo e un'ipotesi di microstruttura. E il contratto e fisso a 100 once
+  mentre il prezzo no — l'oro e al 5° percentile in contratti e al **massimo
+  dell'intera serie in nozionale** (176 mld $ contro 49 nel gennaio 2017,
+  quando i contratti erano di piu). Nei dati non si vede: per quintile di OI
+  l'escursione della settimana successiva non e monotona su nessuno dei due
+  strumenti.
+- **«Esposizione netta ai minimi → pende dal lato corto».** MOLTO BASSO e il
+  decimo percentile, non il segno. Il 10° percentile di `mm_net` e **+15.253**
+  sull'oro e **+78.341** sul WTI: su quest'ultimo un MOLTO BASSO e net long in
+  495 settimane su 503.
+- **Tutte le frasi di `mm_net` parlano di «scommesse lunghe in essere»
+  partendo da un SALDO NETTO.** `CotWeek` salva solo i netti: i lordi non ci
+  sono, e un netto basso puo venire da pochi lunghi o da molti corti.
+- **«Ai massimi c'e piu da liquidare che da aggiungere»** e H3 della
+  pre-registrazione, l'ipotesi contrarian, che fu testata e **falli** — poi
+  rientrata in pagina come definizione.
+
+Il test sul markup (`cot-panel.test.tsx`) vieta il **vocabolario** della
+previsione, non il contenuto: le implicazioni dicono in prosa non falsificabile
+quello che le probabilita avrebbero detto in cifre.
+→ `src/lib/cot-contesto.ts` (`IMPLICAZIONI_MECCANICHE`),
+`src/components/macro-desk/cot-panel.tsx`
