@@ -2,8 +2,11 @@ import { describe, expect, it } from "vitest";
 import {
   MIN_HEIGHT_DESKTOP,
   MIN_HEIGHT_NARROW,
+  PASSO_MINIMO_TICK,
   axisDomain,
   axisGroup,
+  diradaTicks,
+  larghezzaUtileAsse,
   minChartHeight,
   seriesColor,
 } from "./driver-desk-chart";
@@ -16,7 +19,7 @@ import {
  */
 
 describe("minChartHeight — pavimento di altezza", () => {
-  it("desktop: mai sotto 650px", () => {
+  it("desktop: mai sotto il pavimento dichiarato", () => {
     expect(minChartHeight(1440, 900)).toBeGreaterThanOrEqual(
       MIN_HEIGHT_DESKTOP,
     );
@@ -33,7 +36,7 @@ describe("minChartHeight — pavimento di altezza", () => {
   });
 
   it("mai più largo di 2:1 — su riquadri larghi cresce l'altezza", () => {
-    // 1600px di larghezza: 650 darebbe 2,46:1, quindi il pavimento sale a 800
+    // 1600px di larghezza: il pavimento di 420 darebbe 3,8:1, quindi sale a 800
     expect(minChartHeight(1920, 1600)).toBe(800);
     expect(minChartHeight(1920, 1600)).toBeGreaterThanOrEqual(1600 / 2);
   });
@@ -130,5 +133,64 @@ describe("axisGroup / axisDomain — scale indipendenti", () => {
   it("gruppo tutto spento → dominio di riserva, mai NaN", () => {
     const tuttiDriverSpenti = new Set(["DXY", "REALE"]);
     expect(axisDomain(serie, tuttiDriverSpenti, "right")).toEqual([-1, 1]);
+  });
+});
+
+/* ── asse dei mesi ───────────────────────────────────────────────────── */
+
+describe("diradaTicks — le sigle dei mesi non si toccano", () => {
+  /* Dodici mesi di sedute danno tredici tick. A tutta larghezza ci stavano;
+     da quando il grafico sta a metà scheda l'area di disegno è di 343 px,
+     cioè 26 px per etichetta, e le prime due si sovrapponevano. */
+  const TREDICI = Array.from({ length: 13 }, (_, i) => i * 21);
+
+  it("con spazio abbondante non tocca nulla", () => {
+    expect(diradaTicks(TREDICI, 13 * PASSO_MINIMO_TICK)).toEqual(TREDICI);
+    expect(diradaTicks(TREDICI, 2000)).toEqual(TREDICI);
+  });
+
+  it("con l'area di disegno di metà scheda ne tiene circa la metà", () => {
+    const out = diradaTicks(TREDICI, 343);
+    expect(out.length).toBeLessThan(TREDICI.length);
+    // ogni etichetta ha almeno il passo minimo a disposizione
+    expect(343 / out.length).toBeGreaterThanOrEqual(PASSO_MINIMO_TICK);
+  });
+
+  it("il PRIMO e l'ULTIMO restano sempre: un asse dichiara i propri estremi", () => {
+    for (const larghezza of [60, 120, 200, 343, 500]) {
+      const out = diradaTicks(TREDICI, larghezza);
+      expect(out[0]).toBe(TREDICI[0]);
+      expect(out[out.length - 1]).toBe(TREDICI[TREDICI.length - 1]);
+    }
+  });
+
+  it("non inventa tick e non ne riordina: è sempre un sottoinsieme in ordine", () => {
+    const out = diradaTicks(TREDICI, 150);
+    for (const t of out) expect(TREDICI).toContain(t);
+    expect([...out].sort((a, b) => a - b)).toEqual(out);
+    expect(new Set(out).size).toBe(out.length);
+  });
+
+  it("prima del montaggio (larghezza 0) li tiene tutti, mai zero etichette", () => {
+    expect(diradaTicks(TREDICI, 0)).toEqual(TREDICI);
+    expect(diradaTicks(TREDICI, -10)).toEqual(TREDICI);
+  });
+
+  it("due tick o meno non si diradano: sono già i soli estremi", () => {
+    expect(diradaTicks([0, 5], 10)).toEqual([0, 5]);
+    expect(diradaTicks([0], 10)).toEqual([0]);
+    expect(diradaTicks([], 10)).toEqual([]);
+  });
+});
+
+describe("larghezzaUtileAsse — quanto spazio resta davvero alle etichette", () => {
+  it("toglie l'asse destro e il gutter delle pillole quando ci sono", () => {
+    expect(larghezzaUtileAsse(534, true)).toBe(534 - 45 - 50 - 96);
+    expect(larghezzaUtileAsse(534, false)).toBe(534 - 45);
+  });
+
+  it("non scende mai sotto zero", () => {
+    expect(larghezzaUtileAsse(50, true)).toBe(0);
+    expect(larghezzaUtileAsse(0, true)).toBe(0);
   });
 });
