@@ -8,7 +8,6 @@ import {
   raccogliFonti,
   rilevaDiscordanza,
   type DossierReadings,
-  type TermometroReading,
 } from "@/lib/ai-analyst/dossier";
 import {
   letturaAssente,
@@ -56,22 +55,6 @@ const MOVIMENTO: MovimentoRecenteValore = {
   giornoChiusura: "2026-08-04",
 };
 
-function termometro(stato: "ESPANSA" | "COMPRESSA"): TermometroReading {
-  return {
-    affidabilita: {
-      tipo: "termometro_affidabilita",
-      stato,
-      esitoAtteso: "ampia",
-      quota: 0.71,
-      baseRate: 0.5,
-      guadagnoPp: 21,
-      n: 1234,
-      calcolataDa: "2014-01-02",
-      calcolataFinoA: "2025-12-31",
-      persistenza: { quotaInvariati: 0.82, durataMediaGiorni: 5.4 },
-    },
-  };
-}
 
 const IV: IvValore = {
   tipo: "iv",
@@ -159,8 +142,7 @@ function letturePiene(data = GIORNO, percentile = 78): DossierReadings {
   return {
     ivArchivio: letturaOk(ivArchivio(percentile), data),
     movimento: letturaOk(MOVIMENTO, data),
-    termometro: letturaOk(termometro("ESPANSA"), data),
-    iv: letturaOk(IV, data),
+      iv: letturaOk(IV, data),
     cotPartecipazione: letturaOk(COT_PART, data),
     cotPosizionamento: letturaOk(COT_POS, data),
     dispersioneMese: letturaOk(DISP_MESE, data),
@@ -176,8 +158,7 @@ function lettureVuote(motivo: "fonte_non_disponibile" = "fonte_non_disponibile")
   return {
     ivArchivio: letturaAssente(motivo),
     movimento: letturaAssente(motivo),
-    termometro: letturaAssente(motivo),
-    iv: letturaAssente(motivo),
+      iv: letturaAssente(motivo),
     cotPartecipazione: letturaAssente(motivo),
     cotPosizionamento: letturaAssente(motivo),
     dispersioneMese: letturaAssente(motivo),
@@ -217,13 +198,13 @@ describe("giorniFra", () => {
 describe("buildDossier — caso pieno", () => {
   const d = buildDossier("ORO", GIORNO, letturePiene());
 
-  it("presenta tutti e 12 i fattori dell'oro", () => {
-    expect(d.presenti).toBe(12);
-    expect(d.attesiApplicabili).toBe(12);
+  it("presenta tutti e 11 i fattori dell'oro", () => {
+    expect(d.presenti).toBe(11);
+    expect(d.attesiApplicabili).toBe(11);
     expect(d.copertura).toBe(1);
     expect(d.assenti).toEqual([]);
     expect(d.fattori.map((f) => f.id)).toEqual([
-      "F1", "F2", "F3", "F4", "F5", "F6", "F7", "F8", "F9", "F10", "F11", "F12",
+      "F1", "F2", "F4", "F5", "F6", "F7", "F8", "F9", "F10", "F11", "F12",
     ]);
   });
 
@@ -239,14 +220,13 @@ describe("buildDossier — caso pieno", () => {
 
   it("dà confidenza BUONA con tutto fresco e concorde", () => {
     expect(d.confidenza).toBe("BUONA");
-    expect(d.motivoConfidenza).toContain("12 fattori su 12");
+    expect(d.motivoConfidenza).toContain("11 fattori su 11");
   });
 
   it("assegna i pesi pre-registrati", () => {
     const peso = (id: string) => d.fattori.find((f) => f.id === id)?.peso;
     expect(peso("F1")).toBe("ALTO");
     expect(peso("F2")).toBe("ALTO");
-    expect(peso("F3")).toBe("ALTO");
     expect(peso("F4")).toBe("MEDIO");
     expect(peso("F5")).toBe("MEDIO");
     expect(peso("F6")).toBe("BASSO");
@@ -261,7 +241,7 @@ describe("buildDossier — caso pieno", () => {
     expect(d.datoPiuVecchio).toBe(GIORNO);
     const sezioni = d.fonti.map((f) => f.sezione);
     expect(new Set(sezioni).size).toBe(sezioni.length);
-    expect(sezioni).toContain("Termometro di volatilità");
+    expect(sezioni).toContain("Volatilità");
     expect(sezioni).toContain("Posizionamento (CFTC)");
   });
 });
@@ -273,7 +253,7 @@ describe("buildDossier — caso vuoto", () => {
 
   it("non inventa nulla: zero fattori, tutti gli assenti col motivo", () => {
     expect(d.fattori).toEqual([]);
-    expect(d.assenti).toHaveLength(12);
+    expect(d.assenti).toHaveLength(11);
     for (const a of d.assenti) expect(a.motivo).toBe("fonte_non_disponibile");
     expect(d.datoPiuVecchio).toBeNull();
     expect(d.fonti).toEqual([]);
@@ -281,7 +261,7 @@ describe("buildDossier — caso vuoto", () => {
 
   it("si dichiara insufficiente, indeterminato e senza confidenza", () => {
     expect(d.datiInsufficienti).toBe(true);
-    expect(d.motivoInsufficienza).toContain("0 misure su 12");
+    expect(d.motivoInsufficienza).toContain("0 misure su 11");
     expect(d.carattereAtteso).toBe("INDETERMINATO");
     expect(d.confidenza).toBe("NULLA");
   });
@@ -290,17 +270,19 @@ describe("buildDossier — caso vuoto", () => {
 /* ── caso con buchi ──────────────────────────────────────────────────── */
 
 describe("buildDossier — caso con buchi", () => {
-  it("resta sufficiente finché la copertura arriva alla metà", () => {
-    // 6 presenti su 12 = esattamente COPERTURA_MINIMA, che NON è sotto soglia.
+  it("resta sufficiente finché la copertura arriva ESATTAMENTE alla metà", () => {
+    /* Il confine si prova sull'S&P 500, non sull'oro: dopo l'uscita di F3 i
+       fattori applicabili all'oro sono 11, un numero dispari, e la metà esatta
+       non è raggiungibile. L'S&P ne ha 8 (niente COT, niente scheda del Driver
+       Desk), quindi 4 su 8 è il confine vero e non un'approssimazione. */
     const r = letturePiene();
-    r.cotPartecipazione = letturaAssente("fonte_non_disponibile");
-    r.cotPosizionamento = letturaAssente("fonte_non_disponibile");
     r.dispersioneMese = letturaAssente("fonte_non_disponibile");
     r.dispersioneGiorno = letturaAssente("fonte_non_disponibile");
     r.ivMese = letturaAssente("fonte_non_disponibile");
-    r.stabilita = letturaAssente("fonte_non_disponibile");
-    const d = buildDossier("ORO", GIORNO, r);
-    expect(d.presenti).toBe(6);
+    r.nfci = letturaAssente("fonte_non_disponibile");
+    const d = buildDossier("SP500", GIORNO, r);
+    expect(d.presenti).toBe(4);
+    expect(d.attesiApplicabili).toBe(8);
     expect(d.copertura).toBe(COPERTURA_MINIMA);
     expect(d.datiInsufficienti).toBe(false);
     // Sotto il 60% la confidenza scende comunque.
@@ -311,10 +293,9 @@ describe("buildDossier — caso con buchi", () => {
     const r = lettureVuote();
     r.ivArchivio = letturaOk(ivArchivio(78), GIORNO);
     r.movimento = letturaOk(MOVIMENTO, GIORNO);
-    r.termometro = letturaOk(termometro("ESPANSA"), GIORNO);
     r.iv = letturaOk(IV, GIORNO);
     const d = buildDossier("ORO", GIORNO, r);
-    expect(d.presenti).toBe(4); // F1, F2, F3, F4
+    expect(d.presenti).toBe(3); // F1, F2, F4
     expect(d.datiInsufficienti).toBe(true);
     expect(d.carattereAtteso).toBe("INDETERMINATO");
     expect(d.confidenza).toBe("NULLA");
@@ -325,19 +306,10 @@ describe("buildDossier — caso con buchi", () => {
     r.ivArchivio = letturaAssente("fonte_non_disponibile");
     r.iv = letturaAssente("fonte_non_disponibile");
     const d = buildDossier("ORO", GIORNO, r);
-    expect(d.presenti).toBe(10);
+    expect(d.presenti).toBe(9);
     expect(d.copertura).toBeGreaterThan(COPERTURA_MINIMA);
     expect(d.datiInsufficienti).toBe(true);
     expect(d.motivoInsufficienza).toContain("volatilità implicita");
-  });
-
-  it("senza il termometro perde una misura sola, e il carattere regge", () => {
-    // F1 e F2 vengono dall'archivio: la caduta del report costa F3 e basta.
-    const r = letturePiene();
-    r.termometro = letturaAssente("fonte_non_disponibile");
-    const d = buildDossier("ORO", GIORNO, r);
-    expect(d.presenti).toBe(11);
-    expect(d.carattereAtteso).toBe("CONDIZIONI_DI_ESPANSIONE"); // rango 78 ≥ 70
   });
 
   it("senza F1 la confidenza scende a BASSA e lo dichiara", () => {
@@ -346,25 +318,25 @@ describe("buildDossier — caso con buchi", () => {
     const d = buildDossier("ORO", GIORNO, r);
     expect(d.carattereAtteso).toBe("CONDIZIONI_DI_ESPANSIONE"); // pct1 = 78 ≥ 70
     expect(d.confidenza).toBe("BASSA");
-    expect(d.motivoConfidenza).toContain("termometro");
+    expect(d.motivoConfidenza).toContain("rango storico");
   });
 });
 
 /* ── non applicabile ─────────────────────────────────────────────────── */
 
 describe("buildDossier — fattori non applicabili", () => {
-  it("il DAX non conta la statistica del termometro né il COT nel denominatore", () => {
+  it("il DAX non conta il COT nel denominatore", () => {
     const d = buildDossier("DAX", GIORNO, letturePiene());
-    // 12 − 1 (F3: nessun indice IV del DAX nel pannello del report) − 2 (COT) = 9
+    // 11 − 2 (COT: la CFTC non pubblica sugli indici azionari) = 9
     expect(d.attesiApplicabili).toBe(9);
     expect(d.presenti).toBe(9);
     expect(d.copertura).toBe(1);
     const nonApplicabili = d.assenti.filter((a) => a.motivo === "non_applicabile");
-    expect(nonApplicabili.map((a) => a.id).sort()).toEqual(["F3", "F5", "F6"].sort());
+    expect(nonApplicabili.map((a) => a.id).sort()).toEqual(["F5", "F6"].sort());
     for (const a of nonApplicabili) expect(a.applicabile).toBe(false);
   });
 
-  it("il DAX ora ha F1 e F2: l'archivio ha il suo prezzo e un indice IV sostitutivo", () => {
+  it("il DAX ha F1 e F2: l'archivio ha il suo prezzo e un indice IV sostitutivo", () => {
     // Prima del 25/08/2026 le tre facce del termometro erano tutte «non
     // applicabili» per il DAX e la sua confidenza era BASSA per costruzione.
     // Il rango dell'indice sostitutivo e il movimento osservato sono invece
@@ -384,8 +356,8 @@ describe("buildDossier — fattori non applicabili", () => {
     const r = letturePiene();
     r.dispersioneGiorno = letturaAssente("non_applicabile");
     const d = buildDossier("ORO", GIORNO, r);
-    expect(d.presenti).toBe(11);
-    expect(d.attesiApplicabili).toBe(11);
+    expect(d.presenti).toBe(10);
+    expect(d.attesiApplicabili).toBe(10);
     expect(d.copertura).toBe(1);
     expect(d.assenti.find((a) => a.id === "F8")?.applicabile).toBe(false);
     expect(d.confidenza).toBe("BUONA");
@@ -393,7 +365,7 @@ describe("buildDossier — fattori non applicabili", () => {
 
   it("l'S&P 500 non conta COT né Driver Desk", () => {
     const d = buildDossier("SP500", GIORNO, letturePiene());
-    expect(d.attesiApplicabili).toBe(9); // 12 − 2 (COT) − 1 (Driver)
+    expect(d.attesiApplicabili).toBe(8); // 11 − 2 (COT) − 1 (Driver)
     expect(d.assenti.map((a) => a.id).sort()).toEqual(["F10", "F5", "F6"]);
   });
 });
@@ -440,13 +412,13 @@ describe("buildDossier — freschezza", () => {
     ).toEqual(["F1", "F2"]);
   });
 
-  it("ogni fonte ha la propria soglia: il COT sopravvive a 14 giorni, l'archivio a 14 pure, il termometro no", () => {
+  it("ogni fonte ha la propria soglia: il COT sopravvive a 14 giorni, l'archivio no", () => {
     const r = letturePiene();
-    r.termometro = letturaOk(termometro("ESPANSA"), giorniPrima(14));
     r.cotPartecipazione = letturaOk(COT_PART, giorniPrima(14));
+    r.ivArchivio = letturaOk(ivArchivio(78), giorniPrima(20));
     const d = buildDossier("ORO", GIORNO, r);
-    // F3 vive nella famiglia `termometro`, che scarta oltre 10 giorni
-    expect(d.fattori.some((f) => f.id === "F3")).toBe(false);
+    // F1 vive nella famiglia `archivio`, che scarta oltre 15 giorni
+    expect(d.fattori.some((f) => f.id === "F1")).toBe(false);
     const f5 = d.fattori.find((f) => f.id === "F5");
     expect(f5?.freschezza).toBe("invecchiato");
   });
@@ -602,67 +574,16 @@ describe("raccogliFonti", () => {
       freschezza: "fresco" as const,
       valore: ivArchivio(50),
     };
-    // F1 e F2 stanno nella sezione «Volatilità», F3 nel «Termometro»: due
-    // righe, ciascuna con la data più vecchia della propria sezione.
+    // F1 e F2 stanno nella sezione «Volatilità», F4 in «Trends»: due righe,
+    // ciascuna con la data più vecchia della propria sezione.
     const fonti = raccogliFonti([
       { ...base, id: "F1", dataDato: "2026-08-01" },
       { ...base, id: "F2", dataDato: "2026-07-29" },
-      { ...base, id: "F3", dataDato: "2026-08-02" },
+      { ...base, id: "F4", dataDato: "2026-08-02" },
     ]);
     expect(fonti).toEqual([
       { sezione: "Volatilità", dataDato: "2026-07-29" },
-      { sezione: "Termometro di volatilità", dataDato: "2026-08-02" },
+      { sezione: "Trends — Volatilità", dataDato: "2026-08-02" },
     ]);
-  });
-});
-
-/* ── cancello del termometro ─────────────────────────────────────────── */
-
-describe("cancello chiuso: cade la statistica condizionale, restano i fatti", () => {
-  it("F3 esce col motivo del cancello; F1 e F2 restano perché sono fatti", () => {
-    const d = buildDossier("ORO", GIORNO, letturePiene(), "classificatore_degenere");
-    expect(d.assenti.find((a) => a.id === "F3")?.motivo).toBe("classificatore_degenere");
-    // F1 (rango storico) e F2 (movimento osservato) vengono dall'archivio e
-    // non dipendono dalla classificazione: è tutta la differenza fra un fatto
-    // e un verdetto, ed è la ragione per cui la sezione non resta muta.
-    expect(d.fattori.some((f) => f.id === "F1")).toBe(true);
-    expect(d.fattori.some((f) => f.id === "F2")).toBe(true);
-  });
-
-  it("i due motivi di chiusura arrivano distinti fino al dossier", () => {
-    const degenere = buildDossier("ORO", GIORNO, letturePiene(), "classificatore_degenere");
-    const nonValidato = buildDossier("ORO", GIORNO, letturePiene(), "verdetto_non_validato");
-    expect(degenere.assenti.find((a) => a.id === "F3")?.motivo).toBe("classificatore_degenere");
-    expect(nonValidato.assenti.find((a) => a.id === "F3")?.motivo).toBe("verdetto_non_validato");
-  });
-
-  it("la copertura scende di uno, non di tre: si perde una misura sola", () => {
-    const intero = buildDossier("ORO", GIORNO, letturePiene());
-    const chiuso = buildDossier("ORO", GIORNO, letturePiene(), "classificatore_degenere");
-    expect(chiuso.presenti).toBe(intero.presenti - 1);
-    expect(chiuso.attesiApplicabili).toBe(intero.attesiApplicabili);
-  });
-
-  it("il carattere NON diventa indeterminato: poggia su un rango, non sul verdetto", () => {
-    const d = buildDossier("ORO", GIORNO, letturePiene(), "classificatore_degenere");
-    expect(d.carattereAtteso).toBe("CONDIZIONI_DI_ESPANSIONE");
-  });
-
-  it("senza cancello nulla cambia: il default non finge di sapere", () => {
-    const a = buildDossier("ORO", GIORNO, letturePiene());
-    const b = buildDossier("ORO", GIORNO, letturePiene(), null);
-    expect(b).toEqual(a);
-    expect(a.termometroSenzaVerdetto).toBeNull();
-  });
-
-  it("senza il report F1 e F2 sopravvivono comunque: fonti diverse", () => {
-    // è il caso reale del 25/08/2026: il report è generato a mano ed è fermo,
-    // l'archivio no. Prima la sezione perdeva tre fattori su dodici.
-    const r = letturePiene();
-    r.termometro = letturaAssente("fonte_non_disponibile");
-    const d = buildDossier("ORO", GIORNO, r);
-    expect(d.fattori.some((f) => f.id === "F1")).toBe(true);
-    expect(d.fattori.some((f) => f.id === "F2")).toBe(true);
-    expect(d.carattereAtteso).not.toBe("INDETERMINATO");
   });
 });

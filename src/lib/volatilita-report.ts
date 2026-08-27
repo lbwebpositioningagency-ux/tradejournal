@@ -17,7 +17,6 @@
  */
 
 import type { MacroVolItem } from "@/lib/macro-desk-payload";
-import type { IngressoTermometro } from "@/lib/termometro-volatilita";
 
 /**
  * Ticker che l'archivio giornaliero pubblica da solo. Un indice in questa
@@ -38,8 +37,7 @@ export const TICKER_DALL_ARCHIVIO: ReadonlySet<string> = new Set([
 /**
  * Le etichette del pannello hanno forma "<TICKER> · <descrizione>": si guarda
  * il solo ticker. Confrontare il testo intero scambierebbe «VVIX · vol del
- * VIX» per il VIX — è lo stesso inganno da cui si difendeva il vecchio
- * estrattore del termometro.
+ * VIX» per il VIX, che è un inganno già costato una volta.
  */
 export function tickerDi(k: string): string {
   return (k ?? "").split(/[·|]/)[0].trim().split(/\s+/)[0].toUpperCase();
@@ -64,55 +62,6 @@ export interface LacunaVol {
   ticker: string;
   cosa: string;
   motivo: string;
-}
-
-/* ── ingressi del termometro, dall'archivio ──────────────────────────── */
-
-/**
- * La forma minima di riga di contesto che serve al termometro. Dichiarata qui
- * invece di importare `RigaContestoVol` per una ragione pratica: quel tipo
- * vive accanto a una query che apre il database, e questa funzione dev'essere
- * pura e testabile senza. Quanto basta, e niente di più.
- */
-export interface RigaPerTermometro {
-  indice: string;
-  iv: { livello: number; giorno: string } | null;
-  ultimaChiusura: number | null;
-}
-
-/**
- * INGRESSI DEL TERMOMETRO, dall'archivio giornaliero.
- *
- * Fino al 26/08/2026 il termometro beveva dal report: la volatilità implicita
- * da `payload.volPanel.items` — valori copiati a mano dalle pagine
- * historical-data di Investing.com — e la chiusura dall'ultimo punto del
- * Weekly Bias Record. Il risultato era che l'unica percentuale condizionale
- * rimasta nel desk poggiava sul dato più vecchio disponibile: il 26/08 la
- * pagina classificava l'S&P col VIX del 20/08 (15,98) mentre sei righe più in
- * su mostrava già il VIX del 25/08 dal CBOE (15,45).
- *
- * Il `giorno` viaggia col valore e non a parte, così la lettura può datarsi da
- * sé: una classificazione senza data è esattamente ciò che ha reso invisibile
- * quella contraddizione.
- */
-export function ingressiTermometro(
-  righe: readonly RigaPerTermometro[],
-  mappa: ReadonlyArray<{ indice: string; simboloTermometro: string }>,
-): Record<string, IngressoTermometro> {
-  const perIndice = new Map(righe.map((r) => [r.indice, r]));
-  const fuori: Record<string, IngressoTermometro> = {};
-  for (const voce of mappa) {
-    const riga = perIndice.get(voce.indice);
-    if (!riga?.iv) continue;
-    fuori[voce.simboloTermometro] = {
-      iv: riga.iv.livello,
-      giorno: riga.iv.giorno,
-      /* La chiusura serve solo a rendere l'ampiezza attesa in valuta: se
-         manca, il componente la mostra in percentuale del prezzo. */
-      close: riga.ultimaChiusura,
-    };
-  }
-  return fuori;
 }
 
 export const LACUNE_VOL: readonly LacunaVol[] = [

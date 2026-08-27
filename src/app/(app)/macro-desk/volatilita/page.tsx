@@ -8,18 +8,7 @@ import { prisma } from "@/lib/db";
 import { todayKeyInZone } from "@/lib/dates";
 import { getFreschezzaReport } from "@/lib/queries/macro-desk-freschezza";
 import { getVolatilitaData } from "@/lib/queries/volatilita";
-import {
-  getContestoVolatilita,
-  ingressiTermometroDaContesto,
-} from "@/lib/queries/volatilita-contesto";
-import {
-  getCalibrazioneTermometro,
-  getDegradoTermometro,
-} from "@/lib/queries/termometro-degrado";
-import { testoDegenerazione } from "@/lib/classificatore-degenere";
-import { leggiTermometro } from "@/lib/termometro-volatilita";
-import { testoCancello, valutaCancello } from "@/lib/termometro-cancello";
-import type { CancelloPerSimbolo } from "@/components/macro-desk/termometro-volatilita";
+import { getContestoVolatilita } from "@/lib/queries/volatilita-contesto";
 import { BandaFreschezza } from "@/components/macro-desk/banda-freschezza";
 import { cn } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
@@ -80,19 +69,18 @@ function reportDateLabel(date: Date): string {
 }
 
 /**
- * Volatilità — sezione di primo livello, e pagina di CONTESTO.
+ * Volatilità — sezione di primo livello, e pagina di soli FATTI.
  *
  * Dal 25/08/2026 la sezione non apre più con una classificazione. Apre con i
  * fatti: livello degli indici di volatilità implicita, rango sulla propria
- * storia, variazione a 5/20/60 sedute, implicita contro realizzata, movimento
- * giornaliero osservato — tutto da `SeasonalityDailyBar`, che il cron
- * `seasonality-sync` aggiorna ogni notte da FRED. È la parte che si aggiorna
- * da sola e che non può degenerare.
+ * storia, variazione a 5/20/60 sedute, implicita contro realizzata, escursione
+ * vera e movimento giornaliero osservato — tutto da `SeasonalityDailyBar`, che
+ * il cron `seasonality-sync` aggiorna ogni notte da FRED e dal CBOE.
  *
- * La classificazione ESPANSA/COMPRESSA resta, ma passa da un cancello
- * (`lib/termometro-cancello.ts`) e compare solo dove ha superato una prova
- * fuori campione e dove sta ancora separando due gruppi. Il motivo di questa
- * scelta è in `docs/DEBITO-TECNICO.md`.
+ * Dal 27/08/2026 non c'è più NESSUNA classificazione: il termometro di
+ * volatilità è stato rimosso insieme al cancello di validità e al rilevatore
+ * di degenerazione che gli servivano da tutori. La guida alla sezione, con la
+ * lettura blocco per blocco, è in `docs/macro-desk/GUIDA-VOLATILITA.md`.
  */
 export default async function MacroVolatilitaPage() {
   const session = await auth();
@@ -118,41 +106,12 @@ export default async function MacroVolatilitaPage() {
     fraQuanto: fraQuanto(e.istante, adesso),
   }));
 
-  const [data, freschezza, degrado, contesto, inventari] = await Promise.all([
+  const [data, freschezza, contesto, inventari] = await Promise.all([
     getVolatilitaData(),
     getFreschezzaReport(),
-    getDegradoTermometro(),
     getContestoVolatilita(oggi),
     getInventariEia(oggi),
   ]);
-
-  /* GLI INGRESSI DEL TERMOMETRO VENGONO DALL'ARCHIVIO, non dal report: dal
-     26/08/2026 la classificazione legge le stesse righe di contesto che la
-     pagina mostra sopra di essa. Prima l'S&P veniva classificato col VIX
-     copiato a mano nel report — il 26/08 quello del 20/08, 15,98 — mentre
-     poche righe più su la pagina mostrava già il VIX del 25/08 dal CBOE. */
-  const ingressi = ingressiTermometroDaContesto(contesto);
-
-  /* IL CANCELLO, composto qui perché è l'unico punto che ha entrambe le
-     informazioni: lo stato di oggi e l'esito del rilevatore di degrado. Le
-     due regole vivono nei loro moduli puri; qui si mettono insieme. */
-  const cancelli: Record<string, CancelloPerSimbolo> = {};
-  {
-    for (const d of degrado) {
-      const lettura = leggiTermometro(d.simbolo, ingressi[d.simbolo]);
-      if (!lettura) continue;
-      const esito = valutaCancello(d.simbolo, lettura.stato, d.esito.discrimina);
-      cancelli[d.simbolo] = {
-        esito,
-        testoDegenere: testoDegenerazione(
-          d.esito,
-          d.esito.gruppoDominante === "ESPANSA" ? "compressa" : "espansa",
-        ),
-        testoChiusura: testoCancello(esito),
-      };
-    }
-  }
-  const calibrazione = getCalibrazioneTermometro();
 
   return (
     <div className="flex flex-col gap-4">
@@ -211,11 +170,8 @@ export default async function MacroVolatilitaPage() {
       >
         {data ? (
           <VolatilitaPanel
-            ingressi={ingressi}
             items={data.items}
             reading={data.reading}
-            cancelli={cancelli}
-            calibrazione={calibrazione}
             contesto={contesto}
             giornoReport={data.reportDate.toISOString().slice(0, 10)}
           />

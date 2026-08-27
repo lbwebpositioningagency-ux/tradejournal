@@ -51,13 +51,6 @@ function descrivi(f: FattorePresente): string[] {
           ? `in valuta: ${num(v.valuta.mediana, 2)} (${num(v.valuta.q25, 2)}–${num(v.valuta.q75, 2)}) sulla chiusura del ${v.giornoChiusura}`
           : "in valuta: non disponibile (chiusura di riferimento assente)",
       ];
-    case "termometro_affidabilita":
-      return [
-        `esito "${v.esitoAtteso}" nel ${pct(v.quota)} dei casi · senza il termometro ${pct(v.baseRate)} · differenza ${num(v.guadagnoPp, 1)} punti · n=${v.n} (${v.calcolataDa} → ${v.calcolataFinoA})`,
-        v.persistenza
-          ? `lo stato resta invariato nel ${pct(v.persistenza.quotaInvariati)} dei giorni · durata media ${num(v.persistenza.durataMediaGiorni, 1)} giorni`
-          : "persistenza dello stato non calcolabile",
-      ];
     case "iv":
       return [
         `${v.etichetta}${v.proxy ? " (sostituto dichiarato)" : ""} a ${num(v.livello)}`,

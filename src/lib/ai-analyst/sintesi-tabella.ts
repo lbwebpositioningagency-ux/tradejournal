@@ -64,11 +64,6 @@ export interface RigaSintesi {
   /** Frase breve su cos'è cambiato; null se non c'è nulla da dire. */
   cambiatoTesto: string | null;
   copertura: { presenti: number; attesi: number };
-  /**
-   * Pezzo di segnale non disponibile, con il perché in italiano corrente.
-   * null quando il segnale è intero.
-   */
-  segnaleIncompleto: string | null;
   /** Giorni del dato più vecchio usato; null se non ci sono dati. */
   etaDato: number | null;
   confidenza: string;
@@ -163,12 +158,6 @@ export function rigaSintesi(oggi: Dossier, ieri: Dossier | null): RigaSintesi {
     cambiato,
     cambiatoTesto: testo,
     copertura: { presenti: oggi.presenti, attesi: oggi.attesiApplicabili },
-    segnaleIncompleto:
-      oggi.termometroSenzaVerdetto === "classificatore_degenere"
-        ? "il termometro di volatilità non distingue più i due stati su questo strumento: la sua statistica di affidabilità non è disponibile. Livello, rango e movimento osservato restano, e vengono dall'archivio"
-        : oggi.termometroSenzaVerdetto === "verdetto_non_validato"
-          ? "per lo stato in cui si trova oggi questo strumento il termometro non ha una prova fuori campione sufficiente: la sua statistica di affidabilità non è disponibile. Livello, rango e movimento osservato restano, e vengono dall'archivio"
-          : null,
     etaDato:
       oggi.datoPiuVecchio === null
         ? null
@@ -188,9 +177,6 @@ export function rigaSintesi(oggi: Dossier, ieri: Dossier | null): RigaSintesi {
 export function ordinaRighe(righe: RigaSintesi[]): RigaSintesi[] {
   const rango = (r: RigaSintesi): number => {
     if (r.conflitto) return 0;
-    // un pezzo di segnale mancante conta quanto un cambiamento: è una cosa
-    // che l'utente deve vedere prima di fidarsi della riga
-    if (r.segnaleIncompleto) return 1;
     if (r.cambiato === "cambiato" || r.cambiato === "nuovo") return 2;
     if (r.datiInsufficienti) return 4;
     return 3;

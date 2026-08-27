@@ -8,7 +8,6 @@ import {
   letturaIvMese,
   letturaLivelloTrends,
   letturaStabilita,
-  letturaTermometro,
   mediana,
 } from "@/lib/ai-analyst/letture";
 import type { CartaCot, MetaCot } from "@/lib/cot-panel";
@@ -16,7 +15,6 @@ import type { DriverCardPayload } from "@/lib/driver-desk/cards";
 import type { TrendsSeriesView } from "@/lib/macro-trends";
 import { isoWeekday } from "@/lib/seasonality/buckets";
 import type { BucketView } from "@/lib/seasonality/query";
-import type { LetturaTermometro } from "@/lib/termometro-volatilita";
 
 /**
  * Regola di questo file: ogni grandezza numerica che il motore di raccolta
@@ -478,83 +476,3 @@ describe("letturaStabilita", () => {
   });
 });
 
-/* ── termometro ──────────────────────────────────────────────────────── */
-
-const TERMO: LetturaTermometro = {
-  simbolo: "XAUUSD",
-  etichetta: "Oro",
-  indiceIv: "GVZ",
-  unita: "$",
-  decimaliPrezzo: 2,
-  decimaliIv: 2,
-  iv: 18.42,
-  posizione: { modalita: "puntuale", percentile: 78.5 },
-  stato: "ESPANSA",
-  finestraSchermo: "2014 → oggi",
-  finestraCorta: false,
-  ruolo: "strumento_tradato",
-  notaRuolo: null,
-  soloContesto: false,
-  ampiezzaRelativa: { mediana: 0.0161, q25: 0.0108, q75: 0.0234 },
-  ampiezzaValuta: { mediana: 64.4, q25: 43.2, q75: 93.6 },
-  motivoValutaAssente: null,
-  affidabilita: {
-    esitoAtteso: "ampia",
-    quota: 0.71,
-    baseRate: 0.5,
-    guadagnoPp: 21,
-    n: 1234,
-    calcolataDa: "2014-01-02",
-    calcolataFinoA: "2025-12-31",
-  },
-  persistenza: { quotaInvariati: 0.82, durataMediaGiorni: 5.4 },
-};
-
-describe("letturaTermometro", () => {
-  it("porta la sola statistica condizionale, con la data del report", () => {
-    const l = letturaTermometro("ORO", TERMO, "2026-08-03");
-    expect(l.ok).toBe(true);
-    if (!l.ok) return;
-    expect(l.dataDato).toBe("2026-08-03");
-    expect(l.valore.affidabilita.stato).toBe("ESPANSA");
-    expect(l.valore.affidabilita.quota).toBe(0.71);
-    expect(l.valore.affidabilita.baseRate).toBe(0.5);
-    expect(l.valore.affidabilita.guadagnoPp).toBe(21);
-    expect(l.valore.affidabilita.persistenza?.durataMediaGiorni).toBe(5.4);
-  });
-
-  it("stato e ampiezza condizionata NON passano più di qui", () => {
-    // dal 25/08/2026 il dossier li prende dall'archivio come fatti: se
-    // ricomparissero qui tornerebbero due sorgenti per la stessa cosa
-    const l = letturaTermometro("ORO", TERMO, "2026-08-03");
-    expect(l.ok && Object.keys(l.valore)).toEqual(["affidabilita"]);
-  });
-
-  it("porta sempre il base rate accanto alla quota, mai la quota da sola", () => {
-    const l = letturaTermometro("ORO", TERMO, "2026-08-03");
-    expect(l.ok).toBe(true);
-    if (!l.ok) return;
-    expect(l.valore.affidabilita).toHaveProperty("baseRate");
-    // La differenza dichiarata coincide con quota − base rate in punti:
-    // 0,71 − 0,50 = 0,21 → 21 pp.
-    expect(l.valore.affidabilita.guadagnoPp).toBeCloseTo((0.71 - 0.5) * 100, 10);
-  });
-
-  it("il DAX è non applicabile: nessun indice di volatilità nel pannello", () => {
-    expect(letturaTermometro("DAX", TERMO, "2026-08-03")).toEqual({
-      ok: false,
-      motivo: "non_applicabile",
-    });
-  });
-
-  it("senza report o senza lettura degrada, non inventa", () => {
-    expect(letturaTermometro("ORO", TERMO, null)).toEqual({
-      ok: false,
-      motivo: "fonte_non_disponibile",
-    });
-    expect(letturaTermometro("ORO", null, "2026-08-03")).toEqual({
-      ok: false,
-      motivo: "fonte_non_disponibile",
-    });
-  });
-});

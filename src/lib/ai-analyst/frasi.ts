@@ -131,21 +131,6 @@ function rigaMovimento(
   );
 }
 
-function rigaTermometroAffidabilita(
-  v: Extract<ValoreFattore, { tipo: "termometro_affidabilita" }>,
-): string {
-  const persistenza = v.persistenza
-    ? ` Lo stato è rimasto lo stesso nel ${quota(v.persistenza.quotaInvariati)} dei giorni, in media per ${n(v.persistenza.durataMediaGiorni, 1)} giorni di fila.`
-    : " Quanto duri lo stato non è calcolabile per questo strumento.";
-  return (
-    `Nelle giornate classificate così, l'escursione è poi risultata ` +
-    `${v.esitoAtteso} nel ${quota(v.quota)} dei casi, contro il ${quota(v.baseRate)} ` +
-    `di una giornata qualsiasi: ${n(v.guadagnoPp, 1)} punti di differenza, ` +
-    `misurati su ${v.n} giornate fra il ${dataIt(v.calcolataDa)} e il ` +
-    `${dataIt(v.calcolataFinoA)}.${persistenza}`
-  );
-}
-
 function rigaIv(v: Extract<ValoreFattore, { tipo: "iv" }>): string {
   const pezzi: string[] = [];
   if (v.pct1 !== null) pezzi.push(frasePosizione(v.pct1, "delle sedute dell'ultimo anno"));
@@ -287,8 +272,6 @@ export function rigaFattore(f: FattorePresente, strumento: string): string {
       return rigaIvArchivio(f.valore, strumento);
     case "movimento_recente":
       return rigaMovimento(f.valore, strumento);
-    case "termometro_affidabilita":
-      return rigaTermometroAffidabilita(f.valore);
     case "iv":
       return rigaIv(f.valore);
     case "cot":
@@ -329,7 +312,7 @@ export function apertura(d: Dossier): string[] {
      25/08/2026 qui c'era «in condizioni come questa l'escursione della giornata
      è stata storicamente più ampia»: una statistica condizionale che nessun
      fattore della pagina misurava più, una volta chiuso il cancello del
-     termometro. Al suo posto ci sono i due numeri che la pagina mostra
+     termometro, poi rimosso del tutto. Al suo posto ci sono i due numeri che la pagina mostra
      davvero — il rango dell'indice e il movimento osservato — citati con il
      loro campione. */
   const f1 = d.fattori.find((f) => f.valore.tipo === "iv_archivio");

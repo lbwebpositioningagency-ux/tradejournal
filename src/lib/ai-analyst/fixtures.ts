@@ -3,7 +3,7 @@
  * qui e non in un `.test.ts` perché più file di test la usano.
  */
 
-import { buildDossier, type DossierReadings, type TermometroReading } from "@/lib/ai-analyst/dossier";
+import { buildDossier, type DossierReadings } from "@/lib/ai-analyst/dossier";
 import type { AiAnalystInstrument } from "@/lib/ai-analyst/instruments";
 import {
   letturaAssente,
@@ -18,7 +18,6 @@ import {
   type LivelloTrendsValore,
   type StabilitaValore,
 } from "@/lib/ai-analyst/types";
-import type { StatoVolatilita } from "@/lib/termometro-volatilita";
 
 export const GIORNO_FIXTURE = "2026-08-04";
 
@@ -62,29 +61,6 @@ export function movimentoFixture(
       over.valuta === false ? null : { mediana: 41.24, q25: 22.0, q75: 75.8 },
     chiusura: over.valuta === false ? null : 4679.55,
     giornoChiusura: over.valuta === false ? null : "2026-08-04",
-  };
-}
-
-export function termometroFixture(
-  stato: StatoVolatilita = "ESPANSA",
-  over: { persistenza?: boolean } = {},
-): TermometroReading {
-  return {
-    affidabilita: {
-      tipo: "termometro_affidabilita",
-      stato,
-      esitoAtteso: "ampia",
-      quota: 0.75,
-      baseRate: 0.55,
-      guadagnoPp: 19.7,
-      n: 570,
-      calcolataDa: "2021-07-01",
-      calcolataFinoA: "2026-07-27",
-      persistenza:
-        over.persistenza === false
-          ? null
-          : { quotaInvariati: 0.95, durataMediaGiorni: 18.8 },
-    },
   };
 }
 
@@ -183,13 +159,11 @@ export const HY_FIXTURE: LivelloTrendsValore = {
 
 export function lettureComplete(
   data = GIORNO_FIXTURE,
-  termometro = termometroFixture(),
   fatti: { ivArchivio?: IvArchivioValore; movimento?: MovimentoRecenteValore } = {},
 ): DossierReadings {
   return {
     ivArchivio: letturaOk(fatti.ivArchivio ?? ivArchivioFixture(), data),
     movimento: letturaOk(fatti.movimento ?? movimentoFixture(), data),
-    termometro: letturaOk(termometro, data),
     iv: letturaOk(IV_FIXTURE, data),
     cotPartecipazione: letturaOk(COT_PARTECIPAZIONE_FIXTURE, data),
     cotPosizionamento: letturaOk(COT_POSIZIONAMENTO_FIXTURE, data),
@@ -207,7 +181,6 @@ export function lettureVuote(): DossierReadings {
   return {
     ivArchivio: assente(),
     movimento: assente(),
-    termometro: assente(),
     iv: assente(),
     cotPartecipazione: assente(),
     cotPosizionamento: assente(),

@@ -16,7 +16,6 @@
 import type { BandaCot } from "@/lib/cot-metrics";
 import type { DriverBanda } from "@/lib/driver-desk/engine";
 import type { SampleQuality } from "@/lib/seasonality/stats";
-import type { StatoVolatilita } from "@/lib/termometro-volatilita";
 import type { AiAnalystInstrument } from "@/lib/ai-analyst/instruments";
 
 /* ── assenze ─────────────────────────────────────────────────────────── */
@@ -30,29 +29,13 @@ export type MotivoAssenza =
   | "fonte_non_disponibile"
   | "dato_stantio"
   | "non_applicabile"
-  | "campione_insufficiente"
-  /* Il dato c'è, ma la statistica che ne uscirebbe è un confronto fra due
-     stati di cui uno non si presenta più: aritmeticamente vera e priva di
-     contenuto. Diverso da "campione_insufficiente", dove il campione è
-     piccolo; qui è il GRUPPO DI CONFRONTO a mancare
-     (v. lib/classificatore-degenere.ts). */
-  | "classificatore_degenere"
-  /* Il dato c'e e il classificatore distingue ancora, ma per lo stato in cui
-     si trova oggi lo strumento la tabella non porta una prova su dati mai
-     visti, o la porta sotto la soglia che i suoi stessi criteri richiedono.
-     Non e' un guasto: e' un modello che su questo stato non ha mai dimostrato
-     di valere (v. lib/termometro-cancello.ts). */
-  | "verdetto_non_validato";
+  | "campione_insufficiente";
 
 export const ETICHETTA_ASSENZA: Record<MotivoAssenza, string> = {
   fonte_non_disponibile: "fonte non raggiungibile",
   dato_stantio: "dato troppo vecchio per essere usato",
   non_applicabile: "non esiste per questo strumento",
   campione_insufficiente: "campione storico troppo piccolo",
-  classificatore_degenere:
-    "il termometro non distingue più i due stati su questo strumento: la percentuale non avrebbe nulla da cui distinguersi",
-  verdetto_non_validato:
-    "per lo stato in cui si trova oggi lo strumento il termometro non ha una prova fuori campione sufficiente: restano i fatti della sezione Volatilità",
 };
 
 /** Lettura grezza in ingresso al costruttore puro: o c'è, o si dice perché no. */
@@ -131,23 +114,6 @@ export interface MovimentoRecenteValore {
   /** Ultima chiusura usata per la conversione, e il suo giorno. */
   chiusura: number | null;
   giornoChiusura: string | null;
-}
-
-export interface TermometroAffidabilitaValore {
-  tipo: "termometro_affidabilita";
-  stato: StatoVolatilita;
-  /** "stretta" o "ampia": l'esito che il termometro associa allo stato. */
-  esitoAtteso: string;
-  /** Quota storica dell'esito atteso (0-1). */
-  quota: number;
-  /** La stessa quota SENZA il termometro. Va citata sempre insieme. */
-  baseRate: number;
-  /** Differenza in punti percentuali: la grandezza robusta. */
-  guadagnoPp: number;
-  n: number;
-  calcolataDa: string;
-  calcolataFinoA: string;
-  persistenza: { quotaInvariati: number; durataMediaGiorni: number } | null;
 }
 
 export interface IvValore {
@@ -229,7 +195,6 @@ export interface LivelloTrendsValore {
 export type ValoreFattore =
   | IvArchivioValore
   | MovimentoRecenteValore
-  | TermometroAffidabilitaValore
   | IvValore
   | CotValore
   | DispersioneValore
@@ -239,10 +204,14 @@ export type ValoreFattore =
 
 /* ── fattori ─────────────────────────────────────────────────────────── */
 
+/* F3 — «comportamento storico del termometro» — è uscito il 27/08/2026 con la
+   rimozione del termometro. Gli identificativi degli altri NON sono stati
+   rinumerati: sono chiavi, non una posizione, e rinumerarle avrebbe cambiato
+   il significato di ogni riferimento nei test e nella spec. Il buco è
+   deliberato. */
 export const FATTORI_IDS = [
   "F1",
   "F2",
-  "F3",
   "F4",
   "F5",
   "F6",
@@ -329,16 +298,6 @@ export interface Dossier {
   motivoInsufficienza: string | null;
   /** F1 e F4 presenti e in contraddizione. */
   discordanza: boolean;
-  /**
-   * Valorizzato = il termometro NON ha prodotto il proprio verdetto su questo
-   * strumento, e dice perché: o non distingue più i due stati, o per lo stato
-   * di oggi non ha una prova fuori campione sufficiente. In entrambi i casi
-   * F1, F2 e F3 (stato, ampiezza condizionata, statistica condizionale) non
-   * entrano nel dossier. Va DICHIARATO in pagina: un pezzo del segnale manca,
-   * e chi legge deve saperlo invece di vedere solo una confidenza più bassa.
-   * `null` = il verdetto c'è.
-   */
-  termometroSenzaVerdetto: "classificatore_degenere" | "verdetto_non_validato" | null;
   carattereAtteso: CarattereAtteso;
   confidenza: Confidenza;
   motivoConfidenza: string;

@@ -9,7 +9,6 @@ import {
   dossierInsufficiente,
   lettureComplete,
   ivArchivioFixture,
-  termometroFixture,
 } from "@/lib/ai-analyst/fixtures";
 import { AI_ANALYST_INSTRUMENTS } from "@/lib/ai-analyst/instruments";
 import { LIMITI_FISSI } from "@/lib/ai-analyst/frasi";
@@ -62,7 +61,7 @@ describe("nessun linguaggio direzionale nel testo reso", () => {
       dossier: buildDossier(
         "ORO",
         GIORNO_FIXTURE,
-        lettureComplete(GIORNO_FIXTURE, termometroFixture("COMPRESSA"), {
+        lettureComplete(GIORNO_FIXTURE, {
           ivArchivio: ivArchivioFixture(6),
         }),
       ),

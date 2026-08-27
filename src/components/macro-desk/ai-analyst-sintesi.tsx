@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { ArrowRight, CircleSlash, Minus, TriangleAlert } from "lucide-react";
+import { ArrowRight, Minus, TriangleAlert } from "lucide-react";
 import type { RigaSintesi } from "@/lib/ai-analyst/sintesi-tabella";
 import { AI_ANALYST_DEFS } from "@/lib/ai-analyst/instruments";
 import { cn } from "@/lib/utils";
@@ -79,7 +79,6 @@ export function AiAnalystSintesi({
               <Intestazione>Carattere atteso</Intestazione>
               <Intestazione>Forza</Intestazione>
               <Intestazione>Conflitto</Intestazione>
-              <Intestazione>Segnale</Intestazione>
               <Intestazione>Da ieri</Intestazione>
               <Intestazione className="text-right">Su cosa poggia</Intestazione>
               <Intestazione className="text-right">Dettaglio</Intestazione>
@@ -143,23 +142,6 @@ export function AiAnalystSintesi({
                   </td>
 
                   <td className="px-2 py-2">
-                    {r.segnaleIncompleto ? (
-                      <span
-                        className="inline-flex items-center gap-1 font-semibold"
-                        style={{ color: "var(--md-warn)" }}
-                      >
-                        <CircleSlash className="size-3.5 shrink-0" aria-hidden />
-                        termometro non disponibile
-                      </span>
-                    ) : (
-                      <span className="inline-flex items-center gap-1" style={{ color: "var(--md-muted)" }}>
-                        <Minus className="size-3.5 shrink-0" aria-hidden />
-                        completo
-                      </span>
-                    )}
-                  </td>
-
-                  <td className="px-2 py-2">
                     {r.cambiato === "invariato" ? (
                       <span style={{ color: "var(--md-muted)" }}>invariato</span>
                     ) : r.cambiato === "sconosciuto" ? (
@@ -201,28 +183,6 @@ export function AiAnalystSintesi({
       {/* Il conflitto per esteso: in tabella ci stanno i due nomi, qui il
           perché conta. Sta sotto e non sopra: la tabella resta il primo
           oggetto della pagina. */}
-      {/* Il pezzo di segnale mancante, per esteso: in tabella c'è l'etichetta,
-          qui il perché e la conseguenza. */}
-      {righe.some((r) => r.segnaleIncompleto) ? (
-        <div className="flex flex-col gap-1.5">
-          {righe
-            .filter((r) => r.segnaleIncompleto)
-            .map((r) => (
-              <p
-                key={`inc-${r.strumento}`}
-                role="status"
-                className="rounded-md border border-dashed px-3 py-2 text-xs leading-relaxed"
-                style={{ borderColor: "var(--md-warn)", color: "var(--md-muted)" }}
-              >
-                <strong className="font-semibold" style={{ color: "var(--md-warn)" }}>
-                  {AI_ANALYST_DEFS[r.strumento].label}
-                </strong>{" "}
-                — {r.segnaleIncompleto}.
-              </p>
-            ))}
-        </div>
-      ) : null}
-
       {righe.some((r) => r.conflitto) ? (
         <div className="flex flex-col gap-1.5">
           {righe

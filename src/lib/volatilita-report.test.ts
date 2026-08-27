@@ -2,10 +2,8 @@ import { describe, expect, it } from "vitest";
 import {
   LACUNE_VOL,
   TICKER_DALL_ARCHIVIO,
-  ingressiTermometro,
   tickerDi,
   vociSenzaFonteLibera,
-  type RigaPerTermometro,
 } from "@/lib/volatilita-report";
 
 /**
@@ -64,61 +62,5 @@ describe("le lacune si dichiarano sempre", () => {
       // Il motivo cita l'esito della chiamata, non un'impressione.
       expect(l.motivo).toMatch(/404|403|proprietari|JavaScript/);
     }
-  });
-});
-
-describe("ingressiTermometro", () => {
-  const MAPPA = [
-    { indice: "GVZ", simboloTermometro: "XAUUSD" },
-    { indice: "VIX", simboloTermometro: "SP500" },
-    { indice: "VDAX", simboloTermometro: "GER40" },
-  ];
-
-  const righe: RigaPerTermometro[] = [
-    {
-      indice: "GVZ",
-      iv: { livello: 27.69, giorno: "2026-08-25" },
-      ultimaChiusura: 4076.4,
-    },
-    {
-      indice: "VIX",
-      iv: { livello: 15.45, giorno: "2026-08-25" },
-      ultimaChiusura: 7644.84,
-    },
-    // Il DAX ha il prezzo ma non l'indice: VDAX non ha una fonte viva.
-    { indice: "VDAX", iv: null, ultimaChiusura: 24000 },
-  ];
-
-  it("porta livello, giorno e chiusura sotto il simbolo del termometro", () => {
-    const i = ingressiTermometro(righe, MAPPA);
-    expect(i.XAUUSD).toEqual({
-      iv: 27.69,
-      giorno: "2026-08-25",
-      close: 4076.4,
-    });
-    expect(i.SP500.iv).toBe(15.45);
-  });
-
-  it("LA DATA C'È SEMPRE: è ciò che rende verificabile la classificazione", () => {
-    const i = ingressiTermometro(righe, MAPPA);
-    for (const v of Object.values(i)) expect(v.giorno).toBe("2026-08-25");
-  });
-
-  it("un indice senza serie non produce un ingresso, mai uno zero", () => {
-    const i = ingressiTermometro(righe, MAPPA);
-    expect(i.GER40).toBeUndefined();
-  });
-
-  it("nessuna riga → nessun ingresso, senza lanciare", () => {
-    expect(ingressiTermometro([], MAPPA)).toEqual({});
-  });
-
-  it("la chiusura mancante non toglie l'ingresso: l'IV basta a classificare", () => {
-    const i = ingressiTermometro(
-      [{ indice: "VIX", iv: { livello: 15.45, giorno: "2026-08-25" }, ultimaChiusura: null }],
-      MAPPA,
-    );
-    expect(i.SP500.iv).toBe(15.45);
-    expect(i.SP500.close).toBeNull();
   });
 });

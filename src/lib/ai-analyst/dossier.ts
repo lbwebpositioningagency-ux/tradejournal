@@ -43,7 +43,6 @@ import {
   type Lettura,
   type PesoFattore,
   type StabilitaValore,
-  type TermometroAffidabilitaValore,
   type ValoreFattore,
 } from "@/lib/ai-analyst/types";
 
@@ -53,7 +52,6 @@ import {
 export type FamigliaFonte =
   /** Archivio giornaliero `SeasonalityDailyBar`, aggiornato dal cron notturno. */
   | "archivio"
-  | "termometro"
   | "iv"
   | "cot"
   | "stagionalita"
@@ -77,7 +75,6 @@ export const SOGLIE_FRESCHEZZA: Record<
      di venerdì è già a tre giorni di calendario. Le stesse soglie della
      famiglia `iv`, che legge gli stessi indici da FRED. */
   archivio: { warn: 5, drop: 15 },
-  termometro: { warn: 3, drop: 10 },
   iv: { warn: 5, drop: 15 },
   cot: { warn: 10, drop: 21 },
   stagionalita: { warn: 7, drop: 30 },
@@ -127,14 +124,6 @@ export const FATTORI: Record<FattoreId, FattoreDef> = {
     pesoBase: "ALTO",
     fonte: "archivio",
     sezione: "Volatilità",
-  },
-  F3: {
-    id: "F3",
-    nome: "Comportamento storico del termometro",
-    classe: "a",
-    pesoBase: "ALTO",
-    fonte: "termometro",
-    sezione: "Termometro di volatilità",
   },
   F4: {
     id: "F4",
@@ -212,23 +201,11 @@ export const FATTORI: Record<FattoreId, FattoreDef> = {
 
 /* ── letture in ingresso ─────────────────────────────────────────────── */
 
-/** Le tre facce del termometro arrivano da un'unica lettura: stessa data. */
-/**
- * Del termometro resta solo la statistica condizionale (F3): stato e ampiezza
- * condizionata a esso sono usciti dal dossier il 25/08/2026, sostituiti da due
- * fatti presi dall'archivio giornaliero.
- */
-export interface TermometroReading {
-  affidabilita: TermometroAffidabilitaValore;
-}
-
 export interface DossierReadings {
   /** F1: livello e rango dell'indice IV dall'archivio giornaliero. */
   ivArchivio: Lettura<IvArchivioValore>;
   /** F2: movimento giornaliero osservato di recente. */
   movimento: Lettura<MovimentoRecenteValore>;
-  /** F3: la statistica condizionale del termometro, l'unica rimasta. */
-  termometro: Lettura<TermometroReading>;
   iv: Lettura<IvValore>;
   cotPartecipazione: Lettura<CotValore>;
   cotPosizionamento: Lettura<CotValore>;
@@ -271,39 +248,19 @@ interface Slot {
 function slots(
   strumento: AiAnalystInstrument,
   readings: DossierReadings,
-  senzaVerdetto: Dossier["termometroSenzaVerdetto"],
 ): Slot[] {
   const def = AI_ANALYST_DEFS[strumento];
-  const term = readings.termometro;
 
-  // Il termometro esiste per tutti e quattro in tabella, ma il DAX non ha oggi
-  // un ingresso di volatilità implicita nella pipeline (DV1X non è nel pannello
-  // del report): per lui la statistica condizionale è non applicabile per
-  // costruzione, non «caduta».
-  const termometroApplicabile = def.termometro !== null && def.ivNelPannello;
-
-  /* F3 È LA STATISTICA CONDIZIONALE: "ampia nel 75% dei casi contro il 55% di
-     una giornata qualsiasi". Passa dallo stesso CANCELLO della sezione
-     Volatilità — prova fuori campione superata sullo stato di oggi E gruppo di
-     confronto ancora presente — e quando quello è chiuso non viene prodotta,
-     con il motivo del cancello.
-
-     F1 e F2 NON dipendono più dal cancello: dal 25/08/2026 sono fatti presi
-     dall'archivio (rango storico dell'indice, movimento giornaliero osservato)
-     e non una classificazione con la sua distribuzione condizionata. È la
-     ragione per cui questa sezione non resta muta nei giorni in cui il
-     termometro non ha titolo per parlare. */
-  const affidabilita: Lettura<ValoreFattore> =
-    senzaVerdetto !== null
-      ? { ok: false, motivo: senzaVerdetto }
-      : term.ok
-        ? { ok: true, valore: term.valore.affidabilita, dataDato: term.dataDato }
-        : term;
-
+  /* Qui stava F3, «comportamento storico del termometro»: la statistica
+     condizionale «giornata ampia nel 75% dei casi contro il 55% di una
+     giornata qualsiasi», con il cancello di validità e il rilevatore di
+     degenerazione che le servivano da tutori. Rimossa il 27/08/2026 insieme
+     al termometro. F1 e F2 non ne dipendevano già più: sono fatti
+     dell'archivio — rango storico dell'indice, movimento osservato — ed è la
+     ragione per cui la rimozione non lascia muta questa sezione. */
   return [
     { def: FATTORI.F1, applicabile: true, lettura: readings.ivArchivio },
     { def: FATTORI.F2, applicabile: true, lettura: readings.movimento },
-    { def: FATTORI.F3, applicabile: termometroApplicabile, lettura: affidabilita },
     { def: FATTORI.F4, applicabile: true, lettura: readings.iv },
     { def: FATTORI.F5, applicabile: def.cot !== null, lettura: readings.cotPartecipazione },
     { def: FATTORI.F6, applicabile: def.cot !== null, lettura: readings.cotPosizionamento },
@@ -320,20 +277,11 @@ export function buildDossier(
   strumento: AiAnalystInstrument,
   giorno: string,
   readings: DossierReadings,
-  /**
-   * Valorizzato = il termometro non ha prodotto il proprio verdetto su questo
-   * strumento, e dice perché. La decisione arriva SEMPRE dal cancello in
-   * `lib/termometro-cancello.ts` sopra `lib/classificatore-degenere.ts`, la
-   * stessa coppia usata dalla sezione Volatilità: una sola fonte di verità,
-   * mai due giudizi diversi sullo stesso strumento in due pagine.
-   * Default null, così i chiamanti che non lo sanno non fingono di saperlo.
-   */
-  termometroSenzaVerdetto: Dossier["termometroSenzaVerdetto"] = null,
 ): Dossier {
   const fattori: FattorePresente[] = [];
   const assenti: FattoreAssente[] = [];
 
-  for (const slot of slots(strumento, readings, termometroSenzaVerdetto)) {
+  for (const slot of slots(strumento, readings)) {
     const { def, applicabile, lettura } = slot;
 
     if (!applicabile) {
@@ -433,7 +381,6 @@ export function buildDossier(
     attesiApplicabili,
     f1,
     fattori,
-    senzaVerdetto: termometroSenzaVerdetto,
   });
 
   const fonti = raccogliFonti(fattori);
@@ -453,7 +400,6 @@ export function buildDossier(
     datiInsufficienti,
     motivoInsufficienza,
     discordanza,
-    termometroSenzaVerdetto,
     carattereAtteso,
     confidenza,
     motivoConfidenza: motivo,
@@ -517,7 +463,8 @@ export function calcolaCarattere(input: {
      volatilità implicita è nel 30% più alto della propria storia» è una
      misura, e resta vera qualunque cosa faccia il mercato domani. Prima
      serviva anche lo stato ESPANSA/COMPRESSA del termometro, che dal 2026 su
-     oro e WTI valeva sempre lo stesso e quindi non separava più nulla. */
+     oro e WTI valeva sempre lo stesso e quindi non separava più nulla: è
+     stato rimosso il 27/08/2026. */
   if (f1 && f1.valore.tipo === "iv_archivio") {
     if (percentileAlto(f1)) return "CONDIZIONI_DI_ESPANSIONE";
     if (percentileBasso(f1)) return "CONDIZIONI_DI_COMPRESSIONE";
@@ -542,8 +489,6 @@ export function calcolaConfidenza(input: {
   attesiApplicabili: number;
   f1: FattorePresente | undefined;
   fattori: FattorePresente[];
-  /** Perché il termometro non ha prodotto il verdetto, quando è il caso. */
-  senzaVerdetto?: Dossier["termometroSenzaVerdetto"];
 }): { confidenza: Confidenza; motivo: string } {
   const quota = `${input.presenti} fattori su ${input.attesiApplicabili}`;
 
@@ -561,16 +506,10 @@ export function calcolaConfidenza(input: {
     };
   }
   if (!input.f1) {
-    /* TRE CASI DIVERSI, e la differenza conta per chi legge. Dire sempre
-       «manca la lettura del termometro» nasconderebbe che nei primi due il
-       dato c'è ed è il MODELLO a non avere titolo per parlare. */
-    const perche =
-      input.senzaVerdetto === "classificatore_degenere"
-        ? "Il termometro non distingue più i due stati su questo strumento, quindi non entra nel giudizio"
-        : input.senzaVerdetto === "verdetto_non_validato"
-          ? "Per lo stato di oggi il termometro non ha una prova fuori campione sufficiente, quindi non entra nel giudizio"
-          : "Manca la lettura del termometro";
-    return { confidenza: "BASSA", motivo: `${perche} (${quota}).` };
+    return {
+      confidenza: "BASSA",
+      motivo: `Manca il rango storico dell'indice di volatilità implicita (${quota}).`,
+    };
   }
   if (input.copertura < COPERTURA_BASSA) {
     return {

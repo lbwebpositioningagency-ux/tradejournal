@@ -17,7 +17,6 @@ import { cache } from "react";
 import { prisma } from "@/lib/db";
 import {
   getContestoVolatilita,
-  ingressiTermometroDaContesto,
   type ContestoVolatilita,
   type RigaContestoVol,
 } from "@/lib/queries/volatilita-contesto";
@@ -36,17 +35,12 @@ import {
   letturaMovimento,
   letturaLivelloTrends,
   letturaStabilita,
-  letturaTermometro,
 } from "@/lib/ai-analyst/letture";
 import { letturaAssente, type Lettura } from "@/lib/ai-analyst/types";
 import { caricaPannelloCot } from "@/lib/queries/cot-panel";
 import { getDriverDeskData, type DriverDeskData } from "@/lib/queries/driver-desk";
 import { getTrendsSection, type TrendsSeriesView } from "@/lib/macro-trends";
 import { TRENDS_SERIES } from "@/lib/macro-trends-series";
-import {
-  leggiTermometro,
-  type IngressoTermometro,
-} from "@/lib/termometro-volatilita";
 import type { PannelloCot } from "@/lib/cot-panel";
 import {
   CLOCK_TIMEZONE,
@@ -86,13 +80,10 @@ const CHIAVI_TRENDS = ["vix", "gvz", "ovx", "nfci", "hy-oas"] as const;
 export interface FontiCondivise {
   /**
    * Ultimo report giornaliero: la sola DATA. Dal 26/08/2026 il report non
-   * porta più nessun numero dentro la Sintesi — nemmeno gli ingressi del
-   * termometro, che ora vengono dall'archivio come tutto il resto. La data
-   * serve solo a dichiarare quanto è vecchio il bias che la pagina cita.
+   * porta più nessun numero dentro la Sintesi. La data serve solo a dichiarare
+   * quanto è vecchio il bias che la pagina cita.
    */
   report: { reportDate: string } | null;
-  /** Ingressi del termometro, composti dall'archivio giornaliero. */
-  ingressiTermometro: Record<string, IngressoTermometro>;
   cot: PannelloCot;
   driver: DriverDeskData;
   coverage: CoverageView[];
@@ -125,9 +116,9 @@ export const caricaFontiCondivise = cache(async (): Promise<FontiCondivise> => {
   );
 
   const [report, cot, driver, coverage, contestoVol, viste] = await Promise.all([
-    /* Del report resta la sola DATA: dal 26/08/2026 gli ingressi del
-       termometro vengono dall'archivio (`ingressiTermometroDaContesto`) e non
-       più da `payload.volPanel`, che li portava copiati a mano. */
+    /* Del report resta la sola DATA: dal 26/08/2026 nessun numero della
+       Sintesi passa più da `payload.volPanel`, che li portava copiati a
+       mano. */
     prisma.macroDeskReport
       .findFirst({
         where: { type: "DAILY" },
@@ -172,7 +163,6 @@ export const caricaFontiCondivise = cache(async (): Promise<FontiCondivise> => {
 
   return {
     report,
-    ingressiTermometro: ingressiTermometroDaContesto(contestoVol),
     cot,
     driver,
     coverage,
@@ -271,21 +261,11 @@ export async function caricaLetture(
     ),
   ]);
 
-  const termometro =
-    def.termometro !== null && fonti.report
-      ? leggiTermometro(def.termometro, fonti.ingressiTermometro[def.termometro])
-      : null;
-
   const rigaContesto = fonti.contesto.get(def.seasonalityIv);
 
   return {
     ivArchivio: letturaIvArchivio(strumento, rigaContesto),
     movimento: letturaMovimento(rigaContesto),
-    termometro: letturaTermometro(
-      strumento,
-      termometro,
-      fonti.report?.reportDate ?? null,
-    ),
     iv: letturaIv(strumento, fonti.trends.get(def.indiceIv.toLowerCase())),
     cotPartecipazione: letturaCot(
       strumento,

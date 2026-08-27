@@ -15,7 +15,6 @@ import {
   AI_ANALYST_DEFS,
   type AiAnalystInstrument,
 } from "@/lib/ai-analyst/instruments";
-import type { TermometroReading } from "@/lib/ai-analyst/dossier";
 import type { RigaContestoVol } from "@/lib/queries/volatilita-contesto";
 import {
   letturaAssente,
@@ -37,56 +36,12 @@ import type { TrendsSeriesView } from "@/lib/macro-trends";
 import { MONTH_LABELS, WEEKDAY_LABELS } from "@/lib/seasonality/buckets";
 import type { BucketView } from "@/lib/seasonality/query";
 import { logToPercent } from "@/lib/seasonality/series";
-import type { LetturaTermometro } from "@/lib/termometro-volatilita";
 
 /** Mediana di una lista non vuota (media dei due centrali se pari). */
 export function mediana(valori: number[]): number {
   const s = [...valori].sort((a, b) => a - b);
   const m = Math.floor(s.length / 2);
   return s.length % 2 === 1 ? s[m] : (s[m - 1] + s[m]) / 2;
-}
-
-/* ── termometro ──────────────────────────────────────────────────────── */
-
-/**
- * Solo la STATISTICA CONDIZIONALE (F3) passa ancora dal termometro. Lo stato e
- * l'ampiezza condizionata a esso hanno lasciato il dossier il 25/08/2026:
- * al loro posto ci sono due fatti presi dall'archivio giornaliero
- * (`letturaIvArchivio` e `letturaMovimento`), che non dipendono da una soglia
- * tarata una volta e mai più.
- */
-export function letturaTermometro(
-  strumento: AiAnalystInstrument,
-  lettura: LetturaTermometro | null,
-  /** Data del REPORT che porta il pannello volatilità; null se non c'è report. */
-  dataReport: string | null,
-): Lettura<TermometroReading> {
-  const def = AI_ANALYST_DEFS[strumento];
-  if (def.termometro === null || !def.ivNelPannello) {
-    return letturaAssente("non_applicabile");
-  }
-  if (dataReport === null || lettura === null) {
-    return letturaAssente("fonte_non_disponibile");
-  }
-  return letturaOk<TermometroReading>(
-    {
-      affidabilita: {
-        tipo: "termometro_affidabilita",
-        stato: lettura.stato,
-        esitoAtteso: lettura.affidabilita.esitoAtteso,
-        quota: lettura.affidabilita.quota,
-        baseRate: lettura.affidabilita.baseRate,
-        guadagnoPp: lettura.affidabilita.guadagnoPp,
-        n: lettura.affidabilita.n,
-        calcolataDa: lettura.affidabilita.calcolataDa,
-        calcolataFinoA: lettura.affidabilita.calcolataFinoA,
-        persistenza: lettura.persistenza,
-      },
-    },
-    // `volPanel.asOf` è testo libero e non si parsa in modo affidabile: la data
-    // del dato è quella del report che lo ha portato.
-    dataReport,
-  );
 }
 
 /* ── fatti dall'archivio giornaliero ─────────────────────────────────── */

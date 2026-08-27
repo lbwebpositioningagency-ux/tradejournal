@@ -3,8 +3,7 @@
  *
  * Quattro strumenti: è l'unione di ciò che le sottosezioni del Macro Desk
  * coprono davvero (il desk parla di xau/wti/idx dove idx = S&P 500; il Driver
- * Desk ha schede ORO/WTI/DAX; il termometro ha XAUUSD/WTICOUSD/GER40/SP500;
- * la Stagionalità ha XAUUSD/WTI/GER40/SPX).
+ * Desk ha schede ORO/WTI/DAX; la Stagionalità ha XAUUSD/WTI/GER40/SPX).
  *
  * Nessuno dei quattro ha copertura piena su tutte le fonti, e va bene: qui si
  * dichiara PER COSTRUZIONE cosa non esiste (`null` = non applicabile), così il
@@ -26,20 +25,6 @@ export interface AiAnalystInstrumentDef {
   label: string;
   /** Notazione compatta per i chip mono. */
   ticker: string;
-  /**
-   * Simbolo nella tabella del termometro di volatilità. `null` = lo strumento
-   * non è in tabella (nessuno oggi, ma il campo resta per onestà del tipo).
-   */
-  termometro: string | null;
-  /**
-   * false = il pannello volatilità del report non pubblica l'indice di
-   * volatilità implicita di questo strumento, quindi il termometro non ha
-   * nulla da leggere. Non è un guasto: è una lacuna STRUTTURALE della
-   * pipeline, e va distinta da «la fonte oggi è caduta».
-   * Oggi riguarda solo il DAX: DV1X/VDAX non è nel pannello e il ticker Yahoo
-   * V1X.DE è fermo al 2016.
-   */
-  ivNelPannello: boolean;
   /** Etichetta dell'indice di volatilità implicita usato per questo strumento. */
   indiceIv: string;
   /** ID FRED dell'indice IV (serie Trends, sezione Volatilità). */
@@ -69,8 +54,6 @@ export const AI_ANALYST_DEFS: Record<
     code: "ORO",
     label: "Oro",
     ticker: "XAU/USD",
-    termometro: "XAUUSD",
-    ivNelPannello: true,
     indiceIv: "GVZ",
     indiceIvFredId: "GVZCLS",
     indiceIvProxy: false,
@@ -83,8 +66,6 @@ export const AI_ANALYST_DEFS: Record<
     code: "WTI",
     label: "Petrolio WTI",
     ticker: "WTI",
-    termometro: "WTICOUSD",
-    ivNelPannello: true,
     indiceIv: "OVX",
     indiceIvFredId: "OVXCLS",
     indiceIvProxy: false,
@@ -97,8 +78,6 @@ export const AI_ANALYST_DEFS: Record<
     code: "DAX",
     label: "DAX",
     ticker: "GER40",
-    termometro: "GER40",
-    ivNelPannello: false,
     indiceIv: "VIX",
     indiceIvFredId: "VIXCLS",
     indiceIvProxy: true,
@@ -111,8 +90,6 @@ export const AI_ANALYST_DEFS: Record<
     code: "SP500",
     label: "S&P 500",
     ticker: "SPX",
-    termometro: "SP500",
-    ivNelPannello: true,
     indiceIv: "VIX",
     indiceIvFredId: "VIXCLS",
     indiceIvProxy: false,

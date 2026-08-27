@@ -1,7 +1,11 @@
 /**
- * Fixture REALE per i test del termometro: `biasRecord` e `volPanel.items`
- * copiati dal report DAILY di produzione con reportDate 2026-08-13 (id
- * cmsr3ted3000004l7qwwrq1yu su Neon), causa del guasto del 10-13/08/2026.
+ * Fixture REALE del report DAILY: `biasRecord` e `volPanel.items` copiati dal
+ * report di produzione con reportDate 2026-08-13 (id cmsr3ted3000004l7qwwrq1yu
+ * su Neon), causa del guasto del 10-13/08/2026.
+ *
+ * Il file si chiamava `termometro-volatilita.fixture.ts` per l'accidente di
+ * essere nato insieme al termometro: non ha mai contenuto un suo dato, e col
+ * termometro rimosso il nome sarebbe rimasto a indicare una cosa che non c'è.
  *
  * La forma conta più dei valori: `assets` è un DIZIONARIO per chiave asset
  * (`{xau, wti, idx}`), NON un array — è la forma che il desk ha sempre

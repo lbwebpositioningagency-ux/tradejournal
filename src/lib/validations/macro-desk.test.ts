@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { isAuthorizedMacroRequest } from "@/lib/macro-desk";
-import { BIAS_RECORD_DAILY_REALE } from "@/lib/termometro-volatilita.fixture";
+import { BIAS_RECORD_DAILY_REALE } from "@/lib/report-daily.fixture";
 import { macroDeskReportSchema } from "./macro-desk";
 
 const SECRET = "test-secret-abc123";

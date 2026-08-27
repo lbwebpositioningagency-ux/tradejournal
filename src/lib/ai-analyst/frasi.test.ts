@@ -24,7 +24,6 @@ import {
   lettureVuote,
   ivArchivioFixture,
   movimentoFixture,
-  termometroFixture,
 } from "@/lib/ai-analyst/fixtures";
 import { AI_ANALYST_INSTRUMENTS } from "@/lib/ai-analyst/instruments";
 import { letturaAssente, letturaOk } from "@/lib/ai-analyst/types";
@@ -90,22 +89,21 @@ function matriceDossier(): { etichetta: string; dossier: Dossier }[] {
     dossier: buildDossier(
       "ORO",
       GIORNO_FIXTURE,
-      lettureComplete(GIORNO_FIXTURE, termometroFixture("COMPRESSA"), {
+      lettureComplete(GIORNO_FIXTURE, {
         ivArchivio: ivArchivioFixture(8),
       }),
     ),
   });
 
   casi.push({
-    etichetta: "movimento senza cifra in valuta, termometro senza persistenza",
+    etichetta: "movimento senza cifra in valuta",
     dossier: buildDossier(
       "ORO",
       GIORNO_FIXTURE,
-      lettureComplete(
-        GIORNO_FIXTURE,
-        termometroFixture("ESPANSA", { persistenza: false }),
-        { ivArchivio: ivArchivioFixture(91), movimento: movimentoFixture({ valuta: false }) },
-      ),
+      lettureComplete(GIORNO_FIXTURE, {
+        ivArchivio: ivArchivioFixture(91),
+        movimento: movimentoFixture({ valuta: false }),
+      }),
     ),
   });
 
@@ -155,11 +153,9 @@ function matriceDossier(): { etichetta: string; dossier: Dossier }[] {
     dossier: buildDossier("ORO", GIORNO_FIXTURE, senzaPercentili),
   });
 
-  const discorde = lettureComplete(
-    GIORNO_FIXTURE,
-    termometroFixture("COMPRESSA"),
-    { ivArchivio: ivArchivioFixture(12) },
-  );
+  const discorde = lettureComplete(GIORNO_FIXTURE, {
+    ivArchivio: ivArchivioFixture(12),
+  });
   discorde.iv = letturaOk({ ...IV_FIXTURE, pct1: 92 }, GIORNO_FIXTURE);
   casi.push({
     etichetta: "letture discordi",
@@ -205,14 +201,6 @@ describe("i testi deterministici dicono qualcosa", () => {
     }
   });
 
-  it("cita il base rate ogni volta che cita la quota del termometro", () => {
-    const testi = testiDeterministici(dossierCompleto());
-    const riga = testi.righe.F3;
-    expect(riga).toContain("75%"); // quota
-    expect(riga).toContain("55%"); // base rate, sempre accanto
-    expect(riga).toContain("570"); // numerosità
-  });
-
   /* F1 e F4 misurano lo stesso indice da due fonti e a due date: in pagina
      escono uno vicino all'altro e prima mostravano due livelli diversi senza
      dire che erano la stessa cosa. F4 adesso lo dichiara. */
@@ -247,7 +235,6 @@ describe("cosaNonSappiamo", () => {
 
   it("elenca le misure mancanti con il loro motivo", () => {
     const r = lettureVuote();
-    r.termometro = letturaOk(termometroFixture(), GIORNO_FIXTURE);
     r.iv = letturaOk(IV_FIXTURE, GIORNO_FIXTURE);
     r.dispersioneMese = letturaOk(DISPERSIONE_MESE_FIXTURE, GIORNO_FIXTURE);
     r.dispersioneGiorno = letturaOk(DISPERSIONE_MESE_FIXTURE, GIORNO_FIXTURE);

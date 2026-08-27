@@ -100,11 +100,9 @@ describe("tab con il sample completo", () => {
   it("gli indici con fonte libera NON compaiono piu nel blocco del report", () => {
     const vol = full.volPanel;
     const html = renderToStaticMarkup(
-      <VolatilitaPanel
-        ingressi={{}}
+      <VolatilitaPanel
         items={vol?.items ?? []}
-        reading={vol?.reading}
-        cancelli={{}}
+        reading={vol?.reading}
         contesto={{ righe: [], oggi: "2026-08-25", strutturaTermine: null, strutturaWti: { ok: false, motivo: "front_non_disponibile" }, climaCopertura: [] }}
         giornoReport="2026-07-21"
       />,
@@ -125,11 +123,9 @@ describe("tab con il sample completo", () => {
   it("i valori del report sono ETICHETTATI come tali, con la data del report", () => {
     const vol = full.volPanel;
     const html = renderToStaticMarkup(
-      <VolatilitaPanel
-        ingressi={{}}
+      <VolatilitaPanel
         items={vol?.items ?? []}
-        reading={vol?.reading}
-        cancelli={{}}
+        reading={vol?.reading}
         contesto={{ righe: [], oggi: "2026-08-25", strutturaTermine: null, strutturaWti: { ok: false, motivo: "front_non_disponibile" }, climaCopertura: [] }}
         giornoReport="2026-07-21"
       />,
