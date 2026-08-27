@@ -22,6 +22,7 @@ const IMPEGNO: ImpegnoSettimana = {
   em: 10,
   weekStart: "2026-08-23", // domenica
   windowEnd: "2026-08-28", // venerdì
+  oggi: "2026-08-28", // a settimana finita, salvo dove si dice altro
 };
 
 /** Chiusure con un valore diverso per giorno: così uno sfasamento si vede. */
@@ -74,6 +75,39 @@ describe("lo sfasamento di una seduta", () => {
   it("la costante dichiara UNA seduta, e il codice la rispetta", () => {
     expect(SFASAMENTO_SEDUTE).toBe(1);
   });
+
+  /**
+   * IL PUNTO FANTASMA, trovato sui dati veri della settimana del 23/08/2026:
+   * girando di giovedì usciva un punto datato venerdì con la chiusura di
+   * giovedì. Per la regola dello sfasamento è la riga formalmente giusta, ma
+   * è la riga di un report che non ha ancora girato — un'osservazione che
+   * non è stata osservata, e che sull'oro raddoppiava l'ultimo valore.
+   */
+  it("non inventa punti per giorni che non sono ancora arrivati", () => {
+    const aMeta = calcolaPercorso(
+      { ...IMPEGNO, oggi: "2026-08-26" }, // mercoledì
+      CHIUSURE,
+      "prova",
+    );
+    expect(aMeta.punti.map((x) => x.date)).toEqual([
+      "2026-08-24",
+      "2026-08-25",
+      "2026-08-26",
+    ]);
+    expect(aMeta.punti.at(-1)?.px).toBe(95); // la chiusura di martedì
+  });
+
+  it("a settimana conclusa la finestra resta quella del venerdì", () => {
+    const dopo = calcolaPercorso({ ...IMPEGNO, oggi: "2026-09-10" }, CHIUSURE, "prova");
+    expect(dopo.punti.at(-1)?.date).toBe("2026-08-28");
+    expect(dopo.punti).toHaveLength(5);
+  });
+
+  it("prima che la settimana cominci non c'è nessun punto", () => {
+    const prima = calcolaPercorso({ ...IMPEGNO, oggi: "2026-08-23" }, CHIUSURE, "prova");
+    expect(prima.punti).toEqual([]);
+    expect(prima.mfeEm).toBeNull();
+  });
 });
 
 describe("movimento, MFE e MAE", () => {
@@ -91,11 +125,25 @@ describe("movimento, MFE e MAE", () => {
     expect(p.maeEm).toBe(-0.5);
   });
 
-  it("un percorso tutto in perdita ha MFE zero o negativo, non riorientato", () => {
+  it("un percorso tutto in perdita ha MFE zero, non riorientato", () => {
     const giu = CHIUSURE.map((c) => ({ ...c, close: Math.min(c.close, 100) }));
     const p = calcolaPercorso(IMPEGNO, giu, "prova");
-    expect(p.mfeEm).toBeLessThanOrEqual(0);
-    expect(p.maeEm).toBeLessThanOrEqual(0);
+    expect(p.mfeEm).toBe(0);
+    expect(p.maeEm).toBeLessThan(0);
+  });
+
+  /**
+   * L'ORIGINE ENTRA NEL CONTO: un'escursione si misura dal momento in cui
+   * l'impegno è stato preso, e in quel momento vale zero. Senza lo zero una
+   * settimana sempre in guadagno produrrebbe un'«escursione avversa massima»
+   * POSITIVA — una contraddizione nei termini. Sui dati veri del 23/08/2026
+   * era il caso dell'oro (MAE +0,120) e del WTI (MFE −0,288).
+   */
+  it("una settimana sempre in guadagno ha MAE zero, mai positivo", () => {
+    const su = CHIUSURE.map((c) => ({ ...c, close: Math.max(c.close, 110) }));
+    const p = calcolaPercorso(IMPEGNO, su, "prova");
+    expect(p.maeEm).toBe(0);
+    expect(p.mfeEm).toBeGreaterThan(0);
   });
 });
 

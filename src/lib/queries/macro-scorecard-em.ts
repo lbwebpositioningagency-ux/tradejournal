@@ -6,6 +6,7 @@ import {
   type WeeklyBiasRecord,
 } from "@/lib/macro-desk-bias-record";
 import type { ScorecardAsset } from "@/lib/macro-desk-scorecard";
+import { CLOCK_TIMEZONE, zonedParts } from "@/lib/seasonality/buckets";
 import {
   calcolaPercorso,
   daCalcolare,
@@ -138,9 +139,14 @@ async function ricalcolaPercorsi(
   const daRifare = records.filter((r) => daCalcolare(r.weekStart));
   if (daRifare.length === 0) return [];
 
-  const primoGiorno = daRifare
-    .map((r) => r.weekStart)
-    .sort()[0];
+  const primoGiorno = daRifare.map((r) => r.weekStart).sort()[0];
+
+  /* Il giorno civile ITALIANO: il desk lavora in Europe/Rome, e la finestra
+     del percorso si ferma a oggi. A mezzanotte UTC in Italia e' gia' domani,
+     e un percorso che guadagna un punto per il fuso del server sarebbe un
+     punto inventato. */
+  const p = zonedParts(new Date(), CLOCK_TIMEZONE.ROME);
+  const oggi = `${p.year}-${String(p.month).padStart(2, "0")}-${String(p.day).padStart(2, "0")}`;
 
   try {
     const barre = await prisma.seasonalityDailyBar.findMany({
@@ -176,6 +182,7 @@ async function ricalcolaPercorsi(
             em: voce.em,
             weekStart: record.weekStart,
             windowEnd: record.windowEnd,
+            oggi,
           },
           chiusure,
           serie.etichetta,
