@@ -1850,3 +1850,59 @@ il 10° percentile di `mm_net` è positivo su entrambi gli strumenti).
 verifica visiva con l'harness CDP su build di produzione, dati veri, tema
 chiaro e scuro a 1440 e 375 px su Sintesi, Volatilità, Driver (anche 1920) e
 Stagionalità. Screenshot in `docs/macro-cinque/`.
+
+
+## ✅ «Tre chiusure: il Macro Desk è finito» (27/08/2026)
+
+Stesso ramo `macro/cinque-interventi`, tre blocchi pubblicati uno alla volta.
+Chiudono il lavoro sul Macro Desk: le sezioni scendono da sei a **cinque**
+quotidiane più due d'archivio.
+
+**1 — Via il discorsivo dell'AI Analyst** (`46191f2`). Sotto le schede per
+strumento restava un blocco di prosa che apriva con «Condizioni di espansione»
+— il carattere atteso che le tabelle avevano già sostituito con dei numeri —
+e raccontava a parole gli stessi valori delle schede.
+
+*Verifica fatta prima di cancellare*: dei suoi undici fattori, F1/F2/F4/F6 sono
+righe delle schede; F7, F8 e F9 stanno nella Stagionalità (che dal 27/08 ha
+anche il riepilogo «Dove siamo adesso»); F10 è il blocco «Stabilità delle
+relazioni» del Driver Desk; F11 e F12 sono due serie di Trends. L'unico senza
+altra casa era F5, la «partecipazione» del COT — oggetto del blocco 2.
+
+Con il testo è sparito tutto l'apparato che lo produceva: dossier a dodici
+fattori, mapper delle letture, template delle frasi, orchestratore col modello
+linguistico, client Gemini, prompt e i due cancelli sul linguaggio, più cinque
+script di anteprima. Tre conseguenze dichiarate: `caricaFontiCondivise`
+caricava Driver Desk, copertura della Stagionalità, cinque serie di Trends e
+la data del report senza più un lettore — **otto query in meno per apertura**;
+la banda «Report giornaliero in ritardo» è uscita dalla Sintesi perché nessuna
+riga di quella pagina viene più dal report; quattro campi dell'anagrafica
+strumenti e tre funzioni sono caduti con i fattori che li usavano.
+**−49 file, −6.409 righe nette di codice, 289 test in meno.**
+
+**2 — Via la sezione Posizionamento** (`5600c7f`). I dati erano corretti, le
+interpretazioni no. I tre numeri, registrati in `docs/DEBITO-TECNICO.md`:
+l'open interest in contratti misura il prezzo (oro al **5,2° percentile in
+contratti** e al **massimo assoluto in nozionale**, 176 mld $ contro 49 nel
+2017 quando i contratti erano di più); il legame «mercato sottile → oscillazioni
+più ampie» **non è monotono** su nessuno dei due strumenti (sul WTI il massimo
+sta nel quintile mediano); «MOLTO BASSO» **non implica netto corto** — il 10°
+percentile di `mm_net` è +15.253 sull'oro e +78.341 sul WTI.
+
+`CotWeek`, `cot-sync` e il cron **non sono stati toccati**: sparisce la pagina,
+non i dati. La riga della Sintesi è stata corretta — mostrava «141.648
+contratti» per un saldo netto, ora è «+141.648 contratti netti» col segno
+sempre esplicito, e tre test le vietano per nome «scommesse lunghe»,
+«posizioni lunghe», «lato corto» e «da liquidare». `cot-metrics.ts` resta
+INTATTO con il suo test di regressione: è la traduzione 1:1 del generatore
+pre-registrato, e sfoltirlo sarebbe la «miglioria» che la pre-registrazione
+dichiara essere un bug.
+
+**3 — Chiusura.** Indice e barra aggiornati (`MACRO_DESK_SECTIONS` è fonte
+unica per entrambi), descrizione della Sintesi riscritta perché citava ancora
+carattere, forza e «da ieri», commenti allineati al conteggio nuovo.
+
+**Verificato:** typecheck ✅ · eslint ✅ · **1687/1687 test** ✅ · build ✅ ·
+verifica CDP su build di produzione, tema chiaro e scuro a 1440 e 375 px:
+`/macro-desk/posizionamento` risponde 404 pulito e su tutte e otto le pagine
+del desk non resta un solo collegamento verso la sezione.

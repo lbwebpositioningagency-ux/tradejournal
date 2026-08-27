@@ -16,11 +16,13 @@ import {
  * Shell client del dettaglio report: navigazione a schede sul payload.
  * Il data-loading resta nella pagina server; qui solo stato del tab attivo.
  *
- * Volatilità, Posizionamento e Driver NON sono più schede: sono tre sezioni di
- * primo livello del Macro Desk, con fonti e job propri. Il payload del report
- * può continuare a contenere `volPanel` — semplicemente non lo si rende più
- * qui, tranne il commento del giorno sulla struttura vol, che è testo scritto
- * da QUESTO report e vive ora in Panoramica.
+ * Volatilità e Driver NON sono più schede: sono sezioni di primo livello del
+ * Macro Desk, con fonti e job propri. Lo era anche Posizionamento, rimossa il
+ * 27/08/2026 — i dati COT restano e se ne legge una riga nelle schede della
+ * Sintesi (v. `docs/macro-desk/VERDETTO-POSIZIONAMENTO.md`). Il payload del
+ * report può continuare a contenere `volPanel`: semplicemente non lo si rende
+ * più qui, tranne il commento del giorno sulla struttura vol, che è testo
+ * scritto da QUESTO report e vive ora in Panoramica.
  */
 
 const TABS = [

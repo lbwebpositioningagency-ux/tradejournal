@@ -15,13 +15,15 @@ import {
 export const metadata: Metadata = { title: "Macro Desk" };
 
 /**
- * Indice del Macro Desk: le sei sezioni quotidiane, poi l'archivio.
+ * Indice del Macro Desk: le cinque sezioni quotidiane, poi l'archivio.
  *
  * Fino al 26/08/2026 erano otto schede identiche, tutte di pari peso. Ma la
  * Scorecard si guarda una volta al mese e la Volatilità ogni mattina: un
  * indice che non distingue le frequenze costringe chi legge a ricordarsele, e
  * dà alle due pagine di consultazione rara la stessa aria di urgenza delle
- * altre.
+ * altre. Il 27/08/2026 è uscita Posizionamento e le quotidiane sono passate
+ * da sei a cinque: il conteggio a schermo viene dall'elenco, non da un numero
+ * scritto a mano, ma la frase di apertura sì ed è stata aggiornata con esso.
  *
  * Qui non si legge nessun dato di mercato: l'unica lettura è la DATA
  * dell'ultimo report giornaliero, che serve alla banda di allarme quando il
@@ -38,7 +40,7 @@ export default async function MacroDeskPage() {
       <div>
         <h1 className="page-title">Macro Desk</h1>
         <p className="page-subtitle">
-          Sei sezioni da consultare, ognuna con i suoi dati e i suoi
+          Cinque sezioni da consultare, ognuna con i suoi dati e i suoi
           aggiornamenti. In fondo l&apos;archivio: quello che si legge di rado.
         </p>
       </div>
