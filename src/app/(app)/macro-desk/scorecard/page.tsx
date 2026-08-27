@@ -80,6 +80,7 @@ export default async function MacroScorecardPage() {
           eligibleReports={source.eligibleReports}
           excludedReports={source.excludedReports}
           trackRecordStart={source.trackRecordStart}
+          percorsiRicalcolati={source.percorsiRicalcolati}
         />
       </div>
     </div>

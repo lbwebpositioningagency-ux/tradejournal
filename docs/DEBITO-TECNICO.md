@@ -586,3 +586,86 @@ l'attribuzione del fattore F4, che diceva «il GVZ rilevato dal report»: quel
 valore viene da FRED via Trends (`fonti.trends`, `sezione: "Trends —
 Volatilita"`), non dal report. L'osservazione era giusta — due letture della
 stessa misura, due date — l'attribuzione no.
+
+## Il percorso dell'impegno passa all'archivio (27/08/2026)
+
+Il `path` del Weekly Bias Record — le chiusure osservate e il loro movimento
+in Expected Move — arrivava dentro il report giornaliero, cioe da un testo
+generato. E l'unica parte del report che produce un esito misurabile, ed era
+la sola a dipendere da una generazione.
+
+Dal 27/08/2026 lo calcola l'app: `src/lib/percorso-impegno.ts`, modulo puro,
+a partire dalle chiusure d'archivio e dall'impegno del weekly (P0, EM).
+
+**Cosa calcola:** `path`, `move_EM`, `mfe_EM`, `mae_EM`.
+**Cosa NON calcola, e perche:** `status` e l'armamento delle invalidazioni.
+Le condizioni dei rami sono scritte in prosa — «chiusura sopra 4.509», ma
+anche «NFP < 75k» o «ISM Services < 50», che non sono nemmeno condizioni di
+prezzo. Finche non arrivano come numeri non c'e modo di valutarle senza
+indovinare, e la pagina dichiara che quei due campi restano del report.
+
+### Lo sfasamento di una seduta
+
+Il punto datato al giorno N porta la chiusura della seduta **N−1**, non
+quella di N. Il report del lunedi riferisce la chiusura di domenica, quello
+del martedi la chiusura di lunedi; la chiusura del venerdi non entra nel
+percorso, la risolve il weekly.
+
+Non dedotto a occhio: provati tutti gli scostamenti da −3 a +3 sedute sui 30
+punti realmente pubblicati, misurando lo scarto mediano contro l'archivio.
+
+| Strumento | scostamento −1 | scostamento 0 |
+|---|---|---|
+| S&P 500 | **1,88 punti** | 27,22 |
+| WTI future | **0,56 $** | 1,87 |
+| Oro | **10,34 $** | 55,18 |
+
+Sbagliarlo non produce un errore: produce una serie intera spostata di un
+giorno, plausibile e falsa. C'e un test dedicato.
+
+### La divergenza fra le fonti, misurata
+
+Con l'allineamento corretto, su 10 punti per strumento:
+
+| Strumento | scarto mediano | in EM | massimo in EM |
+|---|---|---|---|
+| S&P 500 (Yahoo `^GSPC`) | 1,88 punti | 0,012 | 0,084 |
+| WTI future (Yahoo `CL=F`) | 0,56 $ | 0,098 | 0,538 |
+| Oro (Dukascopy) | 10,34 $ | 0,067 | 0,502 |
+
+Il WTI usa il FUTURE e non lo spot Cushing: e la serie che il report ha
+sempre quotato, ed e quella con la chiusura del giorno invece che con otto
+giorni di ritardo.
+
+### DISCREPANZA NOTA, NON CORRETTA: oro, 20 agosto 2026
+
+| Fonte | Chiusura |
+|---|---|
+| report giornaliero | **4.474,96** |
+| Dukascopy (archivio) | **4.526,20** |
+| Yahoo `GC=F` (future CME, seconda opinione) | **4.516,30** |
+
+La soglia del ramo b2 della settimana del 16/08 era **«chiusura sopra
+4.509»**. Con il prezzo del report il ramo non si attiva; con quello di due
+fonti indipendenti si.
+
+**Conseguenza:** quella settimana e nella Scorecard come **NEUTRALE pending**
+invece che **RIALZISTA branched**. Il giorno dopo, 21 agosto, Dukascopy
+segnava 4.602,06 e `GC=F` 4.624,10 — la chiusura di venerdi avrebbe biforcato
+con ampio margine.
+
+**Non e stata corretta, ed e una scelta.** Ricalcolare oggi una settimana gia
+misurata vorrebbe dire riscrivere un track record dopo aver visto come e
+andata. Il taglio e dichiarato nel codice
+(`PRIMA_SETTIMANA_CALCOLATA = "2026-08-23"`): le settimane precedenti
+conservano il percorso che avevano, quelle successive usano l'archivio.
+
+### Quando le due fonti non coincidono
+
+Oltre **0,25 EM** di scarto fra il percorso calcolato e quello dichiarato dal
+report, la differenza si MOSTRA in pagina invece di sceglierne una in
+silenzio: giorno, i due prezzi, lo scarto, e quale delle due la Scorecard sta
+usando. La soglia e meta di `k_hit` (0,5 EM), la misura con cui una settimana
+viene giudicata: una discrepanza che vale meta di un esito merita di essere
+vista. Sui 30 punti misurati sarebbe scattata tre volte, tutte e tre
+sull'oro.

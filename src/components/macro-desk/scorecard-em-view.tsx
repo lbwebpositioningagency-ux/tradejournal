@@ -6,6 +6,12 @@ import {
   scorecardMetrics,
   type ResolvedWeek,
 } from "@/lib/macro-desk-scorecard-em";
+import {
+  PRIMA_SETTIMANA_CALCOLATA,
+  SOGLIA_DISCREPANZA_EM,
+} from "@/lib/percorso-impegno";
+import type { PercorsoRicalcolato } from "@/lib/queries/macro-scorecard-em";
+import { PanelLabel } from "./primitives";
 
 /**
  * Vista della scorecard a Expected Move. Componente SERVER puramente
@@ -26,6 +32,17 @@ const OUTCOME_TONE: Record<string, string> = {
 function pct(fraction: string | null): string {
   if (fraction === null) return "—";
   return `${(Number(fraction) * 100).toFixed(1).replace(".", ",")}%`;
+}
+
+/** Prezzo all'italiana, due decimali: le chiusure si leggono a colpo d'occhio. */
+function prezzo(value: number): string {
+  return value.toLocaleString("it-IT", {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+    // Il CLDR italiano non raggruppa a quattro cifre (4526, non 4.526): qui
+    // sono prezzi e il separatore serve sempre.
+    useGrouping: "always",
+  });
 }
 
 function em(value: number | null): string {
@@ -154,16 +171,104 @@ function Row({
   );
 }
 
+/**
+ * DA DOVE VENGONO LE CHIUSURE, settimana per settimana — e dove il report
+ * diceva un'altra cosa.
+ *
+ * Dal 27/08/2026 il percorso delle settimane nuove è calcolato sull'archivio
+ * e non più letto dal report. Una scorecard che misura prezzi senza dire da
+ * dove vengono chiede fiducia invece di darla: qui c'è la serie usata, per
+ * ogni asset, e l'elenco dei punti in cui il report dichiarava un prezzo
+ * abbastanza diverso da spostare la lettura.
+ */
+function ProvenienzaPercorsi({ percorsi }: { percorsi: PercorsoRicalcolato[] }) {
+  if (percorsi.length === 0) return null;
+
+  const fonti = new Map<string, Set<string>>();
+  for (const p of percorsi) {
+    const insieme = fonti.get(p.fonte) ?? new Set<string>();
+    insieme.add(ASSET_LABELS[p.asset] ?? p.asset);
+    fonti.set(p.fonte, insieme);
+  }
+  const conDiscrepanze = percorsi.filter((p) => p.discrepanze.length > 0);
+
+  return (
+    <div className="md-card-2 mt-4 flex flex-col gap-2 p-4">
+      <PanelLabel>Da dove vengono le chiusure</PanelLabel>
+      <ul className="flex flex-col gap-1">
+        {[...fonti.entries()].map(([fonte, assets]) => (
+          <li key={fonte} className="text-2xs" style={{ color: "var(--md-text-2)" }}>
+            <span className="md-mono font-semibold">
+              {[...assets].sort().join(" · ")}
+            </span>{" "}
+            — {fonte}
+          </li>
+        ))}
+      </ul>
+      <p className="text-2xs" style={{ color: "var(--md-muted)" }}>
+        Il percorso di queste settimane è calcolato sull&apos;archivio
+        giornaliero, non letto dal report. Restano invece dichiarati dal report
+        lo <em>stato</em> del bias e l&apos;armamento delle invalidazioni: le
+        loro condizioni sono scritte in prosa, e valutarle richiederebbe di
+        indovinare. Le settimane precedenti al {PRIMA_SETTIMANA_CALCOLATA}{" "}
+        conservano il percorso che avevano.
+      </p>
+
+      {conDiscrepanze.length > 0 ? (
+        <div
+          className="mt-1 flex flex-col gap-1 border-t pt-2"
+          style={{ borderColor: "var(--md-border)" }}
+        >
+          <span
+            className="md-mono text-2xs font-semibold"
+            style={{ color: "var(--md-warn)" }}
+          >
+            Dove il report diceva un&apos;altra cosa
+          </span>
+          {conDiscrepanze.map((p) =>
+            p.discrepanze.map((d) => (
+              <p
+                key={`${p.weekStart}-${p.asset}-${d.giorno}`}
+                className="text-2xs"
+                style={{ color: "var(--md-text-2)" }}
+              >
+                <span className="md-mono">{d.giorno}</span>{" "}
+                {ASSET_LABELS[p.asset] ?? p.asset}: archivio{" "}
+                <span className="md-mono font-semibold">
+                  {prezzo(d.pxArchivio)}
+                </span>
+                , report{" "}
+                <span className="md-mono">{prezzo(d.pxReport)}</span> —{" "}
+                <span className="md-mono">{prezzo(d.scartoEm)} EM</span> di
+                scarto. La Scorecard usa il primo.
+              </p>
+            )),
+          )}
+          <p className="text-2xs" style={{ color: "var(--md-muted)" }}>
+            Si mostrano gli scarti oltre{" "}
+            {SOGLIA_DISCREPANZA_EM.toFixed(2).replace(".", ",")} EM, metà della
+            soglia con cui una settimana viene giudicata: sotto quella misura
+            due fonti che non coincidono al centesimo non cambiano una lettura.
+          </p>
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
 export function ScorecardEmView({
   weeks,
   eligibleReports,
   excludedReports,
   trackRecordStart,
+  percorsiRicalcolati,
 }: {
   weeks: ResolvedWeek[];
   eligibleReports: number;
   excludedReports: number;
   trackRecordStart: string | null;
+  /** Settimane col percorso calcolato dall'archivio: fonte e discrepanze. */
+  percorsiRicalcolati: PercorsoRicalcolato[];
 }) {
   const overall = scorecardMetrics(weeks);
   const overallSplit = splitByBiasType(weeks);
@@ -300,6 +405,8 @@ export function ScorecardEmView({
               </tbody>
             </table>
           </div>
+
+          <ProvenienzaPercorsi percorsi={percorsiRicalcolati} />
 
           <p className="mt-4 text-2xs" style={{ color: "var(--md-muted)" }}>
             Circa 52 osservazioni all&apos;anno per asset: le percentuali si
