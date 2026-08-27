@@ -42,7 +42,8 @@ export default async function MacroDeskPage() {
         <h1 className="page-title">Macro Desk</h1>
         <p className="page-subtitle">
           Cinque sezioni da consultare, ognuna con i suoi dati e i suoi
-          aggiornamenti. In fondo l&apos;archivio: quello che si legge di rado.
+          aggiornamenti. Poi l&apos;archivio, quello che si legge di rado, e in
+          fondo il registro: l&apos;unica parte che non guarda i prezzi.
         </p>
       </div>
 
