@@ -3,9 +3,16 @@ import {
   chiDallaFonte,
   domenicaOnOrBefore,
   etichettaArea,
+  giorniFinestra,
   normalizzaAccenti,
   settimaneNonVerificabili,
+  statoDelleAree,
 } from "./macro-radar-testo";
+
+/** "YYYY-MM-DD" → Date a mezzanotte UTC, come le colonne @db.Date. */
+function d(chiave: string): Date {
+  return new Date(`${chiave}T00:00:00.000Z`);
+}
 
 describe("normalizzaAccenti", () => {
   it("rimette gli accenti sulle parole scritte con l'apostrofo sostitutivo", () => {
@@ -89,13 +96,90 @@ describe("chiDallaFonte", () => {
 });
 
 describe("etichettaArea", () => {
-  it("nomina le aree note", () => {
-    expect(etichettaArea("B")).toBe("B · Borse e strumenti quotati");
-    expect(etichettaArea("G")).toBe("G · Letture e ricerca");
+  it("rende la PAROLA, mai la lettera: la sigla è del payload, non di chi legge", () => {
+    expect(etichettaArea("A")).toBe("Prop firm");
+    expect(etichettaArea("B")).toBe("Borse");
+    expect(etichettaArea("C")).toBe("Broker");
+    expect(etichettaArea("D")).toBe("Regole");
+    expect(etichettaArea("E")).toBe("Piattaforme");
+    expect(etichettaArea("F")).toBe("Dati");
+    expect(etichettaArea("G")).toBe("Ricerca");
   });
 
   it("un'area ignota resta la sua lettera: non si inventa un nome", () => {
     expect(etichettaArea("H")).toBe("H");
+  });
+});
+
+describe("giorniFinestra", () => {
+  /* Il difetto: «3 ago – 9 ago 2026 · 6 giorni». Sono sette, e la pagina lo
+     diceva su OGNI settimana normale. Estremi compresi, sempre. */
+  it("una settimana piena fa sette giorni, non sei", () => {
+    expect(giorniFinestra(d("2026-08-03"), d("2026-08-09"))).toBe(7);
+  });
+
+  it("la finestra estesa del collaudo fa quindici giorni, non quattordici", () => {
+    expect(giorniFinestra(d("2026-08-13"), d("2026-08-27"))).toBe(15);
+  });
+
+  it("un giorno solo fa un giorno", () => {
+    expect(giorniFinestra(d("2026-08-09"), d("2026-08-09"))).toBe(1);
+  });
+
+  it("regge il confine di mese e di anno", () => {
+    expect(giorniFinestra(d("2026-08-31"), d("2026-09-01"))).toBe(2);
+    expect(giorniFinestra(d("2026-12-28"), d("2027-01-03"))).toBe(7);
+  });
+});
+
+describe("statoDelleAree", () => {
+  const base = {
+    vociPerArea: { A: 2, B: 1 },
+    vuote: ["D", "E"],
+    cieche: [{ area: "C", reason: "nessun canale enumerabile" }],
+    settimaneCieche: { C: 4 },
+  };
+
+  it("torna SEMPRE tutte e sette le aree, in ordine", () => {
+    const aree = statoDelleAree(base);
+    expect(aree.map((a) => a.area)).toEqual(["A", "B", "C", "D", "E", "F", "G"]);
+  });
+
+  it("l'area che il payload non nomina risulta NON DICHIARATA, non vuota", () => {
+    const aree = statoDelleAree(base);
+    const f = aree.find((a) => a.area === "F")!;
+    const g = aree.find((a) => a.area === "G")!;
+    // È il difetto più grave dell'audit: prima F e G sparivano e basta.
+    expect(f.dichiarata).toBe(false);
+    expect(f.vuota).toBe(false);
+    expect(g.dichiarata).toBe(false);
+  });
+
+  it("un'area vuota è dichiarata, e non va confusa con una non dichiarata", () => {
+    const d1 = statoDelleAree(base).find((a) => a.area === "D")!;
+    expect(d1.vuota).toBe(true);
+    expect(d1.dichiarata).toBe(true);
+    expect(d1.cieca).toBeNull();
+  });
+
+  it("un'area cieca porta il motivo e da quante settimane lo è", () => {
+    const c = statoDelleAree(base).find((a) => a.area === "C")!;
+    expect(c.cieca).toEqual({ motivo: "nessun canale enumerabile", settimane: 4 });
+  });
+
+  it("cieca E con voci convivono: si può trovare qualcosa senza vedere l'elenco", () => {
+    const aree = statoDelleAree({
+      ...base,
+      vociPerArea: { ...base.vociPerArea, C: 1 },
+    });
+    const c = aree.find((a) => a.area === "C")!;
+    expect(c.cieca).not.toBeNull();
+    expect(c.voci).toBe(1);
+  });
+
+  it("un'area fuori dalle sette non viene persa: si aggiunge in coda", () => {
+    const aree = statoDelleAree({ ...base, vuote: [...base.vuote, "H"] });
+    expect(aree.map((a) => a.area)).toEqual(["A", "B", "C", "D", "E", "F", "G", "H"]);
   });
 });
 

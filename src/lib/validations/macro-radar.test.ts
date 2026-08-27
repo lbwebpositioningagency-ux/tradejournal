@@ -125,6 +125,98 @@ describe("radarReportSchema — vuoto e non verificabile non si confondono", () 
   });
 });
 
+describe("radarReportSchema — l'area che sparisce in silenzio", () => {
+  /* Il difetto più grave dell'audit: un'area che il payload non nomina da
+     nessuna parte non compariva in pagina, e «non l'ho guardata» diventava
+     indistinguibile da «non esiste». Ora è un 400 rumoroso. */
+
+  it("RIFIUTA un payload che non nomina una delle sette aree", () => {
+    // Il collaudo dichiara vuote D e G: togliendo G, l'area sparisce.
+    const esito = radarReportSchema.safeParse(payload({ emptyAreas: ["D"] }));
+    expect(esito.success).toBe(false);
+    expect(messaggi(esito)).toContain("Aree non dichiarate: G (Ricerca)");
+  });
+
+  it("elenca TUTTE le aree mancanti, non solo la prima", () => {
+    const esito = radarReportSchema.safeParse(
+      payload({ emptyAreas: [], unverifiableAreas: [] }),
+    );
+    expect(esito.success).toBe(false);
+    const m = messaggi(esito);
+    // Il collaudo ha voci in A, B, E: mancherebbero C, D, F, G.
+    for (const attesa of ["C (Broker)", "D (Regole)", "F (Dati)", "G (Ricerca)"]) {
+      expect(m, attesa).toContain(attesa);
+    }
+  });
+
+  it("un'area coperta da una VOCE conta come dichiarata", () => {
+    // A, B ed E non compaiono in emptyAreas né in unverifiableAreas: le
+    // coprono le voci di items, e va bene così.
+    const esito = radarReportSchema.safeParse(payload());
+    expect(messaggi(esito)).toBe("");
+  });
+
+  it("la watchlist NON basta a dichiarare un'area", () => {
+    // Un'osservazione dice che qualcosa è in attesa, non che l'area è stata
+    // guardata e non aveva novità. Sono due affermazioni diverse.
+    const esito = radarReportSchema.safeParse(
+      payload({
+        emptyAreas: ["D"],
+        watchlist: [{ id: "qualcosa-in-g", area: "G", title: "Un paper atteso" }],
+      }),
+    );
+    expect(esito.success).toBe(false);
+    expect(messaggi(esito)).toContain("G (Ricerca)");
+  });
+});
+
+describe("radarReportSchema — l'aggancio dell'evidenza", () => {
+  it("richiede l'id nelle voci in evidenza", () => {
+    const rotto = payload();
+    delete (rotto.top as Record<string, unknown>[])[0].id;
+    expect(radarReportSchema.safeParse(rotto).success).toBe(false);
+  });
+
+  it("RIFIUTA un'evidenza che punta a una voce inesistente", () => {
+    const rotto = payload();
+    (rotto.top as Record<string, unknown>[])[0].id = "voce-che-non-esiste";
+    const esito = radarReportSchema.safeParse(rotto);
+    expect(esito.success).toBe(false);
+    expect(messaggi(esito)).toContain("resterebbe orfana");
+  });
+
+  it("l'evidenza valida passa e tiene l'aggancio", () => {
+    const esito = radarReportSchema.safeParse(payload());
+    if (!esito.success) throw new Error(messaggi(esito));
+    expect(esito.data.top.map((h) => h.id)).toEqual([
+      "cme-e-nano-equity-index-futures-launch",
+      "ftmo-tradingview-platform-option",
+    ]);
+    // …e ogni id corrisponde davvero a una voce del registro.
+    const slug = new Set(esito.data.changes.map((c) => c.id));
+    for (const h of esito.data.top) expect(slug.has(h.id)).toBe(true);
+  });
+});
+
+describe("radarReportSchema — il caveat", () => {
+  it("accetta il limite di lettura come campo suo, distinto dall'impatto", () => {
+    const con = payload();
+    (con.items as Record<string, unknown>[])[0].caveat =
+      "Tick size e margini non sono indicati nelle pagine pubbliche consultate.";
+    const esito = radarReportSchema.safeParse(con);
+    if (!esito.success) throw new Error(messaggi(esito));
+    expect(esito.data.changes[0].caveat).toContain("non sono indicati");
+    // L'impatto resta quello che era: sono due campi, non uno.
+    expect(esito.data.changes[0].impact).toBeTruthy();
+  });
+
+  it("assente resta assente: non si inventa un caveat", () => {
+    const esito = radarReportSchema.safeParse(payload());
+    if (!esito.success) throw new Error(messaggi(esito));
+    expect(esito.data.changes[0].caveat).toBeUndefined();
+  });
+});
+
 describe("radarReportSchema — il resto del confine", () => {
   it("la finestra coperta è obbligatoria e coerente", () => {
     expect(radarReportSchema.safeParse(payload({ coverage: undefined })).success).toBe(

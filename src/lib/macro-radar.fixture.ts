@@ -12,7 +12,13 @@
  *     utile: elenco notices CME …, elenco notices ICE …»). Vuote per davvero
  *     sono solo D e G, dove le fonti sono state enumerate e i contenuti
  *     trovati e scartati dal filtro.
- *  3. Gli apostrofi sostitutivi (`gia'`, `piu'`, `perche'`) sono lasciati
+ *  3. Le voci di `top[]` hanno ricevuto un `id` che punta alla voce del
+ *     registro. Nel run originale non c'era — il contratto lo prevede dal
+ *     28/08/2026 — e senza aggancio l'azione conseguente non avrebbe una riga
+ *     su cui comparire. È l'unico campo aggiunto: nessun FATTO è stato
+ *     toccato, i due id sono copiati dalle voci a cui quelle schede si
+ *     riferivano già.
+ *  4. Gli apostrofi sostitutivi (`gia'`, `piu'`, `perche'`) sono lasciati
  *     COM'ERANO di proposito: sono la prova che serve a `normalizzaAccenti`.
  *     La precauzione non è codificata nello schema — i report futuri
  *     arriveranno con gli accenti veri e passeranno indenni.
@@ -32,6 +38,7 @@ export const RADAR_COLLAUDO_2026_08_23 = {
   },
   "top": [
     {
+      "id": "cme-e-nano-equity-index-futures-launch",
       "title": "CME lancia gli E-nano su S&P 500, Nasdaq-100, Russell 2000 e Dow",
       "whatChanged": "Nuova famiglia di futures su indici azionari pari a 1/10 dei Micro E-mini, quotata su Globex con negoziazione 23 ore su 24; listing ufficiale con SER-9789 del 24 agosto 2026.",
       "action": "Verificare con il broker se NES/NNQ sono gia' negoziabili e a quale margine intraday prima di considerarli per il sizing.",
@@ -39,6 +46,7 @@ export const RADAR_COLLAUDO_2026_08_23 = {
       "sourceName": "CME Group - Special Executive Report SER-9789"
     },
     {
+      "id": "ftmo-tradingview-platform-option",
       "title": "FTMO aggiunge TradingView tra le piattaforme ammesse",
       "whatChanged": "TradingView diventa opzione di piattaforma per FTMO Challenge, Verification e FTMO Account, con esecuzione ordini diretta dal grafico.",
       "action": "Se serve il cambio piattaforma su un account gia' attivo, va richiesto e decorre dalla fase successiva o dal ciclo di fatturazione successivo.",

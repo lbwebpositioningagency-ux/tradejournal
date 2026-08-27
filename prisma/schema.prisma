@@ -185,7 +185,7 @@ model Trade {
   // Denormalizzato come rMultiple e calcolato dalla STESSA funzione
   // (metrics/plan.ts → targetRMultiple): le distribuzioni per target R si
   // aggregano in SQL senza ri-derivare la formula altrove.
-  targetR Decimal? @db.Decimal(10, 4)
+  targetR       Decimal? @db.Decimal(10, 4)
 
   strategyId String?
   rating     Int? // 1-5, opzionale
@@ -194,8 +194,8 @@ model Trade {
   // i ticket MT5 sono sequenziali per server e broker diversi possono riusarli.
   brokerTicketId String?
 
-  account     TradingAccount @relation(fields: [tradingAccountId], references: [id], onDelete: Cascade)
-  strategy    Strategy?      @relation(fields: [strategyId], references: [id], onDelete: SetNull)
+  account     TradingAccount        @relation(fields: [tradingAccountId], references: [id], onDelete: Cascade)
+  strategy    Strategy?             @relation(fields: [strategyId], references: [id], onDelete: SetNull)
   executions  Execution[]
   tags        TradeTag[]
   notes       Note[]
@@ -275,17 +275,17 @@ model TradeTag {
 }
 
 model Note {
-  id       String    @id @default(cuid())
-  userId   String
-  type     NoteType  @default(NOTEBOOK)
-  tradeId  String?
-  dayDate  DateTime? @db.Date // per type=DAILY: giorno nel fuso dell'utente
-  dayPhase DayPhase? // per type=DAILY: fase del journal (3 campi per giorno)
+  id         String          @id @default(cuid())
+  userId     String
+  type       NoteType        @default(NOTEBOOK)
+  tradeId    String?
+  dayDate    DateTime?       @db.Date // per type=DAILY: giorno nel fuso dell'utente
+  dayPhase   DayPhase? // per type=DAILY: fase del journal (3 campi per giorno)
   // per type=TRADE: piano (prima) o revisione (dopo). null = nota storica
   // scritta quando il campo era uno solo: non si riscrive il passato.
   tradePhase TradeNotePhase?
-  title    String?
-  content  String // markdown
+  title      String?
+  content    String // markdown
 
   user        User         @relation(fields: [userId], references: [id], onDelete: Cascade)
   trade       Trade?       @relation(fields: [tradeId], references: [id], onDelete: Cascade)
@@ -302,7 +302,6 @@ model Note {
 
 /**
  * F3 — CHECKLIST PRE-TRADE RIUTILIZZABILE.
- *
  * Le voci sono dell'utente e vivono nel tempo; le spunte sono del singolo
  * trade e non cambiano mai più. `TradeChecklistCheck` porta una COPIA
  * dell'etichetta al momento della spunta: rinominare una voce non deve
@@ -315,7 +314,7 @@ model ChecklistItem {
   position   Int     @default(0)
   isArchived Boolean @default(false)
 
-  user   User                 @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user   User                  @relation(fields: [userId], references: [id], onDelete: Cascade)
   checks TradeChecklistCheck[]
 
   createdAt DateTime @default(now())
@@ -329,7 +328,9 @@ model TradeChecklistCheck {
   tradeId String
   itemId  String
   checked Boolean @default(false)
-  /** Etichetta al momento della spunta: il passato non si riscrive. */
+  /**
+   * Etichetta al momento della spunta: il passato non si riscrive.
+   */
   label   String
 
   trade Trade         @relation(fields: [tradeId], references: [id], onDelete: Cascade)
@@ -341,7 +342,6 @@ model TradeChecklistCheck {
 
 /**
  * F3 — REVISIONE POST-MORTEM STRUTTURATA.
- *
  * Tre domande fisse invece di un campo libero: un box vuoto produce "bene"
  * e "male", tre domande producono una revisione. `followedPlan` è l'unico
  * campo che si può AGGREGARE — «win rate quando ho seguito il piano contro
@@ -349,7 +349,9 @@ model TradeChecklistCheck {
  */
 model TradeReview {
   tradeId      String   @id
-  /** Il trade ha seguito il piano? null = non ancora risposto. */
+  /**
+   * Il trade ha seguito il piano? null = non ancora risposto.
+   */
   followedPlan Boolean?
   whatWorked   String?
   whatFailed   String?
@@ -439,29 +441,40 @@ model MacroDeskReport {
   // payload del dettaglio: il desk è un sistema esterno, la sua forma può
   // cambiare e l'app non deve rompersi né perdere dati.
 
-  /** Versione dello schema inviato dal desk. null = legacy v1. */
-  schemaVersion Int?
-  /** false = report informativo, fuori da OGNI conteggio della scorecard. */
+  /**
+   * Versione dello schema inviato dal desk. null = legacy v1.
+   */
+  schemaVersion     Int?
+  /**
+   * false = report informativo, fuori da OGNI conteggio della scorecard.
+   */
   scorecardEligible Boolean?
-  /** Prima riga del nuovo track record (una sola volta). */
-  trackRecordStart Boolean @default(false)
-  /** Weekly Bias Record: la dichiarazione della settimana + il monitoraggio. */
-  biasRecord Json?
-  /** Verdetto del desk sulla settimana conclusa (solo WEEKLY). */
-  resolved Json?
-  /** Stato giornaliero degli asset (solo DAILY). */
-  monitor Json?
+  /**
+   * Prima riga del nuovo track record (una sola volta).
+   */
+  trackRecordStart  Boolean  @default(false)
+  /**
+   * Weekly Bias Record: la dichiarazione della settimana + il monitoraggio.
+   */
+  biasRecord        Json?
+  /**
+   * Verdetto del desk sulla settimana conclusa (solo WEEKLY).
+   */
+  resolved          Json?
+  /**
+   * Stato giornaliero degli asset (solo DAILY).
+   */
+  monitor           Json?
   /**
    * Modifiche all'IMPEGNO DELLA DOMENICA che questo report ha tentato e che
    * l'endpoint ha rifiutato: bias, p0, em o soglie dei rami diversi da quelli
    * gia' registrati per la stessa settimana. `null` = nessuna discrepanza.
-   *
    * Si conserva invece di limitarsi a loggare perche' il difetto da togliere
    * non era la sovrascrittura ma il fatto che avvenisse in silenzio: una riga
    * di log che nessuno legge non e' un miglioramento.
    * Regola in `src/lib/macro-desk-impegno.ts`.
    */
-  impegnoRifiutato Json?
+  impegnoRifiutato  Json?
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -504,14 +517,18 @@ model CotWeek {
 // è una decisione di chi possiede il database, non di una revisione della UI:
 // la voce è registrata in docs/DEBITO-TECNICO.md in attesa di un drop.
 model CotContestoBox {
-  id String @id @default(cuid())
-  /** Martedì di riferimento della settimana COT commentata (mezzanotte UTC). */
+  id           String   @id @default(cuid())
+  /**
+   * Martedì di riferimento della settimana COT commentata (mezzanotte UTC).
+   */
   settimanaCot DateTime @db.Date
   generatedAt  DateTime @default(now())
-  /** Contenuto validato da Zod (src/lib/cot-contesto.ts): contesto per
+  /**
+   * Contenuto validato da Zod (src/lib/cot-contesto.ts): contesto per
    * strumento con fonti; le implicazioni meccaniche NON stanno qui (tabella
-   * statica nel codice, ricavata a render-time dalla banda corrente). */
-  contenuto Json
+   * statica nel codice, ricavata a render-time dalla banda corrente).
+   */
+  contenuto    Json
 
   @@unique([settimanaCot])
 }
@@ -654,26 +671,38 @@ model SeasonalityStat {
   detrended     Boolean
   bucket        Int
 
-  /** Numerosità del campione: SEMPRE mostrata, è il metro dell'affidabilità.
-   * È il numero di ANNI — l'unità statistica è la casella della griglia. */
-  n Int
-  /** Osservazioni GREZZE dietro le medie annue (giorni di quotazione, o ore
-   * per l'intraday). Informazione aggiuntiva, mai il denominatore. */
-  rawCount Int?
-  /** RETURN: media dei rendimenti log. LEVEL: livello medio. */
-  mean   Decimal @db.Decimal(18, 8)
-  median Decimal @db.Decimal(18, 8)
-  /** Deviazione standard campionaria (n-1); null con n < 2. */
-  stdev Decimal? @db.Decimal(18, 8)
-  /** RETURN: quota di osservazioni positive. LEVEL: quota sopra la mediana
-   * di tutto il periodo (un hit rate sul livello non avrebbe senso). */
-  positiveShare Decimal @db.Decimal(18, 8)
-  p25           Decimal @db.Decimal(18, 8)
-  p75           Decimal @db.Decimal(18, 8)
-  /** Copertura EMPIRICA della banda media±1σ: quota di osservazioni davvero
+  /**
+   * Numerosità del campione: SEMPRE mostrata, è il metro dell'affidabilità.
+   * È il numero di ANNI — l'unità statistica è la casella della griglia.
+   */
+  n             Int
+  /**
+   * Osservazioni GREZZE dietro le medie annue (giorni di quotazione, o ore
+   * per l'intraday). Informazione aggiuntiva, mai il denominatore.
+   */
+  rawCount      Int?
+  /**
+   * RETURN: media dei rendimenti log. LEVEL: livello medio.
+   */
+  mean          Decimal  @db.Decimal(18, 8)
+  median        Decimal  @db.Decimal(18, 8)
+  /**
+   * Deviazione standard campionaria (n-1); null con n < 2.
+   */
+  stdev         Decimal? @db.Decimal(18, 8)
+  /**
+   * RETURN: quota di osservazioni positive. LEVEL: quota sopra la mediana
+   * di tutto il periodo (un hit rate sul livello non avrebbe senso).
+   */
+  positiveShare Decimal  @db.Decimal(18, 8)
+  p25           Decimal  @db.Decimal(18, 8)
+  p75           Decimal  @db.Decimal(18, 8)
+  /**
+   * Copertura EMPIRICA della banda media±1σ: quota di osservazioni davvero
    * dentro [media−σ, media+σ]. Si mostra questa, mai il 68% teorico — stessa
-   * scelta del simulatore di equity. Null quando σ non è definita (n < 2). */
-  withinSigma Decimal? @db.Decimal(18, 8)
+   * scelta del simulatore di equity. Null quando σ non è definita (n < 2).
+   */
+  withinSigma   Decimal? @db.Decimal(18, 8)
 
   firstDate DateTime @db.Date
   lastDate  DateTime @db.Date
@@ -690,15 +719,19 @@ model SeasonalityPathPoint {
   detrended     Boolean
   dayOfYear     Int
 
-  meanCum   Decimal @db.Decimal(18, 8)
-  medianCum Decimal @db.Decimal(18, 8)
-  p25Cum    Decimal @db.Decimal(18, 8)
-  p75Cum    Decimal @db.Decimal(18, 8)
-  /** Quota di anni sopra lo zero (o sopra la mediana, per i livelli) a
-   * questo punto dell'anno: senza, la linea media sarebbe una media nuda. */
+  meanCum       Decimal @db.Decimal(18, 8)
+  medianCum     Decimal @db.Decimal(18, 8)
+  p25Cum        Decimal @db.Decimal(18, 8)
+  p75Cum        Decimal @db.Decimal(18, 8)
+  /**
+   * Quota di anni sopra lo zero (o sopra la mediana, per i livelli) a
+   * questo punto dell'anno: senza, la linea media sarebbe una media nuda.
+   */
   positiveShare Decimal @default(0) @db.Decimal(18, 8)
-  /** Anni che contribuiscono a questo punto. */
-  n Int
+  /**
+   * Anni che contribuiscono a questo punto.
+   */
+  n             Int
 
   @@id([instrument, lookbackYears, detrended, dayOfYear])
 }
@@ -710,7 +743,9 @@ model SeasonalityCoverage {
   instrument SeasonalityInstrument @id
   kind       SeasonalityKind
 
-  /** Etichetta della sorgente che ha effettivamente risposto (es. "FRED DCOILWTICO"). */
+  /**
+   * Etichetta della sorgente che ha effettivamente risposto (es. "FRED DCOILWTICO").
+   */
   dailySource String?
   dailyFirst  DateTime? @db.Date
   dailyLast   DateTime? @db.Date
@@ -721,14 +756,20 @@ model SeasonalityCoverage {
   hourLast   DateTime? @db.Timestamptz(3)
   hourRows   Int       @default(0)
 
-  /** Ultimo precalcolo andato a buon fine per questo strumento. */
+  /**
+   * Ultimo precalcolo andato a buon fine per questo strumento.
+   */
   computedAt DateTime?
-  /** Motivo dichiarato quando il dato GIORNALIERO manca o è parziale. */
-  note String?
-  /** Copertura dell'archivio ORARIO (mesi assenti). Campo separato da `note`:
+  /**
+   * Motivo dichiarato quando il dato GIORNALIERO manca o è parziale.
+   */
+  note       String?
+  /**
+   * Copertura dell'archivio ORARIO (mesi assenti). Campo separato da `note`:
    * un errore sul giornaliero e un buco nell'intraday sono due notizie
-   * diverse, e prima si sovrascrivevano a vicenda. */
-  hourNote String?
+   * diverse, e prima si sovrascrivevano a vicenda.
+   */
+  hourNote   String?
 
   updatedAt DateTime @updatedAt
 }
@@ -740,12 +781,13 @@ model SeasonalityRun {
   startedAt  DateTime  @default(now())
   finishedAt DateTime?
   ok         Boolean   @default(false)
-  /** Esito per strumento: righe ingerite, sorgente, errori. */
-  detail Json?
+  /**
+   * Esito per strumento: righe ingerite, sorgente, errori.
+   */
+  detail     Json?
 
   @@index([startedAt])
 }
-
 
 // Una riga per (strumento, granularità, anno, bucket): è ciò che alimenta le
 // HEATMAP anni × {mesi | settimane | giorni}, che per definizione mostrano le
@@ -764,17 +806,21 @@ model SeasonalityRun {
 model SeasonalityYearBucketObs {
   instrument  SeasonalityInstrument
   granularity SeasonalityGranularity
-  /** Rilevante solo per HOUR, che esiste in due versioni precalcolate.
-   * Per tutte le altre granularità vale ROME, riga unica. */
-  clock  SeasonalityClock @default(ROME)
-  year   Int
-  bucket Int
+  /**
+   * Rilevante solo per HOUR, che esiste in due versioni precalcolate.
+   * Per tutte le altre granularità vale ROME, riga unica.
+   */
+  clock       SeasonalityClock       @default(ROME)
+  year        Int
+  bucket      Int
 
   value Decimal @db.Decimal(18, 8)
-  /** Giorni di quotazione che compongono l'osservazione: un mese con 3 giorni
+  /**
+   * Giorni di quotazione che compongono l'osservazione: un mese con 3 giorni
    * di dati non è un mese, e la heatmap deve poterlo marcare invece di
-   * colorarlo come gli altri. */
-  days Int
+   * colorarlo come gli altri.
+   */
+  days  Int
 
   @@id([instrument, granularity, clock, year, bucket])
 }
@@ -788,13 +834,11 @@ model SeasonalityYearBucketObs {
 // pezzo e lo dichiara, e più esecuzioni convergono.
 /**
  * Media stagionale di un QUARTO D'ORA per (strumento, orologio, anno).
- *
  * È l'unica traccia che resta delle barre M15: il grezzo — milioni di righe
  * per strumento — viene scaricato, aggregato e BUTTATO nella stessa
  * invocazione. Qui restano 96 bucket × ~23 anni × 2 orologi per strumento,
  * cioè qualche migliaio di righe in tutto, da cui qualunque finestra di
  * lookback si ricava con una media.
- *
  * Serve SOLO al grafico del ritorno intraday: le tabelle e la heatmap della
  * vista Ora restano sulle barre H1, con le loro statistiche complete.
  */
@@ -802,12 +846,18 @@ model SeasonalityQuarterYear {
   instrument SeasonalityInstrument
   clock      SeasonalityClock
   year       Int
-  /** Quarto d'ora dalla mezzanotte dell'orologio scelto: 0..95. */
+  /**
+   * Quarto d'ora dalla mezzanotte dell'orologio scelto: 0..95.
+   */
   bucket     Int
 
-  /** Media dei rendimenti log di quel quarto d'ora in quell'anno. */
+  /**
+   * Media dei rendimenti log di quel quarto d'ora in quell'anno.
+   */
   mean Decimal @db.Decimal(18, 12)
-  /** Barre M15 che la compongono: il campione grezzo, dichiarato. */
+  /**
+   * Barre M15 che la compongono: il campione grezzo, dichiarato.
+   */
   bars Int
 
   @@id([instrument, clock, year, bucket])
@@ -857,12 +907,16 @@ model DriverDeskBar {
 // stesso ruolo di SeasonalityCoverage.
 model DriverDeskCoverage {
   series    DriverDeskSeries @id
-  /** Etichetta della fonte che ha davvero risposto (es. "FRED DFII10"). */
+  /**
+   * Etichetta della fonte che ha davvero risposto (es. "FRED DFII10").
+   */
   source    String?
   firstDate DateTime?        @db.Date
   lastDate  DateTime?        @db.Date
   rows      Int              @default(0)
-  /** Motivo dichiarato quando il dato manca o è parziale. */
+  /**
+   * Motivo dichiarato quando il dato manca o è parziale.
+   */
   note      String?
   updatedAt DateTime         @updatedAt
 }
@@ -870,33 +924,47 @@ model DriverDeskCoverage {
 model SeasonalityJobState {
   instrument SeasonalityInstrument @id
 
-  /** Ultimo giornaliero portato a termine: sotto le 20 ore non si rifà. */
+  /**
+   * Ultimo giornaliero portato a termine: sotto le 20 ore non si rifà.
+   */
   dailyDoneAt DateTime?
 
-  /** Prossimo anno da scaricare per l'intraday. `null` = mai iniziato.
+  /**
+   * Prossimo anno da scaricare per l'intraday. `null` = mai iniziato.
    * È un anno e non un timestamp perché l'ingest procede a blocchi annuali:
    * un anno interamente vuoto (l'inizio di uno storico) non farebbe avanzare
    * un cursore basato sull'ultima barra salvata, e il job resterebbe fermo
-   * a rileggere il vuoto per sempre. */
+   * a rileggere il vuoto per sempre.
+   */
   hourNextYear Int?
 
-  /** L'ingest orario ha raggiunto il presente: da qui in poi solo il delta. */
+  /**
+   * L'ingest orario ha raggiunto il presente: da qui in poi solo il delta.
+   */
   hourIngestComplete Boolean @default(false)
 
-  /** Prossimo anno da scaricare per i quarti d'ora (M15). Stesso schema del
+  /**
+   * Prossimo anno da scaricare per i quarti d'ora (M15). Stesso schema del
    * cursore orario, tabella diversa: il grezzo M15 non si conserva, quindi
-   * l'unico stato che avanza è questo. */
+   * l'unico stato che avanza è questo.
+   */
   quarterNextYear Int?
 
-  /** L'ingest M15 ha raggiunto il presente. */
+  /**
+   * L'ingest M15 ha raggiunto il presente.
+   */
   quarterIngestComplete Boolean @default(false)
 
-  /** Ultimo anno ricalcolato dai quarti d'ora: l'anno in corso si rifà. */
+  /**
+   * Ultimo anno ricalcolato dai quarti d'ora: l'anno in corso si rifà.
+   */
   quarterDoneAt DateTime?
 
-  /** Righe orarie al momento dell'ultimo precalcolo. Se non sono cambiate il
+  /**
+   * Righe orarie al momento dell'ultimo precalcolo. Se non sono cambiate il
    * precalcolo non si rifà: a regime è il risparmio che tiene il job dentro
-   * il budget. */
+   * il budget.
+   */
   hourRowsAtCompute Int       @default(0)
   hourComputedAt    DateTime?
 
@@ -923,7 +991,9 @@ model SeasonalityJobState {
 model RadarReport {
   id String @id @default(cuid())
 
-  /** Domenica della settimana del run (mezzanotte UTC). Chiave di unicità. */
+  /**
+   * Domenica della settimana del run (mezzanotte UTC). Chiave di unicità.
+   */
   weekOf      DateTime @unique @db.Date
   generatedAt DateTime
 
@@ -935,14 +1005,20 @@ model RadarReport {
   windowTo       DateTime @db.Date
   windowExtended Boolean  @default(false)
 
-  /** Elementi guardati e scartati dal filtro: numero, non giudizio. */
+  /**
+   * Elementi guardati e scartati dal filtro: numero, non giudizio.
+   */
   discarded Int?
-  /** Note del run: cosa è stato guardato, cosa non si è raggiunto. */
-  notes String?
+  /**
+   * Note del run: cosa è stato guardato, cosa non si è raggiunto.
+   */
+  notes     String?
 
-  /** Payload integrale come ricevuto, non normalizzato: la forma del task
+  /**
+   * Payload integrale come ricevuto, non normalizzato: la forma del task
    * esterno evolve e nulla va perso. Le colonne sopra sono la parte che la
-   * pagina legge; questa è la copia fedele. */
+   * pagina legge; questa è la copia fedele.
+   */
   payload Json
 
   highlights   RadarHighlight[]
@@ -964,16 +1040,36 @@ model RadarHighlight {
   reportId String
   report   RadarReport @relation(fields: [reportId], references: [id], onDelete: Cascade)
 
-  ordine      Int
+  ordine Int
+  /**
+   * Aggancio alla voce del registro (`RadarChange.slug` / `RadarReading.slug`).
+   * Dal 27/08/2026 le voci di `top[]` portano un `id` nel payload e questo è
+   * quel valore. Prima non c'era: il blocco delle voci in evidenza era una
+   * card separata che RIPETEVA il testo della riga, e l'unico modo di
+   * appaiarli sarebbe stato l'URL della fonte. Ora l'evidenza non è più un
+   * blocco: è una marcatura sulla riga, e questo campo è ciò che la lega.
+   * Nullable per le righe scritte prima (riempite dalla migrazione).
+   */
+  slug   String?
+
+  /**
+   * Conservati ma non più rappresentati: l'evidenza non ha un testo proprio,
+   * ha solo l'azione. Restano perché cancellare dati non è una decisione di
+   * una revisione della UI.
+   */
   title       String
   whatChanged String
-  /** L'azione conseguente: è ciò che distingue un highlight da una notizia. */
+
+  /**
+   * L'azione conseguente: è la SOLA cosa che l'evidenza aggiunge alla voce.
+   */
   action     String
   sourceUrl  String?
   sourceName String?
 
   @@unique([reportId, ordine])
   @@index([reportId])
+  @@index([slug])
 }
 
 // Una voce del registro: un cambiamento operativo osservato nella finestra.
@@ -987,27 +1083,46 @@ model RadarChange {
   reportId String
   report   RadarReport @relation(fields: [reportId], references: [id], onDelete: Cascade)
 
-  slug String
-  /** Area dell'ecosistema (A-G). String e non enum: una lettera nuova non
-   * deve far cadere l'ingest — la pagina rende l'ignoto com'è. */
+  slug        String
+  /**
+   * Area dell'ecosistema (A-G). String e non enum: una lettera nuova non
+   * deve far cadere l'ingest — la pagina rende l'ignoto com'è.
+   */
   area        String
   title       String
   whatChanged String
-  /** Chi ha fatto il cambiamento. Opzionale: i payload attuali non lo
-   * mandano e la pagina lo ricava dalla fonte (vedi `chiDallaFonte`). */
-  who String?
+  /**
+   * Chi ha fatto il cambiamento. Opzionale: i payload attuali non lo
+   * mandano e la pagina lo ricava dalla fonte (vedi `chiDallaFonte`).
+   */
+  who         String?
 
   announcedOn   DateTime? @db.Date
-  /** `null` legittimo: annunciato senza data di efficacia dichiarata. */
+  /**
+   * `null` legittimo: annunciato senza data di efficacia dichiarata.
+   */
   effectiveFrom DateTime? @db.Date
-  /** "annunciato" | "attivo" | … — String per la stessa ragione di `area`. */
-  status String
+  /**
+   * "annunciato" | "attivo" | … — String per la stessa ragione di `area`.
+   */
+  status        String
 
   impact     String?
+  /**
+   * LIMITE DI LETTURA DELLA FONTE, non una conseguenza operativa.
+   * «Tick size e margini non sono indicati nelle pagine pubbliche consultate»
+   * non dice cosa cambia per chi opera: dice fin dove si è riusciti a
+   * leggere. Finiva impastato dentro `impact`, e mescolava due cose che
+   * questa sezione esiste apposta per tenere separate — quello che si sa da
+   * quello che non si è potuto sapere.
+   */
+  caveat     String?
   sourceUrl  String?
   sourceName String?
 
-  /** Campi del payload non previsti da queste colonne: conservati, mai persi. */
+  /**
+   * Campi del payload non previsti da queste colonne: conservati, mai persi.
+   */
   extra  Json?
   ordine Int
 
@@ -1032,6 +1147,10 @@ model RadarReading {
   title       String
   whatChanged String
   impact      String?
+  /**
+   * Come su RadarChange: fin dove si è riusciti a leggere la fonte.
+   */
+  caveat      String?
   publishedOn DateTime? @db.Date
   sourceUrl   String?
   sourceName  String?
@@ -1079,7 +1198,9 @@ model RadarWatch {
 // dimenticanza (`if` non scritto). Con due tabelle separate va scritto
 // apposta il codice che le confonde. La struttura difende il requisito.
 
-/** Area guardata, fonti enumerate, nessuna novità nella finestra. RISULTATO. */
+/**
+ * Area guardata, fonti enumerate, nessuna novità nella finestra. RISULTATO.
+ */
 model RadarEmptyArea {
   id       String      @id @default(cuid())
   reportId String
@@ -1092,11 +1213,13 @@ model RadarEmptyArea {
   @@index([reportId])
 }
 
-/** Area che NON si è potuto verificare: la fonte non è stata letta. AVVISO.
+/**
+ * Area che NON si è potuto verificare: la fonte non è stata letta. AVVISO.
  * `reason` è obbligatorio — un «non verificabile» senza motivo è
  * indistinguibile da un «vuoto», ed è il caso che il confine rifiuta.
  * L'indice su `area` serve a contare da quante settimane consecutive l'area
- * risulta non verificabile: ripetuta identica, l'avviso diventa rumore. */
+ * risulta non verificabile: ripetuta identica, l'avviso diventa rumore.
+ */
 model RadarUnverifiableArea {
   id       String      @id @default(cuid())
   reportId String

@@ -22,6 +22,7 @@ const CHIAVI_VOCE = new Set([
   "effectiveFrom",
   "status",
   "impact",
+  "caveat",
   "sourceUrl",
   "sourceName",
 ]);
@@ -77,6 +78,9 @@ export function righeDaPayload(input: RadarReportInput) {
 
   const highlights = input.top.map((h, ordine) => ({
     ordine,
+    // L'aggancio alla voce del registro: senza, l'azione non ha una riga su
+    // cui comparire.
+    slug: h.id,
     title: h.title,
     whatChanged: h.whatChanged,
     action: h.action,
@@ -95,6 +99,7 @@ export function righeDaPayload(input: RadarReportInput) {
     effectiveFrom: oData(v.effectiveFrom),
     status: v.status,
     impact: oNull(v.impact),
+    caveat: oNull(v.caveat),
     sourceUrl: oNull(v.sourceUrl),
     sourceName: oNull(v.sourceName),
     extra: campiExtra(v as Record<string, unknown>, CHIAVI_VOCE),
@@ -109,6 +114,7 @@ export function righeDaPayload(input: RadarReportInput) {
     title: v.title,
     whatChanged: v.whatChanged,
     impact: oNull(v.impact),
+    caveat: oNull(v.caveat),
     publishedOn: oData(v.announcedOn),
     sourceUrl: oNull(v.sourceUrl),
     sourceName: oNull(v.sourceName),
