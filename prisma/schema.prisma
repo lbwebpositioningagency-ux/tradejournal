@@ -891,3 +891,211 @@ model SeasonalityJobState {
 
   updatedAt DateTime @updatedAt
 }
+
+// ───────────────────────── Radar di settore ─────────────────────────
+//
+// Registro SETTIMANALE dei cambiamenti dell'ecosistema operativo del trading
+// (borse, prop firm, broker, regolatori, piattaforme, dati). Non parla di
+// prezzi: è l'unica sezione del Macro Desk che non guarda il mercato.
+//
+// Dato unico per l'istanza, NON per utente: nessun userId, come
+// MacroDeskReport e CotWeek.
+//
+// Chiave logica: `weekOf` (la domenica della settimana del run). Il reinvio
+// della stessa settimana AGGIORNA la riga e RIFÀ i figli — mai duplicati.
+//
+// PRINCIPIO DEL ROUND-26: qui si persistono FATTI, non verdetti. Nessuna
+// probabilità, nessun punteggio, nessun giudizio calcolato dall'app: le
+// uniche cose che l'app deriva sono conteggi verificabili (da quante
+// settimane un'area non è verificabile) e formattazione.
+
+model RadarReport {
+  id String @id @default(cuid())
+
+  /** Domenica della settimana del run (mezzanotte UTC). Chiave di unicità. */
+  weekOf      DateTime @unique @db.Date
+  generatedAt DateTime
+
+  // ───── Finestra osservata ─────
+  // Va mostrata SEMPRE in pagina, insieme al fatto che sia stata estesa: un
+  // registro settimanale che copre 14 giorni invece di 7 non è la stessa cosa,
+  // e chi legge deve saperlo senza aprire le note.
+  windowFrom     DateTime @db.Date
+  windowTo       DateTime @db.Date
+  windowExtended Boolean  @default(false)
+
+  /** Elementi guardati e scartati dal filtro: numero, non giudizio. */
+  discarded Int?
+  /** Note del run: cosa è stato guardato, cosa non si è raggiunto. */
+  notes String?
+
+  /** Payload integrale come ricevuto, non normalizzato: la forma del task
+   * esterno evolve e nulla va perso. Le colonne sopra sono la parte che la
+   * pagina legge; questa è la copia fedele. */
+  payload Json
+
+  highlights   RadarHighlight[]
+  changes      RadarChange[]
+  readings     RadarReading[]
+  watches      RadarWatch[]
+  emptyAreas   RadarEmptyArea[]
+  unverifiable RadarUnverifiableArea[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+// «Le cose che contano», ciascuna con l'azione conseguente. Non hanno un
+// id-slug nel payload (sono una selezione della settimana, non voci di
+// registro): la chiave è la posizione.
+model RadarHighlight {
+  id       String      @id @default(cuid())
+  reportId String
+  report   RadarReport @relation(fields: [reportId], references: [id], onDelete: Cascade)
+
+  ordine      Int
+  title       String
+  whatChanged String
+  /** L'azione conseguente: è ciò che distingue un highlight da una notizia. */
+  action     String
+  sourceUrl  String?
+  sourceName String?
+
+  @@unique([reportId, ordine])
+  @@index([reportId])
+}
+
+// Una voce del registro: un cambiamento operativo osservato nella finestra.
+//
+// `slug` è l'id stabile FRA SETTIMANE (arriva dal campo `id` del payload):
+// serve alla deduplica del task a monte e a mostrare l'evoluzione di una voce
+// da "annunciato" ad "attivo". Per questo l'indice è su `slug` da solo, non
+// solo sulla coppia col report.
+model RadarChange {
+  id       String      @id @default(cuid())
+  reportId String
+  report   RadarReport @relation(fields: [reportId], references: [id], onDelete: Cascade)
+
+  slug String
+  /** Area dell'ecosistema (A-G). String e non enum: una lettera nuova non
+   * deve far cadere l'ingest — la pagina rende l'ignoto com'è. */
+  area        String
+  title       String
+  whatChanged String
+  /** Chi ha fatto il cambiamento. Opzionale: i payload attuali non lo
+   * mandano e la pagina lo ricava dalla fonte (vedi `chiDallaFonte`). */
+  who String?
+
+  announcedOn   DateTime? @db.Date
+  /** `null` legittimo: annunciato senza data di efficacia dichiarata. */
+  effectiveFrom DateTime? @db.Date
+  /** "annunciato" | "attivo" | … — String per la stessa ragione di `area`. */
+  status String
+
+  impact     String?
+  sourceUrl  String?
+  sourceName String?
+
+  /** Campi del payload non previsti da queste colonne: conservati, mai persi. */
+  extra  Json?
+  ordine Int
+
+  @@unique([reportId, slug])
+  @@index([slug])
+  @@index([reportId])
+}
+
+// «Letture» — l'area G. TABELLA PROPRIA, non un flag su RadarChange.
+//
+// Un paper non è un cambiamento operativo: non ha una data di efficacia, non
+// impone niente, non si agisce. Se condividesse la tabella con i cambiamenti,
+// prima o poi qualcuno le renderebbe insieme — e la pagina direbbe che è
+// successo qualcosa quando è solo uscito uno studio.
+model RadarReading {
+  id       String      @id @default(cuid())
+  reportId String
+  report   RadarReport @relation(fields: [reportId], references: [id], onDelete: Cascade)
+
+  slug        String
+  area        String
+  title       String
+  whatChanged String
+  impact      String?
+  publishedOn DateTime? @db.Date
+  sourceUrl   String?
+  sourceName  String?
+
+  extra  Json?
+  ordine Int
+
+  @@unique([reportId, slug])
+  @@index([slug])
+  @@index([reportId])
+}
+
+// «In osservazione»: annunciato ma non ancora osservabile, o in attesa di una
+// data. Stesso id-slug stabile dei cambiamenti, così una voce che passa da
+// osservazione a registro si riconosce.
+model RadarWatch {
+  id       String      @id @default(cuid())
+  reportId String
+  report   RadarReport @relation(fields: [reportId], references: [id], onDelete: Cascade)
+
+  slug   String
+  area   String?
+  title  String
+  note   String?
+  status String?
+
+  sourceUrl  String?
+  sourceName String?
+
+  extra  Json?
+  ordine Int
+
+  @@unique([reportId, slug])
+  @@index([slug])
+  @@index([reportId])
+}
+
+// ───── Aree senza esito: DUE tabelle, e non una con una colonna «tipo» ─────
+//
+// «Area guardata, nessuna novità» e «area che non si è potuto verificare» non
+// sono la stessa cosa e non devono MAI diventarlo nell'interfaccia: la prima
+// è un risultato, la seconda è un avviso che la fonte non è stata letta.
+//
+// Con una tabella sola e un discriminatore, renderle uguali sarebbe una
+// dimenticanza (`if` non scritto). Con due tabelle separate va scritto
+// apposta il codice che le confonde. La struttura difende il requisito.
+
+/** Area guardata, fonti enumerate, nessuna novità nella finestra. RISULTATO. */
+model RadarEmptyArea {
+  id       String      @id @default(cuid())
+  reportId String
+  report   RadarReport @relation(fields: [reportId], references: [id], onDelete: Cascade)
+
+  area   String
+  ordine Int
+
+  @@unique([reportId, area])
+  @@index([reportId])
+}
+
+/** Area che NON si è potuto verificare: la fonte non è stata letta. AVVISO.
+ * `reason` è obbligatorio — un «non verificabile» senza motivo è
+ * indistinguibile da un «vuoto», ed è il caso che il confine rifiuta.
+ * L'indice su `area` serve a contare da quante settimane consecutive l'area
+ * risulta non verificabile: ripetuta identica, l'avviso diventa rumore. */
+model RadarUnverifiableArea {
+  id       String      @id @default(cuid())
+  reportId String
+  report   RadarReport @relation(fields: [reportId], references: [id], onDelete: Cascade)
+
+  area   String
+  reason String
+  ordine Int
+
+  @@unique([reportId, area])
+  @@index([area])
+  @@index([reportId])
+}

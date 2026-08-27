@@ -104,7 +104,9 @@ const isoUtcStretto = z
     );
   }, "generatedAt inesistente");
 
-const isoUtc = z.preprocess(normalizzaIstante, isoUtcStretto);
+/** Esportato: lo riusa il confine del Radar di settore, che riceve dallo
+ * stesso ponte e quindi ha esattamente lo stesso problema di fusi. */
+export const isoUtc = z.preprocess(normalizzaIstante, isoUtcStretto);
 
 /** Testo del summary dopo la normalizzazione, o `undefined` se non ne resta. */
 const SUMMARY_MAX = 2000;

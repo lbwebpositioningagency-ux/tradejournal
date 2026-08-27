@@ -4,6 +4,7 @@ import {
   CalendarRange,
   ChartSpline,
   FileText,
+  Radar,
   Scale,
   Sparkles,
   Target,
@@ -37,8 +38,14 @@ export interface MacroDeskSection {
   icon: LucideIcon;
   /** Riga singola: descrive la sezione nella griglia dell'indice. */
   description: string;
-  /** `archivio` = si consulta di rado, fuori dalla barra quotidiana. */
-  gruppo: "quotidiano" | "archivio";
+  /**
+   * `quotidiano` = le sei di consultazione giornaliera.
+   * `archivio`   = si consulta di rado, fuori dalla barra quotidiana.
+   * `registro`   = il Radar. Gruppo A SÉ e non una nona voce delle altre:
+   *                è l'unica sezione che NON parla di prezzi, e affiancarla
+   *                alle sezioni di mercato direbbe il falso su cosa contiene.
+   */
+  gruppo: "quotidiano" | "archivio" | "registro";
 }
 
 export const MACRO_DESK_SECTIONS = [
@@ -114,6 +121,15 @@ export const MACRO_DESK_SECTIONS = [
       "I bias ci prendono? Consuntivo settimanale in Expected Move: si guarda una volta al mese, non ogni mattina.",
     gruppo: "archivio",
   },
+  {
+    key: "radar",
+    href: "/macro-desk/radar",
+    label: "Radar",
+    icon: Radar,
+    description:
+      "Il registro settimanale di cosa è cambiato nell'ecosistema in cui si opera: borse, prop firm, broker, regolatori, piattaforme, dati. Fatti e fonti, nessun prezzo.",
+    gruppo: "registro",
+  },
 ] as const satisfies readonly MacroDeskSection[];
 
 /** Le sei di consultazione quotidiana, nell'ordine in cui si usano. */
@@ -123,6 +139,10 @@ export const SEZIONI_QUOTIDIANE = MACRO_DESK_SECTIONS.filter(
 /** Le due che si consultano di rado. */
 export const SEZIONI_ARCHIVIO = MACRO_DESK_SECTIONS.filter(
   (s) => s.gruppo === "archivio",
+);
+/** Il registro: oggi solo il Radar. Ultimo ovunque, e staccato. */
+export const SEZIONI_REGISTRO = MACRO_DESK_SECTIONS.filter(
+  (s) => s.gruppo === "registro",
 );
 
 export type MacroDeskSectionKey = (typeof MACRO_DESK_SECTIONS)[number]["key"];
@@ -164,6 +184,10 @@ export function MacroDeskSectionNav({
       ? [...SEZIONI_QUOTIDIANE, corrente]
       : SEZIONI_QUOTIDIANE;
 
+  const radar = SEZIONI_REGISTRO[0];
+  const radarAttivo = active === radar.key;
+  const IconaRadar = radar.icon;
+
   return (
     <nav
       aria-label="Sezioni del Macro Desk"
@@ -198,6 +222,28 @@ export function MacroDeskSectionNav({
           );
         })}
       </ul>
+
+      {/* IL RADAR STA FUORI DALLA GRIGLIA, sempre e in fondo.
+          Non è una nona pillola messa in coda alle altre: è l'unica sezione
+          che non parla di prezzi, e dentro la griglia delle sezioni di mercato
+          si leggerebbe come una di loro. Il filo sopra e l'allineamento a
+          destra dicono «questo è un'altra cosa» senza bisogno di una legenda.
+          Su mobile diventa una riga sua sotto la barra scorrevole, che è
+          esattamente la stessa affermazione. */}
+      <div className="mt-2 flex justify-end border-t border-border/60 pt-2">
+        <Button
+          asChild
+          size="sm"
+          variant={radarAttivo ? "secondary" : "ghost"}
+          className="text-muted-foreground hover:text-foreground data-[attivo=true]:text-foreground"
+          data-attivo={radarAttivo}
+        >
+          <Link href={radar.href} aria-current={radarAttivo ? "page" : undefined}>
+            <IconaRadar className="size-4" />
+            {radar.label}
+          </Link>
+        </Button>
+      </div>
     </nav>
   );
 }

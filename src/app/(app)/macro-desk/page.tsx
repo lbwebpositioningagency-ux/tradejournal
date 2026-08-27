@@ -9,6 +9,7 @@ import { BandaFreschezza } from "@/components/macro-desk/banda-freschezza";
 import {
   SEZIONI_ARCHIVIO,
   SEZIONI_QUOTIDIANE,
+  SEZIONI_REGISTRO,
   type MacroDeskSection,
 } from "@/components/macro-desk/section-nav";
 
@@ -50,6 +51,21 @@ export default async function MacroDeskPage() {
       <div className="mt-2 flex flex-col gap-3">
         <h2 className="text-sm font-semibold text-muted-foreground">Archivio</h2>
         <Griglia sezioni={SEZIONI_ARCHIVIO} />
+      </div>
+
+      {/* Il registro sta per conto suo, in fondo e sotto un filo: le sezioni
+          sopra guardano i prezzi, questa guarda le REGOLE dentro cui si
+          opera. Sono due mestieri diversi e la pagina lo dice con la
+          disposizione, prima ancora che con le parole. */}
+      <div className="mt-2 flex flex-col gap-3 border-t pt-6">
+        <div>
+          <h2 className="text-sm font-semibold text-muted-foreground">Registro</h2>
+          <p className="text-sm text-muted-foreground">
+            Non i prezzi: le regole, gli strumenti e i costi dentro cui si
+            opera, settimana per settimana.
+          </p>
+        </div>
+        <Griglia sezioni={SEZIONI_REGISTRO} />
       </div>
     </div>
   );
