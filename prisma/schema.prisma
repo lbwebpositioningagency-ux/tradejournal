@@ -451,6 +451,17 @@ model MacroDeskReport {
   resolved Json?
   /** Stato giornaliero degli asset (solo DAILY). */
   monitor Json?
+  /**
+   * Modifiche all'IMPEGNO DELLA DOMENICA che questo report ha tentato e che
+   * l'endpoint ha rifiutato: bias, p0, em o soglie dei rami diversi da quelli
+   * gia' registrati per la stessa settimana. `null` = nessuna discrepanza.
+   *
+   * Si conserva invece di limitarsi a loggare perche' il difetto da togliere
+   * non era la sovrascrittura ma il fatto che avvenisse in silenzio: una riga
+   * di log che nessuno legge non e' un miglioramento.
+   * Regola in `src/lib/macro-desk-impegno.ts`.
+   */
+  impegnoRifiutato Json?
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt

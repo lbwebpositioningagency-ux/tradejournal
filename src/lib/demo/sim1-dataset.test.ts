@@ -1,6 +1,8 @@
 import { describe, expect, it } from "vitest";
 import Decimal from "decimal.js";
 import { computeTrade } from "@/lib/trade-compute";
+import { giornoDiBucketing } from "@/lib/demo/sessioni";
+import { isoWeekday } from "@/lib/seasonality/buckets";
 import {
   avgLoss,
   avgWin,
@@ -175,22 +177,40 @@ describe("SIM1 — metriche golden", () => {
     ).toBe("1.5754");
   });
 
+  it("NESSUNA CHIUSURA NEL FINE SETTIMANA, nel fuso in cui l'app bucketa", () => {
+    /* Il difetto tolto il 27/08/2026: 41 trade chiusi su 37 giornate di
+       sabato o domenica, su CL/ES/GC/NQ — futures, chiusi nel weekend. Ogni
+       giornata fantasma era un'osservazione in più nel denominatore di
+       Sortino, Sharpe, Ulcer e drawdown. */
+    const fuori = rows.filter((row) => {
+      const [a, m, g] = giornoDiBucketing(row.closedAt!).split("-").map(Number);
+      return isoWeekday(a, m, g) > 5;
+    });
+    expect(fuori).toEqual([]);
+  });
+
   it("drawdown reale sulla curva di equity giornaliera", () => {
+    /* BUCKETING NEL FUSO DELL'UTENTE, come fa l'app: fino al 27/08/2026
+       questo golden raggruppava per giorno UTC, e su una curva di equity il
+       fuso decide a quale giornata appartiene il P&L. Con la stessa
+       convenzione dell'app il dataset ha 344 sedute; per giorno UTC ne
+       avrebbe 354, dieci delle quali sono lunedì a Roma (le riaperture della
+       domenica sera del CME, che in UTC cadono di domenica). */
     const byDay = new Map<string, Decimal>();
     for (const row of rows) {
-      const day = row.closedAt!.toISOString().slice(0, 10);
+      const day = giornoDiBucketing(row.closedAt!);
       byDay.set(day, (byDay.get(day) ?? new Decimal(0)).plus(row.netPnl));
     }
     const daily = [...byDay]
       .sort(([a], [b]) => a.localeCompare(b))
       .map(([day, netPnl]) => ({ day, netPnl: netPnl.toFixed(2), trades: 0 }));
 
-    expect(daily.length).toBe(374);
+    expect(daily.length).toBe(344);
     expect(maxDrawdown(daily, SIM1_INITIAL_BALANCE)).toEqual({
-      maxDrawdown: "9013.20",
-      maxDrawdownPct: "0.1159",
-      date: "2025-09-29",
-      avgDrawdown: "3048.17",
+      maxDrawdown: "8840.10",
+      maxDrawdownPct: "0.1467",
+      date: "2025-03-14",
+      avgDrawdown: "3041.45",
     });
   });
 });

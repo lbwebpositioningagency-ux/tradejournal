@@ -1781,3 +1781,172 @@ cumulativa prima/dopo su SIM1 (che ha le buche più lunghe), cucitura di
 strategie, nessun vuoto) e coda della pagina dove stava lo scatter (finisce
 su «Performance per durata», nessuna card mozza). Screenshot in
 `docs/audit/j3/`.
+
+
+## ✅ «Cinque interventi sul Macro Desk» (27/08/2026)
+
+Ramo `macro/cinque-interventi`, cinque blocchi pubblicati uno alla volta.
+
+**Verifica preliminare.** Il termometro di volatilità «doveva essere già stato
+rimosso» ma in produzione c'era ancora. Cercato in tutti i rami, worktree e
+stash: **quel lavoro non esisteva**. I soli commit sul termometro andavano
+nella direzione opposta — rilevatore di degenerazione (`0b7f6fb`), cancello di
+validità (`5f3ddba`), propagazione all'AI Analyst (`93913e9`). L'unico ramo con
+commit non pubblicati (`worktree-terminale-passo2`) riguarda il percorso
+dell'impegno e la scorecard EM, non il termometro. Rifatto da zero.
+
+**1 — Termometro rimosso** (`8a97bc0`). Via la carta per strumento, la colonna
+«Segnale» della Sintesi coi riquadri «senza classificazione oggi», il fattore
+F3 del dossier, il cancello (`termometro-cancello.ts`), il rilevatore
+(`classificatore-degenere.ts`), la query del degrado e la tabella tarata in
+`src/data`. Nessun fatto toccato: livelli, ranghi, variazioni, implicita
+contro realizzata, escursione vera, struttura a termine e scorte vengono
+dall'archivio e non dipendevano dal termometro. I fattori del dossier passano
+da 12 a 11; l'identificativo F3 resta un buco deliberato.
+
+**2 — Sintesi: una scheda per strumento** (`0503aad`). Quattro tabelle (XAU,
+WTI, GER40, SPX) al posto di una, tre colonne — misura, oggi, rispetto alla
+norma — e le informazioni di servizio in una riga sola in fondo. Ogni riga è un
+fatto di mercato con un numero: ampiezza attesa implicita
+(`chiusura × IV/√252`), escursione vera tipica a 20 contro 60 sedute,
+escursione dell'ultima seduta col rango, movimento chiusura-chiusura, livello
+IV col rango sulla storia intera, implicita contro realizzata, curva a termine,
+COT, prossimo evento con la distanza. **Tre correzioni di sostanza emerse dal
+rendering con dati veri**: il DAX leggeva i fatti di prezzo dalla riga del VIX,
+cioè i prezzi dell'S&P (0,48% invece di 0,40% il 26/08); con un indice IV
+sostitutivo non si calcolano né l'ampiezza attesa né implicita-contro-realizzata
+(sul DAX sarebbero usciti «± 257 pt» contro un'escursione misurata di 188); a
+375px le schede erano celle di griglia senza `min-w-0` e la terza colonna
+veniva tagliata.
+
+**3 — Driver: le schede stanno nello schermo** (`815d151`). Grafico e blocco
+delle relazioni affiancati da xl in su invece che impilati; il pavimento
+d'altezza scende da 650 a 420 perché a metà larghezza il vincolo 2:1 non morde
+più. Schede da 1.538 → 778 px a 1440 e da 1.651 → 727 a 1920; pagina da 5.208 →
+3.024 e da 5.433 → 2.789. Il monitor più grande è tornato a essere un vantaggio.
+Nuovo `diradaTicks` per le sigle dei mesi, che a 343 px di area di disegno si
+sovrapponevano: lavora sulle POSIZIONI in pixel e non sul conteggio, perché il
+primo bucket è un mese parziale e a 1920 — dove lo spazio per tredici etichette
+c'è — «ago» e «set» restavano comunque attaccate.
+
+**4 — Stagionalità: «Dove siamo adesso»** (`7f5e2ee`). Tre righe in testa alla
+sezione — mese, settimana e giorno correnti — con gli stessi campi della
+tabella mensile, così i tre livelli si confrontano fra loro. Sempre
+`SCOPE_ALL`, sempre tre righe anche senza statistica, e il motivo accanto
+quando manca.
+
+**5 — Guida alla Volatilità** (`ceb304e`). In pagina un `<details>` chiuso
+con l'essenziale; in `docs/macro-desk/GUIDA-VOLATILITA.md` la guida estesa con
+l'aritmetica di stop e size e gli esempi sui numeri veri del 27/08.
+
+**Analisi del Posizionamento (COT), nessuna modifica**:
+`docs/macro-desk/VERDETTO-POSIZIONAMENTO.md`. I numeri sono corretti; due delle
+sei implicazioni meccaniche a schermo sono false (l'open interest non è la
+profondità del book — l'oro è al 5° percentile in contratti e al **massimo
+storico** in nozionale, 176 mld $ — e «MOLTO BASSO» non implica «netto corto»:
+il 10° percentile di `mm_net` è positivo su entrambi gli strumenti).
+
+**Verificato:** typecheck ✅ · eslint ✅ · **2012/2013 test** ✅ · build ✅ ·
+verifica visiva con l'harness CDP su build di produzione, dati veri, tema
+chiaro e scuro a 1440 e 375 px su Sintesi, Volatilità, Driver (anche 1920) e
+Stagionalità. Screenshot in `docs/macro-cinque/`.
+
+
+## ✅ «Tre chiusure: il Macro Desk è finito» (27/08/2026)
+
+Stesso ramo `macro/cinque-interventi`, tre blocchi pubblicati uno alla volta.
+Chiudono il lavoro sul Macro Desk: le sezioni scendono da sei a **cinque**
+quotidiane più due d'archivio.
+
+**1 — Via il discorsivo dell'AI Analyst** (`46191f2`). Sotto le schede per
+strumento restava un blocco di prosa che apriva con «Condizioni di espansione»
+— il carattere atteso che le tabelle avevano già sostituito con dei numeri —
+e raccontava a parole gli stessi valori delle schede.
+
+*Verifica fatta prima di cancellare*: dei suoi undici fattori, F1/F2/F4/F6 sono
+righe delle schede; F7, F8 e F9 stanno nella Stagionalità (che dal 27/08 ha
+anche il riepilogo «Dove siamo adesso»); F10 è il blocco «Stabilità delle
+relazioni» del Driver Desk; F11 e F12 sono due serie di Trends. L'unico senza
+altra casa era F5, la «partecipazione» del COT — oggetto del blocco 2.
+
+Con il testo è sparito tutto l'apparato che lo produceva: dossier a dodici
+fattori, mapper delle letture, template delle frasi, orchestratore col modello
+linguistico, client Gemini, prompt e i due cancelli sul linguaggio, più cinque
+script di anteprima. Tre conseguenze dichiarate: `caricaFontiCondivise`
+caricava Driver Desk, copertura della Stagionalità, cinque serie di Trends e
+la data del report senza più un lettore — **otto query in meno per apertura**;
+la banda «Report giornaliero in ritardo» è uscita dalla Sintesi perché nessuna
+riga di quella pagina viene più dal report; quattro campi dell'anagrafica
+strumenti e tre funzioni sono caduti con i fattori che li usavano.
+**−49 file, −6.409 righe nette di codice, 289 test in meno.**
+
+**2 — Via la sezione Posizionamento** (`5600c7f`). I dati erano corretti, le
+interpretazioni no. I tre numeri, registrati in `docs/DEBITO-TECNICO.md`:
+l'open interest in contratti misura il prezzo (oro al **5,2° percentile in
+contratti** e al **massimo assoluto in nozionale**, 176 mld $ contro 49 nel
+2017 quando i contratti erano di più); il legame «mercato sottile → oscillazioni
+più ampie» **non è monotono** su nessuno dei due strumenti (sul WTI il massimo
+sta nel quintile mediano); «MOLTO BASSO» **non implica netto corto** — il 10°
+percentile di `mm_net` è +15.253 sull'oro e +78.341 sul WTI.
+
+`CotWeek`, `cot-sync` e il cron **non sono stati toccati**: sparisce la pagina,
+non i dati. La riga della Sintesi è stata corretta — mostrava «141.648
+contratti» per un saldo netto, ora è «+141.648 contratti netti» col segno
+sempre esplicito, e tre test le vietano per nome «scommesse lunghe»,
+«posizioni lunghe», «lato corto» e «da liquidare». `cot-metrics.ts` resta
+INTATTO con il suo test di regressione: è la traduzione 1:1 del generatore
+pre-registrato, e sfoltirlo sarebbe la «miglioria» che la pre-registrazione
+dichiara essere un bug.
+
+**3 — Chiusura.** Indice e barra aggiornati (`MACRO_DESK_SECTIONS` è fonte
+unica per entrambi), descrizione della Sintesi riscritta perché citava ancora
+carattere, forza e «da ieri», commenti allineati al conteggio nuovo.
+
+**Verificato:** typecheck ✅ · eslint ✅ · **1687/1687 test** ✅ · build ✅ ·
+verifica CDP su build di produzione, tema chiaro e scuro a 1440 e 375 px:
+`/macro-desk/posizionamento` risponde 404 pulito e su tutte e otto le pagine
+del desk non resta un solo collegamento verso la sezione.
+
+
+## ✅ «Due code dal debito tecnico» (27/08/2026)
+
+**1 — Seed rigenerato** (`b03b8b2`). Due voci chiuse insieme: le chiusure fuori
+seduta e il vantaggio irrealistico. Regola delle sedute in un modulo solo
+(`src/lib/demo/sessioni.ts`), condiviso dai due generatori. Numeri prima/dopo
+in `docs/DEBITO-TECNICO.md`; in sintesi, giornate negative 20,0% → 36,9% sul
+futures e 24,6% → 35,4% sul forex, Sortino 40,82 → 6,11 e 25,39 → 2,48, e zero
+sedute fantasma contro le 37 di prima.
+
+**2 — Impegno della domenica protetto** (`b6b3d5d`). L'endpoint confronta il
+Weekly Bias Record in arrivo con quello già registrato per lo stesso
+`weekStart`: bias, `p0`, `em`, confidenza e soglie dei rami non si cambiano a
+settimana aperta; stato, MFE/MAE, percorso e armamento delle invalidazioni sì.
+
+Il report viene **accettato**, non rifiutato con un 400: il desk spedisce una
+volta e rifiutare perderebbe tutto il monitoraggio della giornata, che è l'unica
+parte che solo quel report possiede. Le due condizioni che renderebbero
+sbagliata questa scelta sono scritte nel debito.
+
+La discrepanza non resta muta: torna nella risposta HTTP (`ok_con_rifiuti` con
+campo, valore tenuto e valore rifiutato), finisce in colonna
+(`MacroDeskReport.impegnoRifiutato`) e si vede in una banda in cima alla
+Scorecard — che è la pagina i cui numeri sarebbero stati falsati.
+
+**Due difetti presi dai test prima di uscire.** La ricerca dell'archivio era
+«gli ultimi dodici report per data»: bastava che dopo la domenica ne
+arrivassero più di dodici, o che uno arrivasse retrodatato, e il controllo
+smetteva di trovare l'impegno in silenzio — ora è una ricerca per `weekStart`
+dentro il JSON. E la fusione restituiva la forma NORMALIZZATA (`assets` array),
+mentre `parseWeeklyBiasRecord` legge solo il dizionario del desk e rifiuta gli
+array: salvarla avrebbe reso il record illeggibile al giro dopo, facendo
+sparire la settimana dalla Scorecard. Ora senza rifiuti si salva il payload
+originale intatto, e con rifiuti si riscrive nella forma del desk.
+
+**Verificato:** typecheck ✅ · eslint ✅ · **1726/1726 test** ✅ (19 sul modulo
+puro, 3 di integrazione su Postgres) · build ✅ · prova end-to-end sull'endpoint
+vero: domenica accettata pulita, daily che riscrive sette campi →
+`ok_con_rifiuti`, e in colonna bias RIALZISTA, P0 1600,5, em 40,2 e soglia
+«sopra 1.640» tenuti, mentre stato `branched`, ramo `triggered`, invalidazione
+`fired`, MFE 1,2 e i due punti del percorso sono passati · banda visibile nella
+Scorecard a 1440 e 375 px, tema chiaro e scuro, e assente quando non c'è nulla
+da segnalare.

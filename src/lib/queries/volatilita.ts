@@ -9,11 +9,10 @@ import { parseMacroPayload, type MacroVolItem } from "@/lib/macro-desk-payload";
  * sezione. Gli indici di volatilità implicita e la chiusura del giorno prima
  * entravano nel database solo dentro `MacroDeskReport.payload.volPanel` e
  * `.biasRecord`, cioè copiati a mano dalle pagine historical-data di
- * Investing.com, e da lì alimentavano anche il termometro.
+ * Investing.com.
  *
  * COM'È ORA: VIX, VVIX, SKEW, GVZ e OVX arrivano dal CDN del CBOE ogni notte,
- * insieme al resto dell'archivio, e il termometro beve da lì
- * (`ingressiTermometroDaContesto`). Di questa funzione restano due cose
+ * insieme al resto dell'archivio. Di questa funzione restano due cose
  * soltanto, ed entrambe hanno un motivo per esserci:
  *
  *  - le voci di `volPanel` SENZA fonte gratuita — oggi il solo MOVE, indice
@@ -21,8 +20,8 @@ import { parseMacroPayload, type MacroVolItem } from "@/lib/macro-desk-payload";
  *    `lib/volatilita-report.ts`, non qui: è una regola, non una query;
  *  - il commento del giorno, che è prosa e non ha alternative automatiche.
  *
- * Il `biasRecord` non si legge più: serviva solo a ricavare la chiusura per
- * la cifra in valuta del termometro, e quella adesso viene dall'archivio.
+ * Il `biasRecord` non si legge più: serviva solo a ricavare la chiusura del
+ * giorno prima, e quella adesso viene dall'archivio.
  */
 
 export interface VolatilitaData {

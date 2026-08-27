@@ -48,24 +48,79 @@ tutte cose **registrate, non risolte**.
 
 ## Dati di prova
 
-- **Il seed genera serie troppo regolari.** `prisma/seed.ts` produce conti con
-  il 23-34% di giornate negative, contro il 47% di SIM1: con Sortino e Sharpe
-  annualizzati i conti demo mostrano valori assurdi (Sortino ~25 e ~41 su una
-  scala che si ferma a 2). Non è un difetto dell'app — è il generatore — ma
-  rende i conti demo inutilizzabili per tarare a occhio le soglie. Da
-  rigenerare **da solo**, in un intervento separato da quello sulle metriche:
-  cambiare dataset e formule insieme rende impossibile attribuire i delta.
-  → `prisma/seed.ts`
-- **Il seed chiude i trade a mercato chiuso.** Nella stessa rigenerazione: il
-  generatore deve chiudere le posizioni SOLO in sedute valide. Oggi apre nei
-  giorni feriali (`weekdaysBetween`) ma lascia la durata libera fino allo
-  swing multi-giorno, quindi un trade aperto venerdì chiude di sabato; e
-  `closedAt` è UTC mentre il bucketing è in `Europe/Rome`, così un venerdì
-  sera scivola al sabato. Da lì nascono i **41 trade e 37 sedute fantasma** di
-  SIM1 (23 sabati + 14 domeniche), su CL/ES/GC/NQ — futures, con sabato e
-  domenica chiusi. Sono anche il motivo per cui la serie di SIM1 vale ~285
-  osservazioni/anno invece di 252.
-  → `src/lib/demo/sim1-dataset.ts` (`weekdaysBetween`, `holdMinutes`, `closedAt`)
+> **Entrambe le voci CHIUSE il 27/08/2026** con la rigenerazione del seed.
+> Restano qui come registro di che cosa era storto e di quanto è cambiato: i
+> numeri prima/dopo sono la sola difesa contro il rifarlo.
+
+- ~~**Il seed genera serie troppo regolari.**~~ `prisma/seed.ts` produceva
+  +0,565 R per trade (55% di vincenti, R vincenti 0,4-2,8 contro perdenti
+  −0,25/−1,15): con 3-4 trade al giorno una giornata negativa era quasi
+  impossibile. **Prima:** giornate negative 20,0% sul conto futures e 24,6%
+  sul forex, Sortino 40,82 e 25,39, Sharpe 10,59 e 6,18. **Dopo:** 36,9% e
+  35,4%, Sortino 6,11 e 2,48, Sharpe 3,45 e 1,40 — SIM1, che era il termine
+  di paragone, sta a 39,7% e Sortino 6,07. Il conto resta in utile, con un
+  vantaggio piccolo: è quello, e non il segno del risultato finale, a
+  produrre una quota realistica di giornate in rosso.
+  → `prisma/seed.ts` (`isWin`, `rMultiple`)
+- ~~**Il seed chiude i trade a mercato chiuso.**~~ **Prima:** 41 trade su 37
+  giornate di sabato o domenica in SIM1, su CL/ES/GC/NQ. **Dopo:** zero, su
+  tutti e tre i conti — e zero anche le aperture nel fine settimana e le
+  chiusure dentro la pausa giornaliera del CME, verificato in SQL sul
+  database seminato. La regola vive in un modulo solo,
+  `src/lib/demo/sessioni.ts`: una seduta è valida quando, letta **nel fuso in
+  cui l'app bucketa**, cade da lunedì a venerdì fra le 00:00 e le 22:00.
+  Restano fuori di proposito le festività di borsa e la riapertura della
+  domenica sera — un generatore deve non produrre MAI una chiusura non
+  valida, non deve produrre TUTTE quelle valide.
+  → `src/lib/demo/sessioni.ts`, `src/lib/demo/sim1-dataset.ts`, `prisma/seed.ts`
+
+**Conseguenza da conoscere, se un golden si sposta.** La durata di un trade
+che attraversa una finestra chiusa si conta ora in minuti di SEDUTA, non di
+orologio: uno swing aperto venerdì mattina chiude il martedì, non la domenica.
+Il P&L del singolo trade non cambia — non dipende dall'orario — ma cambiano la
+giornata a cui è attribuito e quindi la lunghezza della serie giornaliera (SIM1
+344 sedute invece di 374), il drawdown sulla curva e i bucket per mese e per
+durata. Totali, win rate, profit factor ed expectancy sono rimasti identici, ed
+è il modo più rapido per verificare che una rigenerazione futura non abbia
+toccato altro.
+
+## Impegno della domenica: PROTETTO dal 27/08/2026
+
+Il Weekly Bias Record e' una dichiarazione fatta la domenica e la Scorecard
+misura quanto abbia retto. Fino al 27/08/2026 nessun controllo impediva a un
+DAILY di riscrivere bias, `p0`, `em` o le soglie dei rami della stessa
+settimana: la Scorecard avrebbe misurato l'ultima versione, e nessuno se ne
+sarebbe accorto. L'unica difesa era la disciplina scritta nelle istruzioni del
+task, e quelle istruzioni le applica un modello.
+
+Adesso l'endpoint confronta il record in arrivo con quello gia' registrato per
+lo stesso `weekStart`: i campi immutabili restano quelli dichiarati, i campi di
+monitoraggio passano. Regola in `src/lib/macro-desk-impegno.ts`.
+
+**Il report viene ACCETTATO lo stesso, non rifiutato con un 400.** Un 400 non
+e' recuperabile: il desk spedisce una volta, non c'e' coda di rispedizione, e
+rifiutare butterebbe via tutto il monitoraggio di quella giornata - percorso,
+MFE/MAE, stato dei rami - che e' l'unica parte che solo quel report possiede,
+mentre i campi immutabili sono gia' in archivio dalla domenica.
+
+**Due condizioni renderebbero sbagliata questa scelta**, e vanno guardate se
+cambia il perimetro:
+1. se il desk acquisisse una coda di rispedizione affidabile, un 400 tornerebbe
+   preferibile: costringerebbe a correggere la fonte invece di lasciare che
+   continui a spedire un impegno diverso;
+2. se le segnalazioni diventassero frequenti invece che eccezionali, vorrebbe
+   dire che il generatore ha un difetto sistematico, e accettare in silenzio
+   -- anche con la banda accesa -- smetterebbe di essere prudenza e
+   diventerebbe tolleranza.
+
+**Cosa NON copre.** Il confronto e' per `weekStart`: un desk che spedisse lo
+stesso impegno con una settimana diversa passerebbe come nuovo. E la prima
+versione ricevuta fa fede, chiunque l'abbia spedita: se il primo report della
+settimana fosse gia' sbagliato, l'errore verrebbe congelato invece che
+corretto. Entrambe sono scelte, non sviste: la seconda e' il prezzo di non
+avere un'autorita' esterna che dica quale versione e' quella buona.
+-> `src/lib/macro-desk-impegno.ts`, `src/lib/macro-desk.ts`,
+`src/app/api/macro-desk/route.ts`, `MacroDeskReport.impegnoRifiutato`
 
 ## Limiti dichiarati dei controlli di qualità dati
 
@@ -132,6 +187,19 @@ ponte GitHub Actions oggi bloccato. La risposta corretta lato app e la banda
 di freschezza, che ora c'e su indice, Report, Scorecard e Volatilita.
 
 ## Termometro di volatilita: la soglia e scaduta (misurato 25/08/2026)
+
+> **CHIUSA IL 27/08/2026 — il termometro e stato rimosso dall'app.** Via la
+> carta per strumento, il fattore F3 del dossier, il cancello di validita
+> (`termometro-cancello.ts`), il rilevatore di degenerazione
+> (`classificatore-degenere.ts`), la query del degrado e la tabella tarata in
+> `src/data`. Nessun fatto e stato toccato: quello che il termometro
+> condizionava allo stato, il pannello di contesto lo misura e basta.
+>
+> La voce resta qui perche il **lavoro di ricerca sotto e ancora aperto**: la
+> variante a finestra mobile descritta piu sotto non e mai stata importata, e
+> se un giorno la si volesse, le ragioni per cui la versione a soglia assoluta
+> non reggeva sono scritte qui. I riferimenti ai file cancellati sono storici.
+> Guida alla sezione come e adesso: `docs/macro-desk/GUIDA-VOLATILITA.md`.
 
 **Lavoro di ricerca aperto, non un difetto da correggere in app.**
 
@@ -669,3 +737,67 @@ usando. La soglia e meta di `k_hit` (0,5 EM), la misura con cui una settimana
 viene giudicata: una discrepanza che vale meta di un esito merita di essere
 vista. Sui 30 punti misurati sarebbe scattata tre volte, tutte e tre
 sull'oro.
+
+## Sezione Posizionamento (COT): RIMOSSA il 27/08/2026
+
+**Chiusa, non da riaprire.** I dati restano: la tabella `CotWeek`, il job
+settimanale `cot-sync` e il suo cron non sono stati toccati, e una riga per
+strumento vive nelle schede della Sintesi. E' sparita la PAGINA che
+interpretava male quei numeri. Analisi completa, con le query rifacibili, in
+`docs/macro-desk/VERDETTO-POSIZIONAMENTO.md`.
+
+I numeri del pannello erano corretti: percentili leq, bande, delta a 4
+settimane e rarita ricalcolati dal database coincidevano campo per campo. Le
+INTERPRETAZIONI no, e il riquadro «Implicazione meccanica» dichiarava che
+discendevano dalla definizione della metrica.
+
+**I tre numeri che hanno motivato la rimozione** — sono qui perche fra sei mesi
+non si riapra la discussione da capo:
+
+1. **L'open interest in contratti misura il prezzo, non la partecipazione.**
+   Il future COMEX vale 100 once fisse; il prezzo no. Il 18/08/2026 l'oro era
+   al **5,2° percentile in contratti** (406.260) e al **massimo assoluto della
+   serie in nozionale**: 176 mld $, contro i 49 mld $ del 03/01/2017, quando i
+   contratti erano **424.673**, cioe DI PIU'. La frase a schermo diceva
+   «mercato strutturalmente piu sottile».
+2. **Il legame «mercato sottile → oscillazioni piu ampie» non e monotono su
+   nessuno dei due strumenti.** Escursione media della settimana successiva
+   alla pubblicazione, per quintile di open interest, su tutte le 503
+   settimane: oro **1,372%** nel quintile piu sottile contro **1,339%** nel piu
+   affollato (i piu tranquilli sono quelli di mezzo); WTI **3,561%** contro
+   **3,530%**, con il massimo — **4,255%** — nel quintile MEDIANO.
+3. **«MOLTO BASSO» non implica «netto corto», e il netto non dice quanti
+   lunghi ci sono.** Il 10° percentile di `mm_net` e **+15.253** sull'oro e
+   **+78.341** sul WTI: su quest'ultimo un MOLTO BASSO e net long in **495
+   settimane su 503**. Il 27/08/2026 la pagina diceva «poche scommesse lunghe
+   in essere» accanto a **+87.479 contratti netti lunghi** — e i lordi in
+   `CotWeek` non ci sono nemmeno, quindi quella frase non era verificabile
+   contro i nostri dati.
+
+Piu una quarta, di metodo: «ai massimi c'e piu da liquidare che da aggiungere»
+era **H3** della pre-registrazione, l'ipotesi contrarian che il documento dava
+per persa e che il test boccio — rientrata in pagina come definizione. Il test
+sul markup vietava il VOCABOLARIO della previsione, non il contenuto.
+
+**Cosa resta in piedi e va lasciato stare:**
+- `prisma` → `CotWeek`, `src/lib/cot-sync.ts`, `src/app/api/cot-sync` (il cron
+  settimanale): i dati continuano ad arrivare ogni sabato;
+- `src/lib/cot-metrics.ts` e il suo test di regressione contro
+  `dati/cot_panel_produzione.json`: e la traduzione 1:1 del generatore Python
+  pre-registrato, e la pre-registrazione dice che qualunque «miglioria» li e
+  un bug finche non cambia il generatore. Continua a calcolare anche cio che
+  nessuno rende (`posizioneBarra`, `rigaRarita`, `ultimaVoltaSimile`):
+  sfoltirlo per far tornare i conti a valle sarebbe esattamente la miglioria
+  vietata;
+- `src/lib/cot-panel.ts`, che e composizione e non formule: sfoltito ai sette
+  campi che la riga della Sintesi legge davvero.
+
+**La riga della Sintesi non eredita nessuna delle interpretazioni sbagliate**:
+mostra banda, saldo col segno e la parola «netti», variazione a 4 settimane,
+rango sulla propria storia e martedi di riferimento. Un test le vieta per nome
+le parole «scommesse lunghe», «posizioni lunghe», «lato corto» e «da
+liquidare».
+
+**Cosa e uscito del tutto dalla UI:** l'open interest. E' la misura la cui
+interpretazione era piu sbagliata, e il suo posto naturale — se un giorno
+tornasse — e in nozionale, non in contratti.

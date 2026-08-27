@@ -1,3 +1,19 @@
+> ## ⚠️ LA FUNZIONE È STATA RIMOSSA IL 27/08/2026
+>
+> Questo diario resta perché contiene una **misura**, non una descrizione: due
+> giri reali con la chiave vera hanno stabilito che il modello linguistico non
+> aggiungeva valore — col prompt che gli dava la formulazione di riferimento la
+> ricopiava (5 righe di differenza su 210), e togliendogliela non ha prodotto un
+> solo collegamento genuino fra fattori su 29 generazioni. È il tipo di
+> risultato che non va riscoperto due volte.
+>
+> Il blocco discorsivo che ne è nato è stato poi rimosso per una ragione
+> diversa e successiva: ripeteva in prosa i numeri che le schede per strumento
+> mostrano già in tabella. Specifica congelata (storica) in
+> `docs/ai-analyst/SPEC_ai_analyst_v1.0.md`.
+
+---
+
 # RELEASE v1.0 — AI Analyst in produzione (deterministica)
 
 > 9 agosto 2026. **Deployata.** `origin/main` è a `7bcf511`, deployment Vercel

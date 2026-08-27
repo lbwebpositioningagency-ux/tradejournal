@@ -7,6 +7,7 @@ import { auth } from "@/lib/auth";
 import { getFreschezzaReport } from "@/lib/queries/macro-desk-freschezza";
 import { getScorecardSource } from "@/lib/queries/macro-scorecard-em";
 import { BandaFreschezza } from "@/components/macro-desk/banda-freschezza";
+import { BandaImpegno } from "@/components/macro-desk/banda-impegno";
 import { resolveWeeks } from "@/lib/macro-desk-scorecard-em";
 import { cn } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
@@ -65,6 +66,11 @@ export default async function MacroScorecardPage() {
       {/* Questa sezione LEGGE dai report: se il report è fermo, i suoi numeri
           sono fermi con lui, e va detto qui e non solo nell'indice. */}
       {freschezza ? <BandaFreschezza esito={freschezza} /> : null}
+
+      {/* Un report ha provato a spostare il traguardo dopo la partenza: chi
+          legge i risultati lo deve vedere insieme ai risultati. Non rende
+          nulla quando non c'è niente da dire. */}
+      <BandaImpegno segnalazioni={source.impegniRifiutati} />
 
       {/* Terminale: identità visiva propria, scoped a .macro-report */}
       <div
