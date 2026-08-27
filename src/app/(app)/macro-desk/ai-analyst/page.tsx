@@ -7,10 +7,6 @@ import { auth } from "@/lib/auth";
 import { cn } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
 import { MacroDeskSectionNav } from "@/components/macro-desk/section-nav";
-import { BandaFreschezza } from "@/components/macro-desk/banda-freschezza";
-import { getFreschezzaReport } from "@/lib/queries/macro-desk-freschezza";
-import { AiAnalystView } from "@/components/macro-desk/ai-analyst-view";
-import { buildDossier } from "@/lib/ai-analyst/dossier";
 import {
   AI_ANALYST_DEFS,
   AI_ANALYST_INSTRUMENTS,
@@ -24,16 +20,7 @@ import { SchedeStrumento } from "@/components/macro-desk/schede-strumento";
 import { fraQuanto, prossimiEventi, type StrumentoColpito } from "@/lib/calendario-macro";
 import { formatDateTime } from "@/lib/dates";
 import { prisma } from "@/lib/db";
-import { parseAiAnalystInstrument } from "@/lib/ai-analyst/instruments";
-import {
-  MOTIVO_DETERMINISTICO,
-  sintesiFallback,
-} from "@/lib/ai-analyst/sintesi";
-import {
-  caricaFontiCondivise,
-  caricaLetture,
-  giornoRoma,
-} from "@/lib/queries/ai-analyst";
+import { caricaFontiCondivise, giornoRoma } from "@/lib/queries/ai-analyst";
 
 export const metadata: Metadata = { title: "Sintesi · Macro Desk" };
 
@@ -58,36 +45,47 @@ const TAG_EVENTO: Record<AiAnalystInstrument, StrumentoColpito> = {
   SP500: "spx",
 };
 
-export default async function AiAnalystPage({
-  searchParams,
-}: {
-  searchParams: Promise<Record<string, string | undefined>>;
-}) {
+/**
+ * SINTESI — quattro schede per strumento, e nient'altro.
+ *
+ * ── COSA C'ERA SOTTO, E PERCHÉ NON C'È PIÙ ───────────────────────────────
+ *
+ * Fino al 27/08/2026 sotto le schede stava un blocco discorsivo: un verdetto
+ * («Condizioni di espansione») con la sua confidenza, undici fattori raccontati
+ * a parole, i fattori assenti col motivo, i limiti della lettura e la
+ * provenienza. Era l'AI Analyst v1.0, in versione deterministica.
+ *
+ * Il verdetto era il «carattere atteso» che le schede hanno sostituito con dei
+ * numeri, e i fattori raccontati erano gli stessi numeri delle schede messi in
+ * prosa: la pagina diceva due volte la stessa cosa, la seconda in una forma
+ * che non si verifica a colpo d'occhio. Quello che le schede NON portavano —
+ * dispersione stagionale del mese e del giorno, livello abituale dell'indice
+ * di volatilità in questo mese, stabilità delle relazioni con i driver,
+ * condizioni finanziarie e spread HY — non è andato perso: ha una sezione
+ * propria (Stagionalità, Driver, Trends), dove è mostrato meglio e con la
+ * propria storia.
+ *
+ * Con il discorsivo se n'è andato l'intero apparato che lo produceva: il
+ * dossier a dodici fattori, i mapper delle letture, i template delle frasi,
+ * l'orchestratore col modello linguistico e i suoi due cancelli. Era un
+ * apparato al servizio di un testo, e il testo non c'è più.
+ *
+ * ── PERCHÉ NON C'È PIÙ NEMMENO LA BANDA DEL REPORT ───────────────────────
+ *
+ * Stava qui perché il bias citato in fondo veniva dal report giornaliero.
+ * Adesso le schede leggono l'archivio giornaliero (contesto di volatilità e
+ * struttura a termine), `CotWeek`, la quotazione dei contratti WTI e il
+ * calendario in codice: NIENTE arriva dal report. Una banda che dichiara il
+ * ritardo del report su una pagina che non lo usa è un avviso falso, e le
+ * sezioni che dal report dipendono davvero la portano già.
+ */
+export default async function AiAnalystPage() {
   const session = await auth();
   if (!session?.user?.id) redirect("/login");
 
-  const params = await searchParams;
-  const strumento = parseAiAnalystInstrument(params.s);
   const giorno = giornoRoma();
-
   const fonti = await caricaFontiCondivise();
-  const freschezza = await getFreschezzaReport();
 
-  const letture = await caricaLetture(strumento, giorno, fonti);
-  const dossier = buildDossier(strumento, giorno, letture);
-
-  /* ── LE SCHEDE PER STRUMENTO ──────────────────────────────────────────
-     La pagina apriva con UNA tabella per tutti e quattro gli strumenti, le cui
-     colonne parlavano dello stato interno dell'app — «2/2 misure concordi»,
-     «nessun conflitto», «termometro non disponibile» — e sotto ripeteva le
-     stesse cose in riquadri di testo. Adesso ci sono quattro schede, una per
-     strumento, e ogni riga è un fatto di mercato con un numero. La motivazione
-     riga per riga sta in `lib/ai-analyst/scheda-strumento.ts`.
-
-     Il costo è basso: `caricaFontiCondivise` è dietro la cache di richiesta di
-     React e ha già letto tutto il contesto di volatilità, quindi qui non si
-     apre nessuna query nuova — si compone, e la composizione è aritmetica in
-     memoria. */
   const adesso = new Date();
   const eventi = prossimiEventi(giorno, 7, adesso);
 
@@ -120,31 +118,6 @@ export default async function AiAnalystPage({
     });
   });
 
-  /* VERSIONE DETERMINISTICA — decisione della release v1.0.
-   *
-   * Questa pagina NON chiama nessun modello linguistico. Il testo viene dai
-   * template di `frasi.ts`, gli stessi numeri e lo stesso verdetto del
-   * percorso col modello: cambia solo chi scrive le frasi.
-   *
-   * Perché: due giri di prova con la chiave vera (9 agosto 2026, log in
-   * AI_ANALYST_LOG.md) hanno misurato che il modello non aggiungeva valore —
-   * col prompt che gli dava la formulazione di riferimento la ricopiava (5
-   * righe di differenza su 210); togliendogliela, su 29 generazioni non ha
-   * prodotto un solo collegamento genuino fra fattori, e sullo stesso dossier
-   * rispondeva in modo opposto da un giro all'altro.
-   *
-   * Conseguenze volute: zero chiamate di rete, zero varianza, nessuno stato di
-   * caricamento da attendere, e la chiave del modello del tutto irrilevante
-   * per questa pagina: il client non viene nemmeno importato, e c'è un test
-   * sul sorgente che lo verifica.
-   *
-   * Il percorso col modello NON è stato cancellato: l'orchestratore e i due
-   * cancelli restano nel codice, con i loro test, pronti per il giorno in cui
-   * si decidesse di riaccenderlo. Riaccenderlo significa passare qui delle
-   * dipendenze vere — una riga — e nient'altro.
-   */
-  const sintesi = sintesiFallback(dossier, MOTIVO_DETERMINISTICO);
-
   return (
     <div className="flex flex-col gap-4">
       <div className="flex flex-wrap items-start justify-between gap-3">
@@ -171,31 +144,19 @@ export default async function AiAnalystPage({
         <MacroDeskSectionNav active="ai-analyst" />
       </div>
 
-      {/* IL RITARDO DEL REPORT SI DICHIARA ANCHE QUI. Fino al 26/08/2026 era
-          l'unica pagina del desk che dipendeva dal report senza dirlo: il
-          bias citato in fondo e la data della giornata venivano da lì. Le
-          altre quattro sezioni la banda ce l'avevano già. */}
-      {freschezza ? <BandaFreschezza esito={freschezza} /> : null}
-
       <div
         className={cn(
-          "macro-report overflow-hidden rounded-[var(--md-r-lg)] border",
+          "macro-report overflow-hidden rounded-[var(--md-r-lg)] border p-4 sm:p-5",
           fontUi.variable,
           fontMono.variable,
         )}
         style={{ borderColor: "var(--md-border)" }}
       >
-        <div className="flex flex-col gap-4 p-4 sm:p-5">
-          <SchedeStrumento
-            schede={schede}
-            giorno={giorno}
-            generatoAlle={formatDateTime(adesso, timezone)}
-          />
-        </div>
-        {/* Il discorsivo resta, ma SOTTO e subordinato: le schede sono il primo
-            oggetto della pagina, e questo ne è il dettaglio per lo strumento
-            scelto. */}
-        <AiAnalystView sintesi={sintesi} strumento={strumento} />
+        <SchedeStrumento
+          schede={schede}
+          giorno={giorno}
+          generatoAlle={formatDateTime(adesso, timezone)}
+        />
       </div>
     </div>
   );

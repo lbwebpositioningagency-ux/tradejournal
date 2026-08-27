@@ -13,22 +13,27 @@
  * in `components/macro-desk/cot-panel.tsx`; la lacuna — «al desk manca il
  * perché di un movimento» — resta aperta in `docs/DEBITO-TECNICO.md`.
  *
- * COSA RESTA, e perché sta ancora in questo file:
- *  - IMPLICAZIONI_MECCANICHE, la tabella statica metrica × banda. Non è
- *    cronaca: discende dalla DEFINIZIONE del numero, quindi non ha mai
- *    avuto bisogno del job che l'ospitava.
- *  - i due cancelli sul linguaggio (lessicale e semantico), nati qui e oggi
- *    usati anche dalla Sintesi (`lib/ai-analyst/cancelli.ts`).
+ * COSA RESTA: solo IMPLICAZIONI_MECCANICHE, la tabella statica metrica ×
+ * banda che il pannello legge a render-time.
+ *
+ * I DUE CANCELLI SUL LINGUAGGIO (lessicale e semantico) sono usciti il
+ * 27/08/2026 con il blocco discorsivo della Sintesi, che era il loro ultimo
+ * consumatore vivo: erano nati per filtrare i titoli di Google News, e da
+ * quando quel percorso è stato rimosso (26/08) restavano in piedi solo per il
+ * testo generato dell'AI Analyst. Senza testo da controllare, un cancello è
+ * codice che nessuno attraversa.
  */
 
 import type { BandaCot } from "@/lib/cot-metrics";
 import type { MetricaCot } from "@/lib/cot-panel";
 
 /**
- * Una frase per combinazione, vera per come è DEFINITO il numero: mai un
- * pattern trovato nei dati, mai una direzione attesa. I sostantivi
- * "acquisti"/"vendite" descrivono la meccanica delle chiusure di posizioni
- * esistenti, non un consiglio né un'aspettativa.
+ * Una frase per combinazione, vera — nelle intenzioni — per come è DEFINITO
+ * il numero.
+ *
+ * ATTENZIONE, misurato il 27/08/2026: QUATTRO delle sei famiglie NON
+ * discendono dalla definizione, e due sono false su casi ordinari. Analisi
+ * completa con i numeri e le query in `docs/macro-desk/VERDETTO-POSIZIONAMENTO.md`.
  */
 export const IMPLICAZIONI_MECCANICHE: Record<MetricaCot, Record<BandaCot, string>> = {
   open_interest: {
@@ -56,86 +61,3 @@ export const IMPLICAZIONI_MECCANICHE: Record<MetricaCot, Record<BandaCot, string
       "Esposizione netta dei fondi ai massimi della propria storia: lo sbilancio delle posizioni in essere è tutto dal lato lungo — per definizione, su quel lato c'è più da liquidare che da aggiungere.",
   },
 };
-
-/* ── cancello 1: controllo lessicale ────────────────────────────────── */
-
-/** Parole già vietate nel pannello (stesso elenco del test sul markup). */
-const PAROLE_VIETATE_PANNELLO = [
-  "hit rate",
-  "probabilit",
-  "affidabilit",
-  "prevision",
-  "previst", // "del previsto", "come previsto", "più del previsto"
-  "prevede",
-  "predi",
-  "percentile",
-  "edge",
-  "segnale",
-];
-
-/**
- * Frasi di aspettativa direzionale, verbi al futuro/condizionale riferiti al
- * prezzo, lessico operativo — italiano E inglese (i titoli delle testate sono
- * spesso in inglese). Elenco ESTESO e permanente: meglio un falso positivo
- * (un titolo scartato) che un'aspettativa di prezzo a schermo.
- */
-const FRASI_ASPETTATIVA: ReadonlyArray<{ etichetta: string; regex: RegExp }> = [
-  { etichetta: "mi aspetto / ci aspettiamo", regex: /\b(mi|ci) aspett\w+/i },
-  { etichetta: "aspettativa/e", regex: /\baspettativ\w+/i },
-  // "contro le attese", "meglio delle attese", "atteso un calo": aspettative
-  { etichetta: "attese/atteso", regex: /\battes[aei]\b/i },
-  { etichetta: "probabilmente", regex: /\bprobabilmente\b/i },
-  { etichetta: "rialzista/rialzo", regex: /\brialz\w+/i },
-  { etichetta: "ribassista/ribasso", regex: /\bribass\w+/i },
-  { etichetta: "bullish/bearish", regex: /\b(bullish|bearish)\b/i },
-  // i titoli citati sono spesso in inglese: previsioni a tutti gli effetti
-  { etichetta: "forecast/outlook/prediction (aspettative in inglese)", regex: /\b(forecast|outlook|prediction|predict)s?\w*\b/i },
-  { etichetta: "will rise/fall/hit (futuro inglese sul prezzo)", regex: /\b(will|could|may|might|set to|poised to|expected to|to) (rise|fall|climb|drop|surge|plunge|rally|hit|reach|top|test)\b/i },
-  { etichetta: "price target (inglese)", regex: /\bprice target\b/i },
-  { etichetta: "verbo al futuro sul prezzo (salirà/scenderà/…)", regex: /\b(salir|scender|aumenter|caler|crescer|punter|superer|raggiunger|toccher|corregger|rimbalzer|indebolir|rafforzer)\w*\b/i },
-  { etichetta: "modale + direzione (potrebbe salire/…)", regex: /\b(potrebbe(?:ro)?|dovrebbe(?:ro)?|rischia(?:no)? di|destinat\w+ a)\s+(far\s+)?(salire|scendere|aumentare|calare|crescere|indebolire|rafforzare)/i },
-  // niente \b in coda: dopo una vocale accentata il boundary ASCII non scatta
-  { etichetta: "vedremo / si muoverà / andrà", regex: /\b(vedremo|si muover|andr[àa])/i },
-  { etichetta: "target/obiettivo di prezzo", regex: /\btarget\b|obiettivo di prezzo/i },
-  { etichetta: "lessico operativo (comprare/vendere/posizionarsi)", regex: /\b(comprare|vendere|acquistare|posizionarsi|entrare (long|short)|aprire una posizione|stop loss|take profit|conviene|consigli\w*|buy|sell)\b/i },
-  // Cronaca del prezzo: non è il contesto che cerchiamo (il box spiega il
-  // posizionamento: flussi, OPEC, scorte, accordi — non il prezzo che si
-  // muove) ed è il genere di titolo che implica direzione. Alla prima prova
-  // dal vivo era la causa del blocco del cancello finale.
-  { etichetta: "verbo di movimento del prezzo (crolla/balza/vola…)", regex: /\b(croll\w+|balz\w+|schizz\w+|affond\w+|precipit\w+|impenn\w+|tonfo|rally|surge[sd]?|plunge[sd]?|soar\w*|tumble[sd]?)\b/i },
-  { etichetta: "variazione % nel titolo (sale dell'1,5%…)", regex: /\b(sal\w+|scend\w+|guadagn\w+|perd\w+|ced\w+|avanz\w+|arretr\w+|cal\w+|cresc\w+|su|giù)\b[^.\n]{0,25}\d+[.,]?\d*\s?%/i },
-  { etichetta: "forte calo/rialzo, movimenti vertiginosi", regex: /\b(forte cal[oi]|vertiginos\w+|in picchiata|alle stelle)\b/i },
-  { etichetta: "interrompe sessioni di cali/rialzi", regex: /sessioni? di (cal[oi]|rialz\w+|ribass\w+)/i },
-  // Analisi tecnica di livelli: "tenuta dei 4.000 dollari", supporti e
-  // resistenze — è ragionamento sul dove può andare il prezzo, non un fatto.
-  { etichetta: "livelli tecnici (supporto/resistenza/tenuta di quota)", regex: /\b(supporto|resistenz\w+|livello chiave|tenuta d(?:ei|el|elle)|quota \d)/i },
-  // Titoli-domanda speculativi: "Possono i futures reggere…?"
-  { etichetta: "domanda speculativa (possono/potrà … ?)", regex: /\b(possono|potr[àa]|può|reggere|terr[àa])\b[^\n]{0,60}\?/i },
-];
-
-/** Violazioni lessicali nel testo; lista vuota = testo pulito. */
-export function controlloLessicale(testo: string): string[] {
-  const violazioni: string[] = [];
-  const minuscolo = testo.toLowerCase();
-  for (const parola of PAROLE_VIETATE_PANNELLO) {
-    if (minuscolo.includes(parola)) violazioni.push(`parola vietata: "${parola}"`);
-  }
-  for (const { etichetta, regex } of FRASI_ASPETTATIVA) {
-    if (regex.test(testo)) violazioni.push(`aspettativa direzionale: ${etichetta}`);
-  }
-  return violazioni;
-}
-
-/* ── cancello 2: controllo semantico ────────────────────────────────── */
-
-/** La domanda ESPLICITA del secondo cancello, verbatim dalla specifica. */
-export const DOMANDA_CANCELLO_SEMANTICO =
-  "Questo testo afferma o implica una direzione di prezzo attesa? Rispondi solo sì o no.";
-
-/** Fail-closed: passa SOLO un "no" esplicito; "sì", ambiguità o vuoto bloccano. */
-export function rispostaSemanticaBlocca(risposta: string): boolean {
-  const normalizzata = risposta.trim().toLowerCase();
-  return !/^["'«\s]*no\b/.test(normalizzata);
-}
-
-

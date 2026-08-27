@@ -1,3 +1,26 @@
+> ## ⚠️ FUNZIONE RIMOSSA IL 27/08/2026 — documento STORICO
+>
+> La sottosezione descritta qui non esiste più. Il blocco discorsivo che
+> produceva (verdetto sul carattere della giornata, undici fattori raccontati a
+> parole, limiti e provenienza) è stato rimosso insieme all'apparato che lo
+> generava: dossier, letture, frasi, orchestratore e i due cancelli sul
+> linguaggio.
+>
+> **Perché.** Le schede per strumento della Sintesi (26/08/2026) hanno
+> sostituito il verdetto con dei numeri, e il discorsivo è rimasto a dire le
+> stesse cose in prosa: la stessa informazione due volte, la seconda in una
+> forma che non si verifica a colpo d'occhio. Quello che le schede non
+> portavano ha una sezione propria — Stagionalità, Driver, Trends.
+>
+> Il documento resta perché registra il **vincolo non negoziabile** del §0 e le
+> ragioni di ogni scelta: se un giorno si volesse un testo generato nel desk,
+> qui c'è già scritto cosa non deve fare. Il risultato della misura sul modello
+> linguistico sta in `AI_ANALYST_LOG.md`.
+>
+> Stato attuale della Sintesi: `src/lib/ai-analyst/scheda-strumento.ts`.
+
+---
+
 # AI Analyst — specifica v1.0 (CONGELATA)
 
 **Stato:** congelata al commit che introduce questo file. Ogni modifica successiva
