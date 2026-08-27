@@ -129,39 +129,52 @@ const PILL_GUTTER = 96;
  * panoramico, che è la causa tipica dell'effetto schiacciato): è un numero di
  * pixel, e la larghezza semmai la fa CRESCERE.
  *
- * ── PERCHÉ I NUMERI SONO SCESI (27/08/2026) ──────────────────────────────
+ * ── IL PAVIMENTO NON BASTAVA: SERVIVA UN TETTO (27/08/2026) ───────────────
  *
  * Con 650 di pavimento e il grafico a tutta larghezza della scheda, ogni
  * scheda del Driver Desk misurava 1.538 px a 1440 e 1.651 px a 1920 —
- * più del doppio di uno schermo, e PEGGIO sul monitor più grande, perché il
- * vincolo 2:1 faceva crescere l'altezza con la larghezza. Tre schede
- * facevano una pagina da 5.208 px in cui nessuna scheda si vedeva intera.
+ * più del doppio di uno schermo, e PEGGIO sul monitor più grande. La causa
+ * era il vincolo 2:1 applicato senza limite superiore: più larga la scheda,
+ * più alto il grafico, senza che nessuno l'avesse chiesto.
  *
- * La correzione vera non è stata schiacciare il grafico: è stato metterlo
- * accanto al blocco delle relazioni invece che sopra (v. `SchedaStrumento`
- * in `driver-desk-panel.tsx`). A metà larghezza il vincolo 2:1 non morde
- * più — 600 px di riquadro ne vorrebbero 300 — e il pavimento torna a essere
- * quello che decide. 420 px con 60 sedute in ascissa tengono le pendenze
- * distinguibili: la prova è nei test di questo modulo, che difendono il
- * pavimento e il rapporto massimo.
+ * Il primo tentativo fu mettere il grafico ACCANTO alle relazioni invece che
+ * sopra: dimezzata la larghezza, il 2:1 non mordeva più. Ma il prezzo era un
+ * grafico grande la metà, e su serie a 60 sedute era troppo poco.
+ *
+ * La correzione giusta è un TETTO. Il rapporto 2:1 continua a governare i
+ * riquadri piccoli e medi — è lì che serve, perché è lì che un grafico
+ * diventa una striscia — ma smette di valere una volta raggiunta
+ * `MAX_HEIGHT`. Da 960 px di riquadro in su l'altezza è ferma: il grafico si
+ * allarga, non si alza, e la scheda a 1920 non è più alta di quella a 1440.
+ * 460 px con 60 sedute in ascissa tengono le pendenze distinguibili.
  */
 export const MIN_HEIGHT_DESKTOP = 420;
 export const MIN_HEIGHT_NARROW = 320;
-/** Mai più largo che 2:1 — su schermi larghi è la larghezza a dettare. */
+/**
+ * Tetto assoluto: oltre questa altezza il grafico non cresce, per quanto
+ * larga sia la scheda. È ciò che tiene la scheda dentro lo schermo su un
+ * monitor grande, ed è il vincolo che prima mancava.
+ */
+export const MAX_HEIGHT = 460;
+/** Mai più largo che 2:1 — finché il tetto non lo impedisce. */
 const MAX_ASPECT = 2;
 const NARROW_BREAKPOINT = 640;
 
 /**
- * Altezza minima consentita in questo momento: la soglia del dispositivo,
- * alzata quanto serve perché il riquadro non superi il rapporto 2:1.
- * È il pavimento che nessun controllo manuale potrà mai sfondare.
+ * Altezza del riquadro: la soglia del dispositivo, alzata quanto serve
+ * perché non superi il rapporto 2:1, e comunque mai oltre il tetto.
+ *
+ * Il pavimento vince sul tetto: uno schermo stretto tiene i suoi 320 px
+ * anche se il tetto fosse più basso. Non capita con i valori attuali, ma
+ * l'ordine delle due operazioni non deve dipendere dalla fortuna.
  */
 export function minChartHeight(viewportWidth: number, boxWidth: number): number {
   const floor =
     viewportWidth > 0 && viewportWidth < NARROW_BREAKPOINT
       ? MIN_HEIGHT_NARROW
       : MIN_HEIGHT_DESKTOP;
-  return Math.max(floor, Math.ceil(boxWidth / MAX_ASPECT));
+  const daRapporto = Math.max(floor, Math.ceil(boxWidth / MAX_ASPECT));
+  return Math.max(floor, Math.min(MAX_HEIGHT, daRapporto));
 }
 
 /**

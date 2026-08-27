@@ -85,7 +85,19 @@ function Scheda({ s }: { s: SchedaStrumento }) {
       </div>
 
       <div className="overflow-x-auto">
-        <table className="w-full min-w-[30rem] border-collapse">
+        <table className="w-full min-w-[30rem] table-fixed border-collapse">
+          {/* LARGHEZZE DICHIARATE, non lasciate all'algoritmo automatico.
+              A larghezza piena la tabella misura 1.100 px, ma la ripartizione
+              automatica ne dava 511 alla colonna delle ETICHETTE e solo 250 ai
+              valori: «90,07 $ · 1,94% · banda 1,55%–2,46%» andava a capo in
+              mezzo ai numeri mentre metà tabella era occupata da nomi di
+              misura. Le etichette sono corte e prevedibili, i valori no: lo
+              spazio va dove sta il contenuto che varia. */}
+          <colgroup>
+            <col className="w-[26%]" />
+            <col className="w-[38%]" />
+            <col className="w-[36%]" />
+          </colgroup>
           <caption className="sr-only">
             {s.etichetta}: ampiezza della giornata, posizione rispetto alla
             norma ed eventi a calendario
@@ -162,7 +174,13 @@ export function SchedeStrumento({
         prezzo: il desk non lo sa e non lo dichiara.
       </p>
 
-      <div className="grid gap-3 xl:grid-cols-2">
+      {/* UNA SCHEDA PER RIGA, a larghezza piena.
+          Affiancate a due a due su xl, ogni tabella riceveva poco più dei 30rem
+          del suo `min-w`: i valori andavano a capo e «Rispetto alla norma» —
+          che è la colonna con la frase più lunga — si comprimeva fino a
+          spezzare i numeri. Il contenuto non è cambiato, gli è stato ridato lo
+          spazio: a 1440 ogni riga sta su una linea sola. */}
+      <div className="flex flex-col gap-3">
         {schede.map((s) => (
           <Scheda key={s.strumento} s={s} />
         ))}

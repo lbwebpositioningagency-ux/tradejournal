@@ -249,16 +249,17 @@ function SchedaStrumento({
           </div>
         ) : null}
 
-        {/* GRAFICO E RELAZIONI AFFIANCATI da xl in su.
-            Impilati, la scheda misurava 1.538 px a 1440 e 1.651 a 1920: il
-            grafico prendeva tutta la larghezza — e con essa tutta l'altezza,
-            per via del vincolo 2:1 — mentre le quattro righe delle relazioni
-            occupavano una colonna di testo larga il doppio del necessario. Lo
-            spazio orizzontale c'era già: era solo sprecato due volte.
-            `min-w-0` su entrambe le colonne, o il grafico allarga la sua e la
-            tabella non scorre (stessa trappola delle schede della Sintesi). */}
+        {/* GRAFICO SOPRA, RELAZIONI SOTTO — impilati, a larghezza piena.
+            Erano stati affiancati su xl per accorciare la scheda, ma il prezzo
+            era il grafico a metà larghezza: troppo piccolo per leggerci delle
+            serie a 60 sedute. La scheda si accorcia dove il problema stava
+            davvero, cioè nell'altezza del grafico: il tetto in
+            `driver-desk-chart.tsx` impedisce che cresca con la larghezza, che
+            era il motivo per cui a 1920 la scheda era PIÙ alta che a 1440.
+            `min-w-0` resta: senza, il grafico allarga la colonna e le tabelle
+            non scorrono (stessa trappola delle schede della Sintesi). */}
         {card.chart || card.relations.length > 0 ? (
-          <div className="grid gap-4 xl:grid-cols-2">
+          <div className="flex flex-col gap-4">
             {card.chart ? (
               <div className="min-w-0">
                 <DriverDeskChart
@@ -269,7 +270,7 @@ function SchedaStrumento({
             ) : null}
             {card.relations.length > 0 ? (
               <div
-                className="min-w-0 border-t pt-4 xl:border-t-0 xl:pt-0"
+                className="min-w-0 border-t pt-4"
                 style={{ borderColor: "var(--md-border)" }}
               >
                 <BloccoRelazioni relations={card.relations} />

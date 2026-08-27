@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  MAX_HEIGHT,
   MIN_HEIGHT_DESKTOP,
   MIN_HEIGHT_NARROW,
   PASSO_MINIMO_TICK,
@@ -35,16 +36,36 @@ describe("minChartHeight — pavimento di altezza", () => {
     expect(minChartHeight(640, 600)).toBe(MIN_HEIGHT_DESKTOP);
   });
 
-  it("mai più largo di 2:1 — su riquadri larghi cresce l'altezza", () => {
-    // 1600px di larghezza: il pavimento di 420 darebbe 3,8:1, quindi sale a 800
-    expect(minChartHeight(1920, 1600)).toBe(800);
-    expect(minChartHeight(1920, 1600)).toBeGreaterThanOrEqual(1600 / 2);
+  it("fra pavimento e tetto è il rapporto 2:1 a decidere", () => {
+    // 700px: il pavimento darebbe 1,67:1, quindi l'altezza sale a 350… che è
+    // sotto il pavimento, quindi resta 420. A 880 il rapporto vince davvero.
+    expect(minChartHeight(1440, 880)).toBe(440);
+    expect(minChartHeight(1440, 880)).toBeLessThanOrEqual(MAX_HEIGHT);
   });
 
-  it("il rapporto 2:1 non viene mai superato, a nessuna larghezza", () => {
+  /**
+   * IL TETTO, ed è il vincolo che prima mancava.
+   *
+   * Senza, l'altezza cresceva con la larghezza senza limite: la scheda del
+   * Driver Desk misurava 1.538 px a 1440 e 1.651 a 1920 — più alta sul
+   * monitor più grande, che è esattamente il contrario di quel che serve.
+   */
+  it("oltre il tetto il grafico si allarga, non si alza", () => {
+    expect(minChartHeight(1920, 1600)).toBe(MAX_HEIGHT);
+    // e a 1920 non è più alto che a 1440: è questo il punto.
+    expect(minChartHeight(1920, 1750)).toBe(minChartHeight(1440, 1300));
+  });
+
+  it("il tetto non viene mai sfondato, a nessuna larghezza", () => {
     for (const w of [320, 640, 900, 1200, 1600, 2400, 3840]) {
-      const h = minChartHeight(w, w);
-      expect(w / h).toBeLessThanOrEqual(2);
+      expect(minChartHeight(w, w)).toBeLessThanOrEqual(MAX_HEIGHT);
+    }
+  });
+
+  it("il pavimento vince sul tetto: nessuna larghezza scende sotto la soglia", () => {
+    for (const w of [320, 375, 640, 900, 1440, 1920, 3840]) {
+      const atteso = w < 640 ? MIN_HEIGHT_NARROW : MIN_HEIGHT_DESKTOP;
+      expect(minChartHeight(w, w)).toBeGreaterThanOrEqual(atteso);
     }
   });
 
