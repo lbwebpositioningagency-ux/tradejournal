@@ -7,31 +7,20 @@ import { auth } from "@/lib/auth";
 import { cn } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
 import { MacroDeskSectionNav } from "@/components/macro-desk/section-nav";
-import { BandaFreschezza } from "@/components/macro-desk/banda-freschezza";
-import { getFreschezzaReport } from "@/lib/queries/macro-desk-freschezza";
-import { AiAnalystView } from "@/components/macro-desk/ai-analyst-view";
-import { buildDossier } from "@/lib/ai-analyst/dossier";
-import { AI_ANALYST_INSTRUMENTS } from "@/lib/ai-analyst/instruments";
-import { ordinaRighe, rigaSintesi } from "@/lib/ai-analyst/sintesi-tabella";
-import { AiAnalystSintesi } from "@/components/macro-desk/ai-analyst-sintesi";
-import { addDays } from "@/lib/calendar";
+import {
+  AI_ANALYST_DEFS,
+  AI_ANALYST_INSTRUMENTS,
+  type AiAnalystInstrument,
+} from "@/lib/ai-analyst/instruments";
+import {
+  schedaStrumento,
+  type EventoScheda,
+} from "@/lib/ai-analyst/scheda-strumento";
+import { SchedeStrumento } from "@/components/macro-desk/schede-strumento";
+import { fraQuanto, prossimiEventi, type StrumentoColpito } from "@/lib/calendario-macro";
 import { formatDateTime } from "@/lib/dates";
 import { prisma } from "@/lib/db";
-import { getDegradoTermometro } from "@/lib/queries/termometro-degrado";
-import { leggiTermometro } from "@/lib/termometro-volatilita";
-import { valutaCancello } from "@/lib/termometro-cancello";
-import type { Dossier } from "@/lib/ai-analyst/types";
-import { AI_ANALYST_DEFS } from "@/lib/ai-analyst/instruments";
-import { parseAiAnalystInstrument } from "@/lib/ai-analyst/instruments";
-import {
-  MOTIVO_DETERMINISTICO,
-  sintesiFallback,
-} from "@/lib/ai-analyst/sintesi";
-import {
-  caricaFontiCondivise,
-  caricaLetture,
-  giornoRoma,
-} from "@/lib/queries/ai-analyst";
+import { caricaFontiCondivise, giornoRoma } from "@/lib/queries/ai-analyst";
 
 export const metadata: Metadata = { title: "Sintesi · Macro Desk" };
 
@@ -48,109 +37,86 @@ const fontMono = JetBrains_Mono({
   variable: "--md-font-mono",
 });
 
-export default async function AiAnalystPage({
-  searchParams,
-}: {
-  searchParams: Promise<Record<string, string | undefined>>;
-}) {
+/** Il tag del calendario macro corrispondente a ogni strumento del catalogo. */
+const TAG_EVENTO: Record<AiAnalystInstrument, StrumentoColpito> = {
+  ORO: "oro",
+  WTI: "wti",
+  DAX: "dax",
+  SP500: "spx",
+};
+
+/**
+ * SINTESI — quattro schede per strumento, e nient'altro.
+ *
+ * ── COSA C'ERA SOTTO, E PERCHÉ NON C'È PIÙ ───────────────────────────────
+ *
+ * Fino al 27/08/2026 sotto le schede stava un blocco discorsivo: un verdetto
+ * («Condizioni di espansione») con la sua confidenza, undici fattori raccontati
+ * a parole, i fattori assenti col motivo, i limiti della lettura e la
+ * provenienza. Era l'AI Analyst v1.0, in versione deterministica.
+ *
+ * Il verdetto era il «carattere atteso» che le schede hanno sostituito con dei
+ * numeri, e i fattori raccontati erano gli stessi numeri delle schede messi in
+ * prosa: la pagina diceva due volte la stessa cosa, la seconda in una forma
+ * che non si verifica a colpo d'occhio. Quello che le schede NON portavano —
+ * dispersione stagionale del mese e del giorno, livello abituale dell'indice
+ * di volatilità in questo mese, stabilità delle relazioni con i driver,
+ * condizioni finanziarie e spread HY — non è andato perso: ha una sezione
+ * propria (Stagionalità, Driver, Trends), dove è mostrato meglio e con la
+ * propria storia.
+ *
+ * Con il discorsivo se n'è andato l'intero apparato che lo produceva: il
+ * dossier a dodici fattori, i mapper delle letture, i template delle frasi,
+ * l'orchestratore col modello linguistico e i suoi due cancelli. Era un
+ * apparato al servizio di un testo, e il testo non c'è più.
+ *
+ * ── PERCHÉ NON C'È PIÙ NEMMENO LA BANDA DEL REPORT ───────────────────────
+ *
+ * Stava qui perché il bias citato in fondo veniva dal report giornaliero.
+ * Adesso le schede leggono l'archivio giornaliero (contesto di volatilità e
+ * struttura a termine), `CotWeek`, la quotazione dei contratti WTI e il
+ * calendario in codice: NIENTE arriva dal report. Una banda che dichiara il
+ * ritardo del report su una pagina che non lo usa è un avviso falso, e le
+ * sezioni che dal report dipendono davvero la portano già.
+ */
+export default async function AiAnalystPage() {
   const session = await auth();
   if (!session?.user?.id) redirect("/login");
 
-  const params = await searchParams;
-  const strumento = parseAiAnalystInstrument(params.s);
   const giorno = giornoRoma();
-
   const fonti = await caricaFontiCondivise();
 
-  /* STESSA FONTE DI VERITÀ della sezione Volatilità: lo stesso cancello, lo
-     stesso rilevatore, la stessa soglia. Due giudizi diversi sullo stesso
-     strumento in due pagine sarebbero peggio di nessun giudizio.
-
-     Il cancello ha bisogno dello STATO di oggi, non solo del rilevatore: la
-     prova fuori campione è per stato, e uno strumento può averla superata da
-     ESPANSA e non da COMPRESSA. Lo stato si rilegge dagli stessi ingressi che
-     il dossier userà, con la stessa funzione. */
-  const degrado = await getDegradoTermometro();
-  const freschezza = await getFreschezzaReport();
-  const senzaVerdetto = new Map<string, Dossier["termometroSenzaVerdetto"]>();
-  for (const d of degrado) {
-    const lettura = leggiTermometro(d.simbolo, fonti.ingressiTermometro[d.simbolo]);
-    if (!lettura) continue;
-    const esito = valutaCancello(d.simbolo, lettura.stato, d.esito.discrimina);
-    if (esito.aperto) continue;
-    senzaVerdetto.set(
-      d.simbolo,
-      esito.motivo === "degenere" ? "classificatore_degenere" : "verdetto_non_validato",
-    );
-  }
-  const cancelloChiuso = (
-    code: (typeof AI_ANALYST_INSTRUMENTS)[number],
-  ): Dossier["termometroSenzaVerdetto"] => {
-    const simbolo = AI_ANALYST_DEFS[code].termometro;
-    return simbolo === null ? null : (senzaVerdetto.get(simbolo) ?? null);
-  };
-
-  const letture = await caricaLetture(strumento, giorno, fonti);
-  const dossier = buildDossier(
-    strumento,
-    giorno,
-    letture,
-    cancelloChiuso(strumento),
-  );
-
-  /* ── SINTESI IN TESTA (F2) ────────────────────────────────────────────
-     La pagina rispondeva a «cosa dice il desk su UNO strumento»; la domanda
-     vera è «come mi posiziono oggi, e cosa mi fa cambiare idea». Per
-     rispondere servono tutti gli strumenti insieme, e il confronto con ieri.
-     Il costo è basso: `caricaFontiCondivise` è dietro la cache di richiesta
-     di React, quindi le query al database restano quelle di prima e qui si
-     rifà solo la composizione, che è aritmetica in memoria. */
-  const ieri = addDays(giorno, -1);
-  const righe = ordinaRighe(
-    await Promise.all(
-      AI_ANALYST_INSTRUMENTS.map(async (code) => {
-        const [oggiLetture, ieriLetture] = await Promise.all([
-          caricaLetture(code, giorno, fonti),
-          caricaLetture(code, ieri, fonti),
-        ]);
-        const chiuso = cancelloChiuso(code);
-        return rigaSintesi(
-          buildDossier(code, giorno, oggiLetture, chiuso),
-          buildDossier(code, ieri, ieriLetture, chiuso),
-        );
-      }),
-    ),
-  );
+  const adesso = new Date();
+  const eventi = prossimiEventi(giorno, 7, adesso);
 
   const { timezone } = await prisma.user.findUniqueOrThrow({
     where: { id: session.user.id },
     select: { timezone: true },
   });
 
-  /* VERSIONE DETERMINISTICA — decisione della release v1.0.
-   *
-   * Questa pagina NON chiama nessun modello linguistico. Il testo viene dai
-   * template di `frasi.ts`, gli stessi numeri e lo stesso verdetto del
-   * percorso col modello: cambia solo chi scrive le frasi.
-   *
-   * Perché: due giri di prova con la chiave vera (9 agosto 2026, log in
-   * AI_ANALYST_LOG.md) hanno misurato che il modello non aggiungeva valore —
-   * col prompt che gli dava la formulazione di riferimento la ricopiava (5
-   * righe di differenza su 210); togliendogliela, su 29 generazioni non ha
-   * prodotto un solo collegamento genuino fra fattori, e sullo stesso dossier
-   * rispondeva in modo opposto da un giro all'altro.
-   *
-   * Conseguenze volute: zero chiamate di rete, zero varianza, nessuno stato di
-   * caricamento da attendere, e la chiave del modello del tutto irrilevante
-   * per questa pagina: il client non viene nemmeno importato, e c'è un test
-   * sul sorgente che lo verifica.
-   *
-   * Il percorso col modello NON è stato cancellato: l'orchestratore e i due
-   * cancelli restano nel codice, con i loro test, pronti per il giorno in cui
-   * si decidesse di riaccenderlo. Riaccenderlo significa passare qui delle
-   * dipendenze vere — una riga — e nient'altro.
-   */
-  const sintesi = sintesiFallback(dossier, MOTIVO_DETERMINISTICO);
+  const schede = AI_ANALYST_INSTRUMENTS.map((code) => {
+    const def = AI_ANALYST_DEFS[code];
+    const prossimo = eventi.find((e) => e.strumenti.includes(TAG_EVENTO[code]));
+    const evento: EventoScheda | null = prossimo
+      ? {
+          nome: prossimo.nome,
+          quando: formatDateTime(prossimo.istante, timezone),
+          fraQuanto: fraQuanto(prossimo.istante, adesso),
+        }
+      : null;
+    return schedaStrumento({
+      strumento: code,
+      prezzo: fonti.contesto.get(def.rigaContestoPrezzo),
+      iv: fonti.contesto.get(def.rigaContestoIv),
+      cot: fonti.cot.carte.filter((c) => c.strumento === def.cot),
+      evento,
+      /* La curva del VIX sta nella scheda dell'S&P 500 e in nessun'altra: sul
+         DAX sarebbe la struttura a termine di un indice già sostitutivo. */
+      strutturaVix: code === "SP500" ? fonti.strutturaTermine : null,
+      strutturaWti: code === "WTI" ? fonti.strutturaWti : null,
+      oggi: giorno,
+    });
+  });
 
   return (
     <div className="flex flex-col gap-4">
@@ -165,43 +131,32 @@ export default async function AiAnalystPage({
           </Link>
           <h1 className="page-title flex flex-wrap items-center gap-2.5">
             Sintesi
-            <Badge variant="outline">carattere della giornata, non direzione</Badge>
+            <Badge variant="outline">ampiezza della giornata, non direzione</Badge>
           </h1>
           <p className="page-subtitle">
-            Una lettura d&apos;insieme di ciò che le sezioni del Macro Desk dicono
-            oggi: quanto ampiamente lo strumento tende a muoversi in condizioni
-            come queste, su che campione lo sappiamo e che cosa invece non
-            sappiamo. Non dice mai se il prezzo salirà o scenderà.
+            Una scheda per strumento, con dentro quello che serve alle 7 del
+            mattino: quanto sarà larga la giornata, dove sta lo strumento
+            rispetto alla propria norma, e cosa c&apos;è in agenda. Ogni riga è
+            una misura con la sua fonte e il suo campione. Non dice mai se il
+            prezzo salirà o scenderà.
           </p>
         </div>
         <MacroDeskSectionNav active="ai-analyst" />
       </div>
 
-      {/* IL RITARDO DEL REPORT SI DICHIARA ANCHE QUI. Fino al 26/08/2026 era
-          l'unica pagina del desk che dipendeva dal report senza dirlo: il
-          bias citato in fondo e la data della giornata venivano da lì. Le
-          altre quattro sezioni la banda ce l'avevano già. */}
-      {freschezza ? <BandaFreschezza esito={freschezza} /> : null}
-
       <div
         className={cn(
-          "macro-report overflow-hidden rounded-[var(--md-r-lg)] border",
+          "macro-report overflow-hidden rounded-[var(--md-r-lg)] border p-4 sm:p-5",
           fontUi.variable,
           fontMono.variable,
         )}
         style={{ borderColor: "var(--md-border)" }}
       >
-        <div className="flex flex-col gap-4 p-4 sm:p-5">
-          <AiAnalystSintesi
-            righe={righe}
-            giorno={giorno}
-            generatoAlle={formatDateTime(new Date(), timezone)}
-          />
-        </div>
-        {/* Il discorsivo resta, ma SOTTO e subordinato: la tabella è il primo
-            oggetto della pagina, e questo ne è il dettaglio per lo strumento
-            scelto. */}
-        <AiAnalystView sintesi={sintesi} strumento={strumento} />
+        <SchedeStrumento
+          schede={schede}
+          giorno={giorno}
+          generatoAlle={formatDateTime(adesso, timezone)}
+        />
       </div>
     </div>
   );

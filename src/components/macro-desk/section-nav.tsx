@@ -5,7 +5,6 @@ import {
   ChartSpline,
   FileText,
   Radar,
-  Scale,
   Sparkles,
   Target,
   Waypoints,
@@ -14,7 +13,7 @@ import {
 import { Button } from "@/components/ui/button";
 
 /**
- * Le sezioni del Macro Desk, in DUE gruppi.
+ * Le sezioni del Macro Desk, in TRE gruppi.
  *
  * Fino al 26/08/2026 erano otto, tutte di pari livello, e la barra costringeva
  * a scegliere fra otto voci prima di sapere qualcosa. Due di quelle otto non
@@ -23,14 +22,23 @@ import { Button } from "@/components/ui/button";
  * quotidiane le faceva sembrare della stessa frequenza, ed è un'informazione
  * falsa sulla loro utilità.
  *
- * Ora: SEI sezioni di consultazione quotidiana, e un ARCHIVIO con le altre
- * due. La barra mostra le sei; se la sezione corrente è d'archivio compare
+ * Il 27/08/2026 è uscita anche Posizionamento: i dati COT erano corretti, le
+ * interpretazioni del pannello no (v. `docs/macro-desk/VERDETTO-POSIZIONAMENTO.md`).
+ * La tabella e il cron restano, e di quel dato sopravvive una riga nelle
+ * schede della Sintesi.
+ *
+ * Ora: CINQUE sezioni di consultazione quotidiana, e un ARCHIVIO con le altre
+ * due. La barra mostra le cinque; se la sezione corrente è d'archivio compare
  * anche quella, così non si resta mai senza sapere dove si è.
+ *
+ * Dal 27/08/2026 c'è un terzo gruppo, REGISTRO, con il solo Radar: è l'unica
+ * sezione che non parla di prezzi, e sta fuori dalla griglia della barra —
+ * sotto un filo, in fondo. Metterla in fila con le sezioni di mercato avrebbe
+ * detto il falso su cosa contiene.
  *
  * Unica fonte di verità: la griglia dell'indice (`/macro-desk`) e la barra di
  * salto dentro le pagine di sezione leggono da qui.
  */
-
 export interface MacroDeskSection {
   key: string;
   href: string;
@@ -55,7 +63,7 @@ export const MACRO_DESK_SECTIONS = [
     label: "Sintesi",
     icon: Sparkles,
     description:
-      "La porta d'ingresso: carattere della giornata sui quattro strumenti, con la forza su cui poggia e cosa è cambiato da ieri.",
+      "La porta d'ingresso: una scheda per strumento con quanto sarà larga la giornata, dove sta rispetto alla propria norma e cosa c'è in agenda.",
     gruppo: "quotidiano",
   },
   {
@@ -65,15 +73,6 @@ export const MACRO_DESK_SECTIONS = [
     icon: Activity,
     description:
       "Eventi in arrivo, livelli di volatilità implicita col loro rango, escursione vera della giornata e scorte di greggio.",
-    gruppo: "quotidiano",
-  },
-  {
-    key: "posizionamento",
-    href: "/macro-desk/posizionamento",
-    label: "Posizionamento",
-    icon: Scale,
-    description:
-      "COT: come sono messi commercial e speculatori, e da quanto tempo lo sono.",
     gruppo: "quotidiano",
   },
   {
@@ -132,7 +131,7 @@ export const MACRO_DESK_SECTIONS = [
   },
 ] as const satisfies readonly MacroDeskSection[];
 
-/** Le sei di consultazione quotidiana, nell'ordine in cui si usano. */
+/** Le cinque di consultazione quotidiana, nell'ordine in cui si usano. */
 export const SEZIONI_QUOTIDIANE = MACRO_DESK_SECTIONS.filter(
   (s) => s.gruppo === "quotidiano",
 );
@@ -151,19 +150,24 @@ export type MacroDeskSectionKey = (typeof MACRO_DESK_SECTIONS)[number]["key"];
  * Barra di salto fra sezioni, in alto a destra nelle PAGINE DI SEZIONE.
  *
  * Da 720px in su è una GRIGLIA FISSA a tre colonne, non un wrap naturale: tre
- * pillole per riga sempre, qualunque sia la larghezza. Con sei sezioni
- * quotidiane sono due righe piene; con una settima d'archivio la terza riga ha
- * una voce sola, che è esattamente il segnale visivo giusto — quella pagina
- * non appartiene al gruppo. Il wrap naturale mandava a capo
- * un numero variabile di voci e lasciava "Report" orfano in fondo a sinistra.
- * Le quattro colonne sono `1fr` dentro un contenitore `w-fit`, quindi larghe
+ * pillole per riga sempre, qualunque sia la larghezza. Il wrap naturale mandava
+ * a capo un numero variabile di voci e lasciava "Report" orfano in fondo a
+ * sinistra. Le colonne sono `1fr` dentro un contenitore `w-fit`, quindi larghe
  * quanto la pillola più larga: il blocco resta uniforme e allineato a destra.
  *
+ * Dal 27/08/2026 le quotidiane sono CINQUE, quindi tre più due; su una pagina
+ * d'archivio diventano sei, cioè due righe piene. Finché erano sei, la voce
+ * d'archivio finiva da sola sulla terza riga ed era un segnale visivo in più:
+ * quel segnale non c'è più, e a distinguere la pagina corrente resta la
+ * pillola piena con `aria-current`, che è il segnale vero e non dipende da
+ * quante sezioni ci sono.
+ *
  * Sotto 720px il comportamento resta quello di prima — una riga sola che scorre
- * in orizzontale — perché a quelle larghezze quattro colonne non ci starebbero
- * senza schiacciare "Posizionamento", che è l'etichetta più lunga. La soglia è
- * 720 e non `md` (768) perché a 768 esatti il viewport utile scende sotto la
- * soglia e la griglia non scattava proprio alla larghezza da verificare.
+ * in orizzontale — perché a quelle larghezze tre colonne non ci starebbero
+ * senza schiacciare "Stagionalità", che dal 27/08/2026 è l'etichetta più lunga
+ * rimasta (prima lo era "Posizionamento"). La soglia è 720 e non `md` (768)
+ * perché a 768 esatti il viewport utile scende sotto la soglia e la griglia non
+ * scattava proprio alla larghezza da verificare.
  *
  * In nessuno dei due casi un'etichetta viene troncata (le pillole sono
  * `whitespace-nowrap`) né la fila sborda dalla pagina, perché il contenitore è
@@ -175,9 +179,9 @@ export function MacroDeskSectionNav({
   /** Sezione corrente: resa come pillola piena e marcata `aria-current`. */
   active: MacroDeskSectionKey;
 }) {
-  /* Le sei quotidiane, più quella corrente se è d'archivio: dalla Scorecard si
-     deve poter tornare indietro, e soprattutto si deve vedere di essere in una
-     pagina che non è fra le sei. */
+  /* Le cinque quotidiane, più quella corrente se è d'archivio: dalla Scorecard
+     si deve poter tornare indietro, e soprattutto si deve vedere di essere in
+     una pagina che non è fra le cinque. */
   const corrente = MACRO_DESK_SECTIONS.find((s) => s.key === active);
   const voci =
     corrente && corrente.gruppo === "archivio"
@@ -206,8 +210,8 @@ export function MacroDeskSectionNav({
                 asChild
                 size="sm"
                 variant={isActive ? "secondary" : "outline"}
-                /* In griglia la pillola riempie la sua cella: quattro colonne
-                   uguali invece di quattro larghezze diverse. */
+                /* In griglia la pillola riempie la sua cella: colonne uguali
+                   invece di larghezze diverse. */
                 className="min-[720px]:w-full"
               >
                 <Link

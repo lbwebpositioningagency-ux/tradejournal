@@ -43,8 +43,15 @@ export const VALIDO_FINO_AL = "2027-12-31";
 /** Quando le date trascritte sono state lette dalle pagine ufficiali. */
 export const TRASCRITTO_IL = "2026-08-26";
 
-/** Su quale dei tre strumenti l'evento pesa in modo diretto. */
-export type StrumentoColpito = "oro" | "wti" | "dax";
+/**
+ * Su quale strumento del desk l'evento pesa in modo diretto.
+ *
+ * `spx` è arrivato il 27/08/2026, con le schede per strumento della Sintesi:
+ * l'S&P 500 è uno dei quattro strumenti del desk e la decisione sui tassi
+ * della Fed lo tocca almeno quanto tocca l'oro. Restava fuori solo perché la
+ * sezione Volatilità, l'unica che leggeva questa tabella, ne mostrava tre.
+ */
+export type StrumentoColpito = "oro" | "wti" | "dax" | "spx";
 
 export interface EventoMacro {
   /** Giorno civile nel fuso dell'evento ("YYYY-MM-DD"). */
@@ -179,7 +186,7 @@ export function prossimiEventi(
           nome: "FOMC · decisione sui tassi (conferenza alle 14:30 ET)",
           istituzione: "Federal Reserve",
           fonte: FONTE_FOMC,
-          strumenti: ["oro", "wti", "dax"],
+          strumenti: ["oro", "wti", "dax", "spx"],
           origine: "calendario",
         });
       }
@@ -204,6 +211,25 @@ export function prossimiEventi(
     .map((e) => ({ ...e, istante: zonedInputToUtc(`${e.giorno}T${e.ora}`, e.fuso) }))
     .filter((e) => e.istante.getTime() >= ora.getTime())
     .sort((a, b) => a.istante.getTime() - b.istante.getTime());
+}
+
+/**
+ * «fra 2 ore», «domani», «fra 3 giorni». Non è decorazione: la distanza conta
+ * più della data assoluta quando si decide se aprire adesso o se restare in
+ * posizione, e calcolarla a mente da un orario in un altro fuso è esattamente
+ * l'attrito che un terminale toglie.
+ *
+ * Vive qui, e non nella pagina, da quando la leggono in due — la sezione
+ * Volatilità e le schede per strumento della Sintesi. Due copie della stessa
+ * aritmetica avrebbero potuto divergere in silenzio.
+ */
+export function fraQuanto(istante: Date, adesso: Date): string {
+  const minuti = Math.round((istante.getTime() - adesso.getTime()) / 60_000);
+  if (minuti < 60) return `fra ${Math.max(0, minuti)} min`;
+  const ore = Math.round(minuti / 60);
+  if (ore < 24) return `fra ${ore} ${ore === 1 ? "ora" : "ore"}`;
+  const giorni = Math.round(ore / 24);
+  return giorni === 1 ? "domani" : `fra ${giorni} giorni`;
 }
 
 /**

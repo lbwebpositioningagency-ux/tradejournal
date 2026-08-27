@@ -128,9 +128,25 @@ const PILL_GUTTER = 96;
  * non è mai derivata dalla larghezza in percentuale (niente aspect-ratio
  * panoramico, che è la causa tipica dell'effetto schiacciato): è un numero di
  * pixel, e la larghezza semmai la fa CRESCERE.
+ *
+ * ── PERCHÉ I NUMERI SONO SCESI (27/08/2026) ──────────────────────────────
+ *
+ * Con 650 di pavimento e il grafico a tutta larghezza della scheda, ogni
+ * scheda del Driver Desk misurava 1.538 px a 1440 e 1.651 px a 1920 —
+ * più del doppio di uno schermo, e PEGGIO sul monitor più grande, perché il
+ * vincolo 2:1 faceva crescere l'altezza con la larghezza. Tre schede
+ * facevano una pagina da 5.208 px in cui nessuna scheda si vedeva intera.
+ *
+ * La correzione vera non è stata schiacciare il grafico: è stato metterlo
+ * accanto al blocco delle relazioni invece che sopra (v. `SchedaStrumento`
+ * in `driver-desk-panel.tsx`). A metà larghezza il vincolo 2:1 non morde
+ * più — 600 px di riquadro ne vorrebbero 300 — e il pavimento torna a essere
+ * quello che decide. 420 px con 60 sedute in ascissa tengono le pendenze
+ * distinguibili: la prova è nei test di questo modulo, che difendono il
+ * pavimento e il rapporto massimo.
  */
-export const MIN_HEIGHT_DESKTOP = 650;
-export const MIN_HEIGHT_NARROW = 450;
+export const MIN_HEIGHT_DESKTOP = 420;
+export const MIN_HEIGHT_NARROW = 320;
 /** Mai più largo che 2:1 — su schermi larghi è la larghezza a dettare. */
 const MAX_ASPECT = 2;
 const NARROW_BREAKPOINT = 640;
@@ -146,6 +162,75 @@ export function minChartHeight(viewportWidth: number, boxWidth: number): number 
       ? MIN_HEIGHT_NARROW
       : MIN_HEIGHT_DESKTOP;
   return Math.max(floor, Math.ceil(boxWidth / MAX_ASPECT));
+}
+
+/**
+ * Spazio orizzontale che l'area di disegno NON ha: asse sinistro, asse destro
+ * e il gutter delle pillole di fine linea. Serve a sapere quanti pixel restano
+ * davvero per le etichette dell'asse dei mesi.
+ */
+const LARGHEZZA_ASSE_SINISTRO = 45;
+
+/** Sotto questa distanza fra due tick le sigle dei mesi si toccano. */
+export const PASSO_MINIMO_TICK = 34;
+
+/**
+ * DIRADA I MESI quando il riquadro non è abbastanza largo per tutti.
+ *
+ * Il grafico ha sempre avuto un tick per inizio mese: tredici etichette su
+ * dodici mesi. A tutta larghezza ci stavano; da quando il grafico sta a metà
+ * scheda (27/08/2026) l'area di disegno è di 343 px, cioè 26 px per etichetta,
+ * e le prime due — «ago» e «set» — si sovrapponevano.
+ *
+ * ── PERCHÉ SULLE POSIZIONI E NON SUL CONTEGGIO ───────────────────────────
+ *
+ * La prima versione teneva un tick ogni `passo`, ricavando `passo` dal numero
+ * di etichette e dalla larghezza. Bastava a 1440, e a 1920 no: lì lo spazio
+ * per tredici etichette c'è (45 px a testa), ma **i tick non sono
+ * equidistanti** — il primo bucket è un mese PARZIALE, perché la serie comincia
+ * a metà agosto, e le prime due etichette distano poche sedute invece di un
+ * mese. Contarle non poteva accorgersene.
+ *
+ * Questa versione converte ogni tick nella sua posizione in pixel — l'asse è
+ * lineare su `[0, ultimoIndice]` — e tiene un'etichetta solo se dista almeno
+ * `PASSO_MINIMO_TICK` da quella tenuta prima. Il PRIMO e l'ULTIMO ci sono
+ * sempre: un asse che non dichiara dove comincia e dove finisce è peggio di un
+ * asse fitto. Se l'ultimo finisce troppo vicino al penultimo, cede il
+ * penultimo — l'estremo vince.
+ */
+export function diradaTicks(
+  ticks: number[],
+  ultimoIndice: number,
+  larghezzaUtile: number,
+): number[] {
+  if (ticks.length <= 2 || larghezzaUtile <= 0 || ultimoIndice <= 0) return ticks;
+  const px = (indice: number) => (indice / ultimoIndice) * larghezzaUtile;
+
+  const tenuti = [ticks[0]];
+  for (let i = 1; i < ticks.length - 1; i += 1) {
+    if (px(ticks[i]) - px(tenuti[tenuti.length - 1]) >= PASSO_MINIMO_TICK) {
+      tenuti.push(ticks[i]);
+    }
+  }
+
+  /* L'ultimo entra sempre; se schiaccia quello prima, è quello prima ad
+     uscire. Mai però il primo: due estremi sono il minimo sindacale. */
+  const ultimo = ticks[ticks.length - 1];
+  while (
+    tenuti.length > 1 &&
+    px(ultimo) - px(tenuti[tenuti.length - 1]) < PASSO_MINIMO_TICK
+  ) {
+    tenuti.pop();
+  }
+  tenuti.push(ultimo);
+  return tenuti;
+}
+
+/** Pixel disponibili alle etichette dell'asse dei mesi, dato il riquadro. */
+export function larghezzaUtileAsse(boxWidth: number, conAsseDestro: boolean): number {
+  const occupato =
+    LARGHEZZA_ASSE_SINISTRO + (conAsseDestro ? RIGHT_AXIS_WIDTH + PILL_GUTTER : 0);
+  return Math.max(0, boxWidth - occupato);
 }
 
 interface Row {
@@ -168,12 +253,17 @@ export function DriverDeskChart({
      la più alta: il grafico non nasce mai schiacciato. */
   const boxRef = useRef<HTMLDivElement>(null);
   const [minHeight, setMinHeight] = useState(MIN_HEIGHT_DESKTOP);
+  /* La larghezza misurata serve anche a decidere quante sigle di mese
+     l'asse può portare: 0 prima del montaggio significa «tienile tutte»,
+     che è lo stato con cui il grafico è sempre nato. */
+  const [boxWidth, setBoxWidth] = useState(0);
 
   useEffect(() => {
     const el = boxRef.current;
     if (!el) return;
     const apply = () => {
       setMinHeight(minChartHeight(window.innerWidth, el.clientWidth));
+      setBoxWidth(el.clientWidth);
     };
     apply();
     const ro = new ResizeObserver(apply);
@@ -207,19 +297,24 @@ export function DriverDeskChart({
   );
   const hasRightAxis = series.some((s) => axisGroup(s.role) === "right");
 
-  /* Un tick per inizio mese: l'asse resta leggibile su 12 mesi di sedute. */
+  /* Un tick per inizio mese, DIRADATO quanto serve alla larghezza che c'è:
+     l'asse resta leggibile sia a tutta scheda sia a metà. */
   const ticks = useMemo(() => {
-    const out: number[] = [];
+    const mesi: number[] = [];
     let lastMonth = "";
     dates.forEach((d, i) => {
       const m = d.slice(0, 7);
       if (m !== lastMonth) {
-        out.push(i);
+        mesi.push(i);
         lastMonth = m;
       }
     });
-    return out;
-  }, [dates]);
+    return diradaTicks(
+      mesi,
+      dates.length - 1,
+      larghezzaUtileAsse(boxWidth, hasRightAxis),
+    );
+  }, [dates, boxWidth, hasRightAxis]);
 
   const lastIndex = dates.length - 1;
 

@@ -14,7 +14,7 @@ import { computeTrade } from "@/lib/trade-compute";
 /**
  * Fase 27 — calendario mensile. I golden su SIM1 sono VERIFICATI A MANO:
  * 8.374,20 / 50.000 = 0,1675 · −1.225,70 / 58.374,20 = −0,0210 ·
- * 12.204,30 / 57.798,50 = 0,2112. La convenzione è quella del rolling
+ * 12.582,70 / 57.798,50 = 0,2177. La convenzione è quella del rolling
  * (Fase 21): l'equity del denominatore scorre col P&L, non resta il saldo
  * iniziale.
  */
@@ -138,9 +138,13 @@ describe("golden su SIM1 (verificati a mano)", () => {
   it("maggio 2025: il mese migliore, sull'equity del momento", () => {
     expect(month("2025-05")).toEqual({
       month: "2025-05",
-      netPnl: "12204.30",
+      /* Spostato il 27/08/2026 con la rigenerazione del seed: le chiusure
+         stanno ora solo in sedute valide, e qualche trade di fine aprile è
+         scivolato a maggio. I mesi precedenti non cambiano — e infatti
+         `equityStart` è rimasto identico. */
+      netPnl: "12582.70",
       equityStart: "57798.50",
-      ret: "0.2112",
+      ret: "0.2177",
     });
   });
 

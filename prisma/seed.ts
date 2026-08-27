@@ -5,6 +5,7 @@ import { guardedPgAdapter } from "../src/lib/db-guard";
 import { computeTrade, type ExecutionInput } from "../src/lib/trade-compute";
 import { seedSim1 } from "./seed-sim1";
 import { DEMO_ACCOUNT_NAME, DEMO_USER_EMAIL } from "../src/lib/constants";
+import { aperturaDelGiorno, avanzaInSeduta } from "../src/lib/demo/sessioni";
 
 /**
  * Seed: utente demo + 2 conti + strategie + tag + ~200 trade realistici
@@ -260,7 +261,17 @@ async function main() {
     if (chance(0.12)) continue; // giornata senza trade
 
     const tradesToday = Math.floor(randBetween(2, 6.2)); // 2-6
-    let minuteCursor = 7 * 60 + Math.floor(randBetween(0, 60)); // dalle ~07:00 UTC
+
+    /* APERTURA ANCORATA AL GIORNO CIVILE DELL'UTENTE, non alla mezzanotte
+       UTC: quella, letta a Roma, è già l'una o le due del mattino, e ogni
+       orario costruito sommandoci minuti slitterebbe di un'ora fra ora solare
+       e ora legale. */
+    const apertura = aperturaDelGiorno(
+      d.getUTCFullYear(),
+      d.getUTCMonth() + 1,
+      d.getUTCDate(),
+    );
+    let minuteCursor = 8 * 60 + Math.floor(randBetween(0, 60)); // dalle ~08:00
 
     for (let t = 0; t < tradesToday; t++) {
       const useFutures = chance(0.6);
@@ -277,11 +288,27 @@ async function main() {
       const noise = randBetween(-spec.dailyVol, spec.dailyVol);
       const entryPrice = spec.basePrice + drift + noise;
 
-      // Esito: ~55% win; R vincenti 0.4-2.8, perdenti -0.25/-1.15
-      const isWin = chance(0.55);
+      /* ESITO — ricalibrato il 27/08/2026.
+         Prima: 55% di vincenti, R vincenti 0,4-2,8 (media 1,60) e perdenti
+         −0,25/−1,15 (media −0,70), cioè **+0,565 R per trade**. Con 3-4
+         trade al giorno quel vantaggio rendeva una giornata negativa quasi
+         impossibile: il conto futures chiudeva in rosso il 20% delle sedute e
+         il forex il 24,6%, contro il 40% di SIM1, e i rapporti annualizzati
+         uscivano a Sortino 40,8 e 25,4 — numeri che nella pagina stanno su
+         una scala che si ferma a 2.
+         Adesso: metà vincenti, R vincenti 0,25-1,95 (media 1,10) e perdenti
+         −0,55/−1,45 (media −1,00), cioè **+0,05 R per trade**. Il conto resta
+         in utile — è pur sempre una vetrina — ma con un vantaggio piccolo,
+         che è la sola cosa che produce una quota realistica di giornate in
+         rosso: la frequenza dipende da √n · media/deviazione, non dal segno
+         del risultato finale.
+         I perdenti non stanno tutti a −1R: sotto −1 ci sono gli stop saltati,
+         sopra i tagli anticipati. Una distribuzione a gradino non somiglia a
+         nessun conto vero. */
+      const isWin = chance(0.47);
       const rMultiple = isWin
-        ? randBetween(0.4, 2.8)
-        : -randBetween(0.25, 1.15);
+        ? randBetween(0.25, 1.8)
+        : -randBetween(0.55, 1.45);
       const riskMoney = useFutures
         ? randBetween(150, 600)
         : randBetween(60, 300);
@@ -290,13 +317,18 @@ async function main() {
       const signedMove = direction === "LONG" ? priceMove : -priceMove;
       const exitPrice = entryPrice + signedMove;
 
-      // Orari
+      /* ORARI — SEMPRE DENTRO UNA SEDUTA VALIDA.
+         Prima il cursore accumulava senza tetto: con sei trade poteva
+         arrivare a trentacinque ore e le ultime operazioni di un venerdì
+         aprivano di sabato. Ora apertura e chiusura passano da
+         `avanzaInSeduta`, che conta solo minuti di seduta e salta le finestre
+         chiuse (v. `lib/demo/sessioni.ts`). */
       const entryMinute = minuteCursor + Math.floor(randBetween(0, 45));
       const durationMin = Math.floor(randBetween(5, 180));
       minuteCursor =
         entryMinute + durationMin + Math.floor(randBetween(10, 60));
-      const entryAt = new Date(d.getTime() + entryMinute * 60_000);
-      const exitAt = new Date(entryAt.getTime() + durationMin * 60_000);
+      const entryAt = avanzaInSeduta(apertura, entryMinute);
+      const exitAt = avanzaInSeduta(entryAt, durationMin);
 
       const entrySide =
         direction === "LONG" ? ("BUY" as const) : ("SELL" as const);
@@ -325,8 +357,12 @@ async function main() {
           spec.qtyDecimals === 0
             ? qty - firstPortion
             : Math.round((qty - firstPortion) * 100) / 100;
-        const midAt = new Date(
-          entryAt.getTime() + Math.floor(durationMin * 0.55) * 60_000,
+        /* Anche l'uscita PARZIALE deve stare in seduta: è un'esecuzione come
+           le altre, e una sola fuori orario basta a produrre una giornata
+           fantasma nel raggruppamento per data. */
+        const midAt = avanzaInSeduta(
+          entryAt,
+          Math.floor(durationMin * 0.55),
         );
         const midMove = signedMove * randBetween(0.5, 0.85);
         executions.push(

@@ -1,12 +1,7 @@
 import { dirTone, type MacroVolItem } from "@/lib/macro-desk-payload";
-import type { IngressoTermometro } from "@/lib/termometro-volatilita";
 import { LACUNE_VOL, tickerDi, vociSenzaFonteLibera } from "@/lib/volatilita-report";
 import type { ContestoVolatilita } from "@/lib/queries/volatilita-contesto";
 import { ContestoVolatilitaPanel } from "./contesto-volatilita";
-import {
-  TermometroVolatilita,
-  type CancelloPerSimbolo,
-} from "./termometro-volatilita";
 import { Callout, PanelLabel, ToneArrow } from "./primitives";
 
 /**
@@ -15,17 +10,22 @@ import { Callout, PanelLabel, ToneArrow } from "./primitives";
  * ORDINE DELIBERATO, dal più solido al più fragile:
  *  1. CONTESTO — fatti misurati sull'archivio giornaliero, aggiornato ogni
  *     notte: livello, rango, variazione, implicita contro realizzata,
- *     movimento osservato. Non scadono e non dipendono dal report;
- *  2. TERMOMETRO — l'unica classificazione rimasta, e solo dove ha superato
- *     una prova fuori campione e sta ancora separando due gruppi;
- *  3. QUELLO CHE SOLO IL REPORT PUÒ DARE — dal 26/08/2026 il blocco non
+ *     escursione vera e movimento osservato. Non scadono e non dipendono dal
+ *     report;
+ *  2. QUELLO CHE SOLO IL REPORT PUÒ DARE — dal 26/08/2026 il blocco non
  *     contiene più gli indici che il CBOE pubblica da sé (VIX, VVIX, SKEW,
  *     GVZ, OVX): restano il MOVE, che non ha fonte gratuita, e la
  *     dichiarazione di ciò che manca. Con la data del report accanto;
- *  4. COMMENTO DEL REPORT — prosa, marcata come tale.
+ *  3. COMMENTO DEL REPORT — prosa, marcata come tale.
  *
- * Prima questa pagina apriva con il termometro. Apriva cioè con la cosa che
- * poteva scadere in silenzio, e che nel 2026 era scaduta.
+ * Prima questa pagina apriva con il TERMOMETRO DI VOLATILITÀ, una
+ * classificazione ESPANSA/COMPRESSA con la sua statistica condizionale.
+ * Apriva cioè con la cosa che poteva scadere in silenzio, e che nel 2026 era
+ * scaduta. Il 27/08/2026 il termometro è stato rimosso del tutto — carta,
+ * cancello di validità, rilevatore di degenerazione e fattore nel dossier —
+ * e con lui l'ultima affermazione sul futuro rimasta in questa sezione.
+ * Nessun fatto è stato toccato: quello che il termometro condizionava allo
+ * stato, il pannello di contesto lo misura e basta.
  *
  * Riceve i dati già composti, non li va a prendere: le fonti sono in
  * `lib/queries/volatilita.ts` e `lib/queries/volatilita-contesto.ts`.
@@ -41,23 +41,16 @@ function dataIt(iso: string) {
 }
 
 export function VolatilitaPanel({
-  ingressi,
   items,
   reading,
-  cancelli,
-  calibrazione,
   contesto,
   giornoReport,
 }: {
-  ingressi: Record<string, IngressoTermometro>;
   items: MacroVolItem[];
   reading?: string;
-  /** Per simbolo: se il verdetto del termometro può comparire, e perché no. */
-  cancelli: Partial<Record<string, CancelloPerSimbolo>>;
-  calibrazione?: { generatoIl: string; prossimoRicalcolo: string; giorniDallaTaratura: number };
   /** Fatti dall'archivio giornaliero: la parte che si aggiorna da sola. */
   contesto: ContestoVolatilita;
-  /** Giorno del report da cui arrivano gli indici del blocco 3 (ISO). */
+  /** Giorno del report da cui arrivano gli indici del blocco 2 (ISO). */
   giornoReport: string;
 }) {
   /* Del pannello del report restano solo le voci senza fonte libera: tutto
@@ -67,12 +60,6 @@ export function VolatilitaPanel({
   return (
     <div className="flex flex-col gap-6">
       <ContestoVolatilitaPanel contesto={contesto} />
-
-      <TermometroVolatilita
-        ingressi={ingressi}
-        cancelli={cancelli}
-        calibrazione={calibrazione}
-      />
 
       <div className="flex flex-col gap-3">
         <Callout

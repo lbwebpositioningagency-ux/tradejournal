@@ -101,10 +101,8 @@ describe("tab con il sample completo", () => {
     const vol = full.volPanel;
     const html = renderToStaticMarkup(
       <VolatilitaPanel
-        ingressi={{}}
         items={vol?.items ?? []}
         reading={vol?.reading}
-        cancelli={{}}
         contesto={{ righe: [], oggi: "2026-08-25", strutturaTermine: null, strutturaWti: { ok: false, motivo: "front_non_disponibile" }, climaCopertura: [] }}
         giornoReport="2026-07-21"
       />,
@@ -126,10 +124,8 @@ describe("tab con il sample completo", () => {
     const vol = full.volPanel;
     const html = renderToStaticMarkup(
       <VolatilitaPanel
-        ingressi={{}}
         items={vol?.items ?? []}
         reading={vol?.reading}
-        cancelli={{}}
         contesto={{ righe: [], oggi: "2026-08-25", strutturaTermine: null, strutturaWti: { ok: false, motivo: "front_non_disponibile" }, climaCopertura: [] }}
         giornoReport="2026-07-21"
       />,
@@ -207,12 +203,6 @@ describe("tab con il sample completo", () => {
     expect(html).not.toContain(">Global<");
   });
 
-  /**
-   * L'APPROFONDIMENTO si apre al click e parte CHIUSO. `details` senza
-   * `open` è chiuso per definizione del linguaggio: il test verifica che
-   * nessuno lo apra per sbaglio, e che una notizia senza dettaglio non
-   * mostri un comando che non apre niente.
-   */
   it("News: il dettaglio è un blocco espandibile, chiuso di default", () => {
     const conDettaglio = parseMacroPayload({
       news: [

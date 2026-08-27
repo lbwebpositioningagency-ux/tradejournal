@@ -1,5 +1,6 @@
 import Decimal from "decimal.js";
 import type { ExecutionInput } from "@/lib/trade-compute";
+import { allineaASeduta, avanzaInSeduta } from "@/lib/demo/sessioni";
 
 /**
  * DATASET DEL CONTO DEMO "SIM1" — generatore PURO e DETERMINISTICO.
@@ -378,11 +379,26 @@ export function buildSim1Dataset(seed: number = SIM1_SEED): Sim1Trade[] {
         spec,
       );
 
-      // Orari: sessione, durata, apertura.
+      /* Orari: sessione, durata, apertura.
+         L'ESTRAZIONE NON CAMBIA — stesse due chiamate a `rand()` nello stesso
+         ordine — perché l'RNG è condiviso con prezzi ed esiti: consumarne una
+         in più o in meno riscriverebbe l'intero dataset. Cambia solo cosa si fa
+         dei minuti estratti: `allineaASeduta` riporta dentro un'apertura che
+         cadrebbe fuori, `avanzaInSeduta` conta la durata in minuti di seduta
+         invece che di orologio. È ciò che toglie i 41 trade chiusi su 37
+         giornate di fine settimana (v. `lib/demo/sessioni.ts`).
+
+         Conseguenza voluta: il P&L di OGNI trade resta identico a prima — non
+         dipende dall'orario — e cambia la giornata a cui viene attribuito.
+         Cambiano quindi la lunghezza della serie giornaliera, il drawdown
+         sulla curva e i bucket per mese e per ora; mai i totali, il win rate,
+         il profit factor o l'expectancy. */
       const openMinute = openingMinuteUtc(rand(), rand);
       const duration = holdMinutes(rand(), rand);
-      const openedAt = new Date(day.getTime() + openMinute * 60_000);
-      const closedAt = new Date(openedAt.getTime() + duration * 60_000);
+      const openedAt = allineaASeduta(
+        new Date(day.getTime() + openMinute * 60_000),
+      );
+      const closedAt = avanzaInSeduta(openedAt, duration);
 
       const entrySide = direction === "LONG" ? ("BUY" as const) : ("SELL" as const);
       const exitSide = direction === "LONG" ? ("SELL" as const) : ("BUY" as const);

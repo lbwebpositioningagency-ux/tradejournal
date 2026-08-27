@@ -166,16 +166,20 @@ describe("bucket di durata — golden su SIM1", () => {
   });
 
   it("conteggi per fascia (valori noti dal dataset)", () => {
-    expect(segments.map((s) => s.total)).toEqual([50, 85, 60, 126, 96, 112, 94]);
+    /* Spostati il 27/08/2026 con la rigenerazione del seed: le durate ora si
+       contano in minuti di SEDUTA, quindi uno swing che attraversa un fine
+       settimana dura di più in ore d'orologio e cambia fascia. Le fasce sono
+       le stesse e nessuna si svuota — cambia la distribuzione dentro. */
+    expect(segments.map((s) => s.total)).toEqual([50, 85, 60, 123, 88, 111, 106]);
   });
 
   it("metriche della fascia più profittevole", () => {
     const unaDueOre = segments.find((s) => s.bucket === "1to2h")!;
     expect(unaDueOre.label).toBe("1-2 h");
-    expect(unaDueOre.winRate).toBe("0.5397");
-    expect(unaDueOre.avgR).toBe("0.3712");
-    expect(unaDueOre.expectancy).toBe("167.91");
-    expect(unaDueOre.netPnl).toBe("21156.60");
+    expect(unaDueOre.winRate).toBe("0.5447");
+    expect(unaDueOre.avgR).toBe("0.3838");
+    expect(unaDueOre.expectancy).toBe("174.69");
+    expect(unaDueOre.netPnl).toBe("21486.60");
   });
 
   it("metriche della fascia peggiore", () => {

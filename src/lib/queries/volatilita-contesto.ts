@@ -23,14 +23,12 @@ import {
   type VariazioneFinestra,
   type VolRealizzata,
 } from "@/lib/volatilita-fatti";
-import type { IngressoTermometro } from "@/lib/termometro-volatilita";
-import { ingressiTermometro } from "@/lib/volatilita-report";
 
 /**
  * CONTESTO DI VOLATILITÀ — la fonte di fatti della sezione omonima.
  *
- * A differenza del termometro, che vive dentro il payload di un report
- * generato a mano, questa query legge `SeasonalityDailyBar`: la stessa tabella
+ * A differenza del pannello del report, che vive dentro un payload generato a
+ * mano, questa query legge `SeasonalityDailyBar`: la stessa tabella
  * che il cron `seasonality-sync` aggiorna ogni notte alle 03:30 da FRED,
  * Yahoo e Dukascopy. È la ragione per cui la sezione ora si aggiorna da sola —
  * e per cui dichiara la propria età invece di ereditarla da un report fermo.
@@ -56,14 +54,6 @@ interface CoppiaVol {
   indice: SeasonalityInstrument;
   /** Codice della serie di prezzo del sottostante; null = non ne abbiamo una. */
   prezzo: SeasonalityInstrument | null;
-  /**
-   * Chiave dello stesso strumento nella tabella del termometro
-   * (`src/data/termometro-volatilita.json`). Serve dal 26/08/2026, da quando
-   * il termometro legge l'archivio invece del report: è qui che le due
-   * anagrafiche si incontrano, e tenerla accanto alla coppia impedisce che
-   * divergano in silenzio.
-   */
-  simboloTermometro: string;
   /** Nome dello strumento come lo chiama il desk. */
   etichetta: string;
   /** Decimali con cui si rende il livello dell'indice. */
@@ -81,7 +71,6 @@ interface CoppiaVol {
 export const COPPIE_VOL: CoppiaVol[] = [
   {
     indice: "GVZ",
-    simboloTermometro: "XAUUSD",
     prezzo: "XAUUSD",
     etichetta: "Oro",
     decimaliIv: 2,
@@ -90,7 +79,6 @@ export const COPPIE_VOL: CoppiaVol[] = [
   },
   {
     indice: "OVX",
-    simboloTermometro: "WTICOUSD",
     /* IL FUTURE, non lo spot. Dal 26/08/2026 i fatti di volatilità del WTI
        vengono dal contratto front-month: lo spot Cushing di FRED non pubblica
        massimo e minimo — quindi il WTI era l'unico dei tre strumenti senza
@@ -106,7 +94,6 @@ export const COPPIE_VOL: CoppiaVol[] = [
   },
   {
     indice: "VIX",
-    simboloTermometro: "SP500",
     prezzo: "SPX",
     etichetta: "S&P 500",
     decimaliIv: 2,
@@ -114,7 +101,6 @@ export const COPPIE_VOL: CoppiaVol[] = [
   },
   {
     indice: "VDAX",
-    simboloTermometro: "GER40",
     prezzo: "GER40",
     etichetta: "GER40 (DAX)",
     decimaliIv: 2,
@@ -451,13 +437,3 @@ export const getContestoVolatilita = cache(
     }
   },
 );
-
-/**
- * Ingressi del termometro: la regola pura sta in `lib/volatilita-report.ts`,
- * qui si passano solo le righe già caricate e la mappa indice → simbolo.
- */
-export function ingressiTermometroDaContesto(
-  contesto: ContestoVolatilita,
-): Record<string, IngressoTermometro> {
-  return ingressiTermometro(contesto.righe, COPPIE_VOL);
-}
