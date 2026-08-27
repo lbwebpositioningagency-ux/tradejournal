@@ -142,44 +142,76 @@ describe("diradaTicks — le sigle dei mesi non si toccano", () => {
   /* Dodici mesi di sedute danno tredici tick. A tutta larghezza ci stavano;
      da quando il grafico sta a metà scheda l'area di disegno è di 343 px,
      cioè 26 px per etichetta, e le prime due si sovrapponevano. */
-  const TREDICI = Array.from({ length: 13 }, (_, i) => i * 21);
+  const ULTIMO = 252;
+  /** Tredici inizi-mese equidistanti su 252 sedute. */
+  const REGOLARI = Array.from({ length: 13 }, (_, i) => Math.round((i * ULTIMO) / 12));
 
   it("con spazio abbondante non tocca nulla", () => {
-    expect(diradaTicks(TREDICI, 13 * PASSO_MINIMO_TICK)).toEqual(TREDICI);
-    expect(diradaTicks(TREDICI, 2000)).toEqual(TREDICI);
+    expect(diradaTicks(REGOLARI, ULTIMO, 2000)).toEqual(REGOLARI);
   });
 
   it("con l'area di disegno di metà scheda ne tiene circa la metà", () => {
-    const out = diradaTicks(TREDICI, 343);
-    expect(out.length).toBeLessThan(TREDICI.length);
-    // ogni etichetta ha almeno il passo minimo a disposizione
+    const out = diradaTicks(REGOLARI, ULTIMO, 343);
+    expect(out.length).toBeLessThan(REGOLARI.length);
     expect(343 / out.length).toBeGreaterThanOrEqual(PASSO_MINIMO_TICK);
   });
 
-  it("il PRIMO e l'ULTIMO restano sempre: un asse dichiara i propri estremi", () => {
-    for (const larghezza of [60, 120, 200, 343, 500]) {
-      const out = diradaTicks(TREDICI, larghezza);
-      expect(out[0]).toBe(TREDICI[0]);
-      expect(out[out.length - 1]).toBe(TREDICI[TREDICI.length - 1]);
+  it("NESSUNA coppia tenuta sta sotto il passo minimo, mai", () => {
+    // È l'invariante vera: le altre asserzioni ne sono conseguenze.
+    for (const larghezza of [120, 200, 343, 583, 900]) {
+      const out = diradaTicks(REGOLARI, ULTIMO, larghezza);
+      for (let i = 1; i < out.length; i += 1) {
+        const d = ((out[i] - out[i - 1]) / ULTIMO) * larghezza;
+        expect(d).toBeGreaterThanOrEqual(PASSO_MINIMO_TICK);
+      }
     }
   });
 
+  it("PRIMO BUCKET PARZIALE: il caso che il conteggio non vedeva", () => {
+    /* La serie comincia a metà agosto, quindi il secondo inizio-mese arriva
+       dopo poche sedute invece che dopo un mese. A 1920 lo spazio per tredici
+       etichette c'è (45 px a testa) e una regola basata sul CONTEGGIO le
+       teneva tutte: «ago» e «set» restavano attaccate. */
+    const parziale = [0, 10, ...REGOLARI.slice(2)];
+    const out = diradaTicks(parziale, ULTIMO, 583);
+    expect(out).toContain(0);
+    expect(out).not.toContain(10); // 10/252 × 583 = 23 px: troppo vicino
+    expect(out[out.length - 1]).toBe(parziale[parziale.length - 1]);
+  });
+
+  it("il PRIMO e l'ULTIMO restano sempre: un asse dichiara i propri estremi", () => {
+    for (const larghezza of [60, 120, 200, 343, 583]) {
+      const out = diradaTicks(REGOLARI, ULTIMO, larghezza);
+      expect(out[0]).toBe(REGOLARI[0]);
+      expect(out[out.length - 1]).toBe(REGOLARI[REGOLARI.length - 1]);
+      expect(out.length).toBeGreaterThanOrEqual(2);
+    }
+  });
+
+  it("quando l'ultimo schiaccia il penultimo, cede il penultimo", () => {
+    // 240 e 250 distano 4 px su una larghezza di 100: l'ultimo vince
+    expect(diradaTicks([0, 240, 250], ULTIMO, 100)).toEqual([0, 250]);
+    // se invece c'è spazio non cede nessuno: 0 → 47 px → 99 px
+    expect(diradaTicks([0, 120, 250], ULTIMO, 100)).toEqual([0, 120, 250]);
+  });
+
   it("non inventa tick e non ne riordina: è sempre un sottoinsieme in ordine", () => {
-    const out = diradaTicks(TREDICI, 150);
-    for (const t of out) expect(TREDICI).toContain(t);
+    const out = diradaTicks(REGOLARI, ULTIMO, 150);
+    for (const t of out) expect(REGOLARI).toContain(t);
     expect([...out].sort((a, b) => a - b)).toEqual(out);
     expect(new Set(out).size).toBe(out.length);
   });
 
   it("prima del montaggio (larghezza 0) li tiene tutti, mai zero etichette", () => {
-    expect(diradaTicks(TREDICI, 0)).toEqual(TREDICI);
-    expect(diradaTicks(TREDICI, -10)).toEqual(TREDICI);
+    expect(diradaTicks(REGOLARI, ULTIMO, 0)).toEqual(REGOLARI);
+    expect(diradaTicks(REGOLARI, ULTIMO, -10)).toEqual(REGOLARI);
+    expect(diradaTicks(REGOLARI, 0, 500)).toEqual(REGOLARI);
   });
 
   it("due tick o meno non si diradano: sono già i soli estremi", () => {
-    expect(diradaTicks([0, 5], 10)).toEqual([0, 5]);
-    expect(diradaTicks([0], 10)).toEqual([0]);
-    expect(diradaTicks([], 10)).toEqual([]);
+    expect(diradaTicks([0, 5], ULTIMO, 10)).toEqual([0, 5]);
+    expect(diradaTicks([0], ULTIMO, 10)).toEqual([0]);
+    expect(diradaTicks([], ULTIMO, 10)).toEqual([]);
   });
 });
 

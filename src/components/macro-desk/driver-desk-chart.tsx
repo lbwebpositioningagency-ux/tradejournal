@@ -182,19 +182,48 @@ export const PASSO_MINIMO_TICK = 34;
  * scheda (27/08/2026) l'area di disegno è di 343 px, cioè 26 px per etichetta,
  * e le prime due — «ago» e «set» — si sovrapponevano.
  *
- * La regola tiene sempre il PRIMO e l'ULTIMO tick: sono gli estremi del
- * periodo, e un asse che non dichiara dove comincia e dove finisce è peggio di
- * un asse fitto. In mezzo si tiene un mese ogni `passo`.
+ * ── PERCHÉ SULLE POSIZIONI E NON SUL CONTEGGIO ───────────────────────────
+ *
+ * La prima versione teneva un tick ogni `passo`, ricavando `passo` dal numero
+ * di etichette e dalla larghezza. Bastava a 1440, e a 1920 no: lì lo spazio
+ * per tredici etichette c'è (45 px a testa), ma **i tick non sono
+ * equidistanti** — il primo bucket è un mese PARZIALE, perché la serie comincia
+ * a metà agosto, e le prime due etichette distano poche sedute invece di un
+ * mese. Contarle non poteva accorgersene.
+ *
+ * Questa versione converte ogni tick nella sua posizione in pixel — l'asse è
+ * lineare su `[0, ultimoIndice]` — e tiene un'etichetta solo se dista almeno
+ * `PASSO_MINIMO_TICK` da quella tenuta prima. Il PRIMO e l'ULTIMO ci sono
+ * sempre: un asse che non dichiara dove comincia e dove finisce è peggio di un
+ * asse fitto. Se l'ultimo finisce troppo vicino al penultimo, cede il
+ * penultimo — l'estremo vince.
  */
-export function diradaTicks(ticks: number[], larghezzaUtile: number): number[] {
-  if (ticks.length <= 2 || larghezzaUtile <= 0) return ticks;
-  const capienza = Math.floor(larghezzaUtile / PASSO_MINIMO_TICK);
-  if (capienza >= ticks.length) return ticks;
-  const passo = Math.ceil(ticks.length / Math.max(1, capienza));
-  const out = ticks.filter((_, i) => i % passo === 0);
+export function diradaTicks(
+  ticks: number[],
+  ultimoIndice: number,
+  larghezzaUtile: number,
+): number[] {
+  if (ticks.length <= 2 || larghezzaUtile <= 0 || ultimoIndice <= 0) return ticks;
+  const px = (indice: number) => (indice / ultimoIndice) * larghezzaUtile;
+
+  const tenuti = [ticks[0]];
+  for (let i = 1; i < ticks.length - 1; i += 1) {
+    if (px(ticks[i]) - px(tenuti[tenuti.length - 1]) >= PASSO_MINIMO_TICK) {
+      tenuti.push(ticks[i]);
+    }
+  }
+
+  /* L'ultimo entra sempre; se schiaccia quello prima, è quello prima ad
+     uscire. Mai però il primo: due estremi sono il minimo sindacale. */
   const ultimo = ticks[ticks.length - 1];
-  if (out[out.length - 1] !== ultimo) out.push(ultimo);
-  return out;
+  while (
+    tenuti.length > 1 &&
+    px(ultimo) - px(tenuti[tenuti.length - 1]) < PASSO_MINIMO_TICK
+  ) {
+    tenuti.pop();
+  }
+  tenuti.push(ultimo);
+  return tenuti;
 }
 
 /** Pixel disponibili alle etichette dell'asse dei mesi, dato il riquadro. */
@@ -280,7 +309,11 @@ export function DriverDeskChart({
         lastMonth = m;
       }
     });
-    return diradaTicks(mesi, larghezzaUtileAsse(boxWidth, hasRightAxis));
+    return diradaTicks(
+      mesi,
+      dates.length - 1,
+      larghezzaUtileAsse(boxWidth, hasRightAxis),
+    );
   }, [dates, boxWidth, hasRightAxis]);
 
   const lastIndex = dates.length - 1;

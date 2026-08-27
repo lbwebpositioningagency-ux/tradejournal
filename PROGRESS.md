@@ -1825,7 +1825,9 @@ d'altezza scende da 650 a 420 perché a metà larghezza il vincolo 2:1 non morde
 più. Schede da 1.538 → 778 px a 1440 e da 1.651 → 727 a 1920; pagina da 5.208 →
 3.024 e da 5.433 → 2.789. Il monitor più grande è tornato a essere un vantaggio.
 Nuovo `diradaTicks` per le sigle dei mesi, che a 343 px di area di disegno si
-sovrapponevano.
+sovrapponevano: lavora sulle POSIZIONI in pixel e non sul conteggio, perché il
+primo bucket è un mese parziale e a 1920 — dove lo spazio per tredici etichette
+c'è — «ago» e «set» restavano comunque attaccate.
 
 **4 — Stagionalità: «Dove siamo adesso»** (`7f5e2ee`). Tre righe in testa alla
 sezione — mese, settimana e giorno correnti — con gli stessi campi della
@@ -1844,7 +1846,7 @@ profondità del book — l'oro è al 5° percentile in contratti e al **massimo
 storico** in nozionale, 176 mld $ — e «MOLTO BASSO» non implica «netto corto»:
 il 10° percentile di `mm_net` è positivo su entrambi gli strumenti).
 
-**Verificato:** typecheck ✅ · eslint ✅ · **2009/2010 test** ✅ · build ✅ ·
+**Verificato:** typecheck ✅ · eslint ✅ · **2012/2013 test** ✅ · build ✅ ·
 verifica visiva con l'harness CDP su build di produzione, dati veri, tema
 chiaro e scuro a 1440 e 375 px su Sintesi, Volatilità, Driver (anche 1920) e
 Stagionalità. Screenshot in `docs/macro-cinque/`.
