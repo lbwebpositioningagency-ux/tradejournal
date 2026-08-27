@@ -83,6 +83,20 @@ export interface ImpegnoSettimana {
   weekStart: string;
   /** Venerdì di chiusura, "YYYY-MM-DD"; null = si deduce a +5 giorni. */
   windowEnd: string | null;
+  /**
+   * Giorno civile di oggi, "YYYY-MM-DD". La finestra si ferma qui.
+   *
+   * Serve perché il percorso non inventi punti per giorni che non sono
+   * ancora arrivati. Senza, il giovedì produceva un punto datato venerdì con
+   * la chiusura di giovedì — per la regola dello sfasamento è la riga
+   * formalmente giusta, ma è la riga di un report che non ha ancora girato:
+   * un'osservazione che non è stata osservata. Visto sui dati veri della
+   * settimana del 23/08/2026, dove l'oro usciva con cinque punti invece di
+   * quattro e l'ultimo ripeteva il penultimo.
+   *
+   * Il modulo resta puro: la data arriva da fuori, non da `new Date()`.
+   */
+  oggi: string;
 }
 
 /** Una chiusura d'archivio: giorno civile e valore. */
@@ -122,7 +136,10 @@ function giornoPiu(giorno: string, giorni: number): string {
  * chiusure — v. `SFASAMENTO_SEDUTE`.
  */
 function giorniDelPercorso(impegno: ImpegnoSettimana): string[] {
-  const fine = impegno.windowEnd ?? giornoPiu(impegno.weekStart, 5);
+  const chiusura = impegno.windowEnd ?? giornoPiu(impegno.weekStart, 5);
+  /* La finestra si ferma al più presto fra il venerdì e OGGI: un giorno che
+     non è ancora arrivato non ha un report, e quindi non ha un punto. */
+  const fine = impegno.oggi < chiusura ? impegno.oggi : chiusura;
   const fuori: string[] = [];
   for (let g = giornoPiu(impegno.weekStart, 1); g <= fine; g = giornoPiu(g, 1)) {
     fuori.push(g);
@@ -188,8 +205,17 @@ export function calcolaPercorso(
      (`orient` in macro-desk-scorecard-em.ts). Verificato sui record veri —
      l'S&P della settimana del 16/08, bias RIALZISTA, ha mfe 0,00 e mae −0,98
      con un percorso interamente negativo: se fossero orientati, il segno
-     sarebbe l'opposto. */
-  const movimenti = punti.map((p) => p.moveEm);
+     sarebbe l'opposto.
+
+     L'ORIGINE ENTRA NEL CONTO. Un'escursione si misura dal momento in cui
+     l'impegno è stato preso, e in quel momento vale zero: senza lo zero, una
+     settimana andata sempre in guadagno produce un'«escursione avversa
+     massima» POSITIVA, che è una contraddizione nei termini.
+     Misurato sulla settimana del 23/08/2026, la prima calcolata dall'app:
+     senza lo zero il WTI usciva con MFE −0,288 e l'oro con MAE +0,120; con
+     lo zero diventano 0 ed 0, che è esattamente quello che dichiara il
+     report per gli stessi due asset. */
+  const movimenti = [0, ...punti.map((p) => p.moveEm)];
 
   return {
     punti,
