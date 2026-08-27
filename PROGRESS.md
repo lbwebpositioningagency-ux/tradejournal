@@ -2054,3 +2054,72 @@ vuoto reale a tabelle svuotate.
 settimana inesistente la pagina mostrava «Nessun registro ancora» pur avendo
 registri a database. Ora ricade sull'ultima disponibile: lo stato vuoto deve
 significare una cosa sola, altrimenti non è più un'informazione.
+
+---
+
+## Radar — gli interventi decisi dopo l'audit (28/08/2026)
+
+Otto interventi, dal referto dell'audit visivo del 27/08. Il criterio: la
+sezione doveva reggere il confronto con un terminale professionale, e su tre
+punti non lo reggeva.
+
+### L'area che spariva in silenzio — il difetto vero
+
+Se il payload non nominava un'area né fra le voci, né fra le vuote, né fra le
+non verificabili, la pagina non ne parlava affatto: **«non l'ho guardata»
+diventava indistinguibile da «non esiste»**, che è la confusione esatta che
+tutta la sezione esiste per evitare. Chiuso da due lati:
+
+- il confine Zod **rifiuta con 400** un payload che non nomina tutte e sette le
+  aree, elencando quali mancano. Un 400 rumoroso è meglio di una pagina che
+  tace;
+- la pagina non si fida comunque e parte dall'elenco delle sette: mostra
+  **sempre** tutte le aree, e quella di cui il registro non dice niente la
+  marca «NON DICHIARATA» in rosso, con la spiegazione. Serve ai report già a
+  database, scritti prima del confine.
+
+Quattro stati, e nessuno si distingue per il solo colore: parola, icona e
+bordo cambiano insieme. Ambra = fonte non letta. Rosso = buco nel registro.
+
+### Il blocco «Le cose che contano» non c'è più
+
+Ripeteva per intero il testo delle prime righe della tabella: su quattro fatti
+la pagina ne mostrava sei. Ora l'evidenza è una **marcatura sulla riga** e
+porta inline la sola cosa che aggiunge — l'azione conseguente. L'aggancio
+arriva da `top[].id`, ora obbligatorio; un'evidenza che punta a una voce
+inesistente è un 400 (l'azione resterebbe orfana e sparirebbe in silenzio).
+
+### La tabella è tornata una tabella
+
+Titolo in cella, il resto dietro «+ dettaglio». La colonna «Impatto» è scesa
+nel dettaglio come «Conseguenza», accanto al **caveat** — campo nuovo, che
+separa il limite di lettura della fonte dalla conseguenza operativa. Erano
+impastati nello stesso campo, e mescolavano quello che si sa con quello che
+non si è potuto sapere. La cella regge un titolo lungo: va a capo, non tronca
+mai, e `overflow-wrap: anywhere` spezza anche un token senza spazi.
+
+### Il resto
+
+| | |
+|---|---|
+| Aree | parole intere in pagina (Borse, Prop firm, …), sigla solo nel payload |
+| Fonte | l'ente e basta, su una riga; nome intero nel tooltip e nel dettaglio |
+| Ambra | un solo significato: «fonte non letta». «annunciato» è passato a neutro |
+| Giorni | **il conteggio era sbagliato**: «3 ago – 9 ago · 6 giorni» sono sette. Estremi compresi, con quattro test |
+| Stato aree | salito in testa alla pagina: l'avviso più prezioso stava in fondo |
+
+### Migrazione
+
+Additiva: tre colonne nullable senza default (`RadarChange.caveat`,
+`RadarReading.caveat`, `RadarHighlight.slug`), un indice, e un **riempimento**
+che assegna lo slug alle due voci in evidenza già a database appaiandole per
+URL della fonte. Senza, le loro azioni sarebbero sparite dalla pagina nel
+momento in cui il blocco separato veniva tolto: una perdita di dato causata da
+una revisione della UI. Verificato in locale: `UPDATE 2`, entrambe agganciate.
+
+**Verificato:** lint · typecheck · **1858 test** · build · ispezione sulla
+pagina servita: settimana densa (7 voci, 2 aree non lette), settimana quieta
+(che ora apre con l'informazione invece che con tre riquadri vuoti), catena di
+3 settimane cieche col contorno pieno, riga «non dichiarata» simulata
+cancellando a mano un record, 375px senza scorrimento orizzontale, zero errori
+in console. Le settimane sintetiche sono state cancellate a fine lavoro.

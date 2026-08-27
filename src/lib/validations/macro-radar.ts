@@ -3,7 +3,9 @@ import { isValidCalendarDate } from "@/lib/dates";
 import { isoUtc } from "@/lib/validations/macro-desk";
 import {
   AREA_LETTURE,
+  AREE_OBBLIGATORIE,
   domenicaOnOrBefore,
+  etichettaArea,
   normalizzaAccenti,
 } from "@/lib/macro-radar-testo";
 
@@ -26,7 +28,15 @@ import {
  *   2. un'area non verificabile SENZA motivo — sarebbe indistinguibile in
  *      pagina da un'area vuota, che è esattamente ciò che non deve accadere;
  *   3. la stessa area dichiarata insieme vuota e non verificabile — è una
- *      contraddizione, e sceglierne una sarebbe inventare un fatto.
+ *      contraddizione, e sceglierne una sarebbe inventare un fatto;
+ *   4. un'area delle sette che NON compare da nessuna parte — né fra le voci,
+ *      né fra le vuote, né fra le non verificabili. È il difetto più grave
+ *      emerso dall'audit: l'area sparisce in silenzio e «non l'ho guardata»
+ *      diventa indistinguibile da «non esiste». Un 400 rumoroso è meglio di
+ *      una pagina che tace, e dalle nuove istruzioni il task copre sempre
+ *      tutte e sette le aree: se non lo fa, si è rotto qualcosa a monte;
+ *   5. una voce in evidenza che punta a un `id` inesistente — l'azione
+ *      resterebbe orfana e sparirebbe dalla pagina senza far rumore.
  */
 
 // ───────────────────────── Mattoni ─────────────────────────
@@ -122,8 +132,18 @@ const coverage = z
     path: ["from"],
   });
 
-/** «Le cose che contano»: hanno un'AZIONE, ed è ciò che le distingue. */
+/**
+ * «Le cose che contano»: hanno un'AZIONE, ed è ciò che le distingue.
+ *
+ * `id` è OBBLIGATORIO dal 27/08/2026 e punta alla voce del registro. Fino a
+ * ieri queste erano schede separate che ripetevano per intero il testo della
+ * riga corrispondente — su quattro fatti la pagina ne mostrava sei. Ora
+ * l'evidenza non è un blocco: è una marcatura sulla riga, e senza l'aggancio
+ * non c'è niente da marcare. L'appaiamento per URL della fonte, che era
+ * l'unico possibile prima, era un appoggio fragile e non si usa più.
+ */
 const highlight = z.object({
+  id: testo("top[].id", 200),
   title: testo("top[].title", 500),
   whatChanged: testo("top[].whatChanged"),
   action: testo("top[].action"),
@@ -148,6 +168,8 @@ const voce = z
     effectiveFrom: chiaveDataOpzionale("items[].effectiveFrom"),
     status: testo("items[].status", 60),
     impact: testoOpzionale(),
+    /** Limite di lettura della fonte. Campo NUOVO, distinto da `impact`. */
+    caveat: testoOpzionale(2000),
     sourceUrl: urlFonte,
     sourceName: testoOpzionale(500),
   })
@@ -251,6 +273,39 @@ export const radarReportSchema = radarPayloadBase
         });
       }
       vistiWatch.add(w.id);
+    }
+
+    // ── L'AREA CHE SPARISCE IN SILENZIO ──────────────────────────────────
+    // Ogni area delle sette deve comparire da qualche parte. Il registro
+    // dichiara quello che ha guardato: un'area che non nomina non è «senza
+    // novità», è un buco, e in pagina sarebbe indistinguibile dal nulla.
+    const nominate = new Set<string>([
+      ...dati.items.map((i) => i.area),
+      ...dati.emptyAreas,
+      ...dati.unverifiableAreas.map((a) => a.area),
+    ]);
+    const mancanti = AREE_OBBLIGATORIE.filter((a) => !nominate.has(a));
+    if (mancanti.length > 0) {
+      ctx.addIssue({
+        code: "custom",
+        path: ["emptyAreas"],
+        message: `Aree non dichiarate: ${mancanti
+          .map((a) => `${a} (${etichettaArea(a)})`)
+          .join(", ")}. Ogni area va nominata fra le voci, fra emptyAreas o fra unverifiableAreas: un'area che non compare da nessuna parte sparirebbe in silenzio.`,
+      });
+    }
+
+    // ── Un'evidenza orfana ───────────────────────────────────────────────
+    // L'azione resterebbe agganciata al nulla e non comparirebbe in pagina.
+    const idVoci = new Set(dati.items.map((i) => i.id));
+    for (const h of dati.top) {
+      if (!idVoci.has(h.id)) {
+        ctx.addIssue({
+          code: "custom",
+          path: ["top"],
+          message: `La voce in evidenza «${h.id}» non corrisponde a nessuna voce di items: l'azione resterebbe orfana`,
+        });
+      }
     }
   })
   .transform((dati) => {

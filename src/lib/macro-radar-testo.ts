@@ -9,34 +9,41 @@
 // ───────────────────────── Aree dell'ecosistema ─────────────────────────
 
 /**
- * Etichette leggibili delle aree A-G.
+ * Le sette aree dell'ecosistema, A-G, CON IL LORO NOME.
  *
- * C ed F sono NOMINATE dal task a monte ("Aree C (broker e costi) e F (dati e
- * API)"); le altre sono ricavate dal contenuto delle voci del run di collaudo
- * — A prop firm (FTMO), B borse (CME), D regolatori (CFTC/ESMA), E piattaforme
- * (TradingView), G ricerca (paper q-fin.TR).
+ * La lettera è la chiave del payload e non deve mai comparire in pagina: un
+ * chip con scritto «B» chiede di ricordare una legenda che non esiste, e il
+ * tooltip che la spiegava non si apre col dito né si legge con uno screen
+ * reader. In interfaccia si scrive la parola.
  *
- * La mappa è APERTA per costruzione: un'area non elencata viene resa con la
- * sua lettera e basta (`etichettaArea`). Una lettera nuova nel payload non
- * deve far cadere né l'ingest né la pagina.
+ * La mappa resta APERTA: una lettera che non è qui viene resa com'è
+ * (`etichettaArea`), perché una lettera nuova nel payload non deve far cadere
+ * né l'ingest né la pagina. Ma dalle nuove istruzioni del task le aree
+ * dichiarate sono esattamente queste sette, tutte, ogni settimana.
  */
 export const AREE_RADAR: Record<string, string> = {
-  A: "Prop firm e funding",
-  B: "Borse e strumenti quotati",
-  C: "Broker e costi",
-  D: "Regolamentazione",
-  E: "Piattaforme e strumenti",
-  F: "Dati e API",
-  G: "Letture e ricerca",
+  A: "Prop firm",
+  B: "Borse",
+  C: "Broker",
+  D: "Regole",
+  E: "Piattaforme",
+  F: "Dati",
+  G: "Ricerca",
 };
+
+/**
+ * Le sette aree che ogni registro DEVE coprire, nell'ordine in cui si
+ * mostrano. Unica fonte: la usano il confine Zod (che rifiuta un payload
+ * incompleto) e la pagina (che le mostra tutte comunque).
+ */
+export const AREE_OBBLIGATORIE = ["A", "B", "C", "D", "E", "F", "G"] as const;
 
 /** L'area delle «Letture»: ricerca, non cambiamento operativo. */
 export const AREA_LETTURE = "G";
 
-/** "B" → "B · Borse e strumenti quotati"; area ignota → "H". */
+/** "B" → "Borse". Un'area ignota resta la sua sigla: non si inventa un nome. */
 export function etichettaArea(area: string): string {
-  const nome = AREE_RADAR[area.trim().toUpperCase()];
-  return nome ? `${area} · ${nome}` : area;
+  return AREE_RADAR[area.trim().toUpperCase()] ?? area;
 }
 
 // ───────────────────────── Accenti ─────────────────────────
@@ -155,6 +162,82 @@ export function dataAChiave(data: Date): string {
 export function domenicaOnOrBefore(chiave: string): string {
   const data = chiaveAData(chiave);
   return dataAChiave(new Date(data.getTime() - data.getUTCDay() * GIORNO_MS));
+}
+
+/**
+ * Ampiezza della finestra osservata, in giorni, ESTREMI COMPRESI.
+ *
+ * Dal 13 al 27 agosto sono quindici giorni, non quattordici: il 13 è stato
+ * guardato e il 27 pure. La prima versione sottraeva e basta, e faceva dire
+ * alla pagina «6 giorni» per una settimana piena — un fatto falso su ogni
+ * settimana normale, in una sezione che esiste per dire fatti. L'avevo tarata
+ * sulla prosa delle note del run di collaudo invece che sul calendario.
+ */
+export function giorniFinestra(da: Date, a: Date): number {
+  return Math.round((a.getTime() - da.getTime()) / GIORNO_MS) + 1;
+}
+
+// ───────────────────────── Lo stato delle sette aree ─────────────────────────
+
+/** Cosa la settimana dice di un'area. Tutti FATTI dichiarati dal payload. */
+export interface StatoArea {
+  area: string;
+  /** Quante voci (cambiamenti + letture) porta quest'area. */
+  voci: number;
+  /** Dichiarata guardata e senza novità. */
+  vuota: boolean;
+  /** Dichiarata non verificabile: la fonte non è stata letta. */
+  cieca: { motivo: string; settimane: number } | null;
+  /**
+   * `false` = il payload non ne parla AFFATTO: né voci, né vuota, né cieca.
+   * È il difetto più grave emerso dall'audit — un'area può sparire in
+   * silenzio, e «non l'ho guardata» diventa indistinguibile da «non esiste».
+   * Il confine Zod ora rifiuta un payload così, ma la pagina non si fida:
+   * mostra comunque tutte e sette le aree, e questa la marca.
+   */
+  dichiarata: boolean;
+}
+
+/**
+ * Lo stato di TUTTE le sette aree obbligatorie, nell'ordine, più le eventuali
+ * aree extra che il payload avesse portato (mai perse).
+ *
+ * Funzione pura: la pagina le rende, i test le verificano. Nessun giudizio —
+ * si mette in fila ciò che il payload ha dichiarato, e si dice a voce alta
+ * quando non ha dichiarato niente.
+ */
+export function statoDelleAree(input: {
+  /** area → quante voci porta. */
+  vociPerArea: Readonly<Record<string, number>>;
+  vuote: readonly string[];
+  cieche: readonly { area: string; reason: string }[];
+  /** area → da quante settimane consecutive è cieca. */
+  settimaneCieche: Readonly<Record<string, number>>;
+}): StatoArea[] {
+  const vuote = new Set(input.vuote);
+  const cieche = new Map(input.cieche.map((c) => [c.area, c.reason]));
+
+  const extra = [
+    ...Object.keys(input.vociPerArea),
+    ...input.vuote,
+    ...input.cieche.map((c) => c.area),
+  ].filter((a) => !AREE_OBBLIGATORIE.includes(a as never));
+
+  const tutte = [...AREE_OBBLIGATORIE, ...new Set(extra)];
+
+  return tutte.map((area) => {
+    const voci = input.vociPerArea[area] ?? 0;
+    const motivo = cieche.get(area);
+    return {
+      area,
+      voci,
+      vuota: vuote.has(area),
+      cieca: motivo
+        ? { motivo, settimane: input.settimaneCieche[area] ?? 1 }
+        : null,
+      dichiarata: voci > 0 || vuote.has(area) || motivo !== undefined,
+    };
+  });
 }
 
 // ───────────────────────── Non verificabile da N settimane ─────────────────────────
