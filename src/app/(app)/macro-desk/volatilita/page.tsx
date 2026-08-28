@@ -47,9 +47,10 @@ const fontMono = JetBrains_Mono({
  * l'escursione vera con la grandezza sbagliata (la ragione è scritta per
  * esteso in `lib/volatilita-fatti.ts`).
  *
- * Dal 28/08/2026 il calendario degli eventi NON è più in questa pagina: gli
- * eventi in arrivo si leggono nella Sintesi, che è la pagina delle sette del
- * mattino, e questa sezione torna a fare una cosa sola.
+ * Dal 28/08/2026 il calendario degli eventi NON è più in questa pagina, e la
+ * sezione torna a fare una cosa sola. Nello stesso giorno è stata eliminata
+ * anche la Sintesi, che era l'altro posto in cui il calendario compariva:
+ * nessuna sezione del desk mostra più gli eventi in arrivo.
  *
  * La guida al desk sta in `docs/macro-desk/GUIDA-MACRO-DESK.md`.
  */

@@ -41,10 +41,11 @@ import { esc, inPunti, varia, vociOperative, type VoceStrumento } from "./strume
  *    mezzo a delle tabelle: adesso è in fondo, chiuso.
  *
  * IL CALENDARIO DEGLI EVENTI NON STA PIÙ QUI (28/08/2026, richiesta esplicita).
- * Gli eventi in arrivo restano nel desk: sono la riga «prossimo evento a
- * calendario» della Sintesi, che è la pagina delle sette del mattino. Questa
- * sezione torna a fare una cosa sola — dove sta la volatilità e quanto si è
+ * La sezione torna a fare una cosa sola — dove sta la volatilità e quanto si è
  * mossa la giornata — e non apre più con qualcosa che non è una misura.
+ * Attenzione: lo stesso giorno è stata eliminata anche la Sintesi, che era
+ * l'unico altro posto in cui gli eventi comparivano, quindi il calendario non
+ * è più in nessuna sezione del desk.
  *
  * Componente PURO: si verifica con `renderToStaticMarkup`. L'unico pezzo
  * client è `Info`.

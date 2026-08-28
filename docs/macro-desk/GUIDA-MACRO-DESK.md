@@ -19,7 +19,7 @@ condizioni come queste, e quanto è affollato il posizionamento. Da lì escono
 4. [Implicita e realizzata](#implicita-e-realizzata)
 5. [La struttura a termine](#la-struttura-a-termine)
 6. [Contango e backwardation sul WTI](#contango-e-backwardation-sul-wti)
-7. [Il posizionamento COT](#il-posizionamento-cot)
+7. [Il posizionamento COT](#il-posizionamento-cot--non-cè-più-nel-desk)
 8. [Le convenzioni](#le-convenzioni)
 9. [Cosa il desk NON dice](#cosa-il-desk-non-dice)
 
@@ -32,13 +32,12 @@ non dovrebbe essere in pagina.
 
 | Decisione | La domanda | Le misure che la servono |
 | --- | --- | --- |
-| **Dimensionare** | Quanto grande può essere la posizione | Volatilità implicita e il suo rango · ampiezza attesa |
+| **Dimensionare** | Quanto grande può essere la posizione | Volatilità implicita e il suo rango |
 | **Scegliere lo stop** | A quanti punti lo metto | Escursione tipica in punti · escursione dell'ultima seduta |
-| **Stare fuori** | Oggi ha senso operare | Eventi programmati · età dei dati · scorte EIA il mercoledì |
+| **Stare fuori** | Oggi ha senso operare | Età dei dati · scorte EIA il mercoledì |
 
-Le due righe col **filetto d'accento** nella Sintesi — ampiezza attesa ed
-escursione tipica — sono quelle da cui esce la distanza dello stop. Se hai
-dieci secondi, guarda solo quelle.
+La misura da cui esce la distanza dello stop è l'**escursione tipica** della
+Volatilità, nella colonna «punti»: se hai dieci secondi, guarda quella.
 
 ---
 
@@ -148,38 +147,26 @@ poco.
 > dava `0,84%` contro `1,94%` di escursione sulla stessa finestra — chi
 > dimensionava su quel numero dimensionava a metà.
 
-### Ampiezza attesa oggi (implicita)
+### Ampiezza attesa oggi — non c'è più
 
-**Cosa è.** L'escursione che l'indice di volatilità implicita **si aspetta**
-per la giornata di oggi.
+Era l'escursione che l'indice di volatilità implicita si aspettava per la
+giornata di oggi, e si leggeva solo nella **Sintesi**. Con l'eliminazione di
+quella sezione, il **28 agosto 2026**, è uscita dal desk.
 
-**Come si calcola.** L'indice è una volatilità *annua*: si riporta a un giorno
-dividendo per la radice di 252 (le sedute di un anno), poi si moltiplica per
-l'ultima chiusura.
+La domanda a cui rispondeva — quanto sarà larga la giornata — resta coperta
+dall'**escursione tipica** della Volatilità, che la misura sull'osservato
+invece che sull'atteso.
 
-**A cosa serve.** A **dimensionare**. È l'unico numero del desk che riguarda
-oggi invece del passato recente. Confrontalo con l'escursione tipica: se
-l'attesa è molto più larga della mediana recente, il mercato sta prezzando una
-giornata fuori norma.
 
-### Eventi programmati
+### Eventi programmati — non ci sono più
 
-**Dove sono.** Nella **Sintesi**, come riga «prossimo evento a calendario» di
-ogni strumento. Fino al 28 agosto 2026 c'era anche un blocco a parte nella
-Volatilità: è stato tolto, perché quella sezione risponde a «quanto sarà larga
-la giornata» e un calendario non è una misura di ampiezza.
+Il **28 agosto 2026** il calendario degli eventi è uscito dal desk in due
+passaggi decisi lo stesso giorno: prima il blocco «prossimi sette giorni» è
+stato tolto dalla Volatilità, poi è stata eliminata la Sintesi, che era
+l'unico altro posto in cui gli eventi comparivano.
 
-**Cosa è.** Solo eventi il cui **orario è pubblicato in anticipo
-dall'istituzione che li produce**: decisioni FOMC e BCE, EIA del mercoledì,
-COT del venerdì.
-
-**Cosa non c'è, deliberatamente.** Il **consenso di mercato**. Nessuna fonte
-gratuita e verificabile lo pubblica, e un consenso da fonte fragile è un numero
-su cui si prendono posizioni.
-
-**A cosa serve.** A **stare fuori**. Conta la **distanza**, non la data: se
-c'è un FOMC fra due ore, tutto il resto del desk descrive un mercato che fra
-due ore non esisterà più.
+**Nessuna sezione del desk mostra più quando escono FOMC, EIA o COT.** Le date
+vanno prese altrove. È una conseguenza dichiarata, non una dimenticanza.
 
 ### Scorte di greggio (EIA)
 
@@ -294,45 +281,26 @@ mese successivo.
 
 ---
 
-## Il posizionamento COT
+## Il posizionamento COT — non c'è più nel desk
 
-**Cosa è.** Il *Commitments of Traders*: quanto sono lunghi o corti, in saldo,
-i grandi operatori. Il desk mostra la voce **managed money net** — cioè i
-fondi speculativi — per **oro e WTI**. Sugli indici azionari la CFTC non
-pubblica un equivalente, quindi il DAX non ha questa riga.
+Il *Commitments of Traders* — il saldo netto dei fondi speculativi su oro e
+WTI — si leggeva nella sezione **Posizionamento** fino al 27 agosto 2026, poi
+solo come riga della **Sintesi**. Con l'eliminazione della Sintesi, il **28
+agosto 2026**, non è più mostrato in nessuna pagina.
 
-**Come si legge il numero.**
+Il job che scarica i dati dalla CFTC **continua a girare** e la tabella
+`CotWeek` continua a riempirsi: il dato c'è, non ha più una superficie che lo
+mostri. Se un giorno tornerà in pagina, vale la pena ricordare cosa il COT
+**non** dice, perché è la parte che di solito viene raccontata male:
 
-- `+87.479 contratti **netti**` significa **lunghi meno corti**. Il segno c'è
-  sempre e la parola «netti» c'è sempre: senza il segno un saldo corto si
-  legge come lungo, e senza «netti» il numero si legge come il numero delle
-  posizioni lunghe. Non lo è.
-- Accanto c'è la **banda** — dove sta il saldo rispetto alla propria storia —
-  e la **variazione a 4 settimane**, cioè se si sta affollando o svuotando.
-- I **lordi non ci sono**: l'archivio conserva solo il saldo netto, quindi non
-  si può dire quanti lunghi e quanti corti ci siano.
+- **Non è un segnale di direzione.** Il test *pre-registrato* sulla capacità
+  predittiva del posizionamento (in `dati/PRE_REG_cot_posizionamento.md`) è
+  **fallito su tutti e tre i criteri**.
+- **Un saldo estremo non implica un'inversione.** Un posizionamento affollato
+  può restare affollato per mesi.
+- **È vecchio per costruzione.** Fotografia del martedì, pubblicata il venerdì:
+  quando la leggi ha già tre giorni.
 
-**A cosa serve.** È l'unica dimensione di «dove sto rispetto alla norma» che le
-misure di volatilità non coprono: quelle dicono *quanto* il mercato si muove,
-il COT dice *da chi è tenuto*.
-
-### Cosa il COT NON dice
-
-Questo va letto per intero, perché è la parte che di solito viene raccontata
-male.
-
-- **Non è un segnale di direzione.** Il desk ha eseguito un test
-  **pre-registrato** sulla capacità predittiva del posizionamento (in
-  `dati/PRE_REG_cot_posizionamento.md`): è **fallito su tutti e tre i
-  criteri**. La sezione è stata tenuta come *descrittiva* e nient'altro.
-- **Un saldo estremo non implica un'inversione.** «I fondi sono molto lunghi,
-  quindi il prezzo scenderà» è esattamente l'inferenza che il test ha
-  bocciato. Un posizionamento affollato può restare affollato per mesi.
-- **È vecchio per costruzione.** È una **fotografia del martedì, pubblicata il
-  venerdì**: quando la leggi ha già tre giorni, e resta la stessa per tutta la
-  settimana successiva. Non cambia perché il mercato si è mosso.
-
----
 
 ## Le convenzioni
 

@@ -131,41 +131,31 @@ function ComeSiLegge() {
 function BloccoRelazioni({ relations }: { relations: RelationStability[] }) {
   if (relations.length === 0) return null;
   return (
-    /* DENSITÀ, non amputazione: nessuna delle cinque informazioni per
-       relazione è stata tolta — nome, ρ, banda, posizione storica, le due
-       frasi. Sono cambiati l'impaginazione e i corpi. La banda sta ORA sulla
-       stessa riga del nome invece che su una riga propria, il che vale
-       ventiquattro pixel per relazione, e le due frasi scendono di un corpo:
-       a metà larghezza di scheda sono comunque quattro righe di testo, non
-       due. Quattro relazioni × 3 schede = 288 px risparmiati senza che una
-       sola cifra sparisca. */
-    <div className="flex flex-col gap-2.5">
+    <div className="flex flex-col gap-3">
       <PanelLabel>
         Stabilità delle relazioni ({CORRELATION_WINDOW} sedute)
       </PanelLabel>
       {relations.map((r) => (
-        <div key={r.label} className="flex flex-col gap-1">
+        <div key={r.label} className="flex flex-col gap-1.5">
           <div className="flex flex-wrap items-baseline justify-between gap-x-2 gap-y-0.5">
-            <span className="flex flex-wrap items-baseline gap-x-2 gap-y-0.5">
-              <span className="text-sm font-semibold text-[var(--md-text)]">
-                {r.label}
-              </span>
-              {r.band !== null ? (
-                <span
-                  className="md-mono rounded px-1.5 py-0.5 text-2xs font-bold"
-                  style={{
-                    color: COLORE_BANDA[r.band],
-                    border: `1px solid ${COLORE_BANDA[r.band]}`,
-                  }}
-                >
-                  {r.band}
-                </span>
-              ) : null}
+            <span className="text-sm font-semibold text-[var(--md-text)]">
+              {r.label}
             </span>
             <span className="md-mono text-xs text-[var(--md-text)]">
               ρ {fmtIt(r.rho, 2)}
             </span>
           </div>
+          {r.band !== null ? (
+            <span
+              className="md-mono self-start rounded px-1.5 py-0.5 text-2xs font-bold"
+              style={{
+                color: COLORE_BANDA[r.band],
+                border: `1px solid ${COLORE_BANDA[r.band]}`,
+              }}
+            >
+              {r.band}
+            </span>
+          ) : null}
           {r.percentile !== null ? (
             <RangeBar
               position={r.percentile}
@@ -174,10 +164,10 @@ function BloccoRelazioni({ relations }: { relations: RelationStability[] }) {
               ariaLabel={`Posizione nel range storico: ${Math.round(r.percentile)} su 100`}
             />
           ) : null}
-          <p className="text-xs leading-relaxed text-[var(--md-text-2)]">
+          <p className="text-sm leading-relaxed text-[var(--md-text-2)]">
             {r.sentence}
           </p>
-          <p className="text-[11px] leading-relaxed text-[var(--md-muted)]">
+          <p className="text-xs leading-relaxed text-[var(--md-muted)]">
             {r.signSentence}.
           </p>
         </div>
@@ -249,34 +239,19 @@ function SchedaStrumento({
           </div>
         ) : null}
 
-        {/* GRAFICO SOPRA, RELAZIONI SOTTO — impilati, a larghezza piena.
-            Erano stati affiancati su xl per accorciare la scheda, ma il prezzo
-            era il grafico a metà larghezza: troppo piccolo per leggerci delle
-            serie a 60 sedute. La scheda si accorcia dove il problema stava
-            davvero, cioè nell'altezza del grafico: il tetto in
-            `driver-desk-chart.tsx` impedisce che cresca con la larghezza, che
-            era il motivo per cui a 1920 la scheda era PIÙ alta che a 1440.
-            `min-w-0` resta: senza, il grafico allarga la colonna e le tabelle
-            non scorrono (stessa trappola delle schede della Sintesi). */}
-        {card.chart || card.relations.length > 0 ? (
-          <div className="flex flex-col gap-4">
-            {card.chart ? (
-              <div className="min-w-0">
-                <DriverDeskChart
-                  dates={card.chart.dates}
-                  series={card.chart.series}
-                />
-              </div>
-            ) : null}
-            {card.relations.length > 0 ? (
-              <div
-                className="min-w-0 border-t pt-4"
-                style={{ borderColor: "var(--md-border)" }}
-              >
-                <BloccoRelazioni relations={card.relations} />
-              </div>
-            ) : null}
-          </div>
+        {card.chart ? (
+          <DriverDeskChart dates={card.chart.dates} series={card.chart.series} />
+        ) : null}
+
+        {card.relations.length > 0 ? (
+          <>
+            <div
+              className="border-t"
+              style={{ borderColor: "var(--md-border)" }}
+              aria-hidden
+            />
+            <BloccoRelazioni relations={card.relations} />
+          </>
         ) : null}
 
         {card.freshnessNote ? (

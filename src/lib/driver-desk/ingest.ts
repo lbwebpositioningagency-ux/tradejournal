@@ -79,16 +79,8 @@ async function fetchFrom(
   switch (ref.provider) {
     case "fred": {
       const series = await fetchFredSeries(ref.ids);
-      /* La ROTTA entra nell'etichetta, e da lì in `DriverDeskCoverage.source`,
-         che è il registro delle fonti che il desk già tiene e mostra in
-         pagina. «FRED DFII10» e «FRED DFII10 (ripiego CSV)» non sono la stessa
-         affidabilità: il secondo dice che l'API ufficiale non ha risposto e
-         che il dato arriva da un endpoint non documentato. */
       return {
-        source:
-          series.via === "csv"
-            ? `FRED ${series.id} (ripiego CSV)`
-            : `FRED ${series.id}`,
+        source: `FRED ${series.id}`,
         obs: series.observations.map((o) => ({ date: o.date, value: o.value })),
       };
     }

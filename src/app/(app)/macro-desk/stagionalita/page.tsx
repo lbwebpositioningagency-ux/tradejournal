@@ -64,13 +64,6 @@ import { todayDayOfYear } from "@/lib/seasonality/precompute";
 import type { SeasonalityInstrument } from "@/generated/prisma/client";
 import { SeasonalityHeatmap } from "@/components/seasonality/heatmap";
 import { BucketWindowTable } from "@/components/seasonality/bucket-window-table";
-import { RiepilogoAdesso } from "@/components/seasonality/riepilogo-adesso";
-import {
-  ORIZZONTI_RIEPILOGO,
-  motivoRigaVuota,
-  righeRiepilogo,
-  type OrizzonteRiepilogo,
-} from "@/lib/seasonality/riepilogo-adesso";
 import { WindowTruncatedNote } from "@/components/seasonality/low-sample";
 import {
   isIntradayGranularity,
@@ -283,49 +276,6 @@ export default async function StagionalitaPage({
           ),
     ]);
   }
-
-  /* ── IL RIEPILOGO IN TESTA ────────────────────────────────────────────
-     Tre orizzonti — mese, settimana, giorno — sempre e comunque, qualunque
-     scheda sia aperta: è un riepilogo, e un riepilogo che cambia contenuto
-     a seconda della scheda non riepiloga niente.
-
-     SEMPRE `SCOPE_ALL`, anche quando la scheda Giorno ha un filtro di mese
-     attivo: le tre righe devono essere confrontabili fra loro, e un giorno
-     ristretto ad agosto accanto a un mese intero non lo sarebbe. Il filtro
-     resta dov'era, sulla tabella dei giorni.
-
-     Le finestre sono quelle di CALENDARIO (`LOOKBACK_YEARS`), non
-     `lookbacksDisponibili`: quest'ultimo si accorcia sulle viste intraday per
-     via dell'archivio orario, e il riepilogo non ha righe intraday. */
-  const statistichePerOrizzonte = new Map<
-    OrizzonteRiepilogo,
-    Map<number, BucketView[]>
-  >();
-  if (popolato) {
-    const caricate = await Promise.all(
-      ORIZZONTI_RIEPILOGO.map((o) =>
-        getStatsByWindow({
-          instrument,
-          granularity: o,
-          scope: SCOPE_ALL,
-          lookbacks: [...LOOKBACK_YEARS],
-          detrended,
-        }),
-      ),
-    );
-    ORIZZONTI_RIEPILOGO.forEach((o, i) => statistichePerOrizzonte.set(o, caricate[i]));
-  }
-
-  /* Il riferimento del colore del riepilogo: per i LIVELLI la mediana dei
-     dodici mesi della finestra scelta, la stessa convenzione della tabella
-     grande. Con lo zero un indice di volatilità uscirebbe verde in tutte e
-     tre le righe. */
-  const riferimentoRiepilogo =
-    def.kind === "LEVEL"
-      ? medianOfMeans(
-          statistichePerOrizzonte.get("MONTH")?.get(lookbackEffettivo) ?? [],
-        )
-      : 0;
 
   const windows = windowCoverage(
     lookbacksDisponibili,
@@ -617,23 +567,6 @@ export default async function StagionalitaPage({
             <WindowTruncatedNote
               requested={selectedCoverage.requested}
               available={selectedCoverage.available}
-            />
-          ) : null}
-
-          {popolato ? (
-            /* PRIMA COSA DELLA SEZIONE, prima del percorso annuale: risponde
-               a «in che periodo siamo» senza aprire tre schede. */
-            <RiepilogoAdesso
-              kind={def.kind}
-              righe={righeRiepilogo({
-                perOrizzonte: statistichePerOrizzonte,
-                finestraSelezionata: lookbackEffettivo,
-                adesso: adessoRoma,
-              })}
-              finestre={[...LOOKBACK_YEARS].sort((a, b) => b - a)}
-              finestraSelezionata={lookbackEffettivo}
-              reference={riferimentoRiepilogo}
-              motivoVuota={(r) => motivoRigaVuota(r, adessoRoma)}
             />
           ) : null}
 

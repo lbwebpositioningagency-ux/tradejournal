@@ -110,8 +110,8 @@ describe("Listino Volatilità — la forma", () => {
     expect(html()).toContain("chiave non configurata");
   });
 
-  /* Il calendario è uscito dalla sezione il 28/08/2026: gli eventi in arrivo
-     si leggono nella Sintesi. Qui non deve tornare per sbaglio. */
+  /* Il calendario è uscito dalla sezione il 28/08/2026. Qui non deve tornare
+     per sbaglio. */
   it("il calendario degli eventi NON è in questa sezione", () => {
     const out = html();
     expect(out).not.toContain("Prossimi sette giorni");

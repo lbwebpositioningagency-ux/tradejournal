@@ -5,7 +5,6 @@ import {
   ChartSpline,
   FileText,
   Radar,
-  Sparkles,
   Target,
   Waypoints,
   type LucideIcon,
@@ -57,15 +56,6 @@ export interface MacroDeskSection {
 }
 
 export const MACRO_DESK_SECTIONS = [
-  {
-    key: "ai-analyst",
-    href: "/macro-desk/ai-analyst",
-    label: "Sintesi",
-    icon: Sparkles,
-    description:
-      "La porta d'ingresso: una scheda per strumento con quanto sarà larga la giornata, dove sta rispetto alla propria norma e cosa c'è in agenda.",
-    gruppo: "quotidiano",
-  },
   {
     key: "volatilita",
     href: "/macro-desk/volatilita",

@@ -13,50 +13,6 @@ import { GuidaSezione, RimandoGuida, VoceGuida } from "./guida-sezione";
  * sopra ciascun grafico.
  */
 
-/** Sintesi — la porta d'ingresso delle sette del mattino. */
-export function GuidaSintesi() {
-  return (
-    <GuidaSezione richiamo="dice quanto sarà larga la giornata, mai dove va il prezzo">
-      <p>
-        È la <strong>porta d&apos;ingresso</strong>: una colonna per strumento,
-        una riga per misura, e in ogni cella il numero di oggi con sotto il
-        confronto con la propria norma. Serve a decidere{" "}
-        <strong>size e distanza dello stop</strong> prima di aprire qualunque
-        altra pagina.
-      </p>
-
-      <VoceGuida titolo="Le due righe con il filetto d'accento">
-        Ampiezza attesa ed escursione tipica sono quelle da cui esce la distanza
-        dello stop. Se hai dieci secondi, guarda solo quelle: tutto il resto è
-        contorno che spiega perché quei due numeri valgono quello che valgono.
-      </VoceGuida>
-
-      <VoceGuida titolo="Si legge in orizzontale">
-        La riga è la misura, quindi oro, WTI e DAX stanno affiancati sulla
-        stessa scala. È la domanda vera del mattino — <strong>quale dei tre si
-        muove di più oggi</strong> — e prima non aveva risposta, perché ogni
-        strumento aveva una tabella sua.
-      </VoceGuida>
-
-      <VoceGuida titolo="Prossimo evento a calendario">
-        Solo eventi il cui orario è pubblicato in anticipo
-        dall&apos;istituzione che li produce. Conta la <strong>distanza</strong>,
-        non la data: se c&apos;è qualcosa fra due ore, il resto del desk descrive
-        un mercato che fra due ore non esisterà più.
-      </VoceGuida>
-
-      <VoceGuida titolo="Cosa NON troverai">
-        Una direzione. Nessuna riga dice se il prezzo salirà o scenderà, e le
-        celle vuote sono vuote per un motivo dichiarato — la curva a termine del
-        WTI non esiste sull&apos;oro, e il DAX non ha una volatilità implicita
-        con fonte viva.
-      </VoceGuida>
-
-      <RimandoGuida />
-    </GuidaSezione>
-  );
-}
-
 /** Trends — le serie macro che alimentano il bias. */
 export function GuidaTrends() {
   return (
