@@ -108,18 +108,16 @@ export function CumulativePnlChart({
   const last = points.at(-1)?.cumulative ?? 0;
   const color = pnlChartColor(last === 0 ? 1 : last);
 
-  /* LINEA DEL MASSIMO PRECEDENTE (high-water mark). La curva e la buca erano
-     due card separate con due assi X diversi: per leggerle insieme — che è
-     l'unico modo di leggerle — l'occhio doveva saltare fra due grafici. La
-     prima versione risolveva riempiendo di rosso lo spazio fra picco e curva,
-     ma su uno storico con drawdown lunghi quel riempimento diventa metà del
-     grafico e vince sull'equity, che è ciò che si è venuti a vedere.
+  /* IL MASSIMO PRECEDENTE (high-water mark) NON SI DISEGNA PIÙ, dal
+     28/08/2026: la curva si vuole pulita. La serie però RESTA nel grafico,
+     invisibile, perché è quella che porta «Sotto il picco» nel tooltip — cioè
+     quanto eri sotto il massimo quel giorno, che è l'informazione utile.
+     Toglierla del tutto porterebbe via anche quella.
 
-     Qui il picco è una LINEA sottile tratteggiata, disegnata PRIMA della
-     curva e quindi dietro: dove la curva è al massimo la linea sparisce sotto
-     di essa, dove è sotto si apre lo spazio, e quello spazio è il drawdown.
-     Stessa informazione, zero area colorata. Il picco si deriva dai punti già
-     in pagina: nessun dato nuovo dal server, nessuna seconda convenzione. */
+     Invisibile per opacità e non per assenza: `strokeOpacity={0}` lascia la
+     serie registrata, quindi il tooltip continua a riceverne il punto e il
+     suo colore. Il picco si deriva dai punti già in pagina — nessun dato
+     nuovo dal server, nessuna seconda convenzione. */
   const data = withPeakLine(withZeroStart(points));
 
   return (
@@ -152,19 +150,16 @@ export function CumulativePnlChart({
           itemStyle={CHART.tooltipItemStyle}
           labelStyle={CHART.tooltipLabelStyle}
         />
-        {/* Massimo precedente: solo tratto, nessun riempimento (`fill=none`),
-            dietro la curva. Tinta --loss, quindi segue la coppia P&L scelta
-            in Impostazioni, ma tenue e tratteggiata: è contesto, non un
-            secondo protagonista. */}
+        {/* Serie del massimo precedente: nessun tratto visibile e nessun
+            riempimento. Serve solo a portare «Sotto il picco» nel tooltip. */}
         <Area
           isAnimationActive={animate}
           type="monotone"
           dataKey="peak"
           name="Sotto il picco"
           stroke="var(--loss)"
-          strokeOpacity={0.55}
-          strokeWidth={1}
-          strokeDasharray="4 4"
+          strokeOpacity={0}
+          strokeWidth={0}
           fill="none"
           activeDot={false}
         />
