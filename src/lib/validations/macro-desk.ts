@@ -12,13 +12,125 @@ export type MacroBias = (typeof MACRO_BIASES)[number];
 
 export const MACRO_REPORT_TYPES = ["DAILY", "WEEKLY"] as const;
 
-const bias = z.enum(MACRO_BIASES);
+/* ═══════════════ PRIMITIVE TOLLERANTI ═══════════════
+ *
+ * IL METRO, revisione del 28/08/2026: si rifiuta SOLO l'indecidibile.
+ *
+ * Un 400 su questo endpoint non è un errore recuperabile — il ponte non
+ * ritenta, il desk genera e spedisce una volta, e il report del giorno è
+ * perso senza che nessuno se ne accorga. È già successo: cinque run su
+ * quindici sono morte così. Ogni regola qui dentro va quindi pesata contro
+ * quel costo, non contro l'eleganza dello schema.
+ *
+ * La revisione nasce da un difetto introdotto QUI il 28/08: due campi nuovi
+ * dichiarati `z.string().optional()` e `z.number().int().min(0).max(100)
+ * .optional()` avrebbero ucciso l'intero report per un `confMotivo: null` —
+ * cioè per il modo più naturale di scrivere «qui non c'è motivo», visto che
+ * `.optional()` in Zod NON accetta `null`. Messo alla prova, il confine
+ * rifiutava cinque forme plausibili su nove. Il difetto non era nei due
+ * campi: era che l'intero schema aveva lo stesso vizio, e nessuno l'aveva
+ * ripassato con questo metro.
+ *
+ * Che cosa è DECIDIBILE, e quindi si normalizza invece di rifiutare:
+ *  - `null` per un campo facoltativo → è «assente», non è un errore;
+ *  - una stringa numerica (`"44"`) → è il numero 44: nessuna ambiguità;
+ *  - un float dove serve un intero (`44.5`) → si arrotonda;
+ *  - maiuscole/minuscole e spazi negli enum → `daily` è `DAILY`.
+ *
+ * Che cosa resta INDECIDIBILE, e si rifiuta:
+ *  - `reportDate` mancante o non una data reale: la riga non è collocabile;
+ *  - `generatedAt` senza fuso: l'istante sarebbe ambiguo (v. sotto);
+ *  - `assets` privo di uno dei tre: le colonne sono NOT NULL e inventare un
+ *    bias è fuori discussione;
+ *  - un `bias` che non è nessuno dei tre valori: non si indovina una
+ *    direzione;
+ *  - `payload` assente: è il report.
+ *
+ * E quel che passa ma insospettisce NON viene zittito: lo raccoglie la
+ * sentinella (`macro-desk-contratto.ts`), che segnala senza rifiutare. È la
+ * divisione dei compiti che rende sicuro allargare qui.
+ */
 
-const confidence = z
-  .number()
-  .int("La confidenza deve essere un intero")
-  .min(0, "Confidenza minima 0")
-  .max(100, "Confidenza massima 100");
+/** `null`, `undefined` e stringa vuota valgono tutti «campo assente». */
+function assente(value: unknown): boolean {
+  return (
+    value === null ||
+    value === undefined ||
+    (typeof value === "string" && value.trim() === "")
+  );
+}
+
+/**
+ * Numero da `number` o da stringa numerica, con la virgola decimale accettata
+ * (il desk scrive in italiano e `"44,5"` è inequivocabile). Torna `undefined`
+ * per l'assente e per ciò che non è un numero: su un campo facoltativo
+ * scartare un valore illeggibile è sempre meglio che perdere il report.
+ */
+function aNumero(value: unknown): number | undefined {
+  if (assente(value)) return undefined;
+  if (typeof value === "number") return Number.isFinite(value) ? value : undefined;
+  if (typeof value !== "string") return undefined;
+  const n = Number(value.trim().replace(",", "."));
+  return Number.isFinite(n) ? n : undefined;
+}
+
+/** Numero facoltativo, tollerante. */
+const numeroOpz = z.preprocess(aNumero, z.number().optional());
+
+/** Intero facoltativo: il float si arrotonda, non si rifiuta. */
+const interoOpz = z.preprocess((v) => {
+  const n = aNumero(v);
+  return n === undefined ? undefined : Math.round(n);
+}, z.number().int().optional());
+
+/** Testo facoltativo: `null` è assente, e il resto si converte se ha senso. */
+const testoOpz = z.preprocess((v) => {
+  if (assente(v)) return undefined;
+  return typeof v === "string" ? v.trim() : undefined;
+}, z.string().optional());
+
+/** Booleano facoltativo: accetta anche le stringhe `"true"`/`"false"`. */
+const booleanoOpz = z.preprocess((v) => {
+  if (assente(v)) return undefined;
+  if (typeof v === "boolean") return v;
+  if (typeof v === "string") {
+    const s = v.trim().toLowerCase();
+    if (s === "true") return true;
+    if (s === "false") return false;
+  }
+  return undefined;
+}, z.boolean().optional());
+
+/** Enum insensibile a maiuscole e spazi: `daily` è `DAILY`, e non è un dubbio. */
+function enumTollerante<T extends readonly [string, ...string[]]>(
+  valori: T,
+  messaggio: string,
+) {
+  return z.preprocess(
+    (v) => (typeof v === "string" ? v.trim().toUpperCase() : v),
+    z.enum(valori, { message: messaggio }),
+  );
+}
+
+const bias = enumTollerante(
+  MACRO_BIASES,
+  `Bias non riconosciuto (attesi: ${MACRO_BIASES.join(", ")})`,
+);
+
+/**
+ * La confidenza di colonna: OBBLIGATORIA (la colonna è NOT NULL), quindi qui
+ * un valore illeggibile è davvero indecidibile e si rifiuta. Ma la forma sì
+ * che si normalizza: `"51"` e `50.6` sono entrambi decidibili.
+ *
+ * Il limite 0-100 NON è più un rifiuto. Fuori scala il numero resta strano ma
+ * resta leggibile, e perdere il report per un 105 sarebbe sproporzionato: se
+ * ne occupa la sentinella, che lo segnala, e la card lo riporta comunque
+ * dentro la scala per il solo disegno (`entroScala`).
+ */
+const confidence = z.preprocess((v) => {
+  const n = aNumero(v);
+  return n === undefined ? v : Math.round(n);
+}, z.number({ message: "La confidenza deve essere un numero" }).int());
 
 const assetOutlook = z.object({ bias, confidence });
 
@@ -60,7 +172,10 @@ const ISTANTE_CON_FUSO =
  */
 function normalizzaIstante(value: unknown): unknown {
   if (typeof value !== "string") return value;
-  const raw = value.trim();
+  /* `datetime.isoformat(sep=" ")` produce «2026-08-29 04:20:00+02:00»: lo
+     spazio al posto della T è forma legale ISO 8601 e non è ambiguo di una
+     virgola, quindi si normalizza invece di rifiutare il report. */
+  const raw = value.trim().replace(/^(\d{4}-\d{2}-\d{2}) (?=\d{2}:)/, "$1T");
   const m = ISTANTE_CON_FUSO.exec(raw);
   if (!m) return value;
 
@@ -119,6 +234,10 @@ const SUMMARY_SEP = " · ";
  * è una sintesi accessoria, il report no.
  */
 function normalizzaSummary(value: unknown): unknown {
+  /* `summary: null` è «nessuna sintesi», non un errore: senza questa riga
+     `z.string().optional()` lo rifiutava e il report moriva per il campo più
+     accessorio che ci sia. */
+  if (assente(value)) return undefined;
   let testo: string;
   if (typeof value === "string") {
     testo = value.trim();
@@ -259,22 +378,20 @@ const biasRecordSchema = z
  */
 const monitorVoce = z
   .object({
-    state: z.string().optional(),
-    move_EM: z.number().optional(),
-    note: z.string().optional(),
-    /* Campi nuovi (28/08/2026): la lettura di OGGI e il suo motivo, distinti
-       dall'impegno della domenica che vive nel `biasRecord`. Il tipo si
-       dichiara qui per la stessa ragione di `move_EM`: sono i campi su cui a
-       valle si fa aritmetica e confronto, e un `confidenceOggi` che è una
-       stringa produrrebbe un NaN silenzioso invece di un errore. Fuori scala
-       si rifiuta come già fa `confidence`: 0-100 è la scala dichiarata. */
-    confidenceOggi: z
-      .number()
-      .int("confidenceOggi deve essere un intero")
-      .min(0, "confidenceOggi minima 0")
-      .max(100, "confidenceOggi massima 100")
-      .optional(),
-    confMotivo: z.string().optional(),
+    state: testoOpz,
+    move_EM: numeroOpz,
+    note: testoOpz,
+    /* Campi nuovi (28/08/2026): la lettura di OGGI, il suo motivo e il
+       pilastro cui il motivo si riferisce, tutti distinti dall'impegno della
+       domenica che vive nel `biasRecord`.
+       Erano dichiarati stretti, ed è stato un errore: un `confMotivo: null`
+       — il modo più naturale di scrivere «qui non c'è motivo» — uccideva
+       l'intero report. Ora `null` è «assente», la stringa numerica si
+       converte e il float si arrotonda. Quel che non è leggibile si scarta,
+       e a valle il parser difensivo lo vede come mancante. */
+    confidenceOggi: interoOpz,
+    confMotivo: testoOpz,
+    confPilastro: testoOpz,
   })
   .passthrough();
 
@@ -289,14 +406,14 @@ const monitorSchema = z
 
 const resolvedVoce = z
   .object({
-    bias: z.string().optional(),
-    outcome: z.string().optional(),
-    status: z.string().optional(),
-    em: z.number().optional(),
-    close_EM: z.number().optional(),
-    mfe_EM: z.number().optional(),
-    mae_EM: z.number().optional(),
-    confidence: z.number().optional(),
+    bias: testoOpz,
+    outcome: testoOpz,
+    status: testoOpz,
+    em: numeroOpz,
+    close_EM: numeroOpz,
+    mfe_EM: numeroOpz,
+    mae_EM: numeroOpz,
+    confidence: numeroOpz,
   })
   .passthrough();
 
@@ -315,7 +432,10 @@ const resolvedSchema = z
   .nullish();
 
 export const macroDeskReportSchema = z.object({
-  type: z.enum(MACRO_REPORT_TYPES),
+  type: enumTollerante(
+    MACRO_REPORT_TYPES,
+    `Tipo non riconosciuto (attesi: ${MACRO_REPORT_TYPES.join(", ")})`,
+  ),
   reportDate: reportDateKey,
   generatedAt: isoUtc,
   assets: z.object({
@@ -340,13 +460,9 @@ export const macroDeskReportSchema = z.object({
   // che evolve, e l'interpretazione fine resta ai parser difensivi
   // (src/lib/macro-desk-bias-record.ts) che scartano il malformato e
   // tengono il valido. Stessa scelta già fatta per `payload`.
-  schemaVersion: z
-    .number()
-    .int("schemaVersion deve essere un intero")
-    .positive("schemaVersion deve essere positivo")
-    .optional(),
-  scorecardEligible: z.boolean().optional(),
-  trackRecordStart: z.boolean().optional(),
+  schemaVersion: interoOpz,
+  scorecardEligible: booleanoOpz,
+  trackRecordStart: booleanoOpz,
   biasRecord: biasRecordSchema,
   resolved: resolvedSchema,
   monitor: monitorSchema,

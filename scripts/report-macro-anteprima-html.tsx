@@ -73,12 +73,24 @@ const CASI: {
         confidenceOggi: 44,
         confMotivo:
           "keynote Warsh alle 16:00 è un bivio binario: fino a quel momento la lettura vale meno di quanto valesse domenica",
+        confPilastro: "eventi",
+        state: "conferma",
+        note: "Oro sui massimi ~3 mesi; PCE core in linea ha ridotto le odds di rialzo Fed a ~34%. Warsh oggi il bivio.",
       },
       oil: {
         confidenceOggi: 44,
         confMotivo: "ramo b1 a un soffio (81,85 contro 81,0): la lettura è appesa a una chiusura",
+        confPilastro: "tattico",
+        state: "stress",
+        note: "Scivola verso il ramo b1<81 (unwind Hormuz + tagli domanda IEA/OPEC); a 81,85 ancora in banda neutrale.",
       },
-      idx: { confidenceOggi: 46, confMotivo: "breadth negativa con indice in tenuta: due segnali opposti" },
+      idx: {
+        confidenceOggi: 46,
+        confMotivo: "breadth negativa con indice in tenuta: due segnali opposti",
+        confPilastro: "pricing",
+        state: "conferma",
+        note: "Nvidia blowout toglie il rischio-coda AI ma breadth negativa; ramo b1>7.843 armato non scattato.",
+      },
     },
   },
   {
@@ -87,9 +99,9 @@ const CASI: {
     nota:
       "Il report cambia la confidenza senza dichiarare perché: dal 28/08 è una violazione del contratto, e la card la DICE invece di tacere. I due numeri restano visibili",
     monitorFinto: {
-      gold: { confidenceOggi: 44 },
-      oil: { confidenceOggi: 38 },
-      idx: { confidenceOggi: 52 },
+      gold: { confidenceOggi: 44, state: "conferma", note: "Oro sui massimi ~3 mesi." },
+      oil: { confidenceOggi: 38, state: "stress", note: "Scivola verso il ramo b1<81." },
+      idx: { confidenceOggi: 52, state: "conferma", note: "Nvidia toglie il rischio-coda AI." },
     },
   },
   {
@@ -170,8 +182,17 @@ function monitorReale(colonna: unknown): Record<string, MonitorConfidenza> {
   const fuori: Record<string, MonitorConfidenza> = {};
   for (const [id, chiave] of Object.entries(CHIAVE_MONITOR)) {
     const m = perChiave.get(chiave);
-    if (!m || (m.confidenceOggi === null && m.confMotivo === null)) continue;
-    fuori[id] = { confidenceOggi: m.confidenceOggi, confMotivo: m.confMotivo };
+    if (!m) continue;
+    if (m.confidenceOggi === null && m.confMotivo === null && m.state === null && m.note === null) {
+      continue;
+    }
+    fuori[id] = {
+      confidenceOggi: m.confidenceOggi,
+      confMotivo: m.confMotivo,
+      confPilastro: m.confPilastro,
+      state: m.state,
+      note: m.note,
+    };
   }
   return fuori;
 }

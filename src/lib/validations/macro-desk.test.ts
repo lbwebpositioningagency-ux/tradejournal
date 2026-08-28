@@ -44,12 +44,46 @@ describe("macroDeskReportSchema", () => {
     expect(result.success).toBe(false);
   });
 
-  it("rifiuta confidenze fuori range o non intere", () => {
-    for (const bad of [-1, 101, 55.5]) {
+  it("normalizza la confidenza invece di perdere il report", () => {
+    /* REVISIONE DEL METRO (28/08/2026): un 400 qui non è recuperabile e il
+       report del giorno è perso. Forma e valore sono cose diverse — la forma
+       si normalizza perché è decidibile, il valore strano passa e lo segnala
+       la sentinella (`macro-desk-contratto.ts`). */
+    const daNormalizzare: [unknown, number][] = [
+      ["55", 55],      // stringa numerica
+      [55.4, 55],      // float: si arrotonda
+      [55.6, 56],
+      ["55,4", 55],    // virgola decimale: il desk scrive in italiano
+      [-1, -1],        // fuori scala: passa, e la sentinella lo dice
+      [101, 101],
+    ];
+    for (const [dato, atteso] of daNormalizzare) {
       const body = validBody();
-      body.assets.wti.confidence = bad;
+      body.assets.wti.confidence = dato as number;
+      const esito = macroDeskReportSchema.safeParse(body);
+      expect(esito.success).toBe(true);
+      if (esito.success) expect(esito.data.assets.wti.confidence).toBe(atteso);
+    }
+  });
+
+  it("ma una confidenza illeggibile resta un rifiuto: la colonna è NOT NULL", () => {
+    for (const bad of ["alta", null, undefined, {}]) {
+      const body = validBody();
+      body.assets.wti.confidence = bad as number;
       expect(macroDeskReportSchema.safeParse(body).success).toBe(false);
     }
+  });
+
+  it("il bias tollera maiuscole e spazi, non i valori inventati", () => {
+    const body = validBody();
+    body.assets.wti.bias = " rialzista " as typeof body.assets.wti.bias;
+    const esito = macroDeskReportSchema.safeParse(body);
+    expect(esito.success).toBe(true);
+    if (esito.success) expect(esito.data.assets.wti.bias).toBe("RIALZISTA");
+
+    const inventato = validBody();
+    inventato.assets.wti.bias = "TORO" as typeof inventato.assets.wti.bias;
+    expect(macroDeskReportSchema.safeParse(inventato).success).toBe(false);
   });
 
   it("rifiuta date di calendario inesistenti (regola del progetto)", () => {
@@ -321,21 +355,40 @@ describe("monitor e resolved: confine d'ingresso", () => {
     ).toBe(true);
   });
 
-  it("rifiuta un move_EM che non è un numero: era il buco di z.unknown()", () => {
-    // una stringa qui produrrebbe NaN silenzioso in chi fa aritmetica a valle
+  it("un move_EM illeggibile si SCARTA, non produce NaN e non perde il report", () => {
+    /* La proprietà da tenere non era «rifiuta», era «mai un NaN a valle»:
+       chi fa aritmetica su questo campo non deve mai ricevere una stringa.
+       Scartarlo la garantisce come la rifiutava il vecchio confine, ma senza
+       buttare via il report insieme al campo. */
     const esito = macroDeskReportSchema.safeParse({
       ...validBody(),
       monitor: { xau: { state: "stress", move_EM: "molto" } },
     });
-    expect(esito.success).toBe(false);
+    expect(esito.success).toBe(true);
+    if (esito.success) expect(esito.data.monitor?.xau?.move_EM).toBeUndefined();
   });
 
-  it("rifiuta un confidence non numerico dentro resolved", () => {
+  it("una stringa NUMERICA in move_EM si converte: è decidibile", () => {
+    const esito = macroDeskReportSchema.safeParse({
+      ...validBody(),
+      monitor: { xau: { state: "stress", move_EM: "-0.85" } },
+    });
+    expect(esito.success).toBe(true);
+    if (esito.success) expect(esito.data.monitor?.xau?.move_EM).toBe(-0.85);
+  });
+
+  it("un confidence illeggibile dentro resolved si scarta, il report resta", () => {
     const esito = macroDeskReportSchema.safeParse({
       ...validBody(),
       resolved: { assets: { xau: { confidence: "alta" } } },
     });
-    expect(esito.success).toBe(false);
+    expect(esito.success).toBe(true);
+    if (esito.success) {
+      expect(
+        (esito.data.resolved as { assets?: { xau?: { confidence?: number } } })
+          ?.assets?.xau?.confidence,
+      ).toBeUndefined();
+    }
   });
 
   it("lascia passare campi nuovi: il desk evolve", () => {
@@ -344,5 +397,145 @@ describe("monitor e resolved: confine d'ingresso", () => {
       monitor: { xau: { state: "stress", move_EM: 0.1, campoNuovo: 42 }, extra: {} },
     });
     expect(esito.success).toBe(true);
+  });
+});
+
+describe("le nove forme di `monitor` che avevano messo alla prova il confine", () => {
+  /**
+   * La tabella del 28/08/2026: messo alla prova con nove forme plausibili, il
+   * confine ne rifiutava CINQUE — e un rifiuto qui perde il report del giorno.
+   * Questi test sono quella tabella, riga per riga: le otto decidibili devono
+   * passare, e le prime tre devono anche essere normalizzate nel modo giusto.
+   */
+  const con = (voce: unknown) => macroDeskReportSchema.safeParse({ ...validBody(), monitor: voce });
+
+  it("1 · forma attesa: interi e stringhe", () => {
+    const e = con({ xau: { state: "conferma", move_EM: 0.1, confidenceOggi: 44, confMotivo: "evento binario" } });
+    expect(e.success).toBe(true);
+    if (e.success) {
+      expect(e.data.monitor?.xau?.confidenceOggi).toBe(44);
+      expect(e.data.monitor?.xau?.confMotivo).toBe("evento binario");
+    }
+  });
+
+  it("2 · confMotivo: null — «qui non c'è motivo» non uccide più il report", () => {
+    const e = con({ xau: { state: "conferma", confidenceOggi: 44, confMotivo: null } });
+    expect(e.success).toBe(true);
+    if (e.success) expect(e.data.monitor?.xau?.confMotivo).toBeUndefined();
+  });
+
+  it("3 · confidenceOggi: null", () => {
+    const e = con({ xau: { confidenceOggi: null, confMotivo: "x" } });
+    expect(e.success).toBe(true);
+    if (e.success) expect(e.data.monitor?.xau?.confidenceOggi).toBeUndefined();
+  });
+
+  it("4 · float intero (44.0)", () => {
+    const e = con({ xau: { confidenceOggi: 44.0 } });
+    expect(e.success).toBe(true);
+    if (e.success) expect(e.data.monitor?.xau?.confidenceOggi).toBe(44);
+  });
+
+  it("5 · float vero (44.5): si arrotonda, non si rifiuta", () => {
+    const e = con({ xau: { confidenceOggi: 44.5 } });
+    expect(e.success).toBe(true);
+    if (e.success) expect(e.data.monitor?.xau?.confidenceOggi).toBe(45);
+  });
+
+  it("6 · stringa numerica (\"44\")", () => {
+    const e = con({ xau: { confidenceOggi: "44" } });
+    expect(e.success).toBe(true);
+    if (e.success) expect(e.data.monitor?.xau?.confidenceOggi).toBe(44);
+  });
+
+  it("7 · fuori scala (105): passa, e a dirlo è la sentinella", () => {
+    const e = con({ xau: { confidenceOggi: 105 } });
+    expect(e.success).toBe(true);
+    if (e.success) expect(e.data.monitor?.xau?.confidenceOggi).toBe(105);
+  });
+
+  it("8 · campi assenti: i 23 report storici", () => {
+    expect(con({ xau: { state: "conferma", move_EM: 0.1, note: "…" } }).success).toBe(true);
+  });
+
+  it("9 · monitor: null", () => {
+    expect(con(null).success).toBe(true);
+  });
+
+  it("nessuna delle nove forme perde più il report", () => {
+    const forme: unknown[] = [
+      { xau: { state: "conferma", move_EM: 0.1, confidenceOggi: 44, confMotivo: "x" } },
+      { xau: { confMotivo: null } },
+      { xau: { confidenceOggi: null } },
+      { xau: { confidenceOggi: 44.0 } },
+      { xau: { confidenceOggi: 44.5 } },
+      { xau: { confidenceOggi: "44" } },
+      { xau: { confidenceOggi: 105 } },
+      { xau: { state: "conferma", move_EM: 0.1, note: "…" } },
+      null,
+    ];
+    expect(forme.filter((f) => !con(f).success)).toEqual([]);
+  });
+
+  it("confPilastro entra e resta: è l'ancora del motivo", () => {
+    const e = con({ xau: { confidenceOggi: 44, confMotivo: "x", confPilastro: "eventi" } });
+    expect(e.success).toBe(true);
+    if (e.success) expect(e.data.monitor?.xau?.confPilastro).toBe("eventi");
+  });
+});
+
+describe("gli altri campi, ripassati con lo stesso metro", () => {
+  it("summary: null è «nessuna sintesi», non un report perso", () => {
+    const e = macroDeskReportSchema.safeParse({ ...validBody(), summary: null });
+    expect(e.success).toBe(true);
+    if (e.success) expect(e.data.summary).toBeUndefined();
+  });
+
+  it("schemaVersion, scorecardEligible e trackRecardStart accettano null", () => {
+    const e = macroDeskReportSchema.safeParse({
+      ...validBody(),
+      schemaVersion: null,
+      scorecardEligible: null,
+      trackRecordStart: null,
+    });
+    expect(e.success).toBe(true);
+  });
+
+  it("i booleani accettano anche \"true\"/\"false\"", () => {
+    const e = macroDeskReportSchema.safeParse({
+      ...validBody(),
+      scorecardEligible: "true",
+      trackRecordStart: "false",
+    });
+    expect(e.success).toBe(true);
+    if (e.success) {
+      expect(e.data.scorecardEligible).toBe(true);
+      expect(e.data.trackRecordStart).toBe(false);
+    }
+  });
+
+  it("type tollera le minuscole: `daily` è DAILY", () => {
+    const e = macroDeskReportSchema.safeParse({ ...validBody(), type: "daily" });
+    expect(e.success).toBe(true);
+    if (e.success) expect(e.data.type).toBe("DAILY");
+  });
+
+  it("generatedAt accetta lo spazio al posto della T (isoformat sep=\" \")", () => {
+    const e = macroDeskReportSchema.safeParse({
+      ...validBody(),
+      generatedAt: "2026-08-29 04:20:00+02:00",
+    });
+    expect(e.success).toBe(true);
+    if (e.success) expect(e.data.generatedAt).toBe("2026-08-29T02:20:00.000Z");
+  });
+
+  it("ma un istante SENZA fuso resta indecidibile, e si rifiuta", () => {
+    /* Non è pignoleria: senza fuso l'istante è ambiguo di due ore, e questo è
+       l'unico campo del report che dice QUANDO il desk ha prodotto. */
+    const e = macroDeskReportSchema.safeParse({
+      ...validBody(),
+      generatedAt: "2026-08-29T04:20:00",
+    });
+    expect(e.success).toBe(false);
   });
 });

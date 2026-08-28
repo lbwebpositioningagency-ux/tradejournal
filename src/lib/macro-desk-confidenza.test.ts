@@ -3,7 +3,9 @@ import {
   entroScala,
   fasciaConfidenza,
   letturaConfidenza,
+  notaSenzaMotivo,
   ragioniDelTaglio,
+  stessaFrase,
   unanimitaControBiasNeutro,
 } from "@/lib/macro-desk-confidenza";
 import type { MacroHorizon, MacroPillar } from "@/lib/macro-desk-payload";
@@ -380,5 +382,100 @@ describe("letturaConfidenza — il trimestrale ha il suo confMotivo", () => {
 
   it("senza motivo il trimestrale tace, come tutti gli storici", () => {
     expect(letturaConfidenza(quarterly)).toBeNull();
+  });
+});
+
+describe("un solo posto per la frase del motivo", () => {
+  const FRASE = "Evento binario in agenda: confidence limitata a prescindere.";
+
+  it("notaSenzaMotivo toglie dalla nota la frase già stampata come motivo", () => {
+    expect(notaSenzaMotivo(`Warsh parla oggi. ${FRASE}`, FRASE)).toBe("Warsh parla oggi.");
+  });
+
+  it("se la nota è SOLO quella frase, non resta niente da stampare", () => {
+    expect(notaSenzaMotivo(FRASE, FRASE)).toBeUndefined();
+  });
+
+  it("una nota che non contiene il motivo resta intatta", () => {
+    const nota = "Reali 10Y in calo a 2,34%, dollaro debole.";
+    expect(notaSenzaMotivo(nota, FRASE)).toBe(nota);
+  });
+
+  it("il confronto ignora punteggiatura, virgolette e maiuscole", () => {
+    expect(notaSenzaMotivo(`Contesto. «EVENTO BINARIO in agenda — confidence limitata a prescindere»`, FRASE))
+      .toBe("Contesto.");
+  });
+
+  it("i frammenti corti non si giudicano: si contengono per caso", () => {
+    const nota = "Regime stabile. Calma.";
+    expect(notaSenzaMotivo(nota, "Calma.")).toBe(nota);
+    expect(stessaFrase("Calma.", "Calma. E poi altro testo lungo che continua")).toBe(false);
+  });
+
+  it("stessaFrase riconosce il contenimento nei testi lunghi", () => {
+    expect(stessaFrase(`Premessa lunga e articolata. ${FRASE}`, FRASE)).toBe(true);
+    expect(stessaFrase("Un testo lungo che parla di tutt'altro argomento", FRASE)).toBe(false);
+  });
+
+  it("senza motivo la nota non si tocca", () => {
+    expect(notaSenzaMotivo("Nota qualsiasi.", undefined)).toBe("Nota qualsiasi.");
+  });
+});
+
+describe("l'ancoraggio del motivo dichiarato al pilastro", () => {
+  const orizzonteCon = (extra: Partial<MacroHorizon>): MacroHorizon => ({
+    biasLabel: "RIALZISTA",
+    confidence: 55,
+    pillars: [
+      { k: "Regime", dir: "up", note: "Stagflation-lite." },
+      { k: "Pricing / posizionamento", dir: "dn", note: "Long affollati." },
+      { k: "Eventi", dir: "fl", note: "Keynote oggi." },
+    ],
+    ...extra,
+  });
+
+  it("`confPilastro` aggancia il pilastro esatto, anche col nome lungo", () => {
+    const l = letturaConfidenza(
+      orizzonteCon({ confMotivo: "hedge cari", confPilastro: "pricing" }),
+    );
+    expect(l?.motivi[0].pilastro).toBe("Pricing / posizionamento");
+  });
+
+  it("il `confPilastro` del monitor ha la precedenza su quello dell'orizzonte", () => {
+    const l = letturaConfidenza(
+      orizzonteCon({ confMotivo: "x", confPilastro: "regime" }),
+      { confMotivo: "y", confPilastro: "eventi" },
+    );
+    expect(l?.motivi[0].pilastro).toBe("Eventi");
+    expect(l?.motivi[0].testo).toBe("y");
+  });
+
+  it("senza confPilastro si aggancia confrontando il testo con le note", () => {
+    const l = letturaConfidenza(
+      orizzonteCon({ confMotivo: "Long affollati, e per questo la conviction scende." }),
+    );
+    // il testo non coincide: nessuna ancora inventata
+    expect(l?.motivi[0].pilastro).toBeUndefined();
+
+    const combacia = letturaConfidenza(
+      orizzonteCon({
+        confMotivo: "Keynote oggi, evento binario che tiene bassa la lettura.",
+        pillars: [
+          {
+            k: "Eventi",
+            dir: "fl",
+            note: "Keynote oggi, evento binario che tiene bassa la lettura.",
+          },
+        ],
+      }),
+    );
+    expect(combacia?.motivi[0].pilastro).toBe("Eventi");
+  });
+
+  it("un confPilastro che non esiste non inventa un'ancora", () => {
+    const l = letturaConfidenza(
+      orizzonteCon({ confMotivo: "x", confPilastro: "liquidita" }),
+    );
+    expect(l?.motivi[0].pilastro).toBeUndefined();
   });
 });

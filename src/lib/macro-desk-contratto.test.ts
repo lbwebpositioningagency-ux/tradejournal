@@ -217,3 +217,33 @@ describe("la sentinella non rifiuta e non lancia MAI", () => {
     expect(riassuntoRilievi([])).toBe("");
   });
 });
+
+describe("confidenza fuori scala: il confine non rifiuta più, la sentinella lo dice", () => {
+  it("un 105 nel payload diventa un rilievo", () => {
+    /* Il confine Zod ha smesso di rifiutarlo il 28/08 — perdere il report per
+       un numero fuori scala era sproporzionato — e la promessa scritta lì
+       accanto è che se ne occupi la sentinella. Questo test è quella promessa. */
+    const r = controllaContratto({
+      ...BASE,
+      assets: [{ id: "gold", weekly: { confidence: 105, pillars: [] } }],
+    });
+    const c = r.find((x) => x.campo === "assets[gold].weekly.confidence");
+    expect(c?.problema).toContain("fuori dalla scala dichiarata 0-100");
+  });
+
+  it("vale anche per il trimestrale, e per i valori negativi", () => {
+    const r = controllaContratto({
+      ...BASE,
+      assets: [{ id: "oil", quarterly: { confidence: -3, pillars: [] } }],
+    });
+    expect(r.some((x) => x.campo === "assets[oil].quarterly.confidence")).toBe(true);
+  });
+
+  it("dentro la scala: nessun rilievo, nemmeno agli estremi", () => {
+    const r = controllaContratto({
+      ...BASE,
+      assets: [{ id: "gold", weekly: { confidence: 0, pillars: [] }, quarterly: { confidence: 100, pillars: [] } }],
+    });
+    expect(r.some((x) => x.campo.includes("confidence"))).toBe(false);
+  });
+});

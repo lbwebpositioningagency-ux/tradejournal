@@ -173,6 +173,25 @@ export function controllaContratto(payload: unknown, biasRecord?: unknown): Rili
     }
   }
 
+  /* ── 6 · confidenza fuori dalla scala dichiarata ──────────────────────
+     Il confine Zod non rifiuta più un 105: perdere il report per un numero
+     fuori scala sarebbe sproporzionato. Ma «non rifiutare» non vuol dire
+     «non dire»: la promessa scritta accanto a quella scelta è che se ne
+     occupi la sentinella, ed è questa riga a mantenerla. */
+  for (const asset of lette.assets) {
+    for (const [nome, h] of [
+      ["weekly", asset.weekly],
+      ["quarterly", asset.quarterly],
+    ] as const) {
+      const c = h?.confidence;
+      if (c === undefined || (c >= 0 && c <= 100)) continue;
+      rilievi.push({
+        campo: `assets[${asset.id}].${nome}.confidence`,
+        problema: `${c} è fuori dalla scala dichiarata 0-100`,
+      });
+    }
+  }
+
   /* ── 5 · la sintesi c'è, ed è un oggetto ──────────────────────────────
      Il 31/07 mandava `synthesis` come STRINGA di 533 caratteri: il quadro, il
      Radar rischi e il Verdetto cadevano tutti insieme, in silenzio. Il parser

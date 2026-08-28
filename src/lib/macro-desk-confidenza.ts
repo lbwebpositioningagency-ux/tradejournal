@@ -123,7 +123,12 @@ export interface MotivoConfidenza {
   testo: string;
   /** `dichiarato` = campo del report. `estratto` = euristica sulle note. */
   fonte: "dichiarato" | "estratto";
-  /** Solo per l'estratto: da quale pilastro viene la frase. */
+  /**
+   * Il pilastro cui la frase si riferisce, quando lo si sa. Per l'estratto è
+   * quello da cui la frase è stata pescata, quindi è sempre noto; per il
+   * dichiarato viene da `confPilastro`, e se il generatore non lo manda si
+   * prova ad agganciarlo confrontando il testo con le note.
+   */
   pilastro?: string;
 }
 
@@ -131,6 +136,76 @@ export interface MotivoConfidenza {
 export interface MonitorConfidenza {
   confidenceOggi?: number | null;
   confMotivo?: string | null;
+  /** `eventi` | `pricing` | `regime` | `tattico`: a quale pilastro si riferisce. */
+  confPilastro?: string | null;
+  /** Stato del monitoraggio: conferma / indebolisce / stress. */
+  state?: string | null;
+  /** Che cosa è successo OGGI. Compito diverso da `confMotivo`. */
+  note?: string | null;
+}
+
+/**
+ * Da `confPilastro` (`eventi`, `pricing`, `regime`, `tattico`) alla chiave
+ * vera del pilastro in questo orizzonte — che è testo libero del desk
+ * («Pricing / posizionamento», non «pricing»). Si confronta sul prefisso
+ * normalizzato, che è l'unica cosa stabile fra le due forme.
+ */
+function pilastroDaChiave(
+  horizon: MacroHorizon,
+  chiave: string | null | undefined,
+): string | undefined {
+  const c = chiave?.trim().toLowerCase();
+  if (!c) return undefined;
+  const trovato = horizon.pillars.find((p) => p.k.trim().toLowerCase().startsWith(c));
+  return trovato?.k;
+}
+
+/** Testo confrontabile: senza accenti di punteggiatura, spazi e maiuscole. */
+export function normalizzaFrase(testo: string): string {
+  return testo
+    .toLowerCase()
+    .replace(/[«»"'`.,;:!?()\[\]—–-]/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+/**
+ * Due testi dicono la stessa cosa? Vero anche quando uno contiene l'altro:
+ * il caso reale è una nota di pilastro lunga che finisce con esattamente la
+ * frase del `confMotivo`. Sotto i 25 caratteri non si giudica: frammenti
+ * corti si contengono per caso.
+ */
+export function stessaFrase(a: string | undefined, b: string | undefined): boolean {
+  if (!a || !b) return false;
+  const x = normalizzaFrase(a);
+  const y = normalizzaFrase(b);
+  if (x.length < 25 || y.length < 25) return x === y;
+  return x === y || x.includes(y) || y.includes(x);
+}
+
+/**
+ * La nota di un pilastro senza la frase che è già stampata come motivo.
+ * Serve a mantenere la promessa «un solo posto per quella frase, mai due»:
+ * la frase vive accanto al numero che spiega, e sparisce dalla striscia.
+ * Se non resta niente, torna `undefined` e il pilastro mostra solo segno e
+ * nome — che è comunque tutto ciò che la striscia deve dire a colpo d'occhio.
+ */
+export function notaSenzaMotivo(
+  nota: string | undefined,
+  motivo: string | undefined,
+): string | undefined {
+  if (!nota || !motivo) return nota;
+  const bersaglio = normalizzaFrase(motivo);
+  if (bersaglio.length < 25) return nota;
+
+  const frasi = nota.split(/(?<=[.;!?])\s+/);
+  const restanti = frasi.filter((f) => {
+    const n = normalizzaFrase(f);
+    return !(n === bersaglio || n.includes(bersaglio) || bersaglio.includes(n));
+  });
+  if (restanti.length === frasi.length) return nota; // niente da togliere
+  const fuori = restanti.join(" ").trim();
+  return fuori === "" ? undefined : fuori;
 }
 
 export interface LetturaConfidenza {
@@ -209,7 +284,20 @@ export function letturaConfidenza(
 
   const dichiarato = monitor?.confMotivo?.trim() || horizon.confMotivo?.trim();
   const motivi: MotivoConfidenza[] = dichiarato
-    ? [{ testo: dichiarato, fonte: "dichiarato" }]
+    ? [
+        {
+          testo: dichiarato,
+          fonte: "dichiarato",
+          /* L'ANCORAGGIO. `confPilastro` è la via esatta, ed è quella che il
+             generatore manda da oggi; senza, si cerca il pilastro la cui nota
+             contiene la stessa frase — che è come l'euristica ha sempre fatto,
+             e vale come ripiego. Se non si trova nulla il motivo resta senza
+             ancora: meglio nessuna etichetta che una sbagliata. */
+          pilastro:
+            pilastroDaChiave(horizon, monitor?.confPilastro ?? horizon.confPilastro) ??
+            horizon.pillars.find((p) => stessaFrase(p.note, dichiarato))?.k,
+        },
+      ]
     : /* Senza scostamento l'euristica può fare da ripiego; con uno scostamento
          no, per la ragione spiegata sopra. */
       scostamento === undefined

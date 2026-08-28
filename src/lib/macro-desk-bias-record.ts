@@ -230,6 +230,8 @@ export interface AssetMonitor {
   confidenceOggi: number | null;
   /** Perché la lettura di oggi è quella che è: dichiarato, non dedotto. */
   confMotivo: string | null;
+  /** A quale pilastro si riferisce `confMotivo`: ancoraggio esatto. */
+  confPilastro: string | null;
 }
 
 export function parseMonitor(value: unknown): AssetMonitor[] {
@@ -245,6 +247,7 @@ export function parseMonitor(value: unknown): AssetMonitor[] {
       note: str(raw.note),
       confidenceOggi: num(raw.confidenceOggi),
       confMotivo: str(raw.confMotivo),
+      confPilastro: str(raw.confPilastro),
     });
   }
   return out;

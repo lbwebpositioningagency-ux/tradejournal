@@ -80,8 +80,24 @@ function monitorPerAsset(monitor: unknown): Record<string, MonitorConfidenza> {
   for (const [idPayload, chiave] of Object.entries(CHIAVE_MONITOR)) {
     const m = perChiave.get(chiave);
     if (!m) continue;
-    if (m.confidenceOggi === null && m.confMotivo === null) continue;
-    fuori[idPayload] = { confidenceOggi: m.confidenceOggi, confMotivo: m.confMotivo };
+    /* `state` e `note` bastano da soli a giustificare il passaggio: sono la
+       riga «cosa è successo oggi», che i report portano da agosto e che fino
+       al 28/08 non compariva in nessuna pagina. */
+    if (
+      m.confidenceOggi === null &&
+      m.confMotivo === null &&
+      m.state === null &&
+      m.note === null
+    ) {
+      continue;
+    }
+    fuori[idPayload] = {
+      confidenceOggi: m.confidenceOggi,
+      confMotivo: m.confMotivo,
+      confPilastro: m.confPilastro,
+      state: m.state,
+      note: m.note,
+    };
   }
   return fuori;
 }

@@ -110,3 +110,26 @@ quei titoli ci sono davvero. Il rilievo sarebbe scattato il giorno in cui il rep
 arrivò — allora l'alias non esisteva — ed è quello il momento in cui serviva. Oggi quel
 controllo sorveglia il prossimo nome di campo che nessuno ha ancora immaginato, che è
 esattamente il suo mestiere.
+
+## Il confine si allarga, la sentinella se ne fa carico (28/08/2026, sera)
+
+Messo alla prova con nove forme plausibili di `monitor`, il confine Zod ne rifiutava
+**cinque** — fra cui un `confMotivo: null`, cioè il modo più naturale di scrivere «qui
+non c'è motivo», visto che `.optional()` in Zod non accetta `null`. Un rifiuto qui
+perde il report del giorno.
+
+Lo schema è stato ripassato per intero con un metro solo: **si rifiuta solo
+l'indecidibile**. `null` per un campo facoltativo è «assente»; `"44"` è 44; `44,5` si
+arrotonda; `daily` è `DAILY`. Restano rifiutati `reportDate` non collocabile,
+`generatedAt` senza fuso, un asset mancante, un bias inventato, il `payload` assente.
+
+Il pezzo che rende sicuro allargare è proprio questa sentinella: ciò che passa ma
+insospettisce non viene zittito, viene **segnalato**. Da qui il sesto controllo, che
+è la contropartita esatta di una regola tolta al confine:
+
+| # | Controllo | Rilievo |
+|---|---|---|
+| 6 | `confidence` fuori dalla scala dichiarata 0-100 | `assets[gold].weekly.confidence: 105 è fuori dalla scala dichiarata 0-100` |
+
+Prima quel valore produceva un 400 e il report spariva; ora entra, si vede, e chi
+spedisce lo legge nella risposta.

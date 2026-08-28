@@ -245,16 +245,20 @@ describe("tab Asset — i due numeri della confidenza", () => {
       />,
     );
     expect(html).toContain("impegno di domenica");
-    expect(html).toContain("55/100");
     expect(html).toContain("lettura di oggi");
     expect(html).toContain("48/100");
     expect(html).toContain("−7"); // il delta, col segno
-    // le fasce sono dell'app: 55 → Media, 48 → Media-bassa
+    /* La fascia sta SOLO sul numero di oggi: l'impegno è l'ancora storica.
+       48 → «Media-bassa»; il «Media» che spetterebbe a 55 non compare. */
     expect(html).toContain("Media-bassa");
-    expect(html).toContain(">Media<");
+    expect(html).not.toContain(">Media<");
+    expect(html).toContain(">55<"); // l'impegno resta, nudo
+    expect(html).not.toContain("55/100");
     expect(html).not.toContain(">Bassa<"); // il confLabel del payload resta fuori
-    // la riga che impedisce di leggere il secondo numero come una correzione
-    expect(html).toContain("non una corretta e una sbagliata");
+    /* La didascalia NON è più dentro la card: si dice una volta sola in testa
+       al tab, e infatti qui sopra c'è (AssetsTab la rende). */
+    expect(html).toContain("Le due confidenze");
+    expect(html.indexOf("Le due confidenze")).toBeLessThan(html.indexOf("XAUUSD"));
     // campo dichiarato: niente avvertenza da euristica, e mai le due insieme
     expect(html).toContain("Motivo dichiarato");
     expect(html).toContain("evento binario oggi: lettura sospesa");
@@ -290,7 +294,7 @@ describe("tab Asset — i due numeri della confidenza", () => {
         monitor={{ gold: { confidenceOggi: 48 } }}
       />,
     );
-    expect(html).toContain("55/100");
+    expect(html).toContain(">55<");
     expect(html).toContain("48/100");
     expect(html).toContain("−7");
     expect(html).toContain("Scostamento non motivato");
@@ -328,6 +332,77 @@ describe("tab Asset — i due numeri della confidenza", () => {
     const html = renderToStaticMarkup(<AssetsTab payload={full} natura="monitorato" />);
     expect(html).toContain("Trimestrale · regime di fondo");
     expect(html).not.toContain("confidenza 55/100");
+  });
+
+  it("la didascalia delle due confidenze si dice UNA volta, e solo se serve", () => {
+    /* Prima stava dentro ogni card con uno scostamento: tre volte per report,
+       identica. Ora è una riga sola in testa al tab — e senza scostamenti non
+       c'è affatto, perché spiegherebbe una cosa che in pagina non si vede. */
+    const conDue = renderToStaticMarkup(
+      <AssetsTab
+        payload={conDivergenza}
+        natura="monitorato"
+        monitor={{ gold: { confidenceOggi: 48, confMotivo: "x" } }}
+      />,
+    );
+    expect((conDue.match(/Le due confidenze/g) ?? []).length).toBe(1);
+
+    const senzaDue = renderToStaticMarkup(
+      <AssetsTab payload={conDivergenza} natura="monitorato" />,
+    );
+    expect(senzaDue).not.toContain("Le due confidenze");
+  });
+
+  it("il motivo dichiarato è ancorato al suo pilastro via confPilastro", () => {
+    const p = parseMacroPayload({
+      assets: [
+        {
+          id: "gold",
+          name: "Oro",
+          weekly: {
+            biasLabel: "RIALZISTA",
+            confidence: 55,
+            confMotivo: "keynote binario oggi: la lettura vale meno",
+            confPilastro: "eventi",
+            pillars: [
+              { k: "Regime", dir: "up", note: "Stagflation-lite pro-oro." },
+              { k: "Eventi", dir: "fl", note: "Keynote a Jackson Hole oggi." },
+            ],
+          },
+        },
+      ],
+    });
+    const html = renderToStaticMarkup(<AssetsTab payload={p} natura="emesso" />);
+    expect(html).toContain("Motivo dichiarato");
+    // l'ancora: il nome del pilastro immediatamente prima della frase
+    expect(html).toContain(">Eventi · </span>«keynote binario oggi");
+  });
+
+  it("la frase del motivo non si stampa due volte: sparisce dalla striscia", () => {
+    const frase = "Evento binario in agenda: confidence limitata a prescindere.";
+    const p = parseMacroPayload({
+      assets: [
+        {
+          id: "gold",
+          name: "Oro",
+          weekly: {
+            biasLabel: "RIALZISTA",
+            confidence: 55,
+            confMotivo: frase,
+            confPilastro: "eventi",
+            pillars: [
+              { k: "Regime", dir: "up", note: "Reali in calo." },
+              { k: "Eventi", dir: "fl", note: `Warsh parla oggi. ${frase}` },
+            ],
+          },
+        },
+      ],
+    });
+    const html = renderToStaticMarkup(<AssetsTab payload={p} natura="emesso" />);
+    expect((html.match(/confidence limitata a prescindere/g) ?? []).length).toBe(1);
+    // il resto della nota resta dov'era
+    expect(html).toContain("Warsh parla oggi.");
+    expect(html).toContain("Reali in calo.");
   });
 
   it("il campo dichiarato ha la precedenza sull'euristica, che resta un ripiego", () => {

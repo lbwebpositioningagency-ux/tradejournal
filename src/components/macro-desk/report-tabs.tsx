@@ -17,6 +17,8 @@ import {
 } from "@/lib/macro-desk-payload";
 import {
   letturaConfidenza,
+  notaSenzaMotivo,
+  stessaFrase,
   unanimitaControBiasNeutro,
   SEGNO_LABEL,
   type MonitorConfidenza,
@@ -156,12 +158,25 @@ const BIAS_GLIFO: Record<MacroTone, string> = { up: "▲", down: "▼", flat: "�
  * Tripla codifica del segno (glifo + parola + colore) perché sia leggibile
  * senza colore: la parola «rialzista/ribassista/neutro» è testo, non stile.
  */
-function StrisciaPilastri({ horizon }: { horizon: MacroHorizon }) {
+function StrisciaPilastri({
+  horizon,
+  motivo,
+}: {
+  horizon: MacroHorizon;
+  /** La frase gia' stampata come motivo: qui non si ripete. */
+  motivo?: string;
+}) {
   if (horizon.pillars.length === 0) return null;
   return (
     <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-4">
       {horizon.pillars.map((pillar) => {
         const tone = dirTone(pillar.dir);
+        /* UN SOLO POSTO PER QUELLA FRASE. Il motivo vive accanto al numero che
+           spiega; se la nota del pilastro contiene la stessa frase, qui la si
+           toglie invece di stamparla due volte a otto righe di distanza. Se
+           non resta altro, il pilastro mostra solo nome e segno — che e' tutto
+           cio' che la striscia deve dire a colpo d'occhio. */
+        const nota = notaSenzaMotivo(pillar.note, motivo);
         const muted = tone === "flat";
         const colore = muted ? "var(--md-muted)" : TONE_COLOR[tone];
         return (
@@ -186,9 +201,9 @@ function StrisciaPilastri({ horizon }: { horizon: MacroHorizon }) {
                 </span>
               </span>
             </div>
-            {pillar.note ? (
+            {nota ? (
               <p className="mt-1.5 text-2xs leading-relaxed text-[var(--md-muted)]">
-                {pillar.note}
+                {nota}
               </p>
             ) : null}
           </div>
@@ -275,36 +290,34 @@ function BloccoConfidenza({
             </span>
           </p>
         ) : (
-          <>
-            <p className="flex flex-wrap items-baseline gap-x-2 gap-y-1">
-              <span className="text-2xs text-[var(--md-muted)]">
-                impegno di domenica
-              </span>
-              <Punteggio valore={impegno} fascia={fasciaImpegno} />
-              <span className="text-[var(--md-muted)]" aria-hidden>
-                →
-              </span>
-              <span className="text-2xs text-[var(--md-muted)]">lettura di oggi</span>
-              <Punteggio valore={oggi} fascia={fasciaOggi!} forte />
-              <span
-                className="md-mono rounded-[var(--md-r-sm)] px-1.5 py-0.5 text-2xs font-bold"
-                style={{
-                  color: delta! > 0 ? "var(--md-up)" : "var(--md-down)",
-                  backgroundColor: "var(--md-surface-3)",
-                }}
-              >
-                {delta! > 0 ? "+" : "−"}
-                {Math.abs(delta!)}
-              </span>
-            </p>
-            {/* La riga che impedisce la lettura sbagliata: senza, il secondo
-                numero sembra la correzione di un errore nel primo. */}
-            <p className="text-2xs leading-relaxed text-[var(--md-muted)]">
-              Due misure, non una corretta e una sbagliata: l&apos;impegno è
-              dichiarato la domenica e resta fermo tutta la settimana, la
-              lettura di oggi dice quanto il desk si fida di quel bias adesso.
-            </p>
-          </>
+          /* La fascia sta SOLO sul numero di oggi: l'impegno è l'ancora
+             storica, la lettura di oggi è quella viva. Due fasce sulla stessa
+             riga facevano cinque elementi dove ne bastano tre.
+             La didascalia che spiega le due misure non è qui: si dice una
+             volta sola in testa al tab, sopra le tre card. */
+          <p className="flex flex-wrap items-baseline gap-x-2 gap-y-1">
+            <span className="text-2xs text-[var(--md-muted)]">
+              impegno di domenica
+            </span>
+            <span className="md-mono text-sm font-bold text-[var(--md-text-2)]">
+              {impegno}
+            </span>
+            <span className="text-[var(--md-muted)]" aria-hidden>
+              →
+            </span>
+            <span className="text-2xs text-[var(--md-muted)]">lettura di oggi</span>
+            <Punteggio valore={oggi} fascia={fasciaOggi!} forte />
+            <span
+              className="md-mono rounded-[var(--md-r-sm)] px-1.5 py-0.5 text-2xs font-bold"
+              style={{
+                color: delta! > 0 ? "var(--md-up)" : "var(--md-down)",
+                backgroundColor: "var(--md-surface-3)",
+              }}
+            >
+              {delta! > 0 ? "+" : "−"}
+              {Math.abs(delta!)}
+            </span>
+          </p>
         )}
       </div>
 
@@ -344,6 +357,9 @@ function BloccoConfidenza({
         >
           {stimato ? "Motivo riconosciuto nel testo" : "Motivo dichiarato"}
         </p>
+        {/* L'ANCORAGGIO. Il pilastro c'è per l'estratto (viene da lì) e ora
+            anche per il dichiarato, via `confPilastro`: dice da quale delle
+            quattro forze arriva il taglio, che è metà dell'informazione. */}
         {motivi.slice(0, 2).map((motivo, i) => (
           <p
             key={`${motivo.pilastro ?? "dichiarato"}-${i}`}
@@ -396,6 +412,64 @@ function NotaUnanimita({ horizon }: { horizon: MacroHorizon }) {
   );
 }
 
+/** Colore dello stato del monitoraggio: conferma verde, stress rosso, resto ambra. */
+const COLORE_STATO: Record<string, string> = {
+  conferma: "var(--md-up)",
+  stress: "var(--md-down)",
+  indebolisce: "var(--md-warn)",
+};
+
+/**
+ * CHE COSA È SUCCESSO OGGI — `monitor.state` + `monitor.note`.
+ *
+ * Due campi che finora non comparivano in pagina pur essendo in archivio da
+ * agosto, e sono le righe più concrete che il report scriva: «Oro sui massimi
+ * ~3 mesi; PCE core in linea ha ridotto le odds di rialzo Fed a ~34%».
+ *
+ * Sta in cima alla lettura settimanale, subito sotto il bias, perché è il
+ * fatto del giorno e va letto prima delle forze che lo spiegano.
+ *
+ * COMPITI DISTINTI, e la card li tiene distinti: `note` dice che cosa è
+ * successo, `confMotivo` perché la fiducia si è mossa. Quando però dicono la
+ * stessa cosa — e capiterà, sono scritte dallo stesso generatore nello stesso
+ * momento — se ne stampa UNA sola: qui sparisce la nota, perché il motivo è
+ * ancorato al numero che spiega e senza di esso quel numero resterebbe muto.
+ */
+function NotaDelGiorno({
+  horizon,
+  monitor,
+}: {
+  horizon: MacroHorizon;
+  monitor?: MonitorConfidenza;
+}) {
+  const nota = monitor?.note?.trim();
+  const stato = monitor?.state?.trim().toLowerCase();
+  if (!nota && !stato) return null;
+
+  const motivo = letturaConfidenza(horizon, monitor)?.motivi[0]?.testo;
+  if (nota && stessaFrase(nota, motivo)) return null;
+
+  return (
+    <p
+      className="flex flex-wrap items-baseline gap-x-2 gap-y-1 rounded-[var(--md-r-sm)] border-l-2 pl-2.5 text-xs leading-relaxed text-[var(--md-text-2)]"
+      style={{ borderColor: stato ? (COLORE_STATO[stato] ?? "var(--md-border)") : "var(--md-border)" }}
+    >
+      <span className="text-2xs font-semibold uppercase tracking-[0.12em] text-[var(--md-muted)]">
+        Oggi
+      </span>
+      {stato ? (
+        <span
+          className="md-mono text-2xs font-bold uppercase"
+          style={{ color: COLORE_STATO[stato] ?? "var(--md-text-2)" }}
+        >
+          {stato}
+        </span>
+      ) : null}
+      {nota ? <span>{nota}</span> : null}
+    </p>
+  );
+}
+
 /** La lettura SETTIMANALE: il blocco principale della card. */
 function LetturaSettimanale({
   horizon,
@@ -407,6 +481,9 @@ function LetturaSettimanale({
   monitor?: MonitorConfidenza;
 }) {
   const tone = biasTone(horizon.biasLabel, horizon.bias);
+  /* Il motivo effettivamente stampato dal blocco confidenza: serve alla
+     striscia per non ripeterlo, e a `NotaDelGiorno` per non fare da eco. */
+  const motivoStampato = letturaConfidenza(horizon, monitor)?.motivi[0]?.testo;
   return (
     <div className="flex flex-col gap-3.5">
       <div className="flex flex-wrap items-center justify-between gap-2">
@@ -430,7 +507,8 @@ function LetturaSettimanale({
         <p className="text-sm text-[var(--md-muted)]">Bias settimanale non dichiarato.</p>
       )}
 
-      <StrisciaPilastri horizon={horizon} />
+      <NotaDelGiorno horizon={horizon} monitor={monitor} />
+      <StrisciaPilastri horizon={horizon} motivo={motivoStampato} />
       <NotaUnanimita horizon={horizon} />
       <BloccoConfidenza horizon={horizon} monitor={monitor} />
 
@@ -619,6 +697,14 @@ export function AssetsTab({
 }) {
   const { assets, synthesis, volPanel } = payload;
   const pills = synthesis?.pills ?? [];
+  /* Quanti asset mostrano DAVVERO due numeri: la didascalia si stampa solo
+     allora, e una volta sola. Si chiede alla stessa funzione che poi decide
+     nella card, così le due cose non possono dissentire. */
+  const scostamenti = assets.filter((a) => {
+    if (!a.weekly) return false;
+    const l = letturaConfidenza(a.weekly, a.id ? monitor?.[a.id] : undefined);
+    return l?.oggi !== undefined;
+  }).length;
   // I critici li rende la shell in testa alla pagina: qui restano gli altri.
   const riserve = payload.dataIssues.filter((issue) => !isCriticalIssue(issue.sev));
 
@@ -639,6 +725,29 @@ export function AssetsTab({
             ))}
           </div>
         </div>
+      ) : null}
+
+      {/* LA DIDASCALIA DELLE DUE MISURE, una volta sola per report.
+          Prima stava dentro ogni card che avesse uno scostamento: identica per
+          oro, petrolio e indici, identica ogni giorno. Una definizione ripetuta
+          tre volte non è enfasi, è arredamento — e l'arredamento insegna a
+          saltare la zona in cui vive. Compare solo se almeno un asset ha
+          davvero due numeri diversi: altrimenti spiegherebbe una cosa che in
+          pagina non c'è. */}
+      {scostamenti > 0 ? (
+        <p
+          className="md-fade border-l-2 pl-3 text-xs leading-relaxed text-[var(--md-muted)]"
+          style={{ ...fade(1), borderColor: "var(--md-border)" }}
+        >
+          <span className="mr-1.5 font-semibold uppercase tracking-wider text-[var(--md-text-2)]">
+            Le due confidenze
+          </span>
+          Dove trovi due numeri non ce n&apos;è uno corretto e uno sbagliato:
+          l&apos;<strong className="font-semibold">impegno di domenica</strong> è
+          dichiarato all&apos;apertura della settimana e resta fermo, la{" "}
+          <strong className="font-semibold">lettura di oggi</strong> dice quanto
+          il desk si fida di quel bias adesso.
+        </p>
       ) : null}
 
       {synthesis?.conclusion ? (

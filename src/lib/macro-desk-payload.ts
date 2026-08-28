@@ -27,6 +27,12 @@ export interface MacroHorizon {
    */
   confMotivo?: string;
   /**
+   * A quale pilastro si riferisce `confMotivo` (`eventi` | `pricing` |
+   * `regime` | `tattico`). Serve ad ancorare la frase in un posto solo invece
+   * di stamparla due volte, una nella striscia e una sotto il numero.
+   */
+  confPilastro?: string;
+  /**
    * L'etichetta qualitativa che ARRIVAVA nel payload. Si legge ancora per non
    * perdere dato, ma NON si mostra: non era funzione di `confidence` (51 valeva
    * «Bassa» il 27/08 e «Media» il 28/08 sullo stesso asset). In pagina va la
@@ -220,6 +226,7 @@ function parseHorizon(raw: unknown): MacroHorizon | undefined {
     biasLabel: str(o.biasLabel),
     confidence: num(o.confidence),
     confMotivo: str(o.confMotivo),
+    confPilastro: str(o.confPilastro),
     confLabel: str(o.confLabel),
     since: str(o.since),
     pillars: arr(o.pillars).flatMap((p) => {
