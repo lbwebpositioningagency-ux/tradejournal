@@ -2,12 +2,11 @@ import { describe, expect, it } from "vitest";
 import type { FredObservation } from "@/lib/fred";
 import {
   computeSeriesMetrics,
-  cycleMetric,
+  levelZMetric,
   linearSlope,
   MIN_HISTORY_SAMPLES,
   percentileAllHistory,
   periodChanges,
-  prevailingLabel,
   slopeNoiseFactor,
   stdDev,
   TREND_WINDOW,
@@ -220,141 +219,50 @@ describe("percentileAllHistory", () => {
   });
 });
 
-describe("cycleMetric", () => {
+describe("levelZMetric", () => {
   // Storia bilanciata attorno a 0 con ultimo valore sopra/sotto la media.
   const base = Array.from({ length: 30 }, (_, i) => (i % 2 === 0 ? -1 : 1));
 
-  it("quadranti: sopra+salita espansione · sopra+discesa rallentamento", () => {
+  it("sopra la media del regime → z positivo; sotto → negativo", () => {
+    expect(levelZMetric(monthly([...base, 2]), "up")!).toBeGreaterThan(0);
+    expect(levelZMetric(monthly([...base, -2]), "up")!).toBeLessThan(0);
+  });
+
+  it("goodDirection non inverte il livello: resta il posizionamento grezzo", () => {
+    /* Era il punto delicato quando esisteva il quadrante: la semantica
+       economica invertiva l'etichetta, MAI il numero. Ora che l'etichetta
+       non c'è più, il numero deve restare quello di prima. */
     const obs = monthly([...base, 2]);
-    expect(cycleMetric(obs, 1, "up")?.label).toBe("espansione");
-    expect(cycleMetric(obs, -1, "up")?.label).toBe("rallentamento");
+    expect(levelZMetric(obs, "down")).toBe(levelZMetric(obs, "up"));
   });
 
-  it("quadranti: sotto+discesa contrazione · sotto+salita ripresa", () => {
-    const obs = monthly([...base, -2]);
-    expect(cycleMetric(obs, -1, "up")?.label).toBe("contrazione");
-    expect(cycleMetric(obs, 1, "up")?.label).toBe("ripresa");
-  });
-
-  it("goodDirection down: disoccupazione sintetica alta e in salita → contrazione, non espansione", () => {
-    // Serie stile UNRATE: storia attorno al 4-5%, ultimo valore ben sopra la
-    // media e pendenza positiva. Con la semantica economica invertita il
-    // quadrante è deterioramento (contrazione), mai "espansione" verde.
-    const unemployment = monthly([...base.map((v) => v + 4.5), 6.5]);
-    expect(cycleMetric(unemployment, 1, "down")?.label).toBe("contrazione");
-    // Alta ma in discesa = ripresa; bassa e in discesa = espansione;
-    // bassa ma in risalita = rallentamento (mappa completa del rilievo).
-    expect(cycleMetric(unemployment, -1, "down")?.label).toBe("ripresa");
-    const low = monthly([...base.map((v) => v + 4.5), 3]);
-    expect(cycleMetric(low, -1, "down")?.label).toBe("espansione");
-    expect(cycleMetric(low, 1, "down")?.label).toBe("rallentamento");
-  });
-
-  it("goodDirection down: il levelZ resta il posizionamento statistico grezzo", () => {
-    const obs = monthly([...base, 2]);
-    const up = cycleMetric(obs, 1, "up");
-    const down = cycleMetric(obs, 1, "down");
-    expect(down?.levelZ).toBe(up?.levelZ);
-    expect(down!.levelZ).toBeGreaterThan(0);
-  });
-
-  it("goodDirection neutral (tassi, breakeven): nessun ciclo → non vota", () => {
-    const obs = monthly([...base, 2]);
-    expect(cycleMetric(obs, 1, "neutral")).toBeNull();
+  it("goodDirection neutral (tassi, breakeven): nessun levelZ", () => {
+    /* Esclusione EREDITATA dal quadrante e tenuta di proposito: toglierla
+       farebbe comparire un numero nuovo su nove serie di Tassi & Curva, che
+       non è ciò che questa rimozione deve fare. */
+    expect(levelZMetric(monthly([...base, 2]), "neutral")).toBeNull();
   });
 
   it("serie costante (sd = 0) o corta → null", () => {
-    expect(cycleMetric(monthly(Array(30).fill(4)), 1, "up")).toBeNull();
-    expect(cycleMetric(monthly([1, 2, 3]), 1, "up")).toBeNull();
+    expect(levelZMetric(monthly(Array(30).fill(4)), "up")).toBeNull();
+    expect(levelZMetric(monthly([1, 2, 3]), "up")).toBeNull();
   });
 
   it("Q-04 — il livello si confronta col regime degli ultimi 10 anni, non con l'intera storia", () => {
-    // 20 anni a 10, poi ~10 anni a 2 con ultimo valore 3 (start 1995-01,
-    // 360 osservazioni mensili → ultima 2024-12). Sul regime recente
-    // (finestra 10A: i 2 e il 3 finale) il 3 è ALTO → espansione con
-    // pendenza positiva. Sulla storia intera (media ≈ 7,3) sarebbe stato
-    // "basso" → ripresa: l'etichetta del vecchio full-history era il
-    // confronto con un regime che non esiste più.
+    // 20 anni a 10, poi ~10 anni a 2 con ultimo valore 3. Sul regime recente
+    // (finestra 10A: i 2 e il 3 finale) il 3 è ALTO. Sulla storia intera
+    // (media ≈ 7,3) sarebbe stato basso: il full-history confrontava con un
+    // regime che non esiste più.
     const regime = monthly(
       [...Array(240).fill(10), ...Array(119).fill(2), 3],
       "1995-01",
     );
-    const result = cycleMetric(regime, 1, "up");
-    expect(result?.label).toBe("espansione");
-    expect(result!.levelZ).toBeGreaterThan(0);
+    expect(levelZMetric(regime, "up")!).toBeGreaterThan(0);
   });
 
   it("Q-04 — serie più corta di 10 anni: fallback dichiarato alla storia intera", () => {
-    // 31 osservazioni (~2,6 anni): la finestra 10A coincide con la storia,
-    // il comportamento resta quello dei test dei quadranti qui sopra.
-    const obs = monthly([...base, 2]);
-    expect(cycleMetric(obs, 1, "up")?.label).toBe("espansione");
-  });
-});
-
-describe("prevailingLabel", () => {
-  it("maggioranza netta → winner con conteggi giusti", () => {
-    const res = prevailingLabel([
-      "espansione",
-      "espansione",
-      "ripresa",
-      "espansione",
-      "contrazione",
-    ]);
-    expect(res).toEqual({
-      winner: "espansione",
-      tie: false,
-      count: 3,
-      total: 5,
-    });
-  });
-
-  it("i null (indicatori sotto soglia) non votano", () => {
-    const res = prevailingLabel(["ripresa", null, "ripresa", null]);
-    expect(res).toEqual({ winner: "ripresa", tie: false, count: 2, total: 2 });
-  });
-
-  it("pareggio in testa → winner null e tie=true, mai scelta arbitraria", () => {
-    const res = prevailingLabel(["espansione", "contrazione"]);
-    expect(res.winner).toBeNull();
-    expect(res.tie).toBe(true);
-    expect(res.count).toBe(1);
-    expect(res.total).toBe(2);
-    // Il pareggio 2-2 con un terzo sotto non è "vinto" dal terzo.
-    const res2 = prevailingLabel([
-      "espansione",
-      "espansione",
-      "ripresa",
-      "ripresa",
-      "contrazione",
-    ]);
-    expect(res2.winner).toBeNull();
-    expect(res2.tie).toBe(true);
-    expect(res2.count).toBe(2);
-  });
-
-  it("tutti null o lista vuota → total 0 (pillola N/D)", () => {
-    expect(prevailingLabel([null, null])).toEqual({
-      winner: null,
-      tie: false,
-      count: 0,
-      total: 0,
-    });
-    expect(prevailingLabel([])).toEqual({
-      winner: null,
-      tie: false,
-      count: 0,
-      total: 0,
-    });
-  });
-
-  it("voto singolo → winner con 1 di 1", () => {
-    expect(prevailingLabel(["laterale"])).toEqual({
-      winner: "laterale",
-      tie: false,
-      count: 1,
-      total: 1,
-    });
+    // 31 osservazioni (~2,6 anni): la finestra 10A coincide con la storia.
+    expect(levelZMetric(monthly([...base, 2]), "up")!).toBeGreaterThan(0);
   });
 });
 
@@ -365,46 +273,43 @@ describe("computeSeriesMetrics", () => {
     const m = computeSeriesMetrics(obs, {
       cadence: "monthly",
       deltaMode: "abs",
-      includeCycle: true,
+      includeLevelZ: true,
       goodDirection: "up",
     });
     expect(m.trend).toBe("rialzista");
     expect(m.changes.map((c) => c.label)).toEqual(["MoM", "YoY"]);
     expect(m.percentile).toBe(100);
     expect(m.historyStartYear).toBe("2020");
-    expect(m.cycle).toBe("espansione");
     expect(m.levelZ).toBeGreaterThan(0);
   });
 
-  it("includeCycle=false (Volatilità) → niente ciclo, il resto sì", () => {
+  it("includeLevelZ=false (Volatilità) → niente levelZ, il resto sì", () => {
     const m = computeSeriesMetrics(obs, {
       cadence: "monthly",
       deltaMode: "abs",
-      includeCycle: false,
+      includeLevelZ: false,
       goodDirection: "up",
     });
-    expect(m.cycle).toBeNull();
     expect(m.levelZ).toBeNull();
     expect(m.trend).toBe("rialzista");
     expect(m.percentile).toBe(100);
   });
 
-  it("goodDirection neutral → niente ciclo né levelZ, il resto sì", () => {
+  it("goodDirection neutral → niente levelZ, il resto sì", () => {
     const m = computeSeriesMetrics(obs, {
       cadence: "monthly",
       deltaMode: "abs",
-      includeCycle: true,
+      includeLevelZ: true,
       goodDirection: "neutral",
     });
-    expect(m.cycle).toBeNull();
     expect(m.levelZ).toBeNull();
     expect(m.trend).toBe("rialzista");
   });
 
-  /* IL CANCELLO SUL CICLO: senza un trend dimostrato il quadrante non si
-     assegna, perché il suo asse verticale è il segno di una pendenza che il
-     test ha appena dichiarato indistinguibile da zero. */
-  it("trend laterale → nessun ciclo, ma levelZ resta (è un fatto)", () => {
+  /* Il livello NON dipende dalla pendenza: col trend laterale — cioè quasi
+     sempre, sulle serie macro — il levelZ resta ed è l'unica cosa che questa
+     pagina può dire onestamente sul posizionamento. */
+  it("trend laterale → levelZ resta (è un fatto)", () => {
     /* Serie con rumore attorno a una salita lentissima: la pendenza è
        positiva, il test del trend non la distingue dal rumore. */
     const rumorosa = monthly(
@@ -414,11 +319,10 @@ describe("computeSeriesMetrics", () => {
     const m = computeSeriesMetrics(rumorosa, {
       cadence: "monthly",
       deltaMode: "abs",
-      includeCycle: true,
+      includeLevelZ: true,
       goodDirection: "up",
     });
     expect(m.trend).toBe("laterale");
-    expect(m.cycle).toBeNull();
     expect(m.levelZ).not.toBeNull();
   });
 
@@ -426,13 +330,13 @@ describe("computeSeriesMetrics", () => {
     const m = computeSeriesMetrics([], {
       cadence: "daily",
       deltaMode: "abs",
-      includeCycle: true,
+      includeLevelZ: true,
       goodDirection: "up",
     });
     expect(m.trend).toBeNull();
     expect(m.percentile).toBeNull();
     expect(m.historyStartYear).toBeNull();
-    expect(m.cycle).toBeNull();
+    expect(m.levelZ).toBeNull();
     expect(m.changes.every((c) => c.value === null)).toBe(true);
   });
 });

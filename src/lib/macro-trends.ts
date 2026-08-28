@@ -100,11 +100,13 @@ async function buildSeriesView(def: TrendsSeriesDef): Promise<TrendsSeriesView> 
   const nowDays = dateKeyToDays(new Date().toISOString().slice(0, 10));
 
   // Layer calcolato sulla serie trasformata COMPLETA (orizzonte Max, già
-  // scaricata): niente ciclo per la Volatilità, dove l'etichetta non ha senso.
+  // scaricata). L'esclusione della Volatilità da `levelZ` è EREDITATA da
+  // quando lì si escludeva il ciclo: tenuta per non cambiare ciò che la
+  // sezione mostra oggi (v. `levelZMetric`).
   const rawMetrics = computeSeriesMetrics(transformed, {
     cadence: def.cadence,
     deltaMode: def.deltaMode,
-    includeCycle: def.section !== "volatilita",
+    includeLevelZ: def.section !== "volatilita",
     goodDirection: def.goodDirection,
   });
   const metrics: SeriesMetrics = {

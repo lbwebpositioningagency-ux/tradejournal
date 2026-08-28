@@ -9,12 +9,12 @@ import {
 
 /**
  * Layer calcolato della pagina Trends (FASE 29): trend, variazioni di
- * periodo, percentile storico e posizione nel ciclo. Modulo PURO: lavora
+ * periodo, percentile storico e posizione del livello. Modulo PURO: lavora
  * sulla serie GIÀ trasformata e già scaricata (orizzonte Max) — nessuna
  * chiamata FRED, nessuna interpolazione, aritmetica float da display.
  *
  * Onestà statistica:
- * - percentile e livello del ciclo sono calcolati sulla finestra di regime
+ * - percentile e livello sono calcolati sulla finestra di regime
  *   (CYCLE_LEVEL_YEARS anni), con fallback dichiarato alla storia intera
  *   per le serie corte; la UI dichiara l'anno di partenza;
  * - meno di MIN_HISTORY_SAMPLES osservazioni = metrica assente, mai un
@@ -24,11 +24,6 @@ import {
  */
 
 export type TrendLabel = "rialzista" | "ribassista" | "laterale";
-export type CycleLabel =
-  | "espansione"
-  | "rallentamento"
-  | "contrazione"
-  | "ripresa";
 
 export interface PeriodChange {
   /** "MoM" · "YoY" · "QoQ" · "1S" · "1M" (dalla cadenza della serie). */
@@ -54,10 +49,9 @@ export interface SeriesMetrics {
   percentile: number | null;
   /** Anno della prima osservazione: il "dal ..." dichiarato in UI. */
   historyStartYear: string | null;
-  cycle: CycleLabel | null;
   /**
    * Q-04 — z-score dell'ultimo livello vs finestra di CYCLE_LEVEL_YEARS
-   * anni (asse X del ciclo); fallback alla storia intera se corta.
+   * anni; fallback alla storia intera se corta.
    */
   levelZ: number | null;
 }
@@ -81,7 +75,7 @@ export const TREND_Z_THRESHOLD = 1.645;
  * finestra non raggiunge MIN_HISTORY_SAMPLES variazioni.
  */
 export const TREND_SD_YEARS = 5;
-/** Q-04 — finestra del livello del ciclo: 10 anni è lo standard di lettura. */
+/** Q-04 — finestra del livello: 10 anni è lo standard di lettura. */
 export const CYCLE_LEVEL_YEARS = 10;
 /** Sotto questo numero di campioni le statistiche non si calcolano. */
 export const MIN_HISTORY_SAMPLES = 20;
@@ -149,7 +143,7 @@ export function stdDev(values: number[]): number | null {
 export interface TrendResult {
   label: TrendLabel;
   z: number;
-  /** Pendenza grezza: serve al ciclo come direzione anche quando laterale. */
+  /** Pendenza grezza, nelle unità della serie per passo di osservazione. */
   slope: number;
 }
 
@@ -295,35 +289,33 @@ export function percentileAllHistory(
   return Math.round((atOrBelow / n) * 100);
 }
 
-export interface CycleResult {
-  label: CycleLabel;
-  levelZ: number;
-}
-
 /**
- * POSIZIONE NEL CICLO, a quadranti:
- * asse X = livello vs regime recente (z-score dell'ultimo valore su media e
- * dev. std. degli ultimi CYCLE_LEVEL_YEARS anni, Q-04) · asse Y = direzione (segno della pendenza
- * del TREND). Funzione di sola GEOMETRIA: assegna il quadrante a una coppia
- * (livello, pendenza) e non giudica se quella pendenza sia dimostrata — il
- * cancello che pretende un trend significativo sta in `computeSeriesMetrics`,
- * unico punto che ha entrambe le informazioni.
- * Sopra + salita = espansione · sopra + discesa = rallentamento ·
- * sotto + discesa = contrazione · sotto + salita = ripresa.
+ * POSIZIONE DEL LIVELLO nel proprio regime: z-score dell'ultimo valore su
+ * media e dev. std. degli ultimi CYCLE_LEVEL_YEARS anni (Q-04).
  *
- * `goodDirection` orienta i quadranti sulla semantica ECONOMICA della serie:
- * per le serie dove "giù è buono" (disoccupazione, spread, claims) livello e
- * pendenza vengono invertiti prima di assegnare il quadrante — disoccupazione
- * alta e in salita è contrazione, non "espansione". Le serie neutral (tassi,
- * breakeven…) non hanno un ciclo definibile: null, come la Volatilità — e
- * quindi non votano né nelle pillole di sezione né nel badge generale.
- * `levelZ` resta il posizionamento statistico grezzo (non invertito).
+ * ── COSA C'ERA QUI PRIMA, E PERCHE' NON C'E' PIU' ────────────────────────
+ *
+ * Fino al 28/08/2026 questa funzione assegnava anche un QUADRANTE di ciclo
+ * economico — espansione, rallentamento, contrazione, ripresa — incrociando
+ * questo livello col segno della pendenza del trend. L'etichetta è stata
+ * rimossa: misurata su 105 settimane di dati FRED reali, quattro settori su
+ * nove non l'avevano dichiarata MAI in due anni, altri quattro fra il 2,9% e
+ * l'8,6% delle settimane, e l'unico che parlava spesso cambiava idea 8 volte
+ * su 11. Le misure stanno in docs/macro-desk/CICLO-TRENDS-2026-08-28.md.
+ *
+ * Il livello invece resta, perché è un FATTO e non dipende dalla pendenza:
+ * dove sta il valore di oggi rispetto al proprio decennio.
+ *
+ * Due esclusioni EREDITATE dalla vecchia funzione, tenute per non cambiare
+ * ciò che le pagine mostrano oggi: le serie `neutral` (tassi, breakeven) non
+ * ricevono levelZ, e nemmeno la Volatilità (via `includeLevelZ`). Erano
+ * esclusioni pensate per il quadrante, non per il livello: rivederle è una
+ * decisione a sé, non un effetto collaterale di questa rimozione.
  */
-export function cycleMetric(
+export function levelZMetric(
   observations: FredObservation[],
-  slope: number,
   goodDirection: GoodDirection,
-): CycleResult | null {
+): number | null {
   if (goodDirection === "neutral") return null;
   if (observations.length < MIN_HISTORY_SAMPLES) return null;
   // Q-04 — il livello si confronta con gli ultimi CYCLE_LEVEL_YEARS anni,
@@ -343,106 +335,57 @@ export function cycleMetric(
   let mean = 0;
   for (const v of values) mean += v;
   mean /= values.length;
-  const levelZ = (values[values.length - 1] - mean) / sd;
-  const invert = goodDirection === "down";
-  const above = invert ? levelZ <= 0 : levelZ >= 0;
-  const up = invert ? slope <= 0 : slope >= 0;
-  const label: CycleLabel = above
-    ? up
-      ? "espansione"
-      : "rallentamento"
-    : up
-      ? "ripresa"
-      : "contrazione";
-  return { label, levelZ };
-}
-
-export interface PrevailingResult<T extends string> {
-  /** Etichetta più frequente; null se nessun voto o pareggio. */
-  winner: T | null;
-  /** true = pareggio tra 2+ etichette in testa (mai scelta arbitraria). */
-  tie: boolean;
-  /** Voti dell'etichetta (o delle etichette) in testa. */
-  count: number;
-  /** Voti totali non-null (gli indicatori sotto soglia non votano). */
-  total: number;
-}
-
-/**
- * Etichetta prevalente per le pillole di sezione (FASE 31): conta le
- * etichette non-null e restituisce la più frequente. Pareggio in testa =
- * winner null con tie=true («Misto» in UI); nessun voto = winner null e
- * total 0 («N/D»). Pura: la UI decide solo colori e testi.
- */
-export function prevailingLabel<T extends string>(
-  labels: (T | null)[],
-): PrevailingResult<T> {
-  const counts = new Map<T, number>();
-  let total = 0;
-  for (const label of labels) {
-    if (label === null) continue;
-    total += 1;
-    counts.set(label, (counts.get(label) ?? 0) + 1);
-  }
-  if (total === 0) return { winner: null, tie: false, count: 0, total: 0 };
-  let winner: T | null = null;
-  let best = 0;
-  let tie = false;
-  for (const [label, count] of counts) {
-    if (count > best) {
-      best = count;
-      winner = label;
-      tie = false;
-    } else if (count === best) {
-      tie = true;
-    }
-  }
-  return { winner: tie ? null : winner, tie, count: best, total };
+  return (values[values.length - 1] - mean) / sd;
 }
 
 export interface MetricsOptions {
   cadence: SeriesCadence;
   deltaMode: DeltaMode;
-  /** false per la sezione Volatilità: lì il "ciclo" non ha senso. */
-  includeCycle: boolean;
-  /** Direzione economica della serie: orienta (o esclude) il ciclo. */
+  /** false per la sezione Volatilità (esclusione ereditata: v. `levelZMetric`). */
+  includeLevelZ: boolean;
+  /** Direzione economica della serie: le `neutral` non ricevono levelZ. */
   goodDirection: GoodDirection;
 }
 
 /**
  * Orchestratore: ogni metrica degrada a null per conto suo, mai un crash.
  *
- * IL CANCELLO SUL CICLO (26/08/2026). L'asse verticale del quadrante è il
- * SEGNO della pendenza. Quando il test del trend dice «laterale» quel segno
- * è, per costruzione, indistinguibile da zero: usarlo lo stesso significa
- * far uscire una parola da un lancio di moneta. Misurato su 10 serie FRED e
- * 1.800 istantanee mensili (script di misura, 26/08/2026):
+ * STORIA DEL CICLO, in due tappe, perché spiega cosa NON c'è più qui.
  *
- *   trend laterale       → il quadrante CAMBIA nel 24,4% dei mesi (357/1462)
- *   trend significativo  → il quadrante cambia nell'1,9% dei mesi (4/206)
+ * Il 26/08/2026 l'etichetta di ciclo era stata messa dietro un cancello:
+ * senza una direzione dimostrata niente quadrante, perché col trend laterale
+ * il segno della pendenza è indistinguibile da zero e il quadrante cambiava
+ * nel 24,4% dei mesi contro l'1,9% quando il trend era significativo.
  *
- * Un'etichetta di ciclo economico che salta un mese su quattro non è una
- * lettura di regime, è rumore con un nome sopra — e da qui votava anche
- * nelle pillole di sezione e nel badge «ciclo generale» in cima alla
- * pagina. Quindi: senza direzione dimostrata, nessuna etichetta. Resta
- * `levelZ`, che è un fatto (dove sta il livello rispetto al proprio
- * decennio) e non dipende dalla pendenza.
+ * Il 28/08/2026 l'etichetta è stata TOLTA. Il cancello funzionava — troppo
+ * bene: ricostruite 105 settimane sui dati FRED reali, quattro settori su
+ * nove non hanno mai dichiarato un ciclo in due anni, altri quattro l'hanno
+ * fatto fra il 2,9% e l'8,6% delle settimane, e l'unico che parlava spesso
+ * (Liquidità, 38%) cambiava etichetta 8 volte su 11. Una riga che tace nel
+ * 91-100% dei casi non è informazione degradata: è spazio che insegna a non
+ * guardare. Misure e ragionamento in
+ * docs/macro-desk/CICLO-TRENDS-2026-08-28.md.
  *
- * Conseguenza dichiarata: sulle serie macro il trend è laterale nell'85%
- * delle osservazioni (1532/1800), quindi il ciclo sarà assente il più delle
- * volte. È il prezzo giusto: prima era sempre presente e un quarto delle
- * volte sbagliato di quadrante.
+ * Non è stata ritarata perché il problema non era la soglia: un ciclo
+ * economico si muove su trimestri, e certificarne la direzione su sei
+ * osservazioni è chiedere a un test statistico una cosa che a quel passo non
+ * si vede. Resta `levelZ`, che è un FATTO — dove sta il livello rispetto al
+ * proprio decennio — e non dipende dalla pendenza.
  */
 export function computeSeriesMetrics(
   observations: FredObservation[],
   options: MetricsOptions,
 ): SeriesMetrics {
   const trend = trendMetric(observations);
-  const cycle =
-    options.includeCycle && trend !== null
-      ? cycleMetric(observations, trend.slope, options.goodDirection)
+  /* `trend !== null` è una condizione EREDITATA: prima il livello usciva dal
+     calcolo del quadrante, che serviva la pendenza. Tenuta perché toglierla
+     cambierebbe ciò che vede chi guarda le serie con esattamente 20
+     osservazioni — un effetto collaterale che questa rimozione non deve
+     avere. Rivederla è una decisione a sé. */
+  const levelZ =
+    options.includeLevelZ && trend !== null
+      ? levelZMetric(observations, options.goodDirection)
       : null;
-  const direzioneDimostrata = trend !== null && trend.label !== "laterale";
   return {
     trend: trend?.label ?? null,
     trendZ: trend?.z ?? null,
@@ -454,7 +397,6 @@ export function computeSeriesMetrics(
       percentileAllHistory(observations),
     historyStartYear:
       observations.length > 0 ? observations[0].date.slice(0, 4) : null,
-    cycle: direzioneDimostrata ? (cycle?.label ?? null) : null,
-    levelZ: cycle?.levelZ ?? null,
+    levelZ,
   };
 }

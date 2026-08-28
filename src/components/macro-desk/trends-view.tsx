@@ -16,8 +16,6 @@ import {
 import { HORIZONS, type Horizon } from "@/lib/macro-trends-transforms";
 import type { ComparisonPoint } from "@/lib/macro-trends-transforms";
 import {
-  prevailingLabel,
-  type CycleLabel,
   type SeriesMetrics,
   type TrendLabel,
 } from "@/lib/macro-trends-metrics";
@@ -138,28 +136,18 @@ const TREND_ARROW: Record<TrendLabel, string> = {
   laterale: "→",
 };
 
-const CYCLE_COLOR: Record<CycleLabel, string> = {
-  espansione: "var(--md-up)",
-  rallentamento: "var(--md-warn)",
-  contrazione: "var(--md-down)",
-  ripresa: "var(--md-info)",
-};
-
 /**
- * Riga compatta del layer calcolato (FASE 29): trend, variazioni di
- * periodo e posizione nel ciclo. Il chip del percentile storico è stato
+ * Riga compatta del layer calcolato (FASE 29): trend e variazioni di
+ * periodo. Il chip del percentile storico è stato
  * rimosso ovunque nella FASE 32 (il calcolo resta nel modulo metriche).
  * Chip mono coerenti con la card.
  */
 function MetricsRow({
   metrics,
   def,
-  hideCycle,
 }: {
   metrics: SeriesMetrics;
   def: TrendsSeriesDef;
-  /** Sopprime il chip del ciclo dove l'etichetta non ha senso (es. FX). */
-  hideCycle?: boolean;
 }) {
   const trendColor =
     metrics.trend === null || metrics.trend === "laterale"
@@ -193,11 +181,6 @@ function MetricsRow({
         </MonoChip>
       ))}
 
-      {!hideCycle && metrics.cycle !== null ? (
-        <MonoChip color={CYCLE_COLOR[metrics.cycle]}>
-          ciclo: {metrics.cycle}
-        </MonoChip>
-      ) : null}
     </div>
   );
 }
@@ -271,162 +254,6 @@ function PercentileBars({ percentiles }: { percentiles: SeriesPercentiles }) {
   );
 }
 
-/** Nome breve delle sezioni per le pillole di riepilogo (FASE 31). */
-const SECTION_SHORT: Record<TrendsSectionId, string> = {
-  inflazione: "Inflazione",
-  lavoro: "Lavoro",
-  crescita: "Crescita",
-  consumi: "Consumi",
-  produzione: "Produzione",
-  housing: "Housing",
-  tassi: "Tassi",
-  liquidita: "Liquidità",
-  money: "Money",
-  volatilita: "Vol",
-};
-
-function capitalize(text: string): string {
-  return text.charAt(0).toUpperCase() + text.slice(1);
-}
-
-interface SectionPill {
-  id: TrendsSectionId;
-  short: string;
-  /** Etichetta aggregata: ciclo prevalente, «Misto» o «N/D». */
-  text: string;
-  color: string;
-  /** Dettaglio numerico del conteggio, on-hover. */
-  title: string;
-}
-
-/**
- * Pillola aggregata per sezione: l'etichetta di CICLO più frequente tra
- * gli indicatori con valore calcolato (i null sotto soglia non votano).
- * Pareggio = «Misto» neutro, mai una scelta arbitraria. La Volatilità non
- * ha ciclo (Fase 29): la sua pillola usa il TREND prevalente — lì un trend
- * rialzista della vol è stress, quindi il colore segue quella semantica.
- */
-function buildSectionPill(
-  id: TrendsSectionId,
-  series: TrendsSeriesView[],
-): SectionPill {
-  const short = SECTION_SHORT[id];
-  const isVol = id === "volatilita";
-  const result = isVol
-    ? prevailingLabel(series.map((v) => v.metrics?.trend ?? null))
-    : prevailingLabel(series.map((v) => v.metrics?.cycle ?? null));
-
-  if (result.total === 0) {
-    return {
-      id,
-      short,
-      text: "N/D",
-      color: "var(--md-muted)",
-      title: isVol
-        ? "Nessun indicatore della sezione ha un trend calcolabile"
-        : "Nessun indicatore della sezione ha un trend dimostrato: senza direzione il quadrante del ciclo non si assegna",
-    };
-  }
-  if (result.tie || result.winner === null) {
-    return {
-      id,
-      short,
-      text: "Misto",
-      color: "var(--md-text-2)",
-      title: `Pareggio tra le etichette più frequenti (${result.count} voti a testa su ${result.total} indicatori)`,
-    };
-  }
-  const color = isVol
-    ? result.winner === "rialzista"
-      ? "var(--md-down)"
-      : result.winner === "ribassista"
-        ? "var(--md-up)"
-        : "var(--md-text-2)" // trend laterale della vol: neutro
-    : CYCLE_COLOR[result.winner as CycleLabel];
-  return {
-    id,
-    short,
-    text: capitalize(result.winner),
-    color,
-    title: `${result.count} di ${result.total} indicatori: ${capitalize(result.winner)}`,
-  };
-}
-
-/**
- * Badge «Ciclo generale» (FASE 33, ricomposto in Q-14): il vertice della
- * gerarchia informativa della pagina. Il voto è a DUE STADI: prima
- * l'etichetta di ciclo prevalente per ciascuna sezione economica (le
- * stesse `prevailingLabel` delle pillole), poi la prevalenza FRA le
- * sezioni — «N sezioni su 9», un voto per blocco economico. Il vecchio
- * conteggio flat per serie era pseudo-replicazione: le serie dentro una
- * sezione sono fortemente correlate (headline/core/PCE si muovono
- * insieme) e la sezione più popolata dominava il badge. La Volatilità
- * resta fuori (nessun ciclo, Fase 29); l'esclusione per-serie del Dollaro
- * (Fase 30) è superata dal voto per sezione — al più orienta la pillola
- * di Liquidità, mai il badge da solo. Il tooltip mantiene il dettaglio:
- * sezione per sezione, coi voti delle serie.
- */
-function GeneralCycleBadge({ series }: { series: TrendsSeriesView[] }) {
-  const sections = TRENDS_SECTIONS.filter((s) => s.id !== "volatilita");
-  const perSection = sections.map((section) => ({
-    section,
-    result: prevailingLabel(
-      series
-        .filter((v) => v.def.section === section.id)
-        .map((v) => v.metrics?.cycle ?? null),
-    ),
-  }));
-  const result = prevailingLabel(perSection.map((s) => s.result.winner));
-
-  // Dettaglio per il tooltip: ogni sezione con la sua etichetta e i voti
-  // delle serie che l'hanno prodotta.
-  const breakdown = perSection
-    .map(({ section, result: r }) => {
-      const label =
-        r.total === 0
-          ? "n/d"
-          : r.tie || r.winner === null
-            ? `misto (${r.count} pari su ${r.total})`
-            : `${r.winner} (${r.count} di ${r.total} serie)`;
-      return `${SECTION_SHORT[section.id]}: ${label}`;
-    })
-    .join(" · ");
-
-  let text = "N/D";
-  let color = "var(--md-muted)";
-  let detail =
-    "Nessuna sezione con ciclo: nessun indicatore ha un trend dimostrato";
-  if (result.total > 0) {
-    if (result.tie || result.winner === null) {
-      text = "Misto";
-      color = "var(--md-text-2)";
-      detail = `Pareggio tra le etichette in testa (${result.count} sezioni a testa su ${result.total} con voto, di ${sections.length})`;
-    } else {
-      text = capitalize(result.winner);
-      color = CYCLE_COLOR[result.winner as CycleLabel];
-      detail = `${result.count} di ${result.total} sezioni con voto (su ${sections.length}): ${text}`;
-    }
-  }
-
-  return (
-    <div
-      className="md-card flex flex-wrap items-center gap-x-4 gap-y-1 p-4"
-      style={{ borderLeft: `3px solid ${color}` }}
-      title={`${detail}\n${breakdown}`}
-    >
-      <PanelLabel>Ciclo generale</PanelLabel>
-      <span
-        className="md-mono text-xl font-bold leading-none"
-        style={{ color }}
-      >
-        {text}
-      </span>
-      <span className="text-2xs" style={{ color: "var(--md-muted)" }}>
-        {detail}
-      </span>
-    </div>
-  );
-}
 
 function ComparisonTable({ view }: { view: TrendsSeriesView }) {
   const { comparison } = view;
@@ -625,13 +452,7 @@ function Tile({ view }: { view: TrendsSeriesView }) {
           </p>
           {view.metrics ? (
             <div className="mt-1">
-              <MetricsRow
-                metrics={view.metrics}
-                def={def}
-                /* Il dollaro è un indice FX/di mercato, non una variabile di
-                   ciclo economico: niente etichetta di ciclo in tessera. */
-                hideCycle={def.key === "dollar"}
-              />
+              <MetricsRow metrics={view.metrics} def={def} />
             </div>
           ) : null}
         </>
@@ -645,71 +466,25 @@ function Tile({ view }: { view: TrendsSeriesView }) {
 }
 
 /**
- * P-05 — riepilogo aggregato (badge Ciclo generale + tessere + pillole):
- * somma TUTTE le serie, quindi vive nella sua Suspense alimentata dalla
+ * P-05 — riepilogo aggregato (le tessere di sintesi): somma TUTTE le serie, quindi vive nella sua Suspense alimentata dalla
  * promise dell'insieme — per costruzione è l'ultima a risolvere, mentre
  * le sezioni sotto compaiono man mano. `use()` sospende fino ai dati.
  */
-function TrendsSummary({
-  allSeries,
-  onSelectSection,
-}: {
-  allSeries: Promise<TrendsSeriesView[]>;
-  onSelectSection: (id: TrendsSectionId) => void;
-}) {
+function TrendsSummary({ allSeries }: { allSeries: Promise<TrendsSeriesView[]> }) {
   const series = use(allSeries);
   const byKey = useMemo(
     () => new Map(series.map((s) => [s.def.key, s])),
     [series],
   );
-  // Pillole di riepilogo per sezione (FASE 31): il polso di tutte le
-  // sezioni in una riga, dai valori già calcolati — zero calcoli nuovi.
-  const pills = useMemo(
-    () =>
-      TRENDS_SECTIONS.map((s) =>
-        buildSectionPill(
-          s.id,
-          series.filter((v) => v.def.section === s.id),
-        ),
-      ),
-    [series],
-  );
 
   return (
     <>
-      {/* Ciclo generale: il livello più alto della gerarchia, prima di tutto */}
-      <GeneralCycleBadge series={series} />
-
       {/* Quadro sintetico: i numeri chiave prima del dettaglio */}
       <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 xl:grid-cols-6">
         {TRENDS_TILE_KEYS.map((key) => {
           const view = byKey.get(key);
           return view ? <Tile key={key} view={view} /> : null;
         })}
-      </div>
-
-      {/* Pillole per sezione: etichetta aggregata prevalente, click = jump al tab */}
-      <div
-        role="group"
-        aria-label="Riepilogo sezioni"
-        className="flex flex-wrap gap-1.5"
-      >
-        {pills.map((pill) => (
-          <button
-            key={pill.id}
-            type="button"
-            onClick={() => onSelectSection(pill.id)}
-            title={pill.title}
-            className="md-mono flex items-center gap-1.5 rounded-[var(--md-r-sm)] border px-2 py-1 text-2xs font-semibold transition-colors hover:brightness-110"
-            style={{
-              borderColor: "var(--md-border)",
-              backgroundColor: "var(--md-surface-2)",
-            }}
-          >
-            <span style={{ color: "var(--md-muted)" }}>{pill.short}</span>
-            <span style={{ color: pill.color }}>{pill.text}</span>
-          </button>
-        ))}
       </div>
     </>
   );
@@ -719,15 +494,6 @@ function TrendsSummary({
 function TrendsSummaryFallback() {
   return (
     <>
-      <div
-        className="md-card flex items-center gap-4 p-4"
-        style={{ borderLeft: "3px solid var(--md-border)" }}
-      >
-        <PanelLabel>Ciclo generale</PanelLabel>
-        <span className="text-2xs" style={{ color: "var(--md-muted)" }}>
-          In attesa di tutte le serie…
-        </span>
-      </div>
       <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 xl:grid-cols-6">
         {Array.from({ length: 6 }, (_, i) => (
           <div
@@ -866,7 +632,7 @@ export function TrendsView({
       {/* P-05 — l'aggregato somma TUTTE le serie: ultima Suspense a
           risolvere, mentre le sezioni sotto arrivano appena pronte. */}
       <Suspense fallback={<TrendsSummaryFallback />}>
-        <TrendsSummary allSeries={allSeries} onSelectSection={setSection} />
+        <TrendsSummary allSeries={allSeries} />
       </Suspense>
 
       {/* Sub-nav sezioni + orizzonte condiviso */}
@@ -948,13 +714,6 @@ export function TrendsView({
       <p className="text-2xs" style={{ color: "var(--md-muted)" }}>
         Bande grigie = recessioni NBER (USREC). Orizzonte {horizon}: il cambio
         filtra i dati già scaricati, nessuna nuova richiesta.
-      </p>
-      <p className="text-2xs" style={{ color: "var(--md-muted)" }}>
-        Il chip «ciclo» compare solo dove il trend è dimostrato: il quadrante
-        ha per asse verticale la direzione, e con un trend laterale quella
-        direzione è indistinguibile dal rumore. Misurato su 1.800 istantanee
-        mensili di 10 serie: col trend laterale il quadrante cambiava nel
-        24,4% dei mesi, col trend significativo nell&apos;1,9%.
       </p>
     </div>
   );
