@@ -1,46 +1,65 @@
 "use client";
 
 import { useState } from "react";
-import type { MacroPayload } from "@/lib/macro-desk-payload";
+import { isCriticalIssue, type MacroPayload } from "@/lib/macro-desk-payload";
 import { cn } from "@/lib/utils";
-import {
-  AssetsTab,
-  EventsTab,
-  HistoryTab,
-  MacroTab,
-  NewsTab,
-  OverviewTab,
-} from "./report-tabs";
+import { AssetsTab, DataIssuesList, NewsTab, type NaturaBias } from "./report-tabs";
 
 /**
- * Shell client del dettaglio report: navigazione a schede sul payload.
- * Il data-loading resta nella pagina server; qui solo stato del tab attivo.
+ * Shell client del dettaglio report: DUE schede, «Asset» e «News».
+ * Il data-loading resta nella pagina server; qui solo lo stato del tab attivo.
  *
- * Volatilità e Driver NON sono più schede: sono sezioni di primo livello del
- * Macro Desk, con fonti e job propri. Lo era anche Posizionamento, rimossa il
- * 27/08/2026 — i dati COT restano e se ne legge una riga nelle schede della
- * Sintesi (v. `docs/macro-desk/VERDETTO-POSIZIONAMENTO.md`). Il payload del
- * report può continuare a contenere `volPanel`: semplicemente non lo si rende
- * più qui, tranne il commento del giorno sulla struttura vol, che è testo
- * scritto da QUESTO report e vive ora in Panoramica.
+ * Fuori dalle schede, perché qualificano l'intero report e non una sezione:
+ *  - il `disclaimer`, sempre visibile. Non è cerimonia: nei report v2 dice
+ *    «report di MONITORAGGIO: il bias non si ricalcola, si verifica», che è
+ *    la chiave per leggere la card senza fraintenderla;
+ *  - i `dataIssues` di severità CRITICA. Gli altri stanno in coda al tab
+ *    Asset, dietro un disclosure chiuso.
+ *
+ * `reportType` e `lastUpdate` del payload non si rendono più: l'intestazione
+ * server della pagina stampa già tipo, data e istante di generazione.
+ *
+ * Volatilità e Driver non sono schede da luglio: sono sezioni di primo livello
+ * del Macro Desk, con fonti e job propri. Lo era anche Posizionamento, rimossa
+ * il 27/08/2026 — i dati COT restano e se ne legge una riga nelle schede della
+ * Sintesi (v. `docs/macro-desk/VERDETTO-POSIZIONAMENTO.md`). Il payload può
+ * continuare a contenere `volPanel`: di quel blocco resta in pagina il solo
+ * commento del giorno, in coda al tab Asset.
  */
 
 const TABS = [
-  { id: "overview", label: "Panoramica" },
   { id: "assets", label: "Asset" },
-  { id: "events", label: "Eventi & Watch" },
-  { id: "macro", label: "Macro" },
   { id: "news", label: "News" },
-  { id: "history", label: "Storico" },
 ] as const;
 
 type TabId = (typeof TABS)[number]["id"];
 
-export function MacroReportDetail({ payload }: { payload: MacroPayload }) {
-  const [active, setActive] = useState<TabId>("overview");
+export function MacroReportDetail({
+  payload,
+  natura,
+}: {
+  payload: MacroPayload;
+  natura: NaturaBias;
+}) {
+  const [active, setActive] = useState<TabId>("assets");
+  const critici = payload.dataIssues.filter((issue) => isCriticalIssue(issue.sev));
 
   return (
     <div className="flex flex-col gap-5 p-4 sm:p-6">
+      {payload.disclaimer ? (
+        <p
+          className="border-l-2 pl-3 text-xs leading-relaxed text-[var(--md-muted)]"
+          style={{ borderColor: "var(--md-border)" }}
+        >
+          <span className="mr-1.5 font-semibold uppercase tracking-wider text-[var(--md-info)]">
+            Disclaimer
+          </span>
+          {payload.disclaimer}
+        </p>
+      ) : null}
+
+      {critici.length > 0 ? <DataIssuesList issues={critici} /> : null}
+
       {/* Barra schede: scrollabile su mobile, mai wrap */}
       <div
         role="tablist"
@@ -81,12 +100,8 @@ export function MacroReportDetail({ payload }: { payload: MacroPayload }) {
 
       {/* Contenuto: key sul tab per rigiocare le animazioni d'ingresso */}
       <div role="tabpanel" key={active}>
-        {active === "overview" ? <OverviewTab payload={payload} /> : null}
-        {active === "assets" ? <AssetsTab payload={payload} /> : null}
-        {active === "events" ? <EventsTab payload={payload} /> : null}
-        {active === "macro" ? <MacroTab payload={payload} /> : null}
+        {active === "assets" ? <AssetsTab payload={payload} natura={natura} /> : null}
         {active === "news" ? <NewsTab payload={payload} /> : null}
-        {active === "history" ? <HistoryTab payload={payload} /> : null}
       </div>
     </div>
   );

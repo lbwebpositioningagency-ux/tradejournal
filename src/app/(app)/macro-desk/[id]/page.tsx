@@ -10,6 +10,7 @@ import { parseMacroPayload } from "@/lib/macro-desk-payload";
 import { cn } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
 import { MacroReportDetail } from "@/components/macro-desk/report-detail";
+import type { NaturaBias } from "@/components/macro-desk/report-tabs";
 
 export const metadata: Metadata = { title: "Report Macro Desk" };
 
@@ -35,6 +36,25 @@ function headerDateLabel(date: Date): string {
     timeZone: "UTC",
   }).format(date);
   return label.charAt(0).toUpperCase() + label.slice(1);
+}
+
+/**
+ * Come QUESTO report tratta il bias settimanale — la card lo dichiara.
+ *
+ * Dallo schema v2 (02/08/2026) il bias è emesso la domenica nel report
+ * settimanale e i giornalieri della settimana lo verificano soltanto: lo
+ * dicono i disclaimer del desk («il run giornaliero non riscrive il bias») e
+ * lo confermano i dati (oro RIALZISTA 60·60·60·62·60 dal 10 al 14 agosto).
+ * I giornalieri v1 lo riemettevano davvero: scrivere «lo verifica, non lo
+ * riemette» sopra un report di luglio sarebbe semplicemente falso, ed è per
+ * questo che la distinzione si fa qui, dove `schemaVersion` è disponibile.
+ */
+function naturaDelBias(
+  type: "DAILY" | "WEEKLY",
+  schemaVersion: number | null,
+): NaturaBias {
+  if (type === "WEEKLY") return "emesso";
+  return (schemaVersion ?? 0) >= 2 ? "monitorato" : "aggiornato";
 }
 
 export default async function MacroReportPage({
@@ -95,7 +115,10 @@ export default async function MacroReportPage({
         )}
         style={{ borderColor: "var(--md-border)" }}
       >
-        <MacroReportDetail payload={payload} />
+        <MacroReportDetail
+          payload={payload}
+          natura={naturaDelBias(report.type, report.schemaVersion)}
+        />
       </div>
     </div>
   );

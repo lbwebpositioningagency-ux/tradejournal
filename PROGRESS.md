@@ -2123,3 +2123,91 @@ pagina servita: settimana densa (7 voci, 2 aree non lette), settimana quieta
 3 settimane cieche col contorno pieno, riga «non dichiarata» simulata
 cancellando a mano un record, 375px senza scorrimento orizzontale, zero errori
 in console. Le settimane sintetiche sono state cancellate a fine lavoro.
+
+---
+
+## 28/08/2026 — Report Macro Desk: due tab, e la card asset che mostra il conflitto
+
+Il dettaglio del report (`/macro-desk/[id]`) passa da sei schede a **due**,
+«Asset» e «News», e la card asset viene ricostruita attorno a ciò che i dati
+reali reggono davvero.
+
+### L'indagine che ha deciso il ridisegno
+
+Misurata su **tutti i 23 report in Neon** (23/07 → 28/08/2026, 18 DAILY + 5
+WEEKLY), sola lettura via Prisma:
+
+- **bias e confidenza NON sono calcolati dall'app**: arrivano già pronti dal
+  task esterno. Nel repo non esiste una formula — solo un clamp 0-100 e la
+  validazione Zod al confine. La colonna `confidenceXau` e
+  `payload.assets[].weekly.confidence` sono **lo stesso numero, 69 confronti
+  su 69**;
+- la confidenza vive in **25 punti**: su 138 osservazioni (69 settimanali + 69
+  trimestrali) il minimo è **41** e il massimo **65**, dev.std ~5. Mai sopra
+  65, mai sotto 35, mai una sola volta;
+- e **non è funzione dei pilastri**: corr(saldo dei segni, confidenza) =
+  **0,06**. Il valore centrale non nasce da una media di estremi che si
+  annullano — non c'è nessuna media — né da fattori tutti tiepidi: la
+  confidenza media più ALTA (53,2) si osserva proprio nel gruppo con pilastri
+  in conflitto, la più bassa (48,1) nel gruppo tiepido;
+- il **motivo** del taglio però esiste, ed è scritto: sta dentro la `note` di
+  un pilastro. «Evento binario in agenda → confidence limitata a prescindere
+  dal resto», «Hedge cari + posizionamento pieno → conviction tagliata».
+
+### Cosa cambia nella card
+
+Un ago che si muove di poco su un numero che varia di poco prometteva una
+misura che il dato non regge: il **gauge semicircolare è stato rimosso**
+(`bias-gauge.tsx` e i keyframe `md-needle` con lui). Al suo posto:
+
+1. il **bias direzionale** grande, con glifo oltre al colore;
+2. la **striscia dei 4 pilastri** — Regime · Pricing/posizionamento · Tattico
+   · Eventi — ognuno col segno in **tripla codifica** (freccia, parola
+   «rialzista/ribassista/neutro», colore), così il conflitto si vede a colpo
+   d'occhio ed è leggibile senza colore;
+3. la **confidenza in secondo piano**, senza barra (una barra sempre a metà
+   binario suggerisce una variabilità che non c'è) e accanto il **motivo
+   dichiarato del taglio**, estratto dalla nota del pilastro con un'euristica
+   dichiarata in pagina (`lib/macro-desk-confidenza.ts`). Aggancia **19
+   orizzonti su 69**, zero falsi positivi sui 23 report: pretende soggetto
+   (confidence/conviction) *e* verbo di riduzione nella stessa frase, così
+   «spread compressi» o «spazio limitato per inseguire» non agganciano. Se non
+   riconosce nulla non inventa: resta il solo numero;
+4. **`confLabel` non si mostra più**: non è funzione di `confidence` — 51
+   valeva «Bassa» il 27/08 e «Media» il 28/08 sullo stesso asset. Torna quando
+   il generatore definirà le fasce;
+5. quando i **pilastri sono concordi ma il bias è NEUTRALE** (5 casi su 69) la
+   card lo **constata** invece di mostrare l'ago al centro senza spiegazione;
+6. **settimanale e trimestrale** sono ora due blocchi con gerarchia diversa, e
+   la card dichiara se il report **emette** il bias (weekly), lo **verifica**
+   (daily v2+, che non lo riemette) o lo **aggiorna** (daily v1).
+
+### I contenuti della Panoramica, ricollocati
+
+Niente è andato perso. `disclaimer` e i `dataIssues` **critici** stanno fuori
+dalle schede, sempre visibili; `synthesis.pills` («il quadro») e il
+`Verdetto` aprono il tab Asset; `synthesis.risks`, la lettura della struttura
+vol (con rimando a `/macro-desk/volatilita`) e le riserve minori dietro un
+disclosure lo chiudono. `reportType` e `lastUpdate` spariscono: duplicavano
+l'intestazione server.
+
+**Rimossi davvero**, con il codice diventato morto: `eventMap`, `watch`,
+`macroTiles`, `macroSections`, `history`. Il perché sta in testa a
+`report-tabs.tsx`. Il **parser resta invariato**: è difensivo e non costa
+nulla.
+
+### Due difetti che nascono a monte, registrati e non nascosti
+
+- `docs/macro-desk/DIVERGENZA-CONFIDENZA-WBR.md` — la confidenza del
+  `biasRecord` (che la Scorecard misura) e quella di `payload.weekly` (che la
+  card mostra) **divergono in 13 casi su 42**, fino a 6 punti. Non
+  riconciliata nel codice: sceglierebbe in silenzio quale fonte è quella buona.
+- il report del **18/08 ha il tab News interamente muto**: tutte e 11 le news
+  usano `t`/`note` invece di `title`/`impl`. Fotografato in
+  `docs/macro-desk-report-2tab/`.
+
+**Verificato:** lint ✅ · typecheck ✅ · **2089 test** ✅ · build di produzione
+✅ · controllo visivo sui report **reali** di produzione (DAILY 28/08 col caso
+dei pilastri unanimi, WEEKLY 16/08, DAILY 18/08 senza verdetto, DAILY v1
+31/07 senza sintesi, più i due tab News) — anteprima e screenshot in
+`docs/macro-desk-report-2tab/`.

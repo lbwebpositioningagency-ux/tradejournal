@@ -496,27 +496,8 @@
   .md-grow {
     animation: none;
   }
-  .md-card-hover,
-  .md-needle {
+  .md-card-hover {
     transition: none;
-  }
-}
-/* Ago del gauge: all'ingresso oscilla da −90° all'angolo del bias
-   (--needle-angle impostata inline dal componente) */
-@keyframes md-needle-swing {
-  from {
-    transform: rotate(-90deg);
-  }
-  to {
-    transform: rotate(var(--needle-angle, 0deg));
-  }
-}
-.md-needle {
-  animation: md-needle-swing 0.9s cubic-bezier(0.34, 1.3, 0.4, 1) both;
-}
-@media (prefers-reduced-motion: reduce) {
-  .md-needle {
-    animation: none;
   }
 }
 /* Il Macro Desk eredita la coppia P&L daltonica scelta in Impostazioni:
