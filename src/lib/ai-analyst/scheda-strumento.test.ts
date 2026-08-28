@@ -68,10 +68,6 @@ function rigaOro(over: Partial<RigaContestoVol> = {}): RigaContestoVol {
       fonteUsata: "Dukascopy",
     },
     realizzata: [{ sedute: 20, annualizzata: 0.1832, n: 20 }],
-    movimento: [
-      { sedute: 20, mediana: 0.0084, q25: 0.0041, q75: 0.0162, massimo: 0.0271, n: 20 },
-      { sedute: 60, mediana: 0.0104, q25: 0.0049, q75: 0.0181, massimo: 0.0338, n: 60 },
-    ],
     escursione: [
       { sedute: 20, mediana: 0.0194, q25: 0.0155, q75: 0.0246, massimo: 0.0361, n: 20, senzaOhlc: 0 },
       { sedute: 60, mediana: 0.0197, q25: 0.0151, q75: 0.0258, massimo: 0.0402, n: 60, senzaOhlc: 0 },
@@ -318,14 +314,6 @@ describe("le righe di contesto", () => {
     expect(r.norma).toContain("più ampia del 61%");
   });
 
-  it("il movimento chiusura-chiusura sta SOTTO l'escursione, e lo dice", () => {
-    const mov = riga("movimento_tipico");
-    const esc = riga("escursione_tipica");
-    expect(mov.oggi).toContain("0,84%");
-    expect(esc.oggi).toContain("1,94%");
-    expect(mov.nota).toContain("torna in pari vale zero qui");
-  });
-
   it("il COT è descrittivo e settimanale, e lo dichiara", () => {
     const r = riga("cot");
     expect(r.oggi).toContain("ALTO");
@@ -508,14 +496,15 @@ describe("le assenze si dichiarano, e il servizio sta in una riga sola", () => {
     );
     const assenti = s.righe.filter((r) => r.assente).map((r) => r.id).sort();
     expect(assenti).toEqual(["ampiezza_attesa", "iv_livello", "iv_vs_realizzata"]);
-    // l'escursione vera e il movimento vengono dal prezzo e restano
+    // l'escursione vera viene dal prezzo e resta
     expect(s.righe.find((r) => r.id === "escursione_tipica")!.assente).toBe(false);
   });
 
   it("la riga di servizio porta copertura, età del dato PIÙ VECCHIO col suo nome, campione e fonti", () => {
     const s = schedaStrumento(ingressiOro());
-    // l'oro ha 8 righe: niente curva a termine, che è del WTI e dell'S&P 500
-    expect(s.servizio).toContain("8 misure su 8");
+    /* L'oro ha 7 righe: niente curva a termine, che è del WTI e dell'S&P 500,
+       e dal 28/08/2026 niente movimento chiusura-chiusura. */
+    expect(s.servizio).toContain("7 misure su 7");
     // «più vecchia 9 gg» senza dire QUALE non è verificabile: il nome c'è
     expect(s.servizio).toMatch(/dato più vecchio: (GVZ|prezzo) del 25\/08 \(2 gg\)/);
     expect(s.servizio).toContain("7.822 sedute con massimo e minimo, di 7.944");
@@ -525,8 +514,8 @@ describe("le assenze si dichiarano, e il servizio sta in una riga sola", () => {
 
   it("la copertura nella riga di servizio conta le righe piene, non le totali", () => {
     const s = schedaStrumento(ingressiOro({ iv: undefined, prezzo: undefined }));
-    expect(s.servizio).toMatch(/^\d misure su 8/);
-    expect(s.servizio).not.toContain("8 misure su 8");
+    expect(s.servizio).toMatch(/^\d misure su 7/);
+    expect(s.servizio).not.toContain("7 misure su 7");
   });
 
   it("la seduta ancora aperta è dichiarata: la sua escursione può solo crescere", () => {

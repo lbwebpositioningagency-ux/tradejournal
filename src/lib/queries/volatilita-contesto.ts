@@ -9,13 +9,11 @@ import {
   escursioneUltimaSeduta,
   etaInGiorni,
   rapportoTermine,
-  movimentoOsservato,
   rangoStorico,
   variazioni,
   volRealizzata,
   type EscursioneOsservata,
   type EscursioneUltimaSeduta,
-  type MovimentoOsservato,
   type PuntoSerie,
   type RapportoTermine,
   type RangoStorico,
@@ -148,8 +146,6 @@ export interface RigaContestoVol {
   prezzo: SerieFatti | null;
   /** Volatilità realizzata a 20 e 60 sedute sul prezzo del sottostante. */
   realizzata: VolRealizzata[];
-  /** Distribuzione del movimento giornaliero osservato, per finestra. */
-  movimento: MovimentoOsservato[];
   /**
    * Distribuzione dell'ESCURSIONE VERA `(high−low)/close`, per finestra.
    * Vuota quando la fonte del sottostante non pubblica high e low — è il caso
@@ -160,7 +156,7 @@ export interface RigaContestoVol {
   escursioneUltima: EscursioneUltimaSeduta | null;
   /** Sedute dell'archivio con high/low, e totali: il campione, dichiarato. */
   coperturaOhlc: { conOhlc: number; totali: number };
-  /** Ultima chiusura del sottostante: serve a rendere il movimento in valuta. */
+  /** Ultima chiusura del sottostante: rende l'escursione nell'unità del prezzo. */
   ultimaChiusura: number | null;
 }
 
@@ -399,9 +395,6 @@ export const getContestoVolatilita = cache(
             realizzata: [20, 60]
               .map((s) => volRealizzata(seriePrezzo, s as 20 | 60))
               .filter((v): v is VolRealizzata => v !== null),
-            movimento: [20, 60]
-              .map((s) => movimentoOsservato(seriePrezzo, s as 20 | 60))
-              .filter((m): m is MovimentoOsservato => m !== null),
             escursione: [20, 60]
               .map((s) => escursioneOsservata(sedutePrezzo, s as 20 | 60))
               .filter((e): e is EscursioneOsservata => e !== null),

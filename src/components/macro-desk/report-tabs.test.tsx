@@ -5,7 +5,6 @@ import { parseMacroPayload } from "@/lib/macro-desk-payload";
 import { REPORT_1808 } from "@/lib/macro-desk-1808.fixture";
 import { AssetsTab, NewsTab } from "./report-tabs";
 import { MacroReportDetail } from "./report-detail";
-import { VolatilitaPanel } from "./volatilita-panel";
 
 /**
  * Rendering dei DUE tab del dettaglio Macro Desk (renderToStaticMarkup, senza
@@ -18,9 +17,9 @@ import { VolatilitaPanel } from "./volatilita-panel";
  * lettura vol) non si siano persi con il tab che li ospitava — è esattamente
  * l'errore che questa riorganizzazione poteva commettere.
  *
- * Volatilità non è più un tab dal 22/07: è la sezione `/macro-desk/volatilita`
- * resa da `VolatilitaPanel`, e i due casi in fondo verificano che la sua resa
- * sia rimasta quella.
+ * Volatilità non è più un tab dal 22/07: è la sezione `/macro-desk/volatilita`,
+ * e la resa del blocco che le arriva dal report è sorvegliata dai casi in
+ * `listino/volatilita.test.tsx`.
  */
 
 const full = parseMacroPayload(sample);
@@ -674,47 +673,5 @@ describe("tab con payload vuoto — degradazione senza crash", () => {
     expect(html).toContain("RIALZISTA");
     expect(html).toContain("Trimestrale · regime di fondo");
     expect(html).not.toContain("Settimanale");
-  });
-});
-
-describe("sezione Volatilità — la resa del blocco che veniva dal report", () => {
-  const vol = full.volPanel;
-  const pannello = () =>
-    renderToStaticMarkup(
-      <VolatilitaPanel
-        items={vol?.items ?? []}
-        reading={vol?.reading}
-        contesto={{
-          righe: [],
-          oggi: "2026-08-25",
-          strutturaTermine: null,
-          strutturaWti: { ok: false, motivo: "front_non_disponibile" },
-          climaCopertura: [],
-        }}
-        giornoReport="2026-07-21"
-      />,
-    );
-
-  it("gli indici con fonte libera NON compaiono piu nel blocco del report", () => {
-    const html = pannello();
-    /* Dal 26/08/2026 VIX, VVIX, SKEW, GVZ e OVX arrivano dal CBOE ogni notte
-       e stanno nel contesto: farli comparire anche qui, col vintage del
-       report, e' cio che il 26/08 metteva sulla stessa pagina un GVZ a 23,92
-       «vintage 14-18 agosto» e un GVZ a 27,69 del 25 agosto. */
-    for (const k of ["VVIX", "SKEW", "GVZ", "OVX"]) {
-      expect(html).not.toContain(`${k} · `);
-    }
-    // Restano le due senza fonte libera, dichiarate anche quando mancano.
-    expect(html).toContain("MOVE");
-    expect(html).toContain("PUT/CALL");
-    expect(html).toContain("VIX1D 13,4"); // reading
-  });
-
-  it("i valori del report sono ETICHETTATI come tali, con la data del report", () => {
-    const html = pannello();
-    expect(html).toContain("dal report del 21/07/2026");
-    expect(html).toContain("Commento del report del 21/07/2026");
-    expect(html).toContain("Le due misure senza fonte pubblica");
-    expect(html).toContain("Prosa scritta dal report giornaliero");
   });
 });

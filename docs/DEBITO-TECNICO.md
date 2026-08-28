@@ -199,7 +199,7 @@ di freschezza, che ora c'e su indice, Report, Scorecard e Volatilita.
 > variante a finestra mobile descritta piu sotto non e mai stata importata, e
 > se un giorno la si volesse, le ragioni per cui la versione a soglia assoluta
 > non reggeva sono scritte qui. I riferimenti ai file cancellati sono storici.
-> Guida alla sezione come e adesso: `docs/macro-desk/GUIDA-VOLATILITA.md`.
+> Guida alla sezione come e adesso: `docs/macro-desk/GUIDA-MACRO-DESK.md`.
 
 **Lavoro di ricerca aperto, non un difetto da correggere in app.**
 

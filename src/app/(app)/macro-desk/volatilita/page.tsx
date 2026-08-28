@@ -5,31 +5,26 @@ import { Inter, JetBrains_Mono } from "next/font/google";
 import { ArrowLeft } from "lucide-react";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/db";
-import { todayKeyInZone } from "@/lib/dates";
+import { todayKeyInZone, formatDateTime } from "@/lib/dates";
 import { getFreschezzaReport } from "@/lib/queries/macro-desk-freschezza";
 import { getVolatilitaData } from "@/lib/queries/volatilita";
 import { getContestoVolatilita } from "@/lib/queries/volatilita-contesto";
+import { getInventariEia } from "@/lib/queries/inventari-eia";
+import { LACUNE_VOL, vociSenzaFonteLibera } from "@/lib/volatilita-report";
 import { BandaFreschezza } from "@/components/macro-desk/banda-freschezza";
 import { cn } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
 import { MacroDeskSectionNav } from "@/components/macro-desk/section-nav";
-import { VolatilitaPanel } from "@/components/macro-desk/volatilita-panel";
-import { ContestoVolatilitaPanel } from "@/components/macro-desk/contesto-volatilita";
 import { GuidaVolatilita } from "@/components/macro-desk/guida-volatilita";
-import {
-  CalendarioEventi,
-  type EventoReso,
-} from "@/components/macro-desk/calendario-eventi";
+import { ListinoVolatilita } from "@/components/macro-desk/listino/volatilita";
 import {
   TRASCRITTO_IL,
   VALIDO_FINO_AL,
   fraQuanto,
   prossimiEventi,
   tabellaValida,
+  type EventoReso,
 } from "@/lib/calendario-macro";
-import { formatDateTime } from "@/lib/dates";
-import { InventariEiaPanel } from "@/components/macro-desk/inventari-eia-panel";
-import { getInventariEia } from "@/lib/queries/inventari-eia";
 
 export const metadata: Metadata = { title: "Volatilità · Macro Desk" };
 
@@ -46,28 +41,21 @@ const fontMono = JetBrains_Mono({
   variable: "--md-font-mono",
 });
 
-function reportDateLabel(date: Date): string {
-  return new Intl.DateTimeFormat("it-IT", {
-    day: "numeric",
-    month: "long",
-    year: "numeric",
-    timeZone: "UTC",
-  }).format(date);
-}
-
 /**
  * Volatilità — sezione di primo livello, e pagina di soli FATTI.
  *
- * Dal 25/08/2026 la sezione non apre più con una classificazione. Apre con i
- * fatti: livello degli indici di volatilità implicita, rango sulla propria
- * storia, variazione a 5/20/60 sedute, implicita contro realizzata, escursione
- * vera e movimento giornaliero osservato — tutto da `SeasonalityDailyBar`, che
- * il cron `seasonality-sync` aggiorna ogni notte da FRED e dal CBOE.
+ * Non c'è NESSUNA classificazione: il termometro di volatilità è stato rimosso
+ * il 27/08/2026 insieme al cancello di validità e al rilevatore di
+ * degenerazione che gli servivano da tutori.
  *
- * Dal 27/08/2026 non c'è più NESSUNA classificazione: il termometro di
- * volatilità è stato rimosso insieme al cancello di validità e al rilevatore
- * di degenerazione che gli servivano da tutori. La guida alla sezione, con la
- * lettura blocco per blocco, è in `docs/macro-desk/GUIDA-VOLATILITA.md`.
+ * Dal 28/08/2026 la resa è quella del «Listino»: un'unica identità visiva per
+ * il desk, tabelle al posto delle schede, spiegazioni dietro l'icona
+ * informativa accanto alla misura che spiegano. Nello stesso giro è stata
+ * tolta l'unica misura: il movimento chiusura-chiusura, che duplicava
+ * l'escursione vera con la grandezza sbagliata (la ragione è scritta per
+ * esteso in `lib/volatilita-fatti.ts`).
+ *
+ * La guida al desk sta in `docs/macro-desk/GUIDA-MACRO-DESK.md`.
  */
 export default async function MacroVolatilitaPage() {
   const session = await auth();
@@ -93,7 +81,7 @@ export default async function MacroVolatilitaPage() {
     fraQuanto: fraQuanto(e.istante, adesso),
   }));
 
-  const [data, freschezza, contesto, inventari] = await Promise.all([
+  const [report, freschezza, contesto, inventari] = await Promise.all([
     getVolatilitaData(),
     getFreschezzaReport(),
     getContestoVolatilita(oggi),
@@ -117,109 +105,49 @@ export default async function MacroVolatilitaPage() {
           </h1>
           <p className="page-subtitle">
             Cosa succede nei prossimi sette giorni, dove sta la volatilità
-            rispetto alla propria storia, quanto si è mossa davvero la giornata
-            e come stanno le scorte di greggio. Misure con fonte, periodo e
-            data — non previsioni.
+            rispetto alla propria storia e quanto si è mossa davvero la
+            giornata. Misure con fonte, periodo e data — non previsioni.
           </p>
         </div>
         <MacroDeskSectionNav active="volatilita" />
       </div>
 
-      {/* Il CONTESTO non dipende dal report; gli indici del report sì, e per
-          quelli il ritardo va dichiarato. */}
       {freschezza ? <BandaFreschezza esito={freschezza} /> : null}
 
-      {/* La guida, chiusa: si legge una volta, i dati si guardano ogni
-          mattina. Sta PRIMA del calendario perché è la sola cosa della pagina
-          che spiega il resto, e dopo la rimozione del termometro c'è di nuovo
-          una sezione che si può spiegare per intero in mezzo schermo. */}
+      {/* UN SOLO CONTENITORE per tutta la sezione, non cinque. I blocchi si
+          separano con un filetto e un titolo, non con cinque riquadri
+          bordati: era il terzo livello di scatola su cui la pagina spendeva
+          la sua altezza. */}
       <div
         className={cn(
-          "macro-report overflow-hidden rounded-[var(--md-r-lg)] border p-4 sm:p-6",
+          "md-listino overflow-hidden border",
           fontUi.variable,
           fontMono.variable,
         )}
-        style={{ borderColor: "var(--md-border)" }}
+        style={{ borderColor: "var(--ml-rule)" }}
       >
-        <GuidaVolatilita />
-      </div>
-
-      <div
-        className={cn(
-          "macro-report overflow-hidden rounded-[var(--md-r-lg)] border p-4 sm:p-6",
-          fontUi.variable,
-          fontMono.variable,
-        )}
-        style={{ borderColor: "var(--md-border)" }}
-      >
-        <CalendarioEventi
-          eventi={eventi}
-          tabellaValida={tabellaValida(oggi)}
-          validoFinoAl={VALIDO_FINO_AL}
-          trascrittoIl={TRASCRITTO_IL}
-          fusoUtente={fuso}
+        <div className="border-b px-4 pt-4 sm:px-6" style={{ borderColor: "var(--md-border)" }}>
+          <GuidaVolatilita />
+        </div>
+        <ListinoVolatilita
+          dati={{
+            contesto,
+            eventi,
+            calendarioValido: tabellaValida(oggi),
+            validoFinoAl: VALIDO_FINO_AL,
+            trascrittoIl: TRASCRITTO_IL,
+            fuso,
+            oggi,
+            lacune: LACUNE_VOL,
+            vociReport: report ? vociSenzaFonteLibera(report.items) : [],
+            commento: report?.reading,
+            giornoReport: report
+              ? report.reportDate.toISOString().slice(0, 10)
+              : null,
+            inventari,
+          }}
         />
       </div>
-
-      {/* Terminale: identità visiva propria, scoped a .macro-report */}
-      <div
-        className={cn(
-          "macro-report overflow-hidden rounded-[var(--md-r-lg)] border p-4 sm:p-6",
-          fontUi.variable,
-          fontMono.variable,
-        )}
-        style={{ borderColor: "var(--md-border)" }}
-      >
-        {data ? (
-          <VolatilitaPanel
-            items={data.items}
-            reading={data.reading}
-            contesto={contesto}
-            giornoReport={data.reportDate.toISOString().slice(0, 10)}
-          />
-        ) : (
-          <div className="flex flex-col gap-6">
-            {/* Senza report restano comunque i FATTI: è la differenza fra
-                prima e adesso — la sezione non è più ostaggio di un report
-                generato a mano. */}
-            <ContestoSenzaReport />
-            <ContestoVolatilitaPanel contesto={contesto} />
-          </div>
-        )}
-      </div>
-
-      {/* Gli inventari stanno DOPO il contesto di volatilità e prima del
-          report: sono il fatto settimanale che muove il WTI più di ogni altro,
-          ma restano un dato di sfondo rispetto a dove sta la volatilità oggi. */}
-      <div
-        className={cn(
-          "macro-report overflow-hidden rounded-[var(--md-r-lg)] border p-4 sm:p-6",
-          fontUi.variable,
-          fontMono.variable,
-        )}
-        style={{ borderColor: "var(--md-border)" }}
-      >
-        <InventariEiaPanel dati={inventari} />
-      </div>
-
-      {data ? (
-        <p className="text-xs text-muted-foreground">
-          Dal report del {reportDateLabel(data.reportDate)} vengono soltanto il
-          MOVE — che nessuna fonte gratuita pubblica — e il commento in fondo.
-          Tutto il resto di questa pagina arriva dall&apos;archivio giornaliero
-          e si aggiorna ogni notte, con la propria data accanto.
-        </p>
-      ) : null}
-    </div>
-  );
-}
-
-function ContestoSenzaReport() {
-  return (
-    <div className="md-card p-4 text-xs leading-relaxed text-[var(--md-muted)]">
-      Nessun report giornaliero in archivio: mancano gli indici che il report
-      porta con sé (VVIX, SKEW, put/call, MOVE) e il commento del giorno. I
-      fatti qui sotto non dipendono dal report e restano validi.
     </div>
   );
 }

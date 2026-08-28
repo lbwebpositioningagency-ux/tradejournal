@@ -335,45 +335,32 @@ export function ScorecardEmView({
           </div>
 
           <h3 className="mt-6 text-sm font-semibold">Settimane</h3>
-          <div className="mt-2 overflow-x-auto">
-            <table className="w-full text-xs">
+          <div className="ml-scroll mt-2">
+            <table className="ml-tab">
               <thead>
-                <tr
-                  className="text-left text-2xs"
-                  style={{ color: "var(--md-muted)" }}
-                >
-                  <th className="py-2 pr-3 font-medium">Settimana</th>
-                  <th className="py-2 pr-3 font-medium">Asset</th>
-                  <th className="py-2 pr-3 font-medium">Bias</th>
-                  <th className="py-2 pr-3 text-right font-medium">Conf.</th>
-                  <th className="py-2 pr-3 text-right font-medium">Chiusura</th>
-                  <th className="py-2 pr-3 text-right font-medium">MFE / MAE</th>
-                  <th className="py-2 pr-3 font-medium">Esito</th>
-                  <th className="py-2 font-medium">Note</th>
+                <tr>
+                  <th className="ml-sx">Settimana</th>
+                  <th className="ml-sx">Asset</th>
+                  <th className="ml-sx">Bias</th>
+                  <th>Conf.</th>
+                  <th>Chiusura</th>
+                  <th>MFE / MAE</th>
+                  <th className="ml-sx ml-sep">Esito</th>
+                  <th className="ml-sx">Note</th>
                 </tr>
               </thead>
               <tbody>
                 {weeks.map((w) => (
-                  <tr
-                    key={`${w.weekStart}-${w.asset}`}
-                    style={{ borderTop: "1px solid var(--md-border)" }}
-                  >
-                    <td className="md-mono whitespace-nowrap py-2 pr-3">{w.weekStart}</td>
-                    <td className="whitespace-nowrap py-2 pr-3">{ASSET_LABELS[w.asset]}</td>
-                    <td className="py-2 pr-3">{w.bias}</td>
-                    <td className="md-mono py-2 pr-3 text-right">
-                      {w.confidence ?? "—"}
-                    </td>
-                    <td className="md-mono whitespace-nowrap py-2 pr-3 text-right">
-                      {em(w.closeEm)}
-                    </td>
-                    <td
-                      className="md-mono whitespace-nowrap py-2 pr-3 text-right"
-                      style={{ color: "var(--md-muted)" }}
-                    >
+                  <tr key={`${w.weekStart}-${w.asset}`}>
+                    <td className="ml-sx">{w.weekStart}</td>
+                    <td className="ml-sx">{ASSET_LABELS[w.asset]}</td>
+                    <td className="ml-sx">{w.bias}</td>
+                    <td>{w.confidence ?? "—"}</td>
+                    <td>{em(w.closeEm)}</td>
+                    <td style={{ color: "var(--md-muted)" }}>
                       {em(w.mfeEm)} / {em(w.maeEm)}
                     </td>
-                    <td className="py-2 pr-3">
+                    <td className="ml-sx ml-sep">
                       <span
                         className="font-semibold"
                         style={{ color: OUTCOME_TONE[w.outcome] }}
@@ -381,7 +368,7 @@ export function ScorecardEmView({
                         {w.outcome}
                       </span>
                     </td>
-                    <td className="py-2" style={{ color: "var(--md-muted)" }}>
+                    <td className="ml-sx ml-wrap" style={{ color: "var(--md-muted)" }}>
                       {w.unresolvedReason && <span>{w.unresolvedReason}</span>}
                       {w.branched && !w.unresolvedReason && (
                         <span style={{ color: "var(--md-info)" }}>

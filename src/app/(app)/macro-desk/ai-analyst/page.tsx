@@ -16,7 +16,7 @@ import {
   schedaStrumento,
   type EventoScheda,
 } from "@/lib/ai-analyst/scheda-strumento";
-import { SchedeStrumento } from "@/components/macro-desk/schede-strumento";
+import { ListinoSintesi } from "@/components/macro-desk/listino/sintesi";
 import { fraQuanto, prossimiEventi, type StrumentoColpito } from "@/lib/calendario-macro";
 import { formatDateTime } from "@/lib/dates";
 import { prisma } from "@/lib/db";
@@ -25,7 +25,7 @@ import { caricaFontiCondivise, giornoRoma } from "@/lib/queries/ai-analyst";
 export const metadata: Metadata = { title: "Sintesi · Macro Desk" };
 
 /* Stessa identità tipografica delle sorelle: Inter per la UI, JetBrains Mono
-   per numeri, sigle e date (variabili consumate da .macro-report). */
+   per numeri, sigle e date (variabili consumate da .md-listino). */
 const fontUi = Inter({
   subsets: ["latin"],
   weight: ["400", "500", "600", "700", "800"],
@@ -146,13 +146,13 @@ export default async function AiAnalystPage() {
 
       <div
         className={cn(
-          "macro-report overflow-hidden rounded-[var(--md-r-lg)] border p-4 sm:p-5",
+          "md-listino overflow-hidden border",
           fontUi.variable,
           fontMono.variable,
         )}
-        style={{ borderColor: "var(--md-border)" }}
+        style={{ borderColor: "var(--ml-rule)" }}
       >
-        <SchedeStrumento
+        <ListinoSintesi
           schede={schede}
           giorno={giorno}
           generatoAlle={formatDateTime(adesso, timezone)}

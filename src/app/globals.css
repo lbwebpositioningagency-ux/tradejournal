@@ -1,6 +1,10 @@
 @import "tailwindcss";
 @import "tw-animate-css";
 @import "shadcn/tailwind.css";
+/* Il sistema visivo del Macro Desk (direzione «Listino», 28/08/2026). Sta in
+   un file suo perché è un ambiente scoped con una sessantina di token, e
+   dentro globals.css sarebbe stato il terzo blocco da duecento righe. */
+@import "../styles/listino.css";
 
 @custom-variant dark (&:is(.dark *));
 

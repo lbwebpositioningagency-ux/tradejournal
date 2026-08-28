@@ -32,7 +32,6 @@ describe("GuidaVolatilita — cosa dichiara", () => {
       "volatilità implicita",
       "implicita contro realizzata",
       "escursione vera",
-      "movimento giornaliero",
       "struttura a termine",
       "skew",
     ]) {
@@ -78,20 +77,24 @@ describe("GuidaVolatilita — quello che non si permette", () => {
 describe("il rimando alla guida estesa punta a un file che esiste", () => {
   it("il percorso citato in pagina è leggibile e non è vuoto", () => {
     // Un rimando a un documento inesistente è peggio di nessun rimando.
-    const percorso = "docs/macro-desk/GUIDA-VOLATILITA.md";
+    const percorso = "docs/macro-desk/GUIDA-MACRO-DESK.md";
     expect(html).toContain(percorso);
     const doc = readFileSync(percorso, "utf8");
     expect(doc.length).toBeGreaterThan(4000);
-    expect(doc).toContain("# Guida alla sezione Volatilità");
+    expect(doc).toContain("# Come si legge il Macro Desk");
   });
 
   it("la guida estesa contiene le parti che la pagina promette", () => {
-    const doc = readFileSync("docs/macro-desk/GUIDA-VOLATILITA.md", "utf8");
+    const doc = readFileSync("docs/macro-desk/GUIDA-MACRO-DESK.md", "utf8");
+    /* La guida copre TUTTO il desk dal 28/08/2026, non la sola Volatilità:
+       queste sono le parti che una pagina del desk rimanda a lei. */
     for (const parte of [
       "stop e size",
-      "Cosa succede se usi la finestra sbagliata",
-      "Quando la mediana non basta",
-      "Cosa questa sezione NON dice",
+      "Come si legge un rango storico",
+      "Implicita e realizzata",
+      "Contango e backwardation",
+      "Il posizionamento COT",
+      "Le convenzioni",
     ]) {
       expect(doc).toContain(parte);
     }
