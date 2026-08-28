@@ -27,8 +27,10 @@ describe("GuidaVolatilita — cosa dichiara", () => {
   });
 
   it("copre tutti i blocchi che la sezione mostra davvero", () => {
+    /* «eventi programmati» non è più in elenco: il calendario è uscito dalla
+       sezione il 28/08/2026 e vive nella Sintesi. Una guida che descrive un
+       blocco che non c'è è peggio di una guida più corta. */
     for (const blocco of [
-      "eventi programmati",
       "volatilità implicita",
       "implicita contro realizzata",
       "escursione vera",

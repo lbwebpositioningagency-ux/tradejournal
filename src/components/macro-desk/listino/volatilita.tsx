@@ -3,7 +3,6 @@ import type { ContestoVolatilita } from "@/lib/queries/volatilita-contesto";
 import type { InventariEia } from "@/lib/queries/inventari-eia";
 import type { LacunaVol } from "@/lib/volatilita-report";
 import type { MacroVolItem } from "@/lib/macro-desk-payload";
-import type { EventoReso } from "@/lib/calendario-macro";
 import { Info } from "./info";
 import {
   dataBreve,
@@ -41,16 +40,18 @@ import { esc, inPunti, varia, vociOperative, type VoceStrumento } from "./strume
  *  - il commento del report stava a metà pagina, ed era un muro di prosa in
  *    mezzo a delle tabelle: adesso è in fondo, chiuso.
  *
+ * IL CALENDARIO DEGLI EVENTI NON STA PIÙ QUI (28/08/2026, richiesta esplicita).
+ * Gli eventi in arrivo restano nel desk: sono la riga «prossimo evento a
+ * calendario» della Sintesi, che è la pagina delle sette del mattino. Questa
+ * sezione torna a fare una cosa sola — dove sta la volatilità e quanto si è
+ * mossa la giornata — e non apre più con qualcosa che non è una misura.
+ *
  * Componente PURO: si verifica con `renderToStaticMarkup`. L'unico pezzo
  * client è `Info`.
  */
 
 export interface DatiVolatilita {
   contesto: ContestoVolatilita;
-  eventi: EventoReso[];
-  calendarioValido: boolean;
-  validoFinoAl: string;
-  trascrittoIl: string;
   fuso: string;
   oggi: string;
   lacune: readonly LacunaVol[];
@@ -79,27 +80,6 @@ export function ListinoVolatilita({ dati }: { dati: DatiVolatilita }) {
       </Provenienza>
 
       <Titolo className="mt-5">
-        Prossimi sette giorni
-        <Info titolo="Eventi programmati" etichetta="eventi programmati">
-          <p>
-            Solo eventi il cui orario è pubblicato in anticipo
-            dall&apos;istituzione che li produce. Non c&apos;è il consenso di
-            mercato: nessuna fonte gratuita e verificabile lo pubblica, e un
-            consenso da fonte fragile è un numero su cui si prendono posizioni.
-          </p>
-          <p className="mt-2">
-            Conta la <strong>distanza</strong>, non la data: se c&apos;è
-            qualcosa fra due ore, il resto della pagina descrive un mercato che
-            fra due ore non esisterà più. Orari convertiti dal fuso della fonte
-            al fuso {dati.fuso}. Parte trascritta valida fino al{" "}
-            {dati.validoFinoAl}, trascritta il {dati.trascrittoIl}
-            {dati.calendarioValido ? "." : " — SCADUTA, va rigenerata."}
-          </p>
-        </Info>
-      </Titolo>
-      <TabellaCalendario dati={dati} />
-
-      <Titolo>
         Listino della volatilità implicita
         <Info titolo="Come si legge" etichetta="listino della volatilità implicita">
           <p>
@@ -232,50 +212,6 @@ export function ListinoVolatilita({ dati }: { dati: DatiVolatilita }) {
         letto di lunedì risulta di tre giorni pur essendo l&apos;ultima seduta.
       </p>
     </div>
-  );
-}
-
-/* ── calendario ──────────────────────────────────────────────────────── */
-
-function TabellaCalendario({ dati }: { dati: DatiVolatilita }) {
-  if (dati.eventi.length === 0) {
-    return (
-      <p className="text-[11px] text-[var(--md-muted)]">
-        Nessun evento programmato nei prossimi sette giorni.
-      </p>
-    );
-  }
-  return (
-    <Tab>
-      <thead>
-        <tr>
-          <th className="ml-sx">Quando</th>
-          <th className="ml-sx">Fra</th>
-          <th className="ml-sx">Evento</th>
-          <th className="ml-sx">Colpisce</th>
-          <th className="ml-sx">Istituzione</th>
-          <th>Ora della fonte</th>
-        </tr>
-      </thead>
-      <tbody>
-        {dati.eventi.map((e, i) => (
-          <tr key={`${e.giorno}-${e.nome}-${i}`} className={i === 0 ? "ml-ora" : undefined}>
-            <td className="ml-sx font-semibold">{e.quando}</td>
-            <td className="ml-sx text-[var(--md-text-2)]">{e.fraQuanto}</td>
-            <td className="ml-sx">{e.nome}</td>
-            <td className="ml-sx text-[10px] uppercase tracking-[0.08em] text-[var(--md-muted)]">
-              {e.strumenti.join(" · ")}
-            </td>
-            <td className="ml-sx text-[11px] text-[var(--md-text-2)]">
-              {e.istituzione}
-            </td>
-            <td className="text-[var(--md-muted)]">
-              {e.ora} {e.fuso}
-            </td>
-          </tr>
-        ))}
-      </tbody>
-    </Tab>
   );
 }
 

@@ -162,7 +162,12 @@ oggi invece del passato recente. Confrontalo con l'escursione tipica: se
 l'attesa è molto più larga della mediana recente, il mercato sta prezzando una
 giornata fuori norma.
 
-### Eventi programmati · prossimi 7 giorni
+### Eventi programmati
+
+**Dove sono.** Nella **Sintesi**, come riga «prossimo evento a calendario» di
+ogni strumento. Fino al 28 agosto 2026 c'era anche un blocco a parte nella
+Volatilità: è stato tolto, perché quella sezione risponde a «quanto sarà larga
+la giornata» e un calendario non è una misura di ampiezza.
 
 **Cosa è.** Solo eventi il cui **orario è pubblicato in anticipo
 dall'istituzione che li produce**: decisioni FOMC e BCE, EIA del mercoledì,

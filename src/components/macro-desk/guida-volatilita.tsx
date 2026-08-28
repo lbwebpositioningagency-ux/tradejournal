@@ -40,17 +40,6 @@ export function GuidaVolatilita() {
         </p>
 
         <div>
-          <PanelLabel>Eventi programmati</PanelLabel>
-          <p className="mt-1">
-            Solo eventi il cui orario è pubblicato in anticipo
-            dall&apos;istituzione che li produce. Conta la{" "}
-            <strong>distanza</strong>, non la data: se c&apos;è qualcosa fra due
-            ore, il resto della pagina descrive un mercato che fra due ore non
-            esisterà più.
-          </p>
-        </div>
-
-        <div>
           <PanelLabel>Indice di volatilità implicita (GVZ · OVX · VIX)</PanelLabel>
           <p className="mt-1">
             Quanto il mercato delle opzioni <strong>fa pagare oggi</strong> per

@@ -5,7 +5,7 @@ import { Inter, JetBrains_Mono } from "next/font/google";
 import { ArrowLeft } from "lucide-react";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/db";
-import { todayKeyInZone, formatDateTime } from "@/lib/dates";
+import { todayKeyInZone } from "@/lib/dates";
 import { getFreschezzaReport } from "@/lib/queries/macro-desk-freschezza";
 import { getVolatilitaData } from "@/lib/queries/volatilita";
 import { getContestoVolatilita } from "@/lib/queries/volatilita-contesto";
@@ -17,14 +17,6 @@ import { Badge } from "@/components/ui/badge";
 import { MacroDeskSectionNav } from "@/components/macro-desk/section-nav";
 import { GuidaVolatilita } from "@/components/macro-desk/guida-volatilita";
 import { ListinoVolatilita } from "@/components/macro-desk/listino/volatilita";
-import {
-  TRASCRITTO_IL,
-  VALIDO_FINO_AL,
-  fraQuanto,
-  prossimiEventi,
-  tabellaValida,
-  type EventoReso,
-} from "@/lib/calendario-macro";
 
 export const metadata: Metadata = { title: "Volatilità · Macro Desk" };
 
@@ -55,6 +47,10 @@ const fontMono = JetBrains_Mono({
  * l'escursione vera con la grandezza sbagliata (la ragione è scritta per
  * esteso in `lib/volatilita-fatti.ts`).
  *
+ * Dal 28/08/2026 il calendario degli eventi NON è più in questa pagina: gli
+ * eventi in arrivo si leggono nella Sintesi, che è la pagina delle sette del
+ * mattino, e questa sezione torna a fare una cosa sola.
+ *
  * La guida al desk sta in `docs/macro-desk/GUIDA-MACRO-DESK.md`.
  */
 export default async function MacroVolatilitaPage() {
@@ -69,17 +65,6 @@ export default async function MacroVolatilitaPage() {
   });
   const fuso = utente?.timezone ?? "Europe/Rome";
   const oggi = todayKeyInZone(fuso);
-
-  /* IL CALENDARIO STA IN CIMA perché risponde alla domanda che viene prima di
-     tutte le altre: fra quanto succede qualcosa. È aritmetica su una tabella
-     in codice — nessuna query, nessuna rete — quindi non ha bisogno di stare
-     nella Promise.all qui sotto. */
-  const adesso = new Date();
-  const eventi: EventoReso[] = prossimiEventi(oggi, 7, adesso).map((e) => ({
-    ...e,
-    quando: formatDateTime(e.istante, fuso),
-    fraQuanto: fraQuanto(e.istante, adesso),
-  }));
 
   const [report, freschezza, contesto, inventari] = await Promise.all([
     getVolatilitaData(),
@@ -104,9 +89,9 @@ export default async function MacroVolatilitaPage() {
             <Badge variant="outline">contesto</Badge>
           </h1>
           <p className="page-subtitle">
-            Cosa succede nei prossimi sette giorni, dove sta la volatilità
-            rispetto alla propria storia e quanto si è mossa davvero la
-            giornata. Misure con fonte, periodo e data — non previsioni.
+            Dove sta la volatilità rispetto alla propria storia e quanto si è
+            mossa davvero la giornata. Misure con fonte, periodo e data — non
+            previsioni.
           </p>
         </div>
         <MacroDeskSectionNav active="volatilita" />
@@ -132,10 +117,6 @@ export default async function MacroVolatilitaPage() {
         <ListinoVolatilita
           dati={{
             contesto,
-            eventi,
-            calendarioValido: tabellaValida(oggi),
-            validoFinoAl: VALIDO_FINO_AL,
-            trascrittoIl: TRASCRITTO_IL,
             fuso,
             oggi,
             lacune: LACUNE_VOL,
