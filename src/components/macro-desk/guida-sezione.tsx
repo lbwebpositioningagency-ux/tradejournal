@@ -1,5 +1,4 @@
 import type { ReactNode } from "react";
-import { PanelLabel } from "./primitives";
 
 /**
  * «COME SI LEGGE QUESTA SEZIONE» — il riquadro chiuso in cima a ogni sezione
@@ -23,6 +22,12 @@ import { PanelLabel } from "./primitives";
  * difetto che la revisione visiva ha appena tolto: riquadri di testo che
  * occupano lo spazio dei numeri.
  *
+ * USA I TOKEN DELL'APPLICAZIONE, non quelli del terminale (`--md-*`). Quelli
+ * esistono solo dentro `.md-listino` e `.macro-report`: il riquadro invece
+ * deve reggere anche in una pagina di cromo normale — è il caso della
+ * schermata iniziale del Report, tornata alle sue card — e un token non
+ * risolto lì darebbe testo del colore sbagliato o invisibile.
+ *
  * Componente PURO: nessuno stato, nessun hook, nessun dato.
  */
 export function GuidaSezione({
@@ -34,15 +39,15 @@ export function GuidaSezione({
   children: ReactNode;
 }) {
   return (
-    <details className="md-card p-4">
-      <summary className="cursor-pointer text-sm font-semibold text-[var(--md-text)]">
+    <details className="rounded-lg border border-border bg-card/40 p-4">
+      <summary className="cursor-pointer text-sm font-semibold text-foreground">
         Come si legge questa sezione
-        <span className="ml-2 font-normal text-[var(--md-muted)]">
+        <span className="ml-2 font-normal text-muted-foreground">
           — {richiamo}
         </span>
       </summary>
 
-      <div className="mt-3 flex flex-col gap-3 text-sm leading-relaxed text-[var(--md-text-2)]">
+      <div className="mt-3 flex flex-col gap-3 text-sm leading-relaxed text-muted-foreground">
         {children}
       </div>
     </details>
@@ -59,7 +64,9 @@ export function VoceGuida({
 }) {
   return (
     <div>
-      <PanelLabel>{titolo}</PanelLabel>
+      <p className="text-2xs font-semibold uppercase tracking-[0.14em] text-foreground/70">
+        {titolo}
+      </p>
       <p className="mt-1">{children}</p>
     </div>
   );
@@ -68,10 +75,10 @@ export function VoceGuida({
 /** Il rimando alla guida estesa, uguale in tutte le sezioni. */
 export function RimandoGuida() {
   return (
-    <p className="text-xs text-[var(--md-muted)]">
+    <p className="text-xs text-muted-foreground">
       La guida estesa — l&apos;aritmetica di stop e size, come si legge un rango
       storico, le convenzioni su fonti, date ed età dei dati — sta in{" "}
-      <span className="md-mono">docs/macro-desk/GUIDA-MACRO-DESK.md</span>.
+      <span className="font-mono">docs/macro-desk/GUIDA-MACRO-DESK.md</span>.
     </p>
   );
 }
