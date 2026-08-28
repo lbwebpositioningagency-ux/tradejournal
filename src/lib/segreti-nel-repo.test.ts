@@ -34,6 +34,22 @@ const RADICE = process.cwd();
 /** Oltre questa soglia il file non si legge: sono lockfile e dati, non sonde. */
 const BYTE_MASSIMI = 2 * 1024 * 1024;
 
+/**
+ * Estensioni BINARIE: il percorso si controlla lo stesso, il contenuto no.
+ *
+ * Decodificare un PNG come UTF-8 per passarci sopra delle regex è lavoro che
+ * non può trovare niente — i pattern cercano `api_key=<valore>` in testo — e
+ * costa: con le schermate di verifica del Macro Desk in archivio questo caso
+ * ha superato i cinque secondi di timeout mentre macinava megabyte di pixel.
+ *
+ * Cosa NON si perde: le regole di PERCORSO valgono per ogni file versionato,
+ * binari compresi, quindi una sonda o un dump con un nome sospetto viene preso
+ * comunque. Resta scoperto solo un segreto nascosto DENTRO un binario, che
+ * questo controllo non sapeva riconoscere neanche prima.
+ */
+const ESTENSIONI_BINARIE =
+  /\.(png|jpe?g|gif|webp|avif|ico|pdf|zip|gz|woff2?|ttf|otf|eot|mp4|webm|mp3|wav)$/i;
+
 function git(...argomenti: string[]): string {
   return execFileSync("git", argomenti, {
     encoding: "utf8",
@@ -75,7 +91,9 @@ function contenutiDaIndice(percorsi: string[]): Map<string, string> {
     if (sha) shaPerPercorso.set(percorso, sha);
   }
 
-  const voluti = percorsi.filter((p) => shaPerPercorso.has(p));
+  const voluti = percorsi.filter(
+    (p) => shaPerPercorso.has(p) && !ESTENSIONI_BINARIE.test(p),
+  );
   if (voluti.length === 0) return new Map();
 
   const grezzo = execFileSync(
