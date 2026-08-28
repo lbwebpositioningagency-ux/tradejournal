@@ -1,0 +1,320 @@
+/* ============================================================================
+   FORMA — tre direzioni visive a confronto per la pagina Volatilità.
+
+   Foglio di LAVORO: vive fuori da globals.css perché è materiale di una
+   proposta, non del prodotto. Ogni direzione è un ambiente scoped che
+   dichiara i propri token in ENTRAMBI i temi — è già una presa di posizione
+   sulla diagnosi: oggi il desk è un'isola nera fissa incollata su una app che
+   ha un tema chiaro, e in tema chiaro lo stacco è un rettangolo nero.
+
+   Convenzione comune alle tre: `:root` (chiaro) prima, `.dark` dopo. Nessun
+   colore ha la sua unica definizione dentro un blocco di tema.
+   ========================================================================= */
+
+/* ── comune ──────────────────────────────────────────────────────────── */
+
+.forma-listino,
+.forma-nota,
+.forma-scheda {
+  --fm-up: #12855a;
+  --fm-down: #c8264a;
+  --fm-gold: #9a7b16;
+  --fm-oil: #b45a1a;
+  --fm-idx: #3a55c4;
+  --fm-cross: #6c46bd;
+  font-variant-numeric: tabular-nums lining-nums;
+  font-feature-settings: "tnum" 1, "lnum" 1;
+}
+.dark .forma-listino,
+.dark .forma-nota,
+.dark .forma-scheda {
+  --fm-up: #2fd67a;
+  --fm-down: #ff4160;
+  --fm-gold: #e0bc4f;
+  --fm-oil: #e0894a;
+  --fm-idx: #8b9ef7;
+  --fm-cross: #b18af7;
+}
+
+.fm-mono {
+  font-family: var(--md-font-mono), ui-monospace, monospace;
+  font-variant-numeric: tabular-nums lining-nums;
+}
+
+/* Barra-parola: la storia di un valore compressa a dimensione di parola.
+   56px, non 1100: un percentile è UN dato, e oggi ne occupa una riga intera. */
+.fm-spark {
+  position: relative;
+  display: inline-block;
+  width: 56px;
+  height: 9px;
+  vertical-align: -1px;
+  background: var(--fm-track);
+  border-radius: 1px;
+}
+.fm-spark > i {
+  position: absolute;
+  top: -2px;
+  bottom: -2px;
+  width: 2px;
+  margin-left: -1px;
+  background: currentColor;
+}
+/* Tacca del 50%: senza un riferimento la posizione non si legge. */
+.fm-spark::after {
+  content: "";
+  position: absolute;
+  left: 50%;
+  top: 2px;
+  bottom: 2px;
+  width: 1px;
+  background: var(--fm-line);
+}
+
+/* ============================================================================
+   A · LISTINO — foglio di quotazioni. Nessuna card, nessun raggio, nessuna
+   ombra: solo filetti e colonne. Il colore esiste solo dove c'è un segno.
+   ========================================================================= */
+
+.forma-listino {
+  --fm-bg: #ffffff;
+  --fm-text: #0e131a;
+  --fm-text-2: #414c5b;
+  --fm-muted: #7a8697;
+  --fm-line: #e3e7ed;
+  --fm-line-forte: #c3cad4;
+  --fm-track: #eceff3;
+  --fm-evid: #f6f8fa;
+  background: var(--fm-bg);
+  color: var(--fm-text);
+  font-family: var(--md-font-ui), system-ui, sans-serif;
+  border: 1px solid var(--fm-line-forte);
+}
+.dark .forma-listino {
+  --fm-bg: #06080d;
+  --fm-text: #e7edf6;
+  --fm-text-2: #a6b3c6;
+  --fm-muted: #67748a;
+  --fm-line: #1a2130;
+  --fm-line-forte: #2b3547;
+  --fm-track: #151b27;
+  --fm-evid: #0b0f17;
+}
+
+/* Titolo di sezione col filetto che corre fino al margine: è il modo in cui
+   un listino separa i blocchi senza spendere una riga vuota. */
+.fm-l-titolo {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--fm-muted);
+  white-space: nowrap;
+}
+.fm-l-titolo::after {
+  content: "";
+  flex: 1;
+  height: 1px;
+  background: var(--fm-line);
+}
+
+.fm-l-tab {
+  width: 100%;
+  border-collapse: collapse;
+  font-family: var(--md-font-mono), ui-monospace, monospace;
+  font-size: 12px;
+  line-height: 1;
+  font-variant-numeric: tabular-nums lining-nums;
+}
+.fm-l-tab th {
+  font-family: var(--md-font-ui), system-ui, sans-serif;
+  font-size: 9.5px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--fm-muted);
+  text-align: right;
+  padding: 4px 8px 5px;
+  border-bottom: 1px solid var(--fm-line-forte);
+  white-space: nowrap;
+  vertical-align: bottom;
+}
+/* Intestazione di GRUPPO: due livelli, come in un listino stampato. */
+.fm-l-tab th.fm-gruppo {
+  text-align: center;
+  font-size: 9px;
+  color: var(--fm-text-2);
+  border-bottom: 1px solid var(--fm-line);
+  padding-bottom: 3px;
+}
+.fm-l-tab th.fm-sx,
+.fm-l-tab td.fm-sx {
+  text-align: left;
+}
+.fm-l-tab td {
+  padding: 6px 8px;
+  border-bottom: 1px solid var(--fm-line);
+  text-align: right;
+  white-space: nowrap;
+  color: var(--fm-text);
+}
+.fm-l-tab tbody tr:last-child td {
+  border-bottom: 0;
+}
+/* Riga di uno strumento che non si opera: resta, ma non compete. */
+.fm-l-tab tr.fm-contesto td {
+  color: var(--fm-text-2);
+}
+.fm-l-tab .fm-sep {
+  border-left: 1px solid var(--fm-line);
+}
+
+/* ============================================================================
+   B · NOTA — nota di ricerca. Colonna di lettura misurata, numeri come
+   elemento display, esibizioni numerate che interrompono la colonna.
+   ========================================================================= */
+
+.forma-nota {
+  --fm-bg: #faf8f4;
+  --fm-text: #15171b;
+  --fm-text-2: #474b53;
+  --fm-muted: #837e75;
+  --fm-line: #e2ddd2;
+  --fm-line-forte: #cec7b8;
+  --fm-track: #e8e3d8;
+  --fm-evid: #f2eee6;
+  background: var(--fm-bg);
+  color: var(--fm-text);
+  font-family: var(--fm-font-serif), Georgia, serif;
+  border: 1px solid var(--fm-line-forte);
+}
+.dark .forma-nota {
+  --fm-bg: #0c0d10;
+  --fm-text: #f1ece2;
+  --fm-text-2: #b6afa3;
+  --fm-muted: #7c766b;
+  --fm-line: #23252b;
+  --fm-line-forte: #34383f;
+  --fm-track: #1c1e23;
+  --fm-evid: #121419;
+}
+
+.fm-n-display {
+  font-family: var(--fm-font-display), system-ui, sans-serif;
+  font-variant-numeric: tabular-nums lining-nums;
+  letter-spacing: -0.02em;
+}
+/* Colonna di lettura: la prosa di questo desk è scritta per essere letta,
+   e a 1100px di misura non lo è. */
+.fm-n-colonna {
+  max-width: 64ch;
+}
+.fm-n-tab {
+  width: 100%;
+  border-collapse: collapse;
+  font-family: var(--fm-font-display), system-ui, sans-serif;
+  font-size: 13px;
+  font-variant-numeric: tabular-nums lining-nums;
+}
+.fm-n-tab th {
+  font-size: 9.5px;
+  font-weight: 600;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--fm-muted);
+  text-align: right;
+  padding: 0 10px 6px;
+  border-bottom: 1px solid var(--fm-line-forte);
+  white-space: nowrap;
+}
+.fm-n-tab th.fm-sx,
+.fm-n-tab td.fm-sx {
+  text-align: left;
+}
+.fm-n-tab td {
+  padding: 7px 10px;
+  border-bottom: 1px solid var(--fm-line);
+  text-align: right;
+  white-space: nowrap;
+}
+.fm-n-tab tbody tr:last-child td {
+  border-bottom: 0;
+}
+
+/* ============================================================================
+   C · SCHEDA — la grammatica che il Driver Desk e la Stagionalità hanno già:
+   unità di riga fissa, valore incolonnato a destra, prosa in nota.
+   ========================================================================= */
+
+.forma-scheda {
+  --fm-bg: #f5f7fa;
+  --fm-surface: #ffffff;
+  --fm-text: #101620;
+  --fm-text-2: #445061;
+  --fm-muted: #7b8798;
+  --fm-line: #e4e9f0;
+  --fm-line-forte: #ccd4df;
+  --fm-track: #e9edf3;
+  background: var(--fm-bg);
+  color: var(--fm-text);
+  font-family: var(--md-font-ui), system-ui, sans-serif;
+  border: 1px solid var(--fm-line-forte);
+}
+.dark .forma-scheda {
+  --fm-bg: #080b12;
+  --fm-surface: #10161f;
+  --fm-text: #e9eef7;
+  --fm-text-2: #a3b0c3;
+  --fm-muted: #67748a;
+  --fm-line: #1e2635;
+  --fm-line-forte: #2c3648;
+  --fm-track: #182031;
+}
+
+.fm-s-card {
+  background: var(--fm-surface);
+  border: 1px solid var(--fm-line);
+  border-radius: 10px;
+}
+/* Unità di riga: etichetta a sinistra, valore incolonnato a destra, barra,
+   una riga di lettura. È quella del Driver Desk, resa condivisibile. */
+.fm-s-riga {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  align-items: baseline;
+  column-gap: 12px;
+  padding: 7px 0;
+  border-top: 1px solid var(--fm-line);
+}
+.fm-s-riga:first-of-type {
+  border-top: 0;
+}
+.fm-s-etichetta {
+  font-size: 12px;
+  color: var(--fm-text-2);
+}
+.fm-s-valore {
+  font-family: var(--md-font-mono), ui-monospace, monospace;
+  font-size: 13px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums lining-nums;
+  color: var(--fm-text);
+  text-align: right;
+}
+.fm-s-nota {
+  grid-column: 1 / -1;
+  font-size: 10.5px;
+  line-height: 1.45;
+  color: var(--fm-muted);
+  margin-top: 3px;
+}
+.fm-s-titolo {
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.13em;
+  text-transform: uppercase;
+  color: var(--fm-muted);
+}
