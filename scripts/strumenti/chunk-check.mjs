@@ -7,11 +7,11 @@
  * richiesta — perché il click non arriva mai a produrne una. Un guasto che nei
  * log del server è invisibile per costruzione.
  *
- * Uso: node scripts/chunk-check.mjs <url-di-una-pagina>
+ * Uso: node scripts/strumenti/chunk-check.mjs <url-di-una-pagina>
  */
 const pagina = process.argv[2];
 if (!pagina) {
-  console.error("Uso: node scripts/chunk-check.mjs <url>");
+  console.error("Uso: node scripts/strumenti/chunk-check.mjs <url>");
   process.exit(1);
 }
 

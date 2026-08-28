@@ -8,7 +8,7 @@
  * schermo intero uno spazio mancante fra due parole si vede appena, e in uno
  * screenshot ridotto non si vede affatto.
  *
- * Da usare con `scripts/measure.mjs --file`.
+ * Da usare con `scripts/strumenti/measure.mjs --file`.
  */
 (() => {
   const testo = document.body.innerText;

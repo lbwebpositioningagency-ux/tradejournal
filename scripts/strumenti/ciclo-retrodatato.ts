@@ -15,7 +15,7 @@
  *
  * Sola lettura: non scrive niente, né su disco né sul database.
  *
- * Uso: npx tsx scripts/ciclo-retrodatato.ts [giorni...]   (default 7 14 30 90)
+ * Uso: npx tsx scripts/strumenti/ciclo-retrodatato.ts [giorni...]   (default 7 14 30 90)
  */
 import { applyTransform } from "@/lib/macro-trends-transforms";
 import {

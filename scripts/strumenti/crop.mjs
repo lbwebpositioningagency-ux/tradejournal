@@ -6,13 +6,13 @@
  * proprio ciò che si vuole controllare — allineamento delle colonne, corpo del
  * testo, contrasto dei filetti.
  *
- * Uso: node scripts/crop.mjs <src.png> <out.png> <x> <y> <w> <h>
+ * Uso: node scripts/strumenti/crop.mjs <src.png> <out.png> <x> <y> <w> <h>
  */
 import sharp from "sharp";
 
 const [, , src, out, x, y, w, h] = process.argv;
 if (!src || !out) {
-  console.error("Uso: node scripts/crop.mjs <src> <out> <x> <y> <w> <h>");
+  console.error("Uso: node scripts/strumenti/crop.mjs <src> <out> <x> <y> <w> <h>");
   process.exit(1);
 }
 await sharp(src)

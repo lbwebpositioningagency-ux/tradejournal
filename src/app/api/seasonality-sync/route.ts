@@ -129,6 +129,10 @@ export async function GET(request: Request) {
        dava open/high/low e nel database è finita la sola chiusura, il cron
        risponde 500 invece di dichiararsi verde: v. `perditaOhlc`. */
     ohlc: s.ohlc ?? undefined,
+    /* Righe perse o mesi vuoti = fallimento, per la stessa ragione delle
+       colonne perse: il 26/08/2026 l'oro ha perso tutto il 2005 e il cron era
+       verde. V. `perditaContinuita`. */
+    continuita: s.continuita ?? undefined,
   }));
   const verificaStagionalita = verificaEsitoJob(
     AVAILABLE_INSTRUMENTS.map((i) => i.code),

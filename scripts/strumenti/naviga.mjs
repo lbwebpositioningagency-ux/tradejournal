@@ -10,7 +10,7 @@
  * browser, e questa sonda è il modo di leggerla.
  *
  * Uso:
- *   node scripts/naviga.mjs --url http://localhost:3100/macro-desk \
+ *   node scripts/strumenti/naviga.mjs --url http://localhost:3100/macro-desk \
  *     --login demo@tradejournal.local:demo1234 --clicca "Sintesi" [--wait 8000]
  */
 import { launchChrome, login, setTheme, sleep } from "./cdp.mjs";

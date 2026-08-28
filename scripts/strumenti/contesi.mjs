@@ -7,13 +7,13 @@
  * QUALI file sono contesi è la condizione per decidere chi li tiene, ed è
  * l'unica cosa che impedisce di rifare lo stesso giro tre volte.
  *
- * Uso: node scripts/contesi.mjs <commit-base> <sha-dei-miei...>
+ * Uso: node scripts/strumenti/contesi.mjs <commit-base> <sha-dei-miei...>
  */
 import { execFileSync } from "node:child_process";
 
 const [, , base, ...miei] = process.argv;
 if (!base) {
-  console.error("Uso: node scripts/contesi.mjs <base> <sha miei...>");
+  console.error("Uso: node scripts/strumenti/contesi.mjs <base> <sha miei...>");
   process.exit(1);
 }
 

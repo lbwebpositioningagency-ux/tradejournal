@@ -2280,7 +2280,7 @@ non solo dalla resa.
 - **Spazi mangiati dal montaggio JSX**: «28/08/2026nel fuso» nella Volatilità e
   «Fonte non lettanon vuol dire» nel Radar. In uno screenshot ridotto non si
   vedono. Trovati leggendo il DOM con `scripts/measure.mjs` e la sonda
-  `scripts/sonda-spazi.js`, che resta come strumento.
+  `scripts/strumenti/sonda-spazi.js`, che resta come strumento.
 - **Un falso allarme istruttivo**: il primo screenshot mostrava `VIX9D ÷ VIX` e
   `VIX ÷ VIX3M` con lo stesso 0,848. Il DOM diceva 0,871 e 0,848, e il database
   confermava: era un transitorio della prima richiesta al dev server. Resta un

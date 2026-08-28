@@ -54,8 +54,9 @@ import {
   ingestQuartersStep,
 } from "@/lib/seasonality/quarter-ingest";
 import { resolveDailySeries } from "@/lib/seasonality/sources";
-import type { ContoOhlc } from "@/lib/job-esito";
+import type { ContinuitaSerie, ContoOhlc } from "@/lib/job-esito";
 import { hasOhlc } from "@/lib/seasonality/series";
+import { mesiSenzaSedute } from "@/lib/seasonality/continuita";
 
 /** Postgres accetta al massimo 65535 parametri per statement: le righe di
  * statistica hanno 18 colonne, quindi si resta molto sotto il limite. */
@@ -143,6 +144,13 @@ export interface EsitoStrumento {
    * nemmeno letto. La regola che la valuta sta in `lib/job-esito.ts`.
    */
   ohlc: ContoOhlc | null;
+  /**
+   * Continuità della serie scritta: quante barre c'erano prima, quante adesso,
+   * e quali mesi della storia sono rimasti vuoti. `null` per la stessa ragione
+   * di `ohlc`: senza scrittura non c'è continuità da giudicare. La regola che
+   * la valuta sta in `lib/job-esito.ts`.
+   */
+  continuita: ContinuitaSerie | null;
 }
 
 export interface EsitoJob {
@@ -244,6 +252,7 @@ export async function runSeasonalityDailyJob(
       messaggio: def.unavailable,
       intraday: null,
       ohlc: null,
+      continuita: null,
     });
   }
 
@@ -272,6 +281,7 @@ export async function runSeasonalityDailyJob(
         messaggio: null,
         intraday: null,
         ohlc: null,
+        continuita: null,
       });
       continue;
     }
@@ -291,6 +301,7 @@ export async function runSeasonalityDailyJob(
           "Budget esaurito: giornaliero rinviato alla prossima esecuzione.",
         intraday: null,
         ohlc: null,
+        continuita: null,
       });
       prossimo ??= `giornaliero di ${def.code}`;
       continue;
@@ -304,6 +315,21 @@ export async function runSeasonalityDailyJob(
         barreConOhlc,
         barreScartatePerIncoerenza,
       } = await resolveDailySeries(def, now);
+
+      /* IL CONTEGGIO DI PRIMA, letto ADESSO e non dopo: la scrittura più sotto
+         sovrascrive `dailyRows`, e chiederlo dopo significherebbe confrontare
+         un numero con se stesso. È lo stesso errore che l'audit del 26/08 ha
+         evitato per l'OHLC, e vale identico qui. */
+      const covPrima = await prisma.seasonalityCoverage.findUnique({
+        where: { instrument: def.code },
+        select: { dailyRows: true },
+      });
+      const continuita: ContinuitaSerie = {
+        primaDelGiro: covPrima?.dailyRows ?? 0,
+        dopoIlGiro: bars.length,
+        mesiVuoti: mesiSenzaSedute(bars),
+      };
+
       const result = precomputeDaily({
         instrument: def.code,
         kind: def.kind,
@@ -477,6 +503,7 @@ export async function runSeasonalityDailyJob(
           scritteConOhlc,
           scartatePerIncoerenza: barreScartatePerIncoerenza,
         },
+        continuita,
       });
       log(
         `  ${def.code}: giornaliero aggiornato (${bars.length} barre, ` +
@@ -507,6 +534,7 @@ export async function runSeasonalityDailyJob(
         messaggio,
         intraday: null,
         ohlc: null,
+        continuita: null,
       });
     }
   }

@@ -48,6 +48,66 @@ export interface ContoOhlc {
   scartatePerIncoerenza: number;
 }
 
+/**
+ * CONTINUITÀ DELLA SERIE dopo la scrittura.
+ *
+ * Nasce da un guasto vero: il 26/08/2026 la serie dell'oro è stata riscritta
+ * passando da 8.256 a 7.944 barre — dodici mesi consecutivi spariti, tutto il
+ * 2005 — e **il job è finito verde**. Aveva scritto righe, nessuna eccezione,
+ * nessuna perdita di OHLC: tutti i controlli che esistevano guardavano
+ * altrove. Il buco è rimasto due giorni ed è saltato fuori solo perché
+ * qualcuno ha ricalcolato una media a mano.
+ *
+ * Da qui i due numeri che servono, e nessuno di più: quante barre c'erano
+ * prima, quante ce ne sono adesso, e quali mesi della storia sono rimasti
+ * senza nemmeno una seduta.
+ */
+export interface ContinuitaSerie {
+  /** Barre in archivio PRIMA del giro (da `SeasonalityCoverage.dailyRows`). */
+  primaDelGiro: number;
+  /** Barre che il giro ha scritto. */
+  dopoIlGiro: number;
+  /**
+   * Mesi civili compresi fra la prima e l'ultima seduta scritta che non hanno
+   * nemmeno una seduta. I mesi di bordo non entrano: sono parziali per
+   * costruzione.
+   */
+  mesiVuoti: readonly string[];
+}
+
+/**
+ * PERDITA DI CONTINUITÀ — il controllo che mancava.
+ *
+ * Due condizioni, entrambe fallimenti, distinte perché dicono cose diverse:
+ *
+ *  - il conteggio SCENDE. Una serie storica non si accorcia: le sedute del
+ *    passato non svaniscono. Se il numero cala, o la fonte ha risposto a metà
+ *    o abbiamo perso qualcosa per strada, e in entrambi i casi il giro non è
+ *    riuscito. Nessuna tolleranza: la differenza è esattamente il numero di
+ *    sedute che non abbiamo più;
+ *  - un mese della storia resta VUOTO. È il buco del 2005, ed è più insidioso
+ *    del conteggio perché può convivere con un totale che cresce — basta che
+ *    le sedute nuove in coda coprano quelle perse in mezzo.
+ *
+ * Il primo giro di una serie ha `primaDelGiro` a zero e non può regredire:
+ * zero non è un valore sospetto, è l'assenza di storico.
+ */
+export function perditaContinuita(
+  c: ContinuitaSerie | undefined,
+): string | null {
+  if (!c) return null;
+  if (c.dopoIlGiro < c.primaDelGiro) {
+    return `la serie si è accorciata: ${c.primaDelGiro} barre prima, ${c.dopoIlGiro} dopo (${c.primaDelGiro - c.dopoIlGiro} sedute perse)`;
+  }
+  if (c.mesiVuoti.length > 0) {
+    const primi = c.mesiVuoti.slice(0, 3).join(", ");
+    const resto =
+      c.mesiVuoti.length > 3 ? ` e altri ${c.mesiVuoti.length - 3}` : "";
+    return `${c.mesiVuoti.length} mesi senza nemmeno una seduta: ${primi}${resto}`;
+  }
+  return null;
+}
+
 export interface EsitoSerie {
   /** Codice della serie, come nel catalogo. */
   codice: string;
@@ -58,6 +118,8 @@ export interface EsitoSerie {
   dettaglio?: string;
   /** Contabilità OHLC; assente per le serie che non la producono. */
   ohlc?: ContoOhlc;
+  /** Continuità della serie scritta; assente per le serie non scritte. */
+  continuita?: ContinuitaSerie;
 }
 
 /**
@@ -109,6 +171,8 @@ export interface VerificaEsito {
   invariate: string[];
   /** Serie che hanno perso open/high/low, col motivo per esteso. */
   perditeOhlc: string[];
+  /** Serie che si sono accorciate o hanno un buco, col motivo per esteso. */
+  perditeContinuita: string[];
   /** Righe scritte in totale. */
   scritte: number;
   /** Frase pronta per il log e per il corpo della risposta. */
@@ -129,6 +193,7 @@ export function verificaEsitoJob(
   const mancanti: string[] = [];
   const invariate: string[] = [];
   const perditeOhlc: string[] = [];
+  const perditeContinuita: string[] = [];
   let scritte = 0;
 
   for (const codice of attese) {
@@ -141,11 +206,18 @@ export function verificaEsitoJob(
        dichiarata riuscita: è esattamente il caso che il job non sa vedere da
        solo, ed è per questo che il controllo sta qui e non là dentro. */
     const perdita = perditaOhlc(esito.ohlc);
-    if (esito.stato === "errore" || perdita !== null) {
+    /* Stessa promozione a ERRORE per la continuità: una serie che si accorcia
+       o che resta con un mese vuoto non è «aggiornata», qualunque cosa il job
+       creda di aver fatto. */
+    const rottura = perditaContinuita(esito.continuita);
+    if (esito.stato === "errore" || perdita !== null || rottura !== null) {
       inErrore.push(codice);
       if (perdita !== null) perditeOhlc.push(`${codice}: ${perdita}`);
+      if (rottura !== null) perditeContinuita.push(`${codice}: ${rottura}`);
     }
-    if (esito.stato === "invariato" && perdita === null) invariate.push(codice);
+    if (esito.stato === "invariato" && perdita === null && rottura === null) {
+      invariate.push(codice);
+    }
     scritte += esito.scritte ?? 0;
   }
 
@@ -165,6 +237,7 @@ export function verificaEsitoJob(
   // Il motivo per esteso, non solo il codice: «WTI in errore» non dice cosa
   // guardare, «WTI: OHLC perso in scrittura» sì.
   if (perditeOhlc.length > 0) parti.push(perditeOhlc.join(" · "));
+  if (perditeContinuita.length > 0) parti.push(perditeContinuita.join(" · "));
   if (riuscito) {
     parti.push(
       invariate.length === attese.length
@@ -179,6 +252,7 @@ export function verificaEsitoJob(
     mancanti,
     invariate,
     perditeOhlc,
+    perditeContinuita,
     scritte,
     messaggio: parti.join(" · "),
   };
