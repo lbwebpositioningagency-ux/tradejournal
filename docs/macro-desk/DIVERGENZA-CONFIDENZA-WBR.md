@@ -140,3 +140,27 @@ Query di sola lettura su Neon, via Prisma (mai col driver `pg` grezzo, che resti
 le date sfalsate di un giorno): per ogni report con `biasRecord`, confrontare
 `biasRecord.assets[chiave].confidence` con `parseMacroPayload(payload).assets[]
 .weekly.confidence`, mappando `gold→xau`, `oil→wti`, `idx→idx`.
+
+## Poscritto — 28/08/2026, sera tardi: il guardiano guardava il riferimento sbagliato
+
+Al primo giro su dati veri il controllo esteso ha segnalato una violazione che era
+l'esatto contrario di una violazione. Il report delle 14:46 portava
+`payload.assets[oil].weekly.confidence` da **43** a **45**, e il guardiano ha detto
+«tenuto 43, rifiutato 45» — ma 45 era il valore che il `biasRecord` dichiarava dalla
+domenica: il desk stava **correggendo** il payload, non spostandolo.
+
+La causa: il confronto era col **payload archiviato**, che in quella settimana era lui
+stesso il valore sbagliato. Il guardiano difendeva l'errore che era nato per scoprire.
+
+Ora `confidenzaPayloadRifiutata` confronta con `biasRecord.<asset>.confidence`
+dell'archivio, cioè con l'impegno vero. Ne seguono le due proprietà che servono:
+
+- una correzione **verso** il record non produce più falso allarme;
+- uno scostamento **dal** record continua a produrlo, **anche quando il report è
+  internamente coerente** — cioè quando il desk muove payload e record insieme. In quel
+  caso `applicaImpegno` congela il record, il controllo n. 4 della sentinella (che
+  confronta le due metà dello stesso report) tacerebbe, e questo resta l'unico a
+  vedere la deriva.
+
+Sullo stesso report, intanto, la divergenza storica è chiusa: `payload`, `biasRecord` e
+colonna dicono tutti 51 / 45 / 46 sui tre asset.

@@ -76,12 +76,19 @@ describe("tab Asset — la lettura per asset", () => {
     expect(gold).not.toMatch(/50\/100<\/span><span[^>]*>Bassa</);
   });
 
-  it("la ragione del taglio viene estratta dalla nota del pilastro, e dichiarata come estratta", () => {
-    expect(html).toContain("Motivo riconosciuto nel testo");
+  it("la ragione estratta resta NEL pilastro da cui viene, non in fondo", () => {
+    /* L'euristica pesca la frase da una nota: il posto giusto per mostrarla è
+       quel pilastro, dove commenta la misura che la genera. Il blocco a sé
+       resta il ripiego per quando l'ancora non si trova. */
+    expect(html).toContain("Da qui la confidenza");
     expect(html).toContain("confidence limitata a prescindere dal tape");
-    expect(html).toContain("questo report non porta il campo dedicato");
-    // l'euristica non si spaccia per campo dichiarato
+    // ancorata: niente blocco staccato e niente etichetta da campo dichiarato
+    expect(html).not.toContain("Motivo riconosciuto nel testo");
     expect(html).not.toContain(">Motivo dichiarato<");
+    // e la frase compare UNA volta sola, non anche nella nota del pilastro
+    expect(
+      (html.match(/confidence limitata a prescindere dal tape/g) ?? []).length,
+    ).toBe(1);
   });
 
   it("edge, invalidazione, narrativa e driver restano", () => {
@@ -372,9 +379,40 @@ describe("tab Asset — i due numeri della confidenza", () => {
       ],
     });
     const html = renderToStaticMarkup(<AssetsTab payload={p} natura="emesso" />);
+    /* Ancorato: la frase sta DENTRO la card del pilastro «Eventi», non in un
+       blocco staccato in fondo. */
+    expect(html).toContain("Motivo della confidenza");
+    expect(html).toContain("«keynote binario oggi: la lettura vale meno»");
+    const eventi = html.indexOf("Eventi");
+    const frase = html.indexOf("keynote binario oggi");
+    const regime = html.indexOf("Stagflation-lite pro-oro");
+    expect(frase).toBeGreaterThan(eventi);
+    // sta nella colonna di Eventi, quindi DOPO la nota di Regime
+    expect(frase).toBeGreaterThan(regime);
+    // e il blocco a sé non compare
+    expect(html).not.toContain(">Motivo dichiarato<");
+  });
+
+  it("senza ancora il motivo torna nel blocco a sé: il ripiego regge", () => {
+    const p = parseMacroPayload({
+      assets: [
+        {
+          id: "gold",
+          name: "Oro",
+          weekly: {
+            biasLabel: "RIALZISTA",
+            confidence: 55,
+            confMotivo: "motivo che non appartiene a nessun pilastro noto",
+            confPilastro: "liquidita",
+            pillars: [{ k: "Regime", dir: "up", note: "Reali in calo." }],
+          },
+        },
+      ],
+    });
+    const html = renderToStaticMarkup(<AssetsTab payload={p} natura="emesso" />);
     expect(html).toContain("Motivo dichiarato");
-    // l'ancora: il nome del pilastro immediatamente prima della frase
-    expect(html).toContain(">Eventi · </span>«keynote binario oggi");
+    expect(html).toContain("«motivo che non appartiene a nessun pilastro noto»");
+    expect(html).not.toContain("Motivo della confidenza");
   });
 
   it("la frase del motivo non si stampa due volte: sparisce dalla striscia", () => {
@@ -399,7 +437,7 @@ describe("tab Asset — i due numeri della confidenza", () => {
     });
     const html = renderToStaticMarkup(<AssetsTab payload={p} natura="emesso" />);
     expect((html.match(/confidence limitata a prescindere/g) ?? []).length).toBe(1);
-    // il resto della nota resta dov'era
+    // il resto della nota resta dov'era, nello stesso pilastro
     expect(html).toContain("Warsh parla oggi.");
     expect(html).toContain("Reali in calo.");
   });

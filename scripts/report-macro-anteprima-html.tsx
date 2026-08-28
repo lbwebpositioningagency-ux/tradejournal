@@ -31,7 +31,7 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { PrismaClient } from "../src/generated/prisma/client";
 import { guardedPgAdapter } from "../src/lib/db-guard";
 import { parseMacroPayload } from "../src/lib/macro-desk-payload";
-import { parseMonitor } from "../src/lib/macro-desk-bias-record";
+import { ASSET_PAYLOAD_A_RECORD, parseMonitor } from "../src/lib/macro-desk-bias-record";
 import type { MonitorConfidenza } from "../src/lib/macro-desk-confidenza";
 import { controllaContratto } from "../src/lib/macro-desk-contratto";
 import { MacroReportDetail } from "../src/components/macro-desk/report-detail";
@@ -67,7 +67,7 @@ const CASI: {
     data: "2026-08-28",
     titolo: "2026-08-28 · DAILY · CAMPI NUOVI (monitor simulato)",
     nota:
-      "Stesso payload reale, più il blocco `monitor` che il generatore manderà da oggi: due numeri quando l'impegno di domenica e la lettura di oggi divergono, motivo DICHIARATO al posto dell'euristica",
+      "Stesso payload reale, più il blocco `monitor` che il generatore manderà da oggi: due numeri quando impegno e lettura di oggi divergono, e il motivo DICHIARATO reso DENTRO il pilastro cui `confPilastro` lo assegna, non in un blocco staccato",
     monitorFinto: {
       gold: {
         confidenceOggi: 44,
@@ -170,17 +170,10 @@ ${blocchi
 </html>`;
 }
 
-/** Stessa mappatura della pagina: le chiavi del monitor sono quelle scorecard. */
-const CHIAVE_MONITOR: Record<string, "xau" | "wti" | "idx"> = {
-  gold: "xau",
-  oil: "wti",
-  idx: "idx",
-};
-
 function monitorReale(colonna: unknown): Record<string, MonitorConfidenza> {
   const perChiave = new Map(parseMonitor(colonna).map((m) => [m.asset, m]));
   const fuori: Record<string, MonitorConfidenza> = {};
-  for (const [id, chiave] of Object.entries(CHIAVE_MONITOR)) {
+  for (const [id, chiave] of Object.entries(ASSET_PAYLOAD_A_RECORD)) {
     const m = perChiave.get(chiave);
     if (!m) continue;
     if (m.confidenceOggi === null && m.confMotivo === null && m.state === null && m.note === null) {

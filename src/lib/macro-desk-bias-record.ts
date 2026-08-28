@@ -215,6 +215,20 @@ export function parseWeeklyBiasRecord(value: unknown): WeeklyBiasRecord | null {
   return { weekStart, windowEnd: dateKey(value.windowEnd), assets };
 }
 
+/**
+ * Gli asset hanno DUE nomi, e non è un capriccio: nel `payload` il desk li
+ * chiama `gold`/`oil`/`idx` (sono etichette da pagina), nel `biasRecord` e nel
+ * `monitor` `xau`/`wti`/`idx` (sono chiavi da archivio, le stesse della
+ * scorecard). Ogni volta che si mettono in relazione le due metà del report
+ * serve questa corrispondenza — ed era finita copiata in quattro posti, che è
+ * il modo migliore perché un giorno una copia resti indietro.
+ */
+export const ASSET_PAYLOAD_A_RECORD: Readonly<Record<string, ScorecardAsset>> = {
+  gold: "xau",
+  oil: "wti",
+  idx: "idx",
+};
+
 /** Stato giornaliero di un asset (blocco `monitor` dei report DAILY). */
 export interface AssetMonitor {
   asset: ScorecardAsset;

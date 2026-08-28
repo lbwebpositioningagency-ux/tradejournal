@@ -1,4 +1,5 @@
 import {
+  ASSET_PAYLOAD_A_RECORD,
   parseWeeklyBiasRecord,
   type AssetBiasRecord,
   type BiasBranch,
@@ -245,23 +246,32 @@ export function applicaImpegno(
   };
 }
 
-/* ── L'impegno visto dal PAYLOAD, non dal record ──────────────────────── */
+/* ── La confidenza del PAYLOAD contro l'impegno ───────────────────────── */
 
 /**
- * IL PUNTO CIECO DEL GUARDIANO, chiuso il 28/08/2026.
+ * IL PUNTO CIECO DEL GUARDIANO, chiuso il 28/08/2026 e corretto la sera stessa.
  *
- * `applicaImpegno` confronta il `biasRecord` in arrivo con quello in
- * archivio, e in 23 report non ha mai rilevato niente: il desk quel blocco lo
- * rispediva identico. Intanto, però, la stessa confidenza scritta nell'ALTRO
- * posto — `payload.assets[].weekly.confidence`, che è ciò che la card mostra
- * — divergeva dall'impegno in 13 casi su 42 (21/08 indici: 52 nel record, 46
- * nel payload). Il guardiano sorvegliava la porta chiusa.
+ * `applicaImpegno` confronta il `biasRecord` in arrivo con quello in archivio,
+ * e in 23 report non ha mai rilevato niente: il desk quel blocco lo rispediva
+ * identico. Intanto, però, la stessa confidenza scritta nell'ALTRO posto —
+ * `payload.assets[].weekly.confidence`, che è ciò che la card mostra —
+ * divergeva dall'impegno in 13 casi su 42. Il guardiano sorvegliava la porta
+ * chiusa.
  *
- * Da oggi il generatore ha l'ordine esplicito di non muovere più quel campo a
- * settimana aperta: la lettura del giorno ha il suo posto, `monitor.<asset>.
- * confidenceOggi`. Questo confronto serve a far vedere la prossima violazione
- * invece di lasciarla passare — ed è nato proprio perché il difetto vero non
- * era la divergenza, era che nessuno la vedesse.
+ * ── CONTRO CHE COSA SI CONFRONTA, e perché è cambiato ───────────────────
+ * La prima versione confrontava il payload in arrivo col payload ARCHIVIATO, e
+ * al primo giro su dati veri ha segnalato una violazione che era l'esatto
+ * contrario: il 28/08 il desk ha portato `oil` da 43 a 45 — cioè ha ALLINEATO
+ * il payload al `biasRecord`, che 45 lo diceva da domenica. Il riferimento era
+ * il valore sbagliato, e il guardiano difendeva l'errore.
+ *
+ * Ora il confronto è con `biasRecord.<asset>.confidence` dell'archivio, che è
+ * l'impegno vero. Ne seguono le due proprietà che servono:
+ *  - una correzione VERSO il record non produce più falso allarme;
+ *  - uno scostamento DAL record continua a produrlo — anche quando il report
+ *    è internamente coerente, cioè quando il desk muove payload e record
+ *    insieme. In quel caso il record viene congelato da `applicaImpegno` e la
+ *    coerenza interna del report non basta più a nascondere la deriva.
  *
  * ── Si REGISTRA, non si riscrive ────────────────────────────────────────
  * A differenza del `biasRecord`, qui non si congela nulla. Tre ragioni, in
@@ -277,14 +287,14 @@ export function applicaImpegno(
  *  3. la divergenza è essa stessa il dato interessante — dice che il desk ha
  *     cambiato idea a settimana aperta. Sovrascriverla la cancellerebbe.
  */
-function confidenzeSettimanali(payload: unknown): Map<string, number> {
+function confidenzeSettimanaliDalPayload(payload: unknown): Map<string, number> {
   const fuori = new Map<string, number>();
   const p = payload as Record<string, unknown> | null | undefined;
   const assets = p && typeof p === "object" && Array.isArray(p.assets) ? p.assets : [];
   for (const grezzo of assets) {
     if (typeof grezzo !== "object" || grezzo === null) continue;
     const a = grezzo as Record<string, unknown>;
-    const id = typeof a.id === "string" ? a.id : typeof a.ticker === "string" ? a.ticker : null;
+    const id = typeof a.id === "string" ? a.id : null;
     const weekly = a.weekly;
     if (!id || typeof weekly !== "object" || weekly === null) continue;
     const conf = (weekly as Record<string, unknown>).confidence;
@@ -294,24 +304,29 @@ function confidenzeSettimanali(payload: unknown): Map<string, number> {
 }
 
 /**
- * Le confidenze settimanali del payload che divergono da quelle già in
- * archivio per la stessa settimana. Un asset presente solo da una parte non è
- * una divergenza: è un cambio di composizione, che il confronto sul
+ * Le confidenze settimanali del payload in arrivo che divergono dall'IMPEGNO
+ * già registrato per la stessa settimana. Un asset che l'impegno non copre non
+ * è una divergenza: è un cambio di composizione, che il confronto sul
  * `biasRecord` già intercetta per quel che vale.
  */
 export function confidenzaPayloadRifiutata(
-  payloadArchivio: unknown,
+  biasRecordArchivio: unknown,
   payloadArrivato: unknown,
 ): ModificaRifiutata[] {
-  const archivio = confidenzeSettimanali(payloadArchivio);
-  const arrivato = confidenzeSettimanali(payloadArrivato);
+  const impegno = parseWeeklyBiasRecord(biasRecordArchivio);
+  if (!impegno) return [];
+  const perAsset = new Map(impegno.assets.map((a) => [a.asset, a.confidence]));
+
   const fuori: ModificaRifiutata[] = [];
-  for (const [id, valore] of arrivato) {
-    const base = archivio.get(id);
-    if (base === undefined || base === valore) continue;
+  for (const [id, valore] of confidenzeSettimanaliDalPayload(payloadArrivato)) {
+    const chiave = ASSET_PAYLOAD_A_RECORD[id];
+    const dichiarata = chiave ? perAsset.get(chiave) : undefined;
+    if (dichiarata === undefined || dichiarata === null || dichiarata === valore) {
+      continue;
+    }
     fuori.push({
       campo: `payload.assets[${id}].weekly.confidence`,
-      tenuto: testo(base),
+      tenuto: testo(dichiarata),
       rifiutato: testo(valore),
     });
   }

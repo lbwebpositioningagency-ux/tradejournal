@@ -21,7 +21,9 @@ import {
   stessaFrase,
   unanimitaControBiasNeutro,
   SEGNO_LABEL,
+  type LetturaConfidenza,
   type MonitorConfidenza,
+  type MotivoConfidenza,
 } from "@/lib/macro-desk-confidenza";
 import { quandoNews } from "@/lib/macro-desk-news-quando";
 import { cn } from "@/lib/utils";
@@ -163,20 +165,30 @@ function StrisciaPilastri({
   motivo,
 }: {
   horizon: MacroHorizon;
-  /** La frase gia' stampata come motivo: qui non si ripete. */
-  motivo?: string;
+  /**
+   * Il motivo della confidenza. Se è ANCORATO a un pilastro (`confPilastro`,
+   * o in ripiego il confronto testuale) viene reso DENTRO quel pilastro; il
+   * blocco confidenza allora non lo ripete.
+   */
+  motivo?: MotivoConfidenza;
 }) {
   if (horizon.pillars.length === 0) return null;
   return (
     <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-4">
       {horizon.pillars.map((pillar) => {
         const tone = dirTone(pillar.dir);
-        /* UN SOLO POSTO PER QUELLA FRASE. Il motivo vive accanto al numero che
-           spiega; se la nota del pilastro contiene la stessa frase, qui la si
-           toglie invece di stamparla due volte a otto righe di distanza. Se
-           non resta altro, il pilastro mostra solo nome e segno — che e' tutto
-           cio' che la striscia deve dire a colpo d'occhio. */
-        const nota = notaSenzaMotivo(pillar.note, motivo);
+        /* UN SOLO POSTO PER QUELLA FRASE — e da oggi quel posto è QUI, quando
+           si sa a quale pilastro appartiene. Il motivo commenta una delle
+           quattro forze: messo accanto alla misura che commenta si legge come
+           una conseguenza, staccato in fondo si leggeva come un'eco.
+           Effetto voluto anche a monte: se il generatore ripete nel motivo
+           quello che ha già scritto nella nota, la ripetizione finisce sotto
+           gli occhi di chi scrive le istruzioni, non del lettore. */
+        const ancorato = motivo?.pilastro === pillar.k ? motivo : undefined;
+        /* La deduplica resta VERBATIM e basta: togliere una frase perché
+           «somiglia» a un'altra prima o poi toglie qualcosa che serviva, e in
+           silenzio. Le parafrasi si correggono nelle istruzioni del desk. */
+        const nota = notaSenzaMotivo(pillar.note, ancorato?.testo);
         const muted = tone === "flat";
         const colore = muted ? "var(--md-muted)" : TONE_COLOR[tone];
         return (
@@ -204,6 +216,20 @@ function StrisciaPilastri({
             {nota ? (
               <p className="mt-1.5 text-2xs leading-relaxed text-[var(--md-muted)]">
                 {nota}
+              </p>
+            ) : null}
+            {ancorato ? (
+              <p
+                className="mt-2 border-l-2 pl-2 text-2xs leading-relaxed text-[var(--md-text-2)]"
+                style={{ borderColor: "var(--md-warn)" }}
+              >
+                <span
+                  className="mr-1 font-semibold uppercase tracking-[0.1em]"
+                  style={{ color: "var(--md-warn)" }}
+                >
+                  {ancorato.fonte === "estratto" ? "Da qui la confidenza" : "Motivo della confidenza"}
+                </span>
+                «{ancorato.testo}»
               </p>
             ) : null}
           </div>
@@ -255,13 +281,13 @@ function Punteggio({
  * due misure di due momenti diversi. Dirlo è metà del lavoro.
  */
 function BloccoConfidenza({
-  horizon,
-  monitor,
+  lettura,
+  mostraMotivo,
 }: {
-  horizon: MacroHorizon;
-  monitor?: MonitorConfidenza;
+  lettura: LetturaConfidenza | null;
+  /** Falso quando il motivo è già reso dentro il suo pilastro: non si ripete. */
+  mostraMotivo: boolean;
 }) {
-  const lettura = letturaConfidenza(horizon, monitor);
   if (!lettura) return null;
   const {
     impegno,
@@ -346,7 +372,10 @@ function BloccoConfidenza({
         </div>
       ) : null}
 
-      {motivi.length > 0 ? (
+      {/* Il blocco a sé è il RIPIEGO: c'è solo quando il motivo non ha trovato
+          il suo pilastro — niente `confPilastro` e nessuna corrispondenza nel
+          testo. Con l'ancora, la frase sta lassù accanto alla sua misura. */}
+      {mostraMotivo && motivi.length > 0 ? (
       <div
         className="rounded-[var(--md-r-sm)] py-1.5 pl-2.5"
         style={{ borderLeft: "2px solid var(--md-warn)" }}
@@ -436,17 +465,16 @@ const COLORE_STATO: Record<string, string> = {
  * ancorato al numero che spiega e senza di esso quel numero resterebbe muto.
  */
 function NotaDelGiorno({
-  horizon,
   monitor,
+  motivo,
 }: {
-  horizon: MacroHorizon;
   monitor?: MonitorConfidenza;
+  /** Il motivo già stampato altrove: se la nota lo ripete, la nota tace. */
+  motivo?: string;
 }) {
   const nota = monitor?.note?.trim();
   const stato = monitor?.state?.trim().toLowerCase();
   if (!nota && !stato) return null;
-
-  const motivo = letturaConfidenza(horizon, monitor)?.motivi[0]?.testo;
   if (nota && stessaFrase(nota, motivo)) return null;
 
   return (
@@ -481,9 +509,16 @@ function LetturaSettimanale({
   monitor?: MonitorConfidenza;
 }) {
   const tone = biasTone(horizon.biasLabel, horizon.bias);
-  /* Il motivo effettivamente stampato dal blocco confidenza: serve alla
-     striscia per non ripeterlo, e a `NotaDelGiorno` per non fare da eco. */
-  const motivoStampato = letturaConfidenza(horizon, monitor)?.motivi[0]?.testo;
+  /* UNA SOLA lettura per tutta la card: la calcolano in tre e devono dire la
+     stessa cosa, quindi la si calcola una volta e la si passa. */
+  const lettura = letturaConfidenza(horizon, monitor);
+  const motivo = lettura?.motivi[0];
+  /* Ancorato = il pilastro esiste davvero in questo orizzonte. Un
+     `confPilastro` che punta a un pilastro assente non deve far sparire il
+     motivo: torna al blocco a sé. */
+  const ancorato = Boolean(
+    motivo?.pilastro && horizon.pillars.some((p) => p.k === motivo.pilastro),
+  );
   return (
     <div className="flex flex-col gap-3.5">
       <div className="flex flex-wrap items-center justify-between gap-2">
@@ -507,10 +542,10 @@ function LetturaSettimanale({
         <p className="text-sm text-[var(--md-muted)]">Bias settimanale non dichiarato.</p>
       )}
 
-      <NotaDelGiorno horizon={horizon} monitor={monitor} />
-      <StrisciaPilastri horizon={horizon} motivo={motivoStampato} />
+      <NotaDelGiorno monitor={monitor} motivo={motivo?.testo} />
+      <StrisciaPilastri horizon={horizon} motivo={ancorato ? motivo : undefined} />
       <NotaUnanimita horizon={horizon} />
-      <BloccoConfidenza horizon={horizon} monitor={monitor} />
+      <BloccoConfidenza lettura={lettura} mostraMotivo={!ancorato} />
 
       {horizon.edge ? (
         <Callout label="Edge" color="var(--md-info)">

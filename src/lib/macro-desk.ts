@@ -87,15 +87,17 @@ async function impegnoDellaSettimana(
       biasRecord: { path: ["weekStart"], equals: arrivato.weekStart },
     },
     orderBy: [{ reportDate: "asc" }, { generatedAt: "asc" }],
-    select: { biasRecord: true, payload: true },
+    select: { biasRecord: true },
   });
   if (!archivio) return { biasRecord: input.biasRecord, rifiutate: [] };
 
   const esito = applicaImpegno(archivio.biasRecord, arrivato);
   /* La stessa confidenza vive in due posti, e finora se ne sorvegliava uno
-     solo: vedi `confidenzaPayloadRifiutata`. Queste discrepanze si REGISTRANO
-     e basta — il payload resta quello spedito. */
-  const daPayload = confidenzaPayloadRifiutata(archivio.payload, input.payload);
+     solo: vedi `confidenzaPayloadRifiutata`. Il riferimento è l'IMPEGNO
+     (`biasRecord` in archivio), non il payload archiviato — che il 28/08 era
+     lui stesso il valore sbagliato. Queste discrepanze si REGISTRANO e basta:
+     il payload resta quello spedito. */
+  const daPayload = confidenzaPayloadRifiutata(archivio.biasRecord, input.payload);
   const rifiutate = [...esito.rifiutate, ...daPayload];
 
   if (rifiutate.length > 0) {

@@ -248,62 +248,94 @@ describe("riassuntoRifiuti — la riga di log dice cosa, non «è successo»", (
   });
 });
 
-describe("confidenzaPayloadRifiutata — il punto cieco che il guardiano non vedeva", () => {
+describe("confidenzaPayloadRifiutata — il payload contro l'IMPEGNO", () => {
   const payload = (conf: Record<string, number>) => ({
     assets: Object.entries(conf).map(([id, confidence]) => ({
       id,
       weekly: { biasLabel: "RIALZISTA", confidence },
     })),
   });
+  const impegno = (conf: Record<string, number>) => ({
+    weekStart: "2026-08-23",
+    assets: Object.fromEntries(
+      Object.entries(conf).map(([k, confidence]) => [k, { bias: "NEUTRALE", confidence }]),
+    ),
+  });
 
-  it("registra la confidenza settimanale mossa a settimana aperta", () => {
-    /* Il caso REALE del 21/08: nel biasRecord l'indice valeva 52, nel payload
-       46. Il guardiano confrontava record con record e non vedeva niente. */
+  it("registra la confidenza del payload che si scosta dall'impegno", () => {
     const rifiutate = confidenzaPayloadRifiutata(
-      payload({ gold: 48, oil: 44, idx: 52 }),
-      payload({ gold: 44, oil: 41, idx: 46 }),
+      impegno({ xau: 51, wti: 45, idx: 46 }),
+      payload({ gold: 51, oil: 41, idx: 40 }),
     );
     expect(rifiutate).toEqual([
-      { campo: "payload.assets[gold].weekly.confidence", tenuto: "48", rifiutato: "44" },
-      { campo: "payload.assets[oil].weekly.confidence", tenuto: "44", rifiutato: "41" },
-      { campo: "payload.assets[idx].weekly.confidence", tenuto: "52", rifiutato: "46" },
+      { campo: "payload.assets[oil].weekly.confidence", tenuto: "45", rifiutato: "41" },
+      { campo: "payload.assets[idx].weekly.confidence", tenuto: "46", rifiutato: "40" },
     ]);
   });
 
-  it("confidenze identiche: silenzio, come dev'essere nel caso normale", () => {
+  it("una CORREZIONE verso l'impegno non è più un falso allarme", () => {
+    /* Il caso reale del 28/08: il payload archiviato diceva 43, l'impegno 45,
+       e il desk ha portato il payload a 45 — cioè ha corretto. La prima
+       versione del controllo confrontava col payload archiviato e gridava al
+       lupo proprio mentre il lupo se ne andava. */
+    expect(confidenzaPayloadRifiutata(impegno({ wti: 45 }), payload({ oil: 45 }))).toEqual([]);
+  });
+
+  it("uno scostamento DALL'impegno si vede anche se il report è coerente in sé", () => {
+    /* Il caso che la prima versione non poteva prendere: il desk muove
+       payload E record insieme. `applicaImpegno` congela il record, la
+       coerenza interna del report tacerebbe, e senza questo controllo la
+       deriva del payload passerebbe. */
     expect(
-      confidenzaPayloadRifiutata(payload({ gold: 60 }), payload({ gold: 60 })),
+      confidenzaPayloadRifiutata(impegno({ xau: 45 }), payload({ gold: 50 })),
+    ).toEqual([
+      { campo: "payload.assets[gold].weekly.confidence", tenuto: "45", rifiutato: "50" },
+    ]);
+  });
+
+  it("un asset che l'impegno non copre non è una divergenza", () => {
+    expect(confidenzaPayloadRifiutata(impegno({ xau: 60 }), payload({ oil: 44 }))).toEqual([]);
+  });
+
+  it("senza impegno leggibile non si confronta niente", () => {
+    expect(confidenzaPayloadRifiutata(null, payload({ gold: 60 }))).toEqual([]);
+    expect(confidenzaPayloadRifiutata({ assets: {} }, payload({ gold: 60 }))).toEqual([]);
+    // niente weekStart → il record non è collocabile, quindi non è un impegno
+    expect(
+      confidenzaPayloadRifiutata({ assets: { xau: { bias: "N", confidence: 1 } } }, payload({ gold: 60 })),
     ).toEqual([]);
   });
 
-  it("un asset che l'archivio non ha non è una divergenza", () => {
-    expect(
-      confidenzaPayloadRifiutata(payload({ gold: 60 }), payload({ gold: 60, oil: 44 })),
-    ).toEqual([]);
-  });
-
-  it("payload assenti, malformati o senza confidenza non lanciano mai", () => {
-    expect(confidenzaPayloadRifiutata(null, undefined)).toEqual([]);
-    expect(confidenzaPayloadRifiutata("stringa", 42)).toEqual([]);
-    expect(confidenzaPayloadRifiutata({ assets: "non un array" }, payload({ gold: 1 }))).toEqual([]);
+  it("un impegno con confidence nulla non produce confronti fantasma", () => {
     expect(
       confidenzaPayloadRifiutata(
-        { assets: [{ id: "gold", weekly: { confidence: "50" } }] },
+        { weekStart: "2026-08-23", assets: { xau: { bias: "NEUTRALE" } } },
         payload({ gold: 60 }),
       ),
     ).toEqual([]);
   });
 
-  it("il ticker fa da chiave quando manca l'id", () => {
-    const conTicker = (c: number) => ({
-      assets: [{ ticker: "XAUUSD", weekly: { confidence: c } }],
-    });
-    expect(confidenzaPayloadRifiutata(conTicker(60), conTicker(55))).toEqual([
-      {
-        campo: "payload.assets[XAUUSD].weekly.confidence",
-        tenuto: "60",
-        rifiutato: "55",
-      },
-    ]);
+  it("payload malformati non lanciano mai", () => {
+    expect(confidenzaPayloadRifiutata(impegno({ xau: 1 }), undefined)).toEqual([]);
+    expect(confidenzaPayloadRifiutata(impegno({ xau: 1 }), "stringa")).toEqual([]);
+    expect(confidenzaPayloadRifiutata(impegno({ xau: 1 }), { assets: "non un array" })).toEqual([]);
+    expect(
+      confidenzaPayloadRifiutata(impegno({ xau: 1 }), {
+        assets: [{ id: "gold", weekly: { confidence: "50" } }],
+      }),
+    ).toEqual([]);
+  });
+
+  it("senza `id` l'asset del payload non è confrontabile, ed è una scelta", () => {
+    /* Il `ticker` non fa più da chiave: la corrispondenza payload→record passa
+       da `ASSET_PAYLOAD_A_RECORD`, che parla di `gold`/`oil`/`idx`. Nei 23
+       report reali l'`id` c'è sempre; se un giorno sparisse, questo controllo
+       tacerebbe — e il silenzio è dichiarato qui invece di essere scoperto
+       fra sei mesi. */
+    expect(
+      confidenzaPayloadRifiutata(impegno({ xau: 60 }), {
+        assets: [{ ticker: "XAUUSD", weekly: { confidence: 55 } }],
+      }),
+    ).toEqual([]);
   });
 });

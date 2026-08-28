@@ -1,4 +1,5 @@
 import { parseMacroPayload } from "@/lib/macro-desk-payload";
+import { ASSET_PAYLOAD_A_RECORD } from "@/lib/macro-desk-bias-record";
 
 /**
  * LA SENTINELLA ALL'INGRESSO — modulo PURO, nessun I/O.
@@ -99,9 +100,6 @@ function testiDelPayload(p: Record<string, unknown>): { campo: string; testo: st
   return fuori;
 }
 
-/** Chiavi asset del Weekly Bias Record ← `id` dell'asset nel payload. */
-const CHIAVE_RECORD: Record<string, string> = { gold: "xau", oil: "wti", idx: "idx" };
-
 /**
  * I rilievi di un report in arrivo. Array vuoto = niente da dire, che è il
  * caso normale e quello in cui non deve succedere assolutamente nulla.
@@ -156,7 +154,7 @@ export function controllaContratto(payload: unknown, biasRecord?: unknown): Rili
     : undefined;
   if (recordAssets) {
     for (const asset of lette.assets) {
-      const chiave = asset.id ? CHIAVE_RECORD[asset.id] : undefined;
+      const chiave = asset.id ? ASSET_PAYLOAD_A_RECORD[asset.id] : undefined;
       const voce = chiave ? recordAssets[chiave] : undefined;
       if (!isRecord(voce)) continue;
       const nelRecord = voce.confidence;
