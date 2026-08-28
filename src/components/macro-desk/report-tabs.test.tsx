@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import { renderToStaticMarkup } from "react-dom/server";
 import sample from "../../../docs/macro-desk-sample-report.json";
 import { parseMacroPayload } from "@/lib/macro-desk-payload";
+import { REPORT_1808 } from "@/lib/macro-desk-1808.fixture";
 import { AssetsTab, NewsTab } from "./report-tabs";
 import { MacroReportDetail } from "./report-detail";
 import { VolatilitaPanel } from "./volatilita-panel";
@@ -62,22 +63,26 @@ describe("tab Asset — la lettura per asset", () => {
     expect(html).toContain("Conflitto genuino"); // note del pilastro rese
   });
 
-  it("la confidenza è dichiarata sulla sua scala, senza barra e senza confLabel", () => {
+  it("la confidenza è sulla sua scala, senza barra, con la fascia CALCOLATA dall'app", () => {
     expect(html).toContain("Confidenza");
     expect(html).toContain("50/100");
     expect(html).not.toMatch(/Confidenza \d+%/);
     expect(html).toContain("non una probabilità");
-    /* `confLabel` non si mostra più: 51 valeva «Bassa» il 27/08 e «Media» il
-       28/08 sullo stesso asset, quindi l'etichetta non aggiunge informazione
-       e ne toglie (fa credere a una soglia che non esiste). */
-    expect(html).not.toContain("· Bassa");
-    expect(html).not.toContain("· Media");
+    /* La fascia c'è di nuovo, ma è dell'app: 50 → «Media-bassa». Il sample
+       porta `confLabel: "Bassa"` per lo stesso 50, e quel valore NON deve
+       comparire — è proprio l'etichetta instabile che si è smesso di leggere. */
+    expect(html).toContain("Media-bassa");
+    const gold = html.slice(html.indexOf("XAUUSD"), html.indexOf("XAUUSD") + 6000);
+    expect(gold).toContain("50/100");
+    expect(gold).not.toMatch(/50\/100<\/span><span[^>]*>Bassa</);
   });
 
   it("la ragione del taglio viene estratta dalla nota del pilastro, e dichiarata come estratta", () => {
-    expect(html).toContain("Motivo dichiarato del taglio");
+    expect(html).toContain("Motivo riconosciuto nel testo");
     expect(html).toContain("confidence limitata a prescindere dal tape");
-    expect(html).toContain("Frase riconosciuta nella nota del pilastro");
+    expect(html).toContain("questo report non porta il campo dedicato");
+    // l'euristica non si spaccia per campo dichiarato
+    expect(html).not.toContain(">Motivo dichiarato<");
   });
 
   it("edge, invalidazione, narrativa e driver restano", () => {
@@ -198,10 +203,109 @@ describe("tab Asset — i casi limite trovati nei 23 report reali", () => {
     const html = renderToStaticMarkup(<AssetsTab payload={p} natura="monitorato" />);
     expect(html).toContain("Rallentamento"); // il quadro c'è
     expect(html).not.toContain("Verdetto"); // la conclusion no, e non si finge
-    expect(html).toContain("51/100");
     /* «compressi», «contenuta», «limitato» ci sono tutte, ma nessuna riferita
        alla confidenza: l'euristica NON deve agganciare. */
-    expect(html).not.toContain("Motivo dichiarato del taglio");
+    expect(html).not.toContain("Motivo riconosciuto nel testo");
+    /* E SENZA MOTIVO IL NUMERO NON SI MOSTRA. Un 51/100 da solo ha dev.std ~5
+       e correlazione ~0 con i pilastri: non aggiunge niente al bias e alla
+       striscia, e dà l'aria di una misura dove c'è un'opinione. */
+    expect(html).not.toContain("51/100");
+    expect(html).not.toContain("Confidenza");
+    // ma bias e pilastri restano: la card non si svuota
+    expect(html).toContain("RIALZISTA");
+    expect(html).toContain("Regime");
+  });
+});
+
+describe("tab Asset — i due numeri della confidenza", () => {
+  const conDivergenza = parseMacroPayload({
+    assets: [
+      {
+        id: "gold",
+        name: "Oro",
+        ticker: "XAUUSD",
+        weekly: {
+          biasLabel: "RIALZISTA",
+          confidence: 55,
+          confLabel: "Bassa", // dal payload: si ignora
+          pillars: [{ k: "Eventi", dir: "fl", note: "Keynote in agenda." }],
+        },
+      },
+    ],
+  });
+
+  it("campo dichiarato e lettura di oggi: due numeri, la differenza e il perché", () => {
+    const html = renderToStaticMarkup(
+      <AssetsTab
+        payload={conDivergenza}
+        natura="monitorato"
+        monitor={{
+          gold: { confidenceOggi: 48, confMotivo: "evento binario oggi: lettura sospesa" },
+        }}
+      />,
+    );
+    expect(html).toContain("impegno di domenica");
+    expect(html).toContain("55/100");
+    expect(html).toContain("lettura di oggi");
+    expect(html).toContain("48/100");
+    expect(html).toContain("−7"); // il delta, col segno
+    // le fasce sono dell'app: 55 → Media, 48 → Media-bassa
+    expect(html).toContain("Media-bassa");
+    expect(html).toContain(">Media<");
+    expect(html).not.toContain(">Bassa<"); // il confLabel del payload resta fuori
+    // la riga che impedisce di leggere il secondo numero come una correzione
+    expect(html).toContain("non una corretta e una sbagliata");
+    // campo dichiarato: niente avvertenza da euristica, e mai le due insieme
+    expect(html).toContain("Motivo dichiarato");
+    expect(html).toContain("evento binario oggi: lettura sospesa");
+    expect(html).not.toContain("Motivo riconosciuto nel testo");
+    /* La nota del pilastro resta dov'è — nella striscia — ma non viene MAI
+       citata come motivo: le virgolette sono la firma del blocco motivo. */
+    expect(html).toContain("Keynote in agenda.");
+    expect(html).not.toContain("«Keynote in agenda.»");
+  });
+
+  it("lettura di oggi UGUALE all'impegno: un numero solo, niente delta", () => {
+    const html = renderToStaticMarkup(
+      <AssetsTab
+        payload={conDivergenza}
+        natura="monitorato"
+        monitor={{ gold: { confidenceOggi: 55, confMotivo: "quadro invariato" } }}
+      />,
+    );
+    expect(html).toContain("55/100");
+    expect(html).not.toContain("impegno di domenica");
+    expect(html).not.toContain("lettura di oggi");
+    expect(html).toContain("quadro invariato");
+  });
+
+  it("il campo dichiarato ha la precedenza sull'euristica, che resta un ripiego", () => {
+    const conEntrambi = parseMacroPayload({
+      assets: [
+        {
+          id: "gold",
+          name: "Oro",
+          weekly: {
+            biasLabel: "RIALZISTA",
+            confidence: 51,
+            confMotivo: "posizionamento pieno, dichiarato dal desk",
+            pillars: [
+              { k: "Eventi", dir: "fl", note: "Evento binario: confidence limitata." },
+            ],
+          },
+        },
+      ],
+    });
+    const html = renderToStaticMarkup(
+      <AssetsTab payload={conEntrambi} natura="emesso" />,
+    );
+    expect(html).toContain("«posizionamento pieno, dichiarato dal desk»");
+    expect(html).toContain("Motivo dichiarato");
+    /* La frase che l'euristica avrebbe agganciato è nella striscia, non fra le
+       virgolette del motivo: dichiarato ed estratto non compaiono INSIEME. */
+    expect(html).toContain("Evento binario: confidence limitata.");
+    expect(html).not.toContain("«Evento binario: confidence limitata.»");
+    expect(html).not.toContain("Motivo riconosciuto nel testo");
   });
 });
 
@@ -237,6 +341,105 @@ describe("tab News", () => {
     expect(html).not.toContain(">Oil<");
     expect(html).not.toContain(">Indices<");
     expect(html).not.toContain(">Global<");
+  });
+
+  const REPORT_DATE = new Date("2026-08-28T00:00:00.000Z");
+
+  it("il titolo porta alla fonte quando c'è l'url, e resta testo quando non c'è", () => {
+    const p = parseMacroPayload({
+      news: [
+        {
+          title: "Con fonte",
+          url: "https://www.reuters.com/x",
+          when: "2026-08-27",
+          tags: ["gold"],
+        },
+        { title: "Senza fonte", when: "2026-08-26", tags: ["gold"] },
+      ],
+    });
+    const html = renderToStaticMarkup(<NewsTab payload={p} reportDate={REPORT_DATE} />);
+    expect(html).toContain('href="https://www.reuters.com/x"');
+    expect(html).toContain('target="_blank"');
+    expect(html).toContain('rel="noopener noreferrer"');
+    // la seconda non diventa un link vuoto
+    expect((html.match(/<a /g) ?? []).length).toBe(1);
+    expect(html).toContain("Senza fonte");
+  });
+
+  it("un url non http/https non arriva mai in un href", () => {
+    const p = parseMacroPayload({
+      news: [
+        { title: "Ostile", url: "javascript:alert(1)", tags: ["gold"] },
+        { title: "Relativo", url: "//evil.example/x", tags: ["gold"] },
+      ],
+    });
+    const html = renderToStaticMarkup(<NewsTab payload={p} reportDate={REPORT_DATE} />);
+    expect(html).not.toContain("javascript:");
+    expect(html).not.toContain("evil.example");
+    expect(html).not.toContain("<a ");
+    expect(html).toContain("Ostile"); // il titolo resta, perde solo il link
+  });
+
+  it("le date relative dei report storici sono ancorate a reportDate", () => {
+    const p = parseMacroPayload({
+      news: [
+        { title: "A", when: "Oggi", tags: ["gold"] },
+        { title: "B", when: "Ieri", tags: ["gold"] },
+        { title: "C", when: "2 giorni fa", tags: ["gold"] },
+        { title: "D", when: "Questa settimana", tags: ["gold"] },
+      ],
+    });
+    const html = renderToStaticMarkup(<NewsTab payload={p} reportDate={REPORT_DATE} />);
+    /* «Oggi» in un archivio è una bugia detta con precisione: qui diventa la
+       data del report. */
+    expect(html).not.toContain(">Oggi<");
+    expect(html).not.toContain(">Ieri<");
+    expect(html).not.toContain(">2 giorni fa<");
+    expect(html).toContain("28 ago 2026");
+    expect(html).toContain("27 ago 2026");
+    expect(html).toContain("26 ago 2026");
+    // il vago resta vago e non finge di essere una data
+    expect(html).toContain("Questa settimana");
+    expect(html).toContain("font-style:italic");
+  });
+
+  it("sotto il gruppo di un asset il chip che lo ripete non c'è; gli altri sì", () => {
+    const p = parseMacroPayload({
+      news: [{ title: "Oro e Fed", tags: ["gold", "fed"] }],
+    });
+    const html = renderToStaticMarkup(<NewsTab payload={p} reportDate={REPORT_DATE} />);
+    expect(html).toContain(">Gold<"); // l'intestazione del gruppo resta
+    expect(html).toContain(">fed<"); // il tag non-asset resta
+    expect(html).not.toContain(">gold<"); // il chip ridondante no
+  });
+});
+
+describe("il report REALE del 18/08 — la grafia che lo aveva reso muto", () => {
+  const p = parseMacroPayload(REPORT_1808);
+
+  it("le 11 notizie in grafia `t`/`note` hanno di nuovo titolo e sintesi", () => {
+    expect(p.news).toHaveLength(11);
+    expect(p.news.every((n) => n.title !== undefined)).toBe(true);
+    expect(p.news.every((n) => n.impl !== undefined)).toBe(true);
+    expect(p.news[0].title).toBe("Oro tiene 4.400 in attesa delle minute FOMC");
+    expect(p.news[0].impl).toContain("XAU/USD verso 4.400");
+  });
+
+  it("`risk`/`concl` tornano Radar rischi e Verdetto", () => {
+    expect(p.synthesis?.risks).toContain("WTI a massimo di 6 mesi");
+    expect(p.synthesis?.conclusion).toContain("Monitoraggio del WBR 16-21 ago");
+  });
+
+  it("e in pagina le card non sono più mute", () => {
+    const html = renderToStaticMarkup(
+      <NewsTab payload={p} reportDate={new Date("2026-08-18T00:00:00.000Z")} />,
+    );
+    expect(html).toContain("Oro tiene 4.400 in attesa delle minute FOMC");
+    expect(html).toContain("Odds di un rialzo FED a settembre azzerate");
+    // e il «Oggi»/«Ieri» di quel report è ancorato al 18 agosto
+    expect(html).toContain("18 ago 2026");
+    expect(html).toContain("17 ago 2026");
+    expect(html).not.toContain(">Oggi<");
   });
 });
 

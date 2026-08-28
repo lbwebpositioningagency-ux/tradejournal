@@ -7,6 +7,8 @@ import { auth } from "@/lib/auth";
 import { formatDateTime } from "@/lib/dates";
 import { prisma } from "@/lib/db";
 import { parseMacroPayload } from "@/lib/macro-desk-payload";
+import { parseMonitor } from "@/lib/macro-desk-bias-record";
+import type { MonitorConfidenza } from "@/lib/macro-desk-confidenza";
 import { cn } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
 import { MacroReportDetail } from "@/components/macro-desk/report-detail";
@@ -55,6 +57,32 @@ function naturaDelBias(
 ): NaturaBias {
   if (type === "WEEKLY") return "emesso";
   return (schemaVersion ?? 0) >= 2 ? "monitorato" : "aggiornato";
+}
+
+/**
+ * La LETTURA DI OGGI per asset, dalla colonna `monitor` — che è una colonna a
+ * sé e non una sezione del payload, quindi va presa qui e passata giù.
+ *
+ * La chiave è quella della scorecard (`xau`/`wti`/`idx`), mentre gli asset del
+ * payload si chiamano `gold`/`oil`/`idx`: la corrispondenza si fa una volta
+ * sola, qui, invece di ripeterla in ogni componente.
+ */
+const CHIAVE_MONITOR: Record<string, "xau" | "wti" | "idx"> = {
+  gold: "xau",
+  oil: "wti",
+  idx: "idx",
+};
+
+function monitorPerAsset(monitor: unknown): Record<string, MonitorConfidenza> {
+  const perChiave = new Map(parseMonitor(monitor).map((m) => [m.asset, m]));
+  const fuori: Record<string, MonitorConfidenza> = {};
+  for (const [idPayload, chiave] of Object.entries(CHIAVE_MONITOR)) {
+    const m = perChiave.get(chiave);
+    if (!m) continue;
+    if (m.confidenceOggi === null && m.confMotivo === null) continue;
+    fuori[idPayload] = { confidenceOggi: m.confidenceOggi, confMotivo: m.confMotivo };
+  }
+  return fuori;
 }
 
 export default async function MacroReportPage({
@@ -118,6 +146,8 @@ export default async function MacroReportPage({
         <MacroReportDetail
           payload={payload}
           natura={naturaDelBias(report.type, report.schemaVersion)}
+          monitor={monitorPerAsset(report.monitor)}
+          reportDate={report.reportDate}
         />
       </div>
     </div>

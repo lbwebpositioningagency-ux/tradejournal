@@ -5,6 +5,7 @@ import type { MacroBias, MacroDeskReportInput } from "@/lib/validations/macro-de
 import { parseWeeklyBiasRecord } from "@/lib/macro-desk-bias-record";
 import {
   applicaImpegno,
+  confidenzaPayloadRifiutata,
   riassuntoRifiuti,
   versoJsonDesk,
   type ModificaRifiutata,
@@ -85,28 +86,37 @@ async function impegnoDellaSettimana(
       biasRecord: { path: ["weekStart"], equals: arrivato.weekStart },
     },
     orderBy: [{ reportDate: "asc" }, { generatedAt: "asc" }],
-    select: { biasRecord: true },
+    select: { biasRecord: true, payload: true },
   });
   if (!archivio) return { biasRecord: input.biasRecord, rifiutate: [] };
 
   const esito = applicaImpegno(archivio.biasRecord, arrivato);
+  /* La stessa confidenza vive in due posti, e finora se ne sorvegliava uno
+     solo: vedi `confidenzaPayloadRifiutata`. Queste discrepanze si REGISTRANO
+     e basta — il payload resta quello spedito. */
+  const daPayload = confidenzaPayloadRifiutata(archivio.payload, input.payload);
+  const rifiutate = [...esito.rifiutate, ...daPayload];
 
-  /* NESSUN RIFIUTO → SI SALVA IL PAYLOAD ORIGINALE, byte per byte. Il desk
-     può spedire campi che il parser non conosce ancora, e nel caso normale —
-     che è la quasi totalità — non c'è ragione di farli passare da una
-     normalizzazione che li perderebbe. */
-  if (esito.rifiutate.length === 0) {
-    return { biasRecord: input.biasRecord, rifiutate: [] };
+  if (rifiutate.length > 0) {
+    console.error(
+      `[macro-desk] impegno della settimana ${arrivato.weekStart}: ` +
+        `${rifiutate.length} modifiche rifiutate — ${riassuntoRifiuti(rifiutate)}`,
+    );
   }
 
-  console.error(
-    `[macro-desk] impegno della settimana ${arrivato.weekStart}: ` +
-      `${esito.rifiutate.length} modifiche rifiutate — ${riassuntoRifiuti(esito.rifiutate)}`,
-  );
+  /* NESSUN RIFIUTO SUL RECORD → SI SALVA IL PAYLOAD ORIGINALE, byte per byte.
+     Il desk può spedire campi che il parser non conosce ancora, e nel caso
+     normale — che è la quasi totalità — non c'è ragione di farli passare da
+     una normalizzazione che li perderebbe. La condizione guarda i soli
+     rifiuti del RECORD: quelli del payload non lo riscrivono mai. */
+  if (esito.rifiutate.length === 0) {
+    return { biasRecord: input.biasRecord, rifiutate };
+  }
+
   /* Con dei rifiuti il record va riscritto, e va riscritto NELLA FORMA DEL
      DESK: `assets` dizionario, non array. Salvare la forma normalizzata lo
      renderebbe illeggibile al giro dopo. */
-  return { biasRecord: versoJsonDesk(esito.record), rifiutate: esito.rifiutate };
+  return { biasRecord: versoJsonDesk(esito.record), rifiutate };
 }
 
 /**

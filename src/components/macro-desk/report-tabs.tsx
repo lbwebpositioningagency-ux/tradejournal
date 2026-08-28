@@ -16,10 +16,13 @@ import {
   type MacroTone,
 } from "@/lib/macro-desk-payload";
 import {
-  ragioniDelTaglio,
+  letturaConfidenza,
   unanimitaControBiasNeutro,
   SEGNO_LABEL,
+  type MonitorConfidenza,
 } from "@/lib/macro-desk-confidenza";
+import { quandoNews } from "@/lib/macro-desk-news-quando";
+import { cn } from "@/lib/utils";
 import {
   Callout,
   MonoChip,
@@ -195,66 +198,141 @@ function StrisciaPilastri({ horizon }: { horizon: MacroHorizon }) {
   );
 }
 
+/** Un punteggio con la sua fascia, calcolata dall'app. Mai il `confLabel`. */
+function Punteggio({
+  valore,
+  fascia,
+  forte,
+}: {
+  valore: number;
+  fascia: string;
+  forte?: boolean;
+}) {
+  return (
+    <span className="whitespace-nowrap">
+      <span
+        className={cn(
+          "md-mono font-bold",
+          forte ? "text-sm text-[var(--md-text)]" : "text-sm text-[var(--md-text-2)]",
+        )}
+      >
+        {valore}/100
+      </span>
+      <span className="md-mono ml-1.5 text-2xs text-[var(--md-muted)]">{fascia}</span>
+    </span>
+  );
+}
+
 /**
- * La confidenza, in secondo piano — e accanto la RAGIONE del taglio quando
- * il desk la dichiara.
+ * La confidenza, in secondo piano — e accanto il MOTIVO, quando esiste.
  *
- * Niente barra: una barra che su tutti i report reali resta fra il 41% e il
- * 65% del suo binario suggerisce una variabilità che non c'è. Resta il
- * numero, con la scala dichiarata.
+ * Niente barra e niente ago: su tutti i report reali il numero resta fra 41 e
+ * 65, cioè in un quarto del binario. Una barra prometterebbe una variabilità
+ * che il dato non ha.
  *
- * `confLabel` NON si mostra più: non è funzione di `confidence` (51 valeva
- * «Bassa» il 27/08 e «Media» il 28/08 sullo stesso asset). Tornerà quando il
- * generatore definirà le fasce.
+ * Senza motivo il blocco NON compare affatto — `letturaConfidenza` torna
+ * `null` e qui non si rende niente. Il perché sta in quel modulo: un numero
+ * con dev.std ~5 e correlazione ~0 coi pilastri, da solo, non sposta nessuna
+ * decisione, mentre il bias e la striscia sì.
+ *
+ * Quando l'impegno della domenica e la lettura di oggi divergono si mostrano
+ * ENTRAMBI, con la differenza: non sono uno la correzione dell'altro, sono
+ * due misure di due momenti diversi. Dirlo è metà del lavoro.
  */
-function BloccoConfidenza({ horizon }: { horizon: MacroHorizon }) {
-  if (horizon.confidence === undefined) return null;
-  const conf = Math.max(0, Math.min(100, horizon.confidence));
-  const ragioni = ragioniDelTaglio(horizon);
+function BloccoConfidenza({
+  horizon,
+  monitor,
+}: {
+  horizon: MacroHorizon;
+  monitor?: MonitorConfidenza;
+}) {
+  const lettura = letturaConfidenza(horizon, monitor);
+  if (!lettura) return null;
+  const { impegno, fasciaImpegno, oggi, fasciaOggi, delta, motivi } = lettura;
+  const stimato = motivi[0].fonte === "estratto";
+
   return (
     <div className="flex flex-col gap-2">
-      <p className="flex flex-wrap items-baseline gap-x-2.5 gap-y-1">
+      <div className="flex flex-col gap-1">
         <span className="text-2xs font-semibold uppercase tracking-[0.14em] text-[var(--md-muted)]">
           Confidenza
         </span>
-        <span className="md-mono text-sm font-bold text-[var(--md-text-2)]">
-          {conf}/100
-        </span>
-        <span className="text-2xs text-[var(--md-muted)]">
-          dichiarata dal report: quanto si fida della propria lettura, non una
-          probabilità
-        </span>
-      </p>
 
-      {ragioni.length > 0 ? (
-        <div
-          className="rounded-[var(--md-r-sm)] py-1.5 pl-2.5"
-          style={{ borderLeft: "2px solid var(--md-warn)" }}
-        >
-          <p
-            className="text-2xs font-semibold uppercase tracking-[0.12em]"
-            style={{ color: "var(--md-warn)" }}
-          >
-            Motivo dichiarato del taglio
+        {oggi === undefined ? (
+          <p className="flex flex-wrap items-baseline gap-x-2.5 gap-y-1">
+            <Punteggio valore={impegno} fascia={fasciaImpegno} forte />
+            <span className="text-2xs text-[var(--md-muted)]">
+              dichiarata dal report: quanto si fida della propria lettura, non
+              una probabilità
+            </span>
           </p>
-          {ragioni.slice(0, 2).map((ragione) => (
-            <p
-              key={ragione.pilastro}
-              className="mt-1 text-xs leading-relaxed text-[var(--md-text-2)]"
-            >
-              <span className="md-mono text-2xs text-[var(--md-muted)]">
-                {ragione.pilastro} ·{" "}
+        ) : (
+          <>
+            <p className="flex flex-wrap items-baseline gap-x-2 gap-y-1">
+              <span className="text-2xs text-[var(--md-muted)]">
+                impegno di domenica
               </span>
-              «{ragione.frase}»
+              <Punteggio valore={impegno} fascia={fasciaImpegno} />
+              <span className="text-[var(--md-muted)]" aria-hidden>
+                →
+              </span>
+              <span className="text-2xs text-[var(--md-muted)]">lettura di oggi</span>
+              <Punteggio valore={oggi} fascia={fasciaOggi!} forte />
+              <span
+                className="md-mono rounded-[var(--md-r-sm)] px-1.5 py-0.5 text-2xs font-bold"
+                style={{
+                  color: delta! > 0 ? "var(--md-up)" : "var(--md-down)",
+                  backgroundColor: "var(--md-surface-3)",
+                }}
+              >
+                {delta! > 0 ? "+" : "−"}
+                {Math.abs(delta!)}
+              </span>
             </p>
-          ))}
-          {/* L'euristica va DICHIARATA: il payload non ha un campo per questo. */}
-          <p className="mt-1.5 text-[10px] leading-tight text-[var(--md-muted)]">
-            Frase riconosciuta nella nota del pilastro. Il report non ha un
-            campo dedicato: quando non la si riconosce, resta il solo numero.
+            {/* La riga che impedisce la lettura sbagliata: senza, il secondo
+                numero sembra la correzione di un errore nel primo. */}
+            <p className="text-2xs leading-relaxed text-[var(--md-muted)]">
+              Due misure, non una corretta e una sbagliata: l&apos;impegno è
+              dichiarato la domenica e resta fermo tutta la settimana, la
+              lettura di oggi dice quanto il desk si fida di quel bias adesso.
+            </p>
+          </>
+        )}
+      </div>
+
+      <div
+        className="rounded-[var(--md-r-sm)] py-1.5 pl-2.5"
+        style={{ borderLeft: "2px solid var(--md-warn)" }}
+      >
+        <p
+          className="text-2xs font-semibold uppercase tracking-[0.12em]"
+          style={{ color: "var(--md-warn)" }}
+        >
+          {stimato ? "Motivo riconosciuto nel testo" : "Motivo dichiarato"}
+        </p>
+        {motivi.slice(0, 2).map((motivo, i) => (
+          <p
+            key={`${motivo.pilastro ?? "dichiarato"}-${i}`}
+            className="mt-1 text-xs leading-relaxed text-[var(--md-text-2)]"
+          >
+            {motivo.pilastro ? (
+              <span className="md-mono text-2xs text-[var(--md-muted)]">
+                {motivo.pilastro} ·{" "}
+              </span>
+            ) : null}
+            «{motivo.testo}»
           </p>
-        </div>
-      ) : null}
+        ))}
+        {/* L'euristica va DICHIARATA come tale — e SOLO quando è lei a parlare:
+            appiccicare l'avvertenza a un campo dichiarato dal desk lo
+            sminuirebbe senza motivo. */}
+        {stimato ? (
+          <p className="mt-1.5 text-[10px] leading-tight text-[var(--md-muted)]">
+            Frase riconosciuta nella nota del pilastro: questo report non porta
+            il campo dedicato, che esiste dal 28 agosto 2026.
+          </p>
+        ) : null}
+      </div>
     </div>
   );
 }
@@ -287,9 +365,11 @@ function NotaUnanimita({ horizon }: { horizon: MacroHorizon }) {
 function LetturaSettimanale({
   horizon,
   natura,
+  monitor,
 }: {
   horizon: MacroHorizon;
   natura: NaturaBias;
+  monitor?: MonitorConfidenza;
 }) {
   const tone = biasTone(horizon.biasLabel, horizon.bias);
   return (
@@ -317,7 +397,7 @@ function LetturaSettimanale({
 
       <StrisciaPilastri horizon={horizon} />
       <NotaUnanimita horizon={horizon} />
-      <BloccoConfidenza horizon={horizon} />
+      <BloccoConfidenza horizon={horizon} monitor={monitor} />
 
       {horizon.edge ? (
         <Callout label="Edge" color="var(--md-info)">
@@ -346,9 +426,16 @@ function LetturaSettimanale({
  * settimanale — fondo diverso, tipografia più piccola, `since` in evidenza.
  * Nei report reali non porta mai pilastri né edge: bias, confidenza, `since`,
  * invalidazione e narrativa.
+ *
+ * La regola del silenzio vale ANCHE qui, e qui morde: senza pilastri
+ * l'euristica non ha dove cercare, quindi finché il generatore non manda un
+ * `confMotivo` trimestrale il numero non compare. È la conseguenza coerente
+ * della stessa misura — la confidenza trimestrale ha dev.std 5,46 su 69
+ * osservazioni, ancora meno informativa di quella settimanale.
  */
 function LetturaTrimestrale({ horizon }: { horizon: MacroHorizon }) {
   const tone = biasTone(horizon.biasLabel, horizon.bias);
+  const conf = letturaConfidenza(horizon);
   return (
     <div className="md-card-2 flex flex-col gap-2.5 p-4">
       <div className="flex flex-wrap items-center justify-between gap-2">
@@ -363,12 +450,21 @@ function LetturaTrimestrale({ horizon }: { horizon: MacroHorizon }) {
         <span className="md-mono text-base font-bold" style={{ color: TONE_COLOR[tone] }}>
           {horizon.biasLabel ?? "non dichiarato"}
         </span>
-        {horizon.confidence !== undefined ? (
+        {conf ? (
           <span className="md-mono text-2xs text-[var(--md-muted)]">
-            confidenza {Math.max(0, Math.min(100, horizon.confidence))}/100
+            confidenza {conf.impegno}/100 · {conf.fasciaImpegno}
           </span>
         ) : null}
       </p>
+
+      {conf ? (
+        <p className="text-2xs leading-relaxed text-[var(--md-text-2)]">
+          <span className="font-semibold uppercase tracking-wider" style={{ color: "var(--md-warn)" }}>
+            Motivo ·{" "}
+          </span>
+          «{conf.motivi[0].testo}»
+        </p>
+      ) : null}
 
       {horizon.narrative ? (
         <p className="text-xs leading-relaxed text-[var(--md-text-2)]">
@@ -391,10 +487,12 @@ function CardAsset({
   asset,
   index,
   natura,
+  monitor,
 }: {
   asset: MacroAsset;
   index: number;
   natura: NaturaBias;
+  monitor?: MonitorConfidenza;
 }) {
   const accent = assetAccentVar(asset.id ?? asset.ticker);
   return (
@@ -416,7 +514,11 @@ function CardAsset({
         </div>
 
         {asset.weekly ? (
-          <LetturaSettimanale horizon={asset.weekly} natura={natura} />
+          <LetturaSettimanale
+            horizon={asset.weekly}
+            natura={natura}
+            monitor={monitor}
+          />
         ) : null}
         {asset.quarterly ? <LetturaTrimestrale horizon={asset.quarterly} /> : null}
         {!asset.weekly && !asset.quarterly ? (
@@ -466,10 +568,13 @@ function CardAsset({
 export function AssetsTab({
   payload,
   natura,
+  monitor,
 }: {
   payload: MacroPayload;
   /** Come questo report tratta il bias settimanale (vedi `NaturaBias`). */
   natura: NaturaBias;
+  /** Lettura del giorno per asset, dalla colonna `monitor`. Chiave: `id`. */
+  monitor?: Record<string, MonitorConfidenza>;
 }) {
   const { assets, synthesis, volPanel } = payload;
   const pills = synthesis?.pills ?? [];
@@ -513,7 +618,13 @@ export function AssetsTab({
       {/* ── CORPO: le letture per asset ─────────────────────────────────── */}
       {assets.length > 0 ? (
         assets.map((asset, i) => (
-          <CardAsset key={asset.id ?? i} asset={asset} index={i + 2} natura={natura} />
+          <CardAsset
+            key={asset.id ?? i}
+            asset={asset}
+            index={i + 2}
+            natura={natura}
+            monitor={asset.id ? monitor?.[asset.id] : undefined}
+          />
         ))
       ) : (
         <SectionEmpty what="Analisi per asset" />
@@ -577,16 +688,49 @@ const NEWS_CATEGORY_META: Record<MacroNewsCategory, { label: string; accent: str
   idx: { label: "Indices", accent: "var(--md-idx)" },
 };
 
-function NewsCard({ item }: { item: MacroNews }) {
+/**
+ * I tag di una notizia, meno quello che ripete il gruppo che la contiene.
+ *
+ * Sotto l'intestazione «GOLD», un chip «gold» su ogni card è inchiostro che
+ * non dice niente di nuovo — e affolla proprio la riga dove i tag NON ovvi
+ * (`fed`, `macro`, `opec`) dovrebbero saltare all'occhio. Nel gruppo Global
+ * non si toglie nulla: lì per costruzione non c'è un tag asset da ripetere.
+ */
+function tagDaMostrare(tags: string[], categoria: MacroNewsCategory): string[] {
+  return categoria === "global" ? tags : tags.filter((t) => t !== categoria);
+}
+
+function NewsCard({
+  item,
+  categoria,
+  reportDate,
+}: {
+  item: MacroNews;
+  categoria: MacroNewsCategory;
+  reportDate?: Date;
+}) {
+  /* Senza `reportDate` non si ancora niente: meglio la frase originale che una
+     data sbagliata. Succede solo dove il componente è reso fuori dalla pagina. */
+  const quando = reportDate ? quandoNews(item.when, reportDate) : null;
+  const tags = tagDaMostrare(item.tags, categoria);
   return (
     <div className="md-card md-card-hover flex flex-col gap-2 p-4">
       <div className="flex flex-wrap items-center gap-2">
         {item.src ? <MonoChip color="var(--md-text)">{item.src}</MonoChip> : null}
-        {item.when ? (
+        {quando ? (
+          <span
+            className="md-mono text-2xs text-[var(--md-muted)]"
+            /* Il vago resta vago e si vede che lo è: un «Questa settimana» in
+               corsivo non finge di essere una data di calendario. */
+            style={quando.assoluta ? undefined : { fontStyle: "italic" }}
+          >
+            {quando.testo}
+          </span>
+        ) : item.when ? (
           <span className="md-mono text-2xs text-[var(--md-muted)]">{item.when}</span>
         ) : null}
         <span className="ml-auto flex gap-1.5">
-          {item.tags.map((tag) => (
+          {tags.map((tag) => (
             <MonoChip key={tag} color={assetAccentVar(tag)}>
               {tag}
             </MonoChip>
@@ -594,9 +738,26 @@ function NewsCard({ item }: { item: MacroNews }) {
         </span>
       </div>
       {item.title ? (
-        <p className="text-sm font-semibold leading-snug text-[var(--md-text)]">
-          {item.title}
-        </p>
+        item.url ? (
+          /* Fonte esterna: `noreferrer` oltre a `noopener` perché il referrer
+             porterebbe l'id del report nell'URL a un sito terzo. */
+          <a
+            href={item.url}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="group/fonte inline-flex items-start gap-1 text-sm font-semibold leading-snug text-[var(--md-text)] underline-offset-2 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--md-info)]"
+          >
+            <span>{item.title}</span>
+            <ArrowUpRight
+              className="mt-0.5 size-3.5 shrink-0 text-[var(--md-muted)] transition-colors group-hover/fonte:text-[var(--md-info)]"
+              aria-label="apri la fonte in una nuova scheda"
+            />
+          </a>
+        ) : (
+          <p className="text-sm font-semibold leading-snug text-[var(--md-text)]">
+            {item.title}
+          </p>
+        )
       ) : null}
       {item.impl ? (
         <p
@@ -632,7 +793,14 @@ function NewsCard({ item }: { item: MacroNews }) {
   );
 }
 
-export function NewsTab({ payload }: { payload: MacroPayload }) {
+export function NewsTab({
+  payload,
+  reportDate,
+}: {
+  payload: MacroPayload;
+  /** Ancora delle date relative: vedi `macro-desk-news-quando.ts`. */
+  reportDate?: Date;
+}) {
   const { newsTriage, news } = payload;
   if (!newsTriage && news.length === 0) return <SectionEmpty what="Rassegna news" />;
   const groups = groupNewsByCategory(news);
@@ -670,7 +838,12 @@ export function NewsTab({ payload }: { payload: MacroPayload }) {
             </div>
             <div className="grid gap-3 xl:grid-cols-2">
               {items.map((item, i) => (
-                <NewsCard key={`${category}-${i}`} item={item} />
+                <NewsCard
+                  key={`${category}-${i}`}
+                  item={item}
+                  categoria={category}
+                  reportDate={reportDate}
+                />
               ))}
             </div>
           </div>

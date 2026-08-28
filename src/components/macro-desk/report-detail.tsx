@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { isCriticalIssue, type MacroPayload } from "@/lib/macro-desk-payload";
+import type { MonitorConfidenza } from "@/lib/macro-desk-confidenza";
 import { cn } from "@/lib/utils";
 import { AssetsTab, DataIssuesList, NewsTab, type NaturaBias } from "./report-tabs";
 
@@ -37,9 +38,15 @@ type TabId = (typeof TABS)[number]["id"];
 export function MacroReportDetail({
   payload,
   natura,
+  monitor,
+  reportDate,
 }: {
   payload: MacroPayload;
   natura: NaturaBias;
+  /** Lettura del giorno per asset, dalla colonna `monitor`. Chiave: `id` del payload. */
+  monitor?: Record<string, MonitorConfidenza>;
+  /** Ancora delle date relative delle news: senza, «Ieri» resta «Ieri». */
+  reportDate?: Date;
 }) {
   const [active, setActive] = useState<TabId>("assets");
   const critici = payload.dataIssues.filter((issue) => isCriticalIssue(issue.sev));
@@ -100,8 +107,12 @@ export function MacroReportDetail({
 
       {/* Contenuto: key sul tab per rigiocare le animazioni d'ingresso */}
       <div role="tabpanel" key={active}>
-        {active === "assets" ? <AssetsTab payload={payload} natura={natura} /> : null}
-        {active === "news" ? <NewsTab payload={payload} /> : null}
+        {active === "assets" ? (
+          <AssetsTab payload={payload} natura={natura} monitor={monitor} />
+        ) : null}
+        {active === "news" ? (
+          <NewsTab payload={payload} reportDate={reportDate} />
+        ) : null}
       </div>
     </div>
   );

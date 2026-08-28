@@ -1,5 +1,8 @@
 import { describe, expect, it } from "vitest";
 import {
+  entroScala,
+  fasciaConfidenza,
+  letturaConfidenza,
   ragioniDelTaglio,
   unanimitaControBiasNeutro,
 } from "@/lib/macro-desk-confidenza";
@@ -194,5 +197,108 @@ describe("unanimitaControBiasNeutro", () => {
         ]),
       ),
     ).toBeNull();
+  });
+});
+
+describe("fasciaConfidenza — l'etichetta è dell'app, e una sola", () => {
+  it("i confini delle cinque fasce", () => {
+    expect(fasciaConfidenza(0)).toBe("Bassa");
+    expect(fasciaConfidenza(44)).toBe("Bassa");
+    expect(fasciaConfidenza(45)).toBe("Media-bassa");
+    expect(fasciaConfidenza(54)).toBe("Media-bassa");
+    expect(fasciaConfidenza(55)).toBe("Media");
+    expect(fasciaConfidenza(64)).toBe("Media");
+    expect(fasciaConfidenza(65)).toBe("Media-alta");
+    expect(fasciaConfidenza(74)).toBe("Media-alta");
+    expect(fasciaConfidenza(75)).toBe("Alta");
+    expect(fasciaConfidenza(100)).toBe("Alta");
+  });
+
+  it("lo stesso numero dà SEMPRE la stessa fascia", () => {
+    /* Il difetto che queste fasce chiudono: nel payload 51 valeva «Bassa» il
+       27/08 e «Media» il 28/08 sullo stesso asset, 50 valeva «Bassa»
+       quindici volte e «Media-bassa» una. */
+    expect(fasciaConfidenza(51)).toBe(fasciaConfidenza(51));
+    expect(fasciaConfidenza(50)).toBe("Media-bassa");
+    expect(fasciaConfidenza(51)).toBe("Media-bassa");
+  });
+
+  it("entroScala riporta dentro 0-100 e arrotonda", () => {
+    expect(entroScala(-5)).toBe(0);
+    expect(entroScala(140)).toBe(100);
+    expect(entroScala(50.6)).toBe(51);
+  });
+});
+
+describe("letturaConfidenza — la regola del silenzio e la precedenza delle fonti", () => {
+  const conMotivo = (extra: Partial<MacroHorizon> = {}): MacroHorizon => ({
+    biasLabel: "RIALZISTA",
+    confidence: 55,
+    pillars: [
+      { k: "Eventi", dir: "fl", note: "Evento binario: confidence limitata." },
+    ],
+    ...extra,
+  });
+
+  it("senza confidenza non c'è niente da leggere", () => {
+    expect(letturaConfidenza({ pillars: [] })).toBeNull();
+  });
+
+  it("senza NESSUN motivo il numero non si mostra affatto", () => {
+    const muto: MacroHorizon = {
+      confidence: 51,
+      pillars: [{ k: "Regime", dir: "up", note: "Spread HY compressi." }],
+    };
+    expect(letturaConfidenza(muto)).toBeNull();
+  });
+
+  it("il campo dichiarato vince sull'euristica, e la esclude", () => {
+    const l = letturaConfidenza(conMotivo({ confMotivo: "dichiarato dal desk" }));
+    expect(l?.motivi).toEqual([{ testo: "dichiarato dal desk", fonte: "dichiarato" }]);
+  });
+
+  it("il monitor del giorno vince anche sul confMotivo settimanale", () => {
+    const l = letturaConfidenza(conMotivo({ confMotivo: "della domenica" }), {
+      confMotivo: "di oggi",
+    });
+    expect(l?.motivi).toEqual([{ testo: "di oggi", fonte: "dichiarato" }]);
+  });
+
+  it("senza campo dichiarato subentra l'euristica, marcata come estratta", () => {
+    const l = letturaConfidenza(conMotivo());
+    expect(l?.motivi[0].fonte).toBe("estratto");
+    expect(l?.motivi[0].pilastro).toBe("Eventi");
+  });
+
+  it("i due numeri compaiono solo quando DIVERGONO", () => {
+    const uguali = letturaConfidenza(conMotivo({ confMotivo: "x" }), {
+      confidenceOggi: 55,
+    });
+    expect(uguali?.oggi).toBeUndefined();
+    expect(uguali?.delta).toBeUndefined();
+
+    const diversi = letturaConfidenza(conMotivo({ confMotivo: "x" }), {
+      confidenceOggi: 48,
+    });
+    expect(diversi?.impegno).toBe(55);
+    expect(diversi?.fasciaImpegno).toBe("Media");
+    expect(diversi?.oggi).toBe(48);
+    expect(diversi?.fasciaOggi).toBe("Media-bassa");
+    expect(diversi?.delta).toBe(-7);
+  });
+
+  it("un confidenceOggi non numerico non produce mai NaN in pagina", () => {
+    const l = letturaConfidenza(conMotivo({ confMotivo: "x" }), {
+      confidenceOggi: null,
+    });
+    expect(l?.oggi).toBeUndefined();
+  });
+
+  it("il confLabel del payload non entra mai nel risultato", () => {
+    const l = letturaConfidenza(
+      conMotivo({ confidence: 50, confLabel: "Bassa", confMotivo: "x" }),
+    );
+    expect(l?.fasciaImpegno).toBe("Media-bassa");
+    expect(JSON.stringify(l)).not.toContain("Bassa\"");
   });
 });

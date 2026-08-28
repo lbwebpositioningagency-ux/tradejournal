@@ -19,6 +19,19 @@ export interface MacroHorizon {
   bias?: string;
   biasLabel?: string;
   confidence?: number;
+  /**
+   * DICHIARATO dal generatore (campo nuovo, dai report del 28/08/2026 in poi):
+   * perché la confidenza è quella che è. Prima esisteva solo sepolto nella
+   * `note` di un pilastro, da cui `macro-desk-confidenza.ts` prova ancora a
+   * estrarlo per i 23 report storici che il campo non ce l'hanno.
+   */
+  confMotivo?: string;
+  /**
+   * L'etichetta qualitativa che ARRIVAVA nel payload. Si legge ancora per non
+   * perdere dato, ma NON si mostra: non era funzione di `confidence` (51 valeva
+   * «Bassa» il 27/08 e «Media» il 28/08 sullo stesso asset). In pagina va la
+   * fascia calcolata dall'app — `fasciaConfidenza()` — che è una sola.
+   */
   confLabel?: string;
   since?: string;
   pillars: MacroPillar[];
@@ -83,9 +96,19 @@ export interface MacroSection {
 }
 export interface MacroNews {
   src?: string;
+  /**
+   * Quando la notizia è uscita. Dal 28/08/2026 il generatore lo manda in
+   * `YYYY-MM-DD`; i 23 report storici hanno espressioni relative («Ieri», «2
+   * giorni fa»), che `macro-desk-news-quando.ts` ancora a `reportDate`.
+   */
   when?: string;
   title?: string;
   impl?: string;
+  /**
+   * Link alla fonte. Solo `http`/`https` ASSOLUTI: vedi `urlDiFonte()`, questo
+   * campo finisce in un `href` e il payload è dato di provenienza esterna.
+   */
+  url?: string;
   /**
    * Approfondimento, facoltativo: cosa è successo, perché conta per oro, WTI
    * o indici, cosa guardare di conseguenza. In pagina sta dentro un blocco
@@ -161,6 +184,32 @@ function obj(v: unknown): Record<string, unknown> | undefined {
     : undefined;
 }
 
+/**
+ * URL di fonte per una notizia — e questo campo finisce in un `href`.
+ *
+ * Passa SOLO un URL assoluto con schema `http`/`https`. Non è pignoleria: il
+ * payload arriva da un sistema esterno ed è dato GLOBALE mostrato a entrambi
+ * gli utenti, esattamente come `risks` e `watch` che hanno già una loro
+ * sanificazione. Un `javascript:alert(1)` in un `href` è XSS con un clic, e
+ * React non lo blocca (avvisa in dev, esegue in produzione).
+ *
+ * Schemi relativi/senza host (`//evil.tld`, `/interno`) si scartano anch'essi:
+ * qui l'unica cosa sensata da linkare è una fonte esterna assoluta.
+ */
+export function urlDiFonte(v: unknown): string | undefined {
+  const raw = str(v);
+  if (!raw) return undefined;
+  let parsed: URL;
+  try {
+    parsed = new URL(raw.trim());
+  } catch {
+    return undefined;
+  }
+  return parsed.protocol === "http:" || parsed.protocol === "https:"
+    ? parsed.toString()
+    : undefined;
+}
+
 /* ── parser per sezione ───────────────────────────────────────────────── */
 
 function parseHorizon(raw: unknown): MacroHorizon | undefined {
@@ -170,6 +219,7 @@ function parseHorizon(raw: unknown): MacroHorizon | undefined {
     bias: str(o.bias),
     biasLabel: str(o.biasLabel),
     confidence: num(o.confidence),
+    confMotivo: str(o.confMotivo),
     confLabel: str(o.confLabel),
     since: str(o.since),
     pillars: arr(o.pillars).flatMap((p) => {
@@ -217,6 +267,21 @@ export function parseMacroPayload(raw: unknown): MacroPayload {
       ];
     }),
     synthesis: (() => {
+      /* GRAFIE ALTERNATIVE, censite sui 23 report reali il 28/08/2026.
+         Due report perdevano in silenzio la sintesi intera:
+
+          - 18/08: `risk`/`concl` invece di `risks`/`conclusion` — Radar rischi
+            e Verdetto spariti, senza un errore da nessuna parte;
+          - 31/07: `synthesis` è una STRINGA di 533 caratteri, non un oggetto.
+            È un verdetto scritto per esteso: `obj()` tornava undefined e
+            l'intera sezione cadeva.
+
+         Quei report sono già in Neon e non si rigenerano: correggere solo il
+         generatore li lascerebbe muti per sempre. Le forme canoniche hanno la
+         precedenza; le alternative subentrano solo se la canonica manca. */
+      const testoSolo = str(o.synthesis);
+      if (testoSolo) return { pills: [], conclusion: testoSolo };
+
       const s = obj(o.synthesis);
       if (!s) return undefined;
       return {
@@ -225,8 +290,8 @@ export function parseMacroPayload(raw: unknown): MacroPayload {
           const k = po && str(po.k);
           return k ? [{ k, v: str(po.v) }] : [];
         }),
-        risks: str(s.risks),
-        conclusion: str(s.conclusion),
+        risks: str(s.risks) ?? str(s.risk),
+        conclusion: str(s.conclusion) ?? str(s.concl),
       };
     })(),
     volPanel: (() => {
@@ -292,8 +357,16 @@ export function parseMacroPayload(raw: unknown): MacroPayload {
         {
           src: str(no.src),
           when: str(no.when),
-          title: str(no.title),
-          impl: str(no.impl),
+          /* GRAFIA ALTERNATIVA `t`/`note`. Un solo report la usa — il 18/08,
+             tutte e 11 le sue notizie — ed è arrivato senza un titolo che la
+             pagina sapesse leggere: undici card mute, accettate e salvate,
+             per dieci giorni. Il report è in Neon e non si rigenera, quindi
+             correggere il generatore non basterebbe a farlo parlare.
+             `title`/`impl` restano prioritari: l'alias subentra solo dove la
+             forma canonica manca. */
+          title: str(no.title) ?? str(no.t),
+          impl: str(no.impl) ?? str(no.note),
+          url: urlDiFonte(no.url),
           /* `dettaglio` è il nome nostro; `detail` è accettato perché un
              generatore esterno che evolve tende a mandare l'inglese, e
              rifiutare un campo per il nome sarebbe perdere il contenuto. */

@@ -221,6 +221,15 @@ export interface AssetMonitor {
   state: "conferma" | "indebolisce" | "stress" | null;
   moveEm: number | null;
   note: string | null;
+  /**
+   * LA LETTURA DI OGGI, distinta dall'impegno della domenica (campo nuovo,
+   * dai report del 28/08/2026 in poi). L'impegno sta in `biasRecord` e non si
+   * tocca per tutta la settimana; questo dice quanto il desk si fida di quel
+   * bias adesso. Nessuno dei due corregge l'altro.
+   */
+  confidenceOggi: number | null;
+  /** Perché la lettura di oggi è quella che è: dichiarato, non dedotto. */
+  confMotivo: string | null;
 }
 
 export function parseMonitor(value: unknown): AssetMonitor[] {
@@ -234,6 +243,8 @@ export function parseMonitor(value: unknown): AssetMonitor[] {
       state: oneOf(raw.state, ["conferma", "indebolisce", "stress"] as const),
       moveEm: num(raw.move_EM ?? raw.moveEm),
       note: str(raw.note),
+      confidenceOggi: num(raw.confidenceOggi),
+      confMotivo: str(raw.confMotivo),
     });
   }
   return out;

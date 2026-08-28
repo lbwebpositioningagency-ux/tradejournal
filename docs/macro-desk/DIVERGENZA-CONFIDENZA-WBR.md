@@ -106,6 +106,34 @@ Finché non è presa una decisione, l'app resta com'è: la card mostra
 `payload.weekly.confidence`, la scorecard `biasRecord.confidence`, ognuna dichiarando
 la propria fonte.
 
+## Epilogo — 28/08/2026, sera: decisa l'opzione 2, e il guardiano è stato esteso
+
+La scelta è caduta sull'**opzione 2**, e le istruzioni dei due task generatori sono
+state riscritte di conseguenza:
+
+- `payload.assets[].weekly.confidence` **non si muove più** a settimana aperta: resta
+  l'impegno dichiarato la domenica, uguale a `biasRecord.confidence`;
+- la lettura del giorno ha un campo suo, `monitor.<asset>.confidenceOggi`, affiancato
+  da `monitor.<asset>.confMotivo`, che dice **perché** è quella;
+- i settimanali dichiarano il motivo una volta per settimana in `weekly.confMotivo`.
+
+Di conseguenza il controllo previsto in fondo alla sezione precedente **è stato
+fatto**: `confidenzaPayloadRifiutata()` in `src/lib/macro-desk-impegno.ts` confronta
+`payload.assets[].weekly.confidence` con quella già in archivio per la stessa
+settimana, e ogni scarto finisce nella colonna `impegnoRifiutato`, nella risposta HTTP
+e nella banda in pagina — dove finiscono già i rifiuti sul `biasRecord`.
+
+Una differenza deliberata rispetto al `biasRecord`: qui si **registra**, non si
+riscrive. Il `biasRecord` viene congelato perché è ciò che la scorecard misura; il
+payload invece si archivia byte per byte, ed è l'unica copia del report. Riscriverne
+un campo significherebbe conservare un payload che il desk non ha mai spedito — e la
+divergenza, che è il dato interessante, sparirebbe proprio nel momento in cui si
+manifesta.
+
+La card, dal canto suo, ha smesso di dover scegliere: quando i due numeri divergono li
+mostra **entrambi**, con la differenza e con la riga che impedisce di leggere il
+secondo come la correzione del primo.
+
 ## Come rileggere la misura
 
 Query di sola lettura su Neon, via Prisma (mai col driver `pg` grezzo, che restituisce

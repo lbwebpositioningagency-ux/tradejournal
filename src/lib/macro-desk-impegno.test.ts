@@ -1,5 +1,9 @@
 import { describe, expect, it } from "vitest";
-import { applicaImpegno, riassuntoRifiuti } from "@/lib/macro-desk-impegno";
+import {
+  applicaImpegno,
+  confidenzaPayloadRifiutata,
+  riassuntoRifiuti,
+} from "@/lib/macro-desk-impegno";
 import {
   parseWeeklyBiasRecord,
   type WeeklyBiasRecord,
@@ -241,5 +245,65 @@ describe("riassuntoRifiuti — la riga di log dice cosa, non «è successo»", (
 
   it("senza rifiuti la riga è vuota, non «nessuno»", () => {
     expect(riassuntoRifiuti([])).toBe("");
+  });
+});
+
+describe("confidenzaPayloadRifiutata — il punto cieco che il guardiano non vedeva", () => {
+  const payload = (conf: Record<string, number>) => ({
+    assets: Object.entries(conf).map(([id, confidence]) => ({
+      id,
+      weekly: { biasLabel: "RIALZISTA", confidence },
+    })),
+  });
+
+  it("registra la confidenza settimanale mossa a settimana aperta", () => {
+    /* Il caso REALE del 21/08: nel biasRecord l'indice valeva 52, nel payload
+       46. Il guardiano confrontava record con record e non vedeva niente. */
+    const rifiutate = confidenzaPayloadRifiutata(
+      payload({ gold: 48, oil: 44, idx: 52 }),
+      payload({ gold: 44, oil: 41, idx: 46 }),
+    );
+    expect(rifiutate).toEqual([
+      { campo: "payload.assets[gold].weekly.confidence", tenuto: "48", rifiutato: "44" },
+      { campo: "payload.assets[oil].weekly.confidence", tenuto: "44", rifiutato: "41" },
+      { campo: "payload.assets[idx].weekly.confidence", tenuto: "52", rifiutato: "46" },
+    ]);
+  });
+
+  it("confidenze identiche: silenzio, come dev'essere nel caso normale", () => {
+    expect(
+      confidenzaPayloadRifiutata(payload({ gold: 60 }), payload({ gold: 60 })),
+    ).toEqual([]);
+  });
+
+  it("un asset che l'archivio non ha non è una divergenza", () => {
+    expect(
+      confidenzaPayloadRifiutata(payload({ gold: 60 }), payload({ gold: 60, oil: 44 })),
+    ).toEqual([]);
+  });
+
+  it("payload assenti, malformati o senza confidenza non lanciano mai", () => {
+    expect(confidenzaPayloadRifiutata(null, undefined)).toEqual([]);
+    expect(confidenzaPayloadRifiutata("stringa", 42)).toEqual([]);
+    expect(confidenzaPayloadRifiutata({ assets: "non un array" }, payload({ gold: 1 }))).toEqual([]);
+    expect(
+      confidenzaPayloadRifiutata(
+        { assets: [{ id: "gold", weekly: { confidence: "50" } }] },
+        payload({ gold: 60 }),
+      ),
+    ).toEqual([]);
+  });
+
+  it("il ticker fa da chiave quando manca l'id", () => {
+    const conTicker = (c: number) => ({
+      assets: [{ ticker: "XAUUSD", weekly: { confidence: c } }],
+    });
+    expect(confidenzaPayloadRifiutata(conTicker(60), conTicker(55))).toEqual([
+      {
+        campo: "payload.assets[XAUUSD].weekly.confidence",
+        tenuto: "60",
+        rifiutato: "55",
+      },
+    ]);
   });
 });

@@ -34,6 +34,39 @@ import {
  * mostra il solo numero.
  */
 
+/**
+ * LE FASCE DELLA CONFIDENZA — calcolate qui, mai lette dal payload.
+ *
+ * Il `confLabel` che arriva dal desk non è funzione del numero: 51 valeva
+ * «Bassa» il 27/08 e «Media» il 28/08 sullo stesso asset, 50 valeva «Bassa»
+ * quindici volte e «Media-bassa» una, 52 e 54 entrambe le cose. Un'etichetta
+ * che cambia mentre il numero resta fermo non è un'etichetta: è rumore.
+ *
+ * Le fasce sono FISSE e stanno qui, una volta sola. Sono simmetriche intorno
+ * a 50 e larghe 10, il che dice anche una cosa vera sui dati: in 138
+ * osservazioni reali il desk non ha mai superato 65 né è sceso sotto 41, cioè
+ * non ha mai usato «Alta» e ha toccato «Media-alta» una volta. Le fasce alte
+ * esistono comunque — servono a rendere visibile quel silenzio, non a
+ * riempirlo.
+ */
+export const FASCE_CONFIDENZA = [
+  { max: 44, label: "Bassa" },
+  { max: 54, label: "Media-bassa" },
+  { max: 64, label: "Media" },
+  { max: 74, label: "Media-alta" },
+  { max: Infinity, label: "Alta" },
+] as const;
+
+/** Fascia di un punteggio 0-100. Il valore si assume già entro i limiti. */
+export function fasciaConfidenza(valore: number): string {
+  return FASCE_CONFIDENZA.find((f) => valore <= f.max)!.label;
+}
+
+/** Il punteggio riportato dentro 0-100: il payload non garantisce nulla. */
+export function entroScala(valore: number): number {
+  return Math.max(0, Math.min(100, Math.round(valore)));
+}
+
 export interface RagioneTaglio {
   /** Pilastro da cui la frase è stata estratta (`k` del payload). */
   pilastro: string;
@@ -81,6 +114,97 @@ export function ragioniDelTaglio(horizon: MacroHorizon): RagioneTaglio[] {
     }
   }
   return fuori;
+}
+
+/* ── La lettura completa della confidenza, per la card ────────────────── */
+
+export interface MotivoConfidenza {
+  /** La frase, testuale: mai riscritta, mai riassunta. */
+  testo: string;
+  /** `dichiarato` = campo del report. `estratto` = euristica sulle note. */
+  fonte: "dichiarato" | "estratto";
+  /** Solo per l'estratto: da quale pilastro viene la frase. */
+  pilastro?: string;
+}
+
+/** Quel che il desk manda nel blocco `monitor` per un asset, il giorno stesso. */
+export interface MonitorConfidenza {
+  confidenceOggi?: number | null;
+  confMotivo?: string | null;
+}
+
+export interface LetturaConfidenza {
+  /** L'impegno: il numero dichiarato la domenica, che non si tocca. */
+  impegno: number;
+  fasciaImpegno: string;
+  /** La lettura del giorno — presente SOLO quando diverge dall'impegno. */
+  oggi?: number;
+  fasciaOggi?: string;
+  /** `oggi − impegno`, col segno. Presente insieme a `oggi`. */
+  delta?: number;
+  /** Mai vuoto: se non c'è nessun motivo, questa funzione torna `null`. */
+  motivi: MotivoConfidenza[];
+}
+
+/**
+ * TUTTO ciò che la card deve sapere per rendere la confidenza — o per non
+ * renderla affatto.
+ *
+ * ── La regola del silenzio ──────────────────────────────────────────────
+ * Senza un motivo, il numero NON si mostra. Non è ritrosia: su 138
+ * osservazioni reali vive fra 41 e 65 con deviazione standard ~5, e correla
+ * 0,06 con la composizione dei pilastri. Un «51/100» da solo non sposta
+ * nessuna decisione — mentre i pilastri e il bias sì. Mostrarlo comunque
+ * darebbe l'impressione di una misura là dove c'è un'opinione senza appiglio.
+ *
+ * ── Precedenza delle fonti, e mai le due insieme ────────────────────────
+ * 1. il campo DICHIARATO (`monitor.<asset>.confMotivo` nei giornalieri,
+ *    `weekly.confMotivo` nei settimanali). Il monitor vince quando ci sono
+ *    entrambi: è la lettura di oggi, quella cui il numero di oggi si riferisce;
+ * 2. solo se non c'è, l'EURISTICA sulle note dei pilastri — che resta un
+ *    ripiego per i 23 report storici, non una fonte alla pari.
+ * Mai unite: due spiegazioni della stessa cosa, una vera e una indovinata,
+ * si commentano a vicenda invece di informare.
+ *
+ * ── I due numeri ────────────────────────────────────────────────────────
+ * `oggi` compare solo se DIVERGE dall'impegno. Uguali, sarebbero due volte lo
+ * stesso numero con due etichette diverse: rumore travestito da dettaglio.
+ */
+export function letturaConfidenza(
+  horizon: MacroHorizon,
+  monitor?: MonitorConfidenza,
+): LetturaConfidenza | null {
+  if (horizon.confidence === undefined) return null;
+
+  const dichiarato = monitor?.confMotivo?.trim() || horizon.confMotivo?.trim();
+  const motivi: MotivoConfidenza[] = dichiarato
+    ? [{ testo: dichiarato, fonte: "dichiarato" }]
+    : ragioniDelTaglio(horizon).map((r) => ({
+        testo: r.frase,
+        fonte: "estratto" as const,
+        pilastro: r.pilastro,
+      }));
+  if (motivi.length === 0) return null;
+
+  const impegno = entroScala(horizon.confidence);
+  const grezzoOggi = monitor?.confidenceOggi;
+  const oggi =
+    typeof grezzoOggi === "number" && Number.isFinite(grezzoOggi)
+      ? entroScala(grezzoOggi)
+      : undefined;
+
+  return {
+    impegno,
+    fasciaImpegno: fasciaConfidenza(impegno),
+    ...(oggi !== undefined && oggi !== impegno
+      ? {
+          oggi,
+          fasciaOggi: fasciaConfidenza(oggi),
+          delta: oggi - impegno,
+        }
+      : {}),
+    motivi,
+  };
 }
 
 export interface UnanimitaDivergente {

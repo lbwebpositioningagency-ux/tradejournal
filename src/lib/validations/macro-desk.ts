@@ -262,6 +262,19 @@ const monitorVoce = z
     state: z.string().optional(),
     move_EM: z.number().optional(),
     note: z.string().optional(),
+    /* Campi nuovi (28/08/2026): la lettura di OGGI e il suo motivo, distinti
+       dall'impegno della domenica che vive nel `biasRecord`. Il tipo si
+       dichiara qui per la stessa ragione di `move_EM`: sono i campi su cui a
+       valle si fa aritmetica e confronto, e un `confidenceOggi` che è una
+       stringa produrrebbe un NaN silenzioso invece di un errore. Fuori scala
+       si rifiuta come già fa `confidence`: 0-100 è la scala dichiarata. */
+    confidenceOggi: z
+      .number()
+      .int("confidenceOggi deve essere un intero")
+      .min(0, "confidenceOggi minima 0")
+      .max(100, "confidenceOggi massima 100")
+      .optional(),
+    confMotivo: z.string().optional(),
   })
   .passthrough();
 

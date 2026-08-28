@@ -11,6 +11,7 @@ import {
   sanitizeInlineHtml,
   type MacroNews,
 } from "./macro-desk-payload";
+import { REPORT_1808 } from "./macro-desk-1808.fixture";
 
 describe("parseMacroPayload — sample autoritativo", () => {
   const p = parseMacroPayload(sample);
@@ -284,5 +285,123 @@ describe("groupNewsByCategory", () => {
 
   it("nessuna news → nessun gruppo", () => {
     expect(groupNewsByCategory([])).toEqual([]);
+  });
+});
+
+describe("parseMacroPayload — grafie alternative, censite sui report reali", () => {
+  /* Censimento del 28/08/2026 su tutti e 23 i report in Neon: 257 notizie in
+     forma canonica, 11 in `t`/`note` (tutte del report del 18/08), e due
+     report con la synthesis in forma non prevista. Sono già archiviati e non
+     si rigenerano: correggere il generatore non li farebbe parlare. */
+
+  it("news: `t`/`note` valgono `title`/`impl`", () => {
+    const p = parseMacroPayload({
+      news: [{ t: "Titolo alternativo", note: "Sintesi alternativa", tags: ["gold"] }],
+    });
+    expect(p.news[0].title).toBe("Titolo alternativo");
+    expect(p.news[0].impl).toBe("Sintesi alternativa");
+  });
+
+  it("news: la forma canonica ha la PRECEDENZA quando ci sono entrambe", () => {
+    const p = parseMacroPayload({
+      news: [{ title: "canonico", t: "alias", impl: "canonica", note: "alias" }],
+    });
+    expect(p.news[0].title).toBe("canonico");
+    expect(p.news[0].impl).toBe("canonica");
+  });
+
+  it("synthesis: `risk`/`concl` valgono `risks`/`conclusion`", () => {
+    const p = parseMacroPayload({
+      synthesis: { pills: [{ k: "Ciclo", v: "x" }], risk: "i rischi", concl: "il verdetto" },
+    });
+    expect(p.synthesis?.risks).toBe("i rischi");
+    expect(p.synthesis?.conclusion).toBe("il verdetto");
+    expect(p.synthesis?.pills).toHaveLength(1);
+  });
+
+  it("synthesis: la forma canonica vince sull'alias", () => {
+    const p = parseMacroPayload({
+      synthesis: { risks: "canonici", risk: "alias", conclusion: "canonico", concl: "alias" },
+    });
+    expect(p.synthesis?.risks).toBe("canonici");
+    expect(p.synthesis?.conclusion).toBe("canonico");
+  });
+
+  it("synthesis come STRINGA (report del 31/07) è un verdetto, non un buco", () => {
+    const p = parseMacroPayload({ synthesis: "Regime a tinte stagflazionistiche." });
+    expect(p.synthesis?.conclusion).toBe("Regime a tinte stagflazionistiche.");
+    expect(p.synthesis?.pills).toEqual([]);
+    expect(p.synthesis?.risks).toBeUndefined();
+  });
+
+  it("synthesis assente resta assente: non si fabbrica un oggetto vuoto", () => {
+    expect(parseMacroPayload({}).synthesis).toBeUndefined();
+    expect(parseMacroPayload({ synthesis: "   " }).synthesis).toBeUndefined();
+  });
+});
+
+describe("parseMacroPayload — url della fonte", () => {
+  it("http e https passano", () => {
+    expect(parseMacroPayload({ news: [{ url: "https://a.tld/x" }] }).news[0].url).toBe(
+      "https://a.tld/x",
+    );
+    expect(parseMacroPayload({ news: [{ url: "http://a.tld/x" }] }).news[0].url).toBe(
+      "http://a.tld/x",
+    );
+  });
+
+  it.each([
+    "javascript:alert(1)",
+    "JavaScript:alert(1)",
+    "data:text/html,<script>alert(1)</script>",
+    "vbscript:msgbox(1)",
+    "//evil.tld/x",
+    "/percorso/interno",
+    "non un url",
+    "",
+  ])("«%s» non diventa mai un href", (url) => {
+    expect(parseMacroPayload({ news: [{ url }] }).news[0].url).toBeUndefined();
+  });
+
+  it("url non stringa → undefined, mai crash", () => {
+    expect(parseMacroPayload({ news: [{ url: 42 }] }).news[0].url).toBeUndefined();
+    expect(parseMacroPayload({ news: [{ url: null }] }).news[0].url).toBeUndefined();
+  });
+});
+
+describe("parseMacroPayload — confMotivo", () => {
+  it("si legge su settimanale e trimestrale", () => {
+    const p = parseMacroPayload({
+      assets: [
+        {
+          id: "gold",
+          weekly: { confidence: 55, confMotivo: "evento binario" },
+          quarterly: { confidence: 60, confMotivo: "regime stabile" },
+        },
+      ],
+    });
+    expect(p.assets[0].weekly?.confMotivo).toBe("evento binario");
+    expect(p.assets[0].quarterly?.confMotivo).toBe("regime stabile");
+  });
+
+  it("assente → undefined: i 23 report storici non ce l'hanno", () => {
+    const p = parseMacroPayload({ assets: [{ id: "gold", weekly: { confidence: 55 } }] });
+    expect(p.assets[0].weekly?.confMotivo).toBeUndefined();
+  });
+});
+
+describe("il report REALE del 18/08 attraverso il parser", () => {
+  const p = parseMacroPayload(REPORT_1808);
+
+  it("nessuna delle 11 notizie resta senza titolo", () => {
+    expect(p.news).toHaveLength(11);
+    expect(p.news.filter((n) => !n.title)).toHaveLength(0);
+    expect(p.news.filter((n) => !n.impl)).toHaveLength(0);
+  });
+
+  it("Radar rischi e Verdetto tornano dalla grafia `risk`/`concl`", () => {
+    expect(p.synthesis?.risks).toBeTruthy();
+    expect(p.synthesis?.conclusion).toBeTruthy();
+    expect(p.synthesis?.pills.length).toBeGreaterThan(0);
   });
 });

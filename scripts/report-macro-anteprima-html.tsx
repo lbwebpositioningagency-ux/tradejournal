@@ -31,6 +31,8 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { PrismaClient } from "../src/generated/prisma/client";
 import { guardedPgAdapter } from "../src/lib/db-guard";
 import { parseMacroPayload } from "../src/lib/macro-desk-payload";
+import { parseMonitor } from "../src/lib/macro-desk-bias-record";
+import type { MonitorConfidenza } from "../src/lib/macro-desk-confidenza";
 import { MacroReportDetail } from "../src/components/macro-desk/report-detail";
 import { NewsTab, type NaturaBias } from "../src/components/macro-desk/report-tabs";
 
@@ -38,28 +40,61 @@ const prisma = new PrismaClient({
   adapter: guardedPgAdapter("report-macro-anteprima"),
 });
 
-/** I casi da guardare, scelti sui difetti trovati nell'indagine del 28/08. */
-const CASI: { data: string; nota: string; news?: string }[] = [
+/**
+ * I casi da guardare, scelti sui difetti trovati nelle indagini del 28/08.
+ * `monitorFinto` esiste per un caso solo: i campi nuovi della confidenza sono
+ * stati ordinati al generatore oggi e in Neon non è ancora arrivato un report
+ * che li porti. Il payload resta REALE, si aggiunge soltanto il blocco
+ * `monitor` che il desk manderà — ed è dichiarato come simulato nel titolo,
+ * perché un'anteprima che finge di essere un dato di produzione è peggio di
+ * nessuna anteprima.
+ */
+const CASI: {
+  data: string;
+  nota: string;
+  news?: string;
+  titolo?: string;
+  monitorFinto?: Record<string, MonitorConfidenza>;
+}[] = [
   {
     data: "2026-08-28",
-    news: "Il secondo dei due tab rimasti, invariato",
+    news: "Titoli cliccabili quando c'è l'url, date ancorate al giorno del report, chip dell'asset non ripetuto sotto il suo gruppo",
     nota:
-      "DAILY v3 · oro e indici dichiarano il taglio della confidenza · PETROLIO: 3 pilastri su 4 ribassisti con bias NEUTRALE (caso limite)",
+      "DAILY v3 REALE · oro e indici dichiarano il taglio della confidenza (euristica) · PETROLIO: 3 pilastri su 4 ribassisti con bias NEUTRALE (caso limite)",
+  },
+  {
+    data: "2026-08-28",
+    titolo: "2026-08-28 · DAILY · CAMPI NUOVI (monitor simulato)",
+    nota:
+      "Stesso payload reale, più il blocco `monitor` che il generatore manderà da oggi: due numeri quando l'impegno di domenica e la lettura di oggi divergono, motivo DICHIARATO al posto dell'euristica",
+    monitorFinto: {
+      gold: {
+        confidenceOggi: 44,
+        confMotivo:
+          "keynote Warsh alle 16:00 è un bivio binario: fino a quel momento la lettura vale meno di quanto valesse domenica",
+      },
+      oil: {
+        confidenceOggi: 44,
+        confMotivo: "ramo b1 a un soffio (81,85 contro 81,0): la lettura è appesa a una chiusura",
+      },
+      idx: { confidenceOggi: 46, confMotivo: "breadth negativa con indice in tenuta: due segnali opposti" },
+    },
   },
   {
     data: "2026-08-16",
-    nota: "WEEKLY · bias EMESSO in questo report (non monitorato)",
+    nota: "WEEKLY REALE · bias EMESSO in questo report (non monitorato)",
   },
   {
     data: "2026-08-18",
-    nota: "DAILY senza verdetto e senza radar rischi: restano solo il quadro e le card",
+    nota:
+      "DAILY REALE · Radar rischi e Verdetto TORNATI: arrivavano in `risk`/`concl` e il parser non li leggeva",
     news:
-      "DIFETTO DI SORGENTE: in questo report tutte e 11 le news usano `t`/`note` invece di `title`/`impl` — il parser non li legge e le card escono senza testo",
+      "LE 11 CARD MUTE: tutte le notizie di questo report usano `t`/`note` invece di `title`/`impl`. Da oggi il parser li legge come alias e le card parlano",
   },
   {
     data: "2026-07-31",
     nota:
-      "DAILY v1 · nessuna sintesi (né quadro, né verdetto, né rischi) e bias AGGIORNATO dal giornaliero",
+      "DAILY v1 REALE · `synthesis` era una STRINGA e cadeva intera: ora vale come Verdetto. Bias AGGIORNATO dal giornaliero",
   },
 ];
 
@@ -111,6 +146,24 @@ ${blocchi
 </html>`;
 }
 
+/** Stessa mappatura della pagina: le chiavi del monitor sono quelle scorecard. */
+const CHIAVE_MONITOR: Record<string, "xau" | "wti" | "idx"> = {
+  gold: "xau",
+  oil: "wti",
+  idx: "idx",
+};
+
+function monitorReale(colonna: unknown): Record<string, MonitorConfidenza> {
+  const perChiave = new Map(parseMonitor(colonna).map((m) => [m.asset, m]));
+  const fuori: Record<string, MonitorConfidenza> = {};
+  for (const [id, chiave] of Object.entries(CHIAVE_MONITOR)) {
+    const m = perChiave.get(chiave);
+    if (!m || (m.confidenceOggi === null && m.confMotivo === null)) continue;
+    fuori[id] = { confidenceOggi: m.confidenceOggi, confMotivo: m.confMotivo };
+  }
+  return fuori;
+}
+
 function natura(type: string, schemaVersion: number | null): NaturaBias {
   if (type === "WEEKLY") return "emesso";
   return (schemaVersion ?? 0) >= 2 ? "monitorato" : "aggiornato";
@@ -131,11 +184,17 @@ async function main() {
     }
     const payload = parseMacroPayload(report.payload);
     const n = natura(report.type, report.schemaVersion);
+    const monitor = caso.monitorFinto ?? monitorReale(report.monitor);
     blocchi.push({
-      titolo: `${caso.data} · ${report.type} · tab ASSET`,
+      titolo: caso.titolo ?? `${caso.data} · ${report.type} · tab ASSET`,
       nota: caso.nota,
       html: renderToStaticMarkup(
-        <MacroReportDetail payload={payload} natura={n} />,
+        <MacroReportDetail
+          payload={payload}
+          natura={n}
+          monitor={monitor}
+          reportDate={report.reportDate}
+        />,
       ),
     });
     if (caso.news) {
@@ -144,7 +203,7 @@ async function main() {
         nota: caso.news,
         html: renderToStaticMarkup(
           <div className="flex flex-col gap-5 p-4 sm:p-6">
-            <NewsTab payload={payload} />
+            <NewsTab payload={payload} reportDate={report.reportDate} />
           </div>,
         ),
       });

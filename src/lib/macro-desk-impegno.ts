@@ -245,6 +245,79 @@ export function applicaImpegno(
   };
 }
 
+/* ── L'impegno visto dal PAYLOAD, non dal record ──────────────────────── */
+
+/**
+ * IL PUNTO CIECO DEL GUARDIANO, chiuso il 28/08/2026.
+ *
+ * `applicaImpegno` confronta il `biasRecord` in arrivo con quello in
+ * archivio, e in 23 report non ha mai rilevato niente: il desk quel blocco lo
+ * rispediva identico. Intanto, però, la stessa confidenza scritta nell'ALTRO
+ * posto — `payload.assets[].weekly.confidence`, che è ciò che la card mostra
+ * — divergeva dall'impegno in 13 casi su 42 (21/08 indici: 52 nel record, 46
+ * nel payload). Il guardiano sorvegliava la porta chiusa.
+ *
+ * Da oggi il generatore ha l'ordine esplicito di non muovere più quel campo a
+ * settimana aperta: la lettura del giorno ha il suo posto, `monitor.<asset>.
+ * confidenceOggi`. Questo confronto serve a far vedere la prossima violazione
+ * invece di lasciarla passare — ed è nato proprio perché il difetto vero non
+ * era la divergenza, era che nessuno la vedesse.
+ *
+ * ── Si REGISTRA, non si riscrive ────────────────────────────────────────
+ * A differenza del `biasRecord`, qui non si congela nulla. Tre ragioni, in
+ * ordine di peso:
+ *
+ *  1. il payload si salva byte per byte, per scelta: è l'unica copia del
+ *     report e il desk può mandare campi che il parser non conosce ancora.
+ *     Riscriverne uno significherebbe archiviare un payload che il desk non
+ *     ha mai spedito — cioè fabbricare la fonte invece di custodirla;
+ *  2. l'impegno che la Scorecard misura sta nel `biasRecord`, ed è già
+ *     congelato da `applicaImpegno`: qui non c'è niente da proteggere che non
+ *     sia già protetto. Quel che manca è solo la visibilità;
+ *  3. la divergenza è essa stessa il dato interessante — dice che il desk ha
+ *     cambiato idea a settimana aperta. Sovrascriverla la cancellerebbe.
+ */
+function confidenzeSettimanali(payload: unknown): Map<string, number> {
+  const fuori = new Map<string, number>();
+  const p = payload as Record<string, unknown> | null | undefined;
+  const assets = p && typeof p === "object" && Array.isArray(p.assets) ? p.assets : [];
+  for (const grezzo of assets) {
+    if (typeof grezzo !== "object" || grezzo === null) continue;
+    const a = grezzo as Record<string, unknown>;
+    const id = typeof a.id === "string" ? a.id : typeof a.ticker === "string" ? a.ticker : null;
+    const weekly = a.weekly;
+    if (!id || typeof weekly !== "object" || weekly === null) continue;
+    const conf = (weekly as Record<string, unknown>).confidence;
+    if (typeof conf === "number" && Number.isFinite(conf)) fuori.set(id, conf);
+  }
+  return fuori;
+}
+
+/**
+ * Le confidenze settimanali del payload che divergono da quelle già in
+ * archivio per la stessa settimana. Un asset presente solo da una parte non è
+ * una divergenza: è un cambio di composizione, che il confronto sul
+ * `biasRecord` già intercetta per quel che vale.
+ */
+export function confidenzaPayloadRifiutata(
+  payloadArchivio: unknown,
+  payloadArrivato: unknown,
+): ModificaRifiutata[] {
+  const archivio = confidenzeSettimanali(payloadArchivio);
+  const arrivato = confidenzeSettimanali(payloadArrivato);
+  const fuori: ModificaRifiutata[] = [];
+  for (const [id, valore] of arrivato) {
+    const base = archivio.get(id);
+    if (base === undefined || base === valore) continue;
+    fuori.push({
+      campo: `payload.assets[${id}].weekly.confidence`,
+      tenuto: testo(base),
+      rifiutato: testo(valore),
+    });
+  }
+  return fuori;
+}
+
 /** Riga sola per il log del server: dice cosa e quante, non un oggetto muto. */
 export function riassuntoRifiuti(rifiutate: ModificaRifiutata[]): string {
   return rifiutate
