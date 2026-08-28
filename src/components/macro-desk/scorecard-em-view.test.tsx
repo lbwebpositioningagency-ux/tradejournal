@@ -125,3 +125,36 @@ describe("le discrepanze si mostrano", () => {
     expect(html).not.toContain("Dove il report diceva");
   });
 });
+
+describe("archivio vuoto: la scorecard dice che non ha dati, e non dice altro", () => {
+  /* Stato prodotto il 28/08/2026, quando l'archivio Macro Desk è stato
+     svuotato: nessuna settimana valutabile e nessun report escluso. */
+  const vuota = (escludi: number) =>
+    renderToStaticMarkup(
+      <ScorecardEmView
+        weeks={[]}
+        eligibleReports={0}
+        excludedReports={escludi}
+        trackRecordStart={null}
+        percorsiRicalcolati={[]}
+      />,
+    );
+
+  it("mostra lo stato vuoto, non una tabella a zero righe", () => {
+    const html = vuota(0);
+    expect(html).toContain("Track record non ancora iniziato");
+    expect(html).toContain("arriverà col primo Weekly Bias Record");
+  });
+
+  it("con ZERO esclusi la frase sugli esclusi NON compare", () => {
+    /* «0 report storici restano in archivio» è una riga che occupa spazio per
+       non dire niente, e con l'archivio vuoto era esattamente ciò che si
+       leggeva. */
+    expect(vuota(0)).not.toContain("restano in archivio");
+    expect(vuota(0)).not.toContain(">0 report");
+  });
+
+  it("con esclusi veri la frase resta: è un'informazione, non decorazione", () => {
+    expect(vuota(9)).toContain("9 report storici restano in archivio");
+  });
+});
