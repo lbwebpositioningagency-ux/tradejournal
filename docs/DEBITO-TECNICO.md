@@ -819,3 +819,38 @@ minuti a capirlo, e ne costerebbe altrettanti alla prossima sessione.
 
 Regola pratica: quando `tsc` si lamenta di un percorso che comincia per
 `.next/`, la risposta non e' nel sorgente.
+
+## L'anteprima fotografa la working copy CONDIVISA, non il tuo worktree (28/08/2026)
+
+Lo strumento di anteprima del harness (`preview_start`, che legge
+`.claude/launch.json`) avvia `npm run dev` **dalla directory di lavoro della
+sessione** — `C:\Users\chenn\progetti\tradezella 2.0` — e non dal worktree in
+cui stai scrivendo. Se un'altra sessione tiene quella copia a un commit
+diverso, le schermate mostrano **il suo** codice, e nessuno lo dice.
+
+**Come ci si accorge.** Una correzione che è nel sorgente non compare a
+schermo, e riscattare la schermata non cambia niente. I due indizi che chiudono
+la diagnosi:
+
+- `ls -d .next` nel worktree **non trova nulla**: il server sta compilando
+  altrove;
+- `git log -1` nella working copy condivisa mostra un commit diverso dal tuo.
+
+**Il rimedio**: lanciare il server a mano dal worktree, su una porta dedicata
+per non litigare con l'altra sessione.
+
+```bash
+cd C:/wt/<worktree> && npx next dev -p 3011
+```
+
+e puntare lì gli script di screenshot:
+`node scripts/shot.mjs --url http://localhost:3011/... --login demo@tradejournal.local:demo1234`.
+
+**Perché è più grave di un fastidio**: è un autocontrollo visivo che passa
+VERDE guardando la cosa sbagliata. Un test rotto si vede; una schermata giusta
+del codice sbagliato si ispeziona, si firma e si pubblica. Il 28/08 è successo
+davvero — sei pagine fotografate e ispezionate su una checkout ferma a
+`d5401b7`, mentre il lavoro da verificare stava venti commit più avanti.
+
+Regola pratica: prima di fidarti di uno screenshot, verifica **da dove** è
+stato servito. Se nel worktree non c'è `.next`, non è il tuo codice.
