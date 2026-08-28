@@ -460,52 +460,58 @@ function ComparisonTable({ view }: { view: TrendsSeriesView }) {
     }
   }
 
-  /* Tabella del listino: intestazioni allineate come la loro colonna, cifre
-     tabulari, filetti al posto dei bordi. La cella a due piani porta la data
-     dell'osservazione quando è lontana dal punto nominale, invece di
-     nasconderla in un `title` che nessuno apre. */
   return (
-    <table className="ml-tab">
-      <thead>
-        <tr>
-          {cells.map((cell) => (
-            <th key={cell.label}>{cell.label}</th>
-          ))}
-          <th className="ml-sep">Δ 1A</th>
-        </tr>
-      </thead>
-      <tbody>
-        <tr>
-          {cells.map((cell) => (
-            <td key={cell.label}>
-              {cell.point === null ? (
-                <span style={{ color: "var(--md-muted)" }}>—</span>
-              ) : (
-                <>
-                  <span
-                    className={cell.label === "Ora" ? "font-semibold" : undefined}
-                  >
-                    {fmtValue(cell.point.value, view.def.decimals)}
-                  </span>
-                  {cell.point.gapDays > 10 ? (
+    <div className="overflow-x-auto">
+      <table className="w-full text-right text-xs">
+        <thead>
+          <tr style={{ color: "var(--md-muted)" }}>
+            {cells.map((cell) => (
+              <th key={cell.label} className="py-1 pl-2 font-medium first:pl-0">
+                {cell.label}
+              </th>
+            ))}
+            <th className="py-1 pl-2 font-medium">Δ 1A</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr
+            className="md-mono"
+            style={{ borderTop: "1px solid var(--md-border)" }}
+          >
+            {cells.map((cell) => (
+              <td key={cell.label} className="py-1.5 pl-2 first:pl-0">
+                {cell.point === null ? (
+                  <span style={{ color: "var(--md-muted)" }}>—</span>
+                ) : (
+                  <>
                     <span
-                      className="block text-[10px]"
-                      style={{ color: "var(--md-muted)" }}
-                      title={`Osservazione più vicina disponibile (${cell.point.gapDays}g di scarto)`}
+                      className={cell.label === "Ora" ? "font-semibold" : undefined}
                     >
-                      {shortDate(cell.point.date)}
+                      {fmtValue(cell.point.value, view.def.decimals)}
                     </span>
-                  ) : null}
-                </>
-              )}
+                    {cell.point.gapDays > 10 ? (
+                      <span
+                        className="block text-2xs"
+                        style={{ color: "var(--md-muted)" }}
+                        title={`Osservazione più vicina disponibile (${cell.point.gapDays}g di scarto)`}
+                      >
+                        {shortDate(cell.point.date)}
+                      </span>
+                    ) : null}
+                  </>
+                )}
+              </td>
+            ))}
+            <td
+              className="py-1.5 pl-2 font-semibold"
+              style={{ color: deltaColorValue }}
+            >
+              {deltaLabel}
             </td>
-          ))}
-          <td className="ml-sep font-semibold" style={{ color: deltaColorValue }}>
-            {deltaLabel}
-          </td>
-        </tr>
-      </tbody>
-    </table>
+          </tr>
+        </tbody>
+      </table>
+    </div>
   );
 }
 

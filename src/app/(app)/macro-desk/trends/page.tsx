@@ -99,24 +99,21 @@ export default async function MacroTrendsPage() {
         <MacroDeskSectionNav active="trends" />
       </div>
 
-      {/* Ambiente del desk: token theme-aware, niente scatole, colore solo sul
-          segno. Scoped a .md-listino. */}
+      {/* Il riquadro «Come si legge questa sezione», chiuso: si legge una
+          volta, i dati si guardano ogni volta. Sta FUORI dal terminale e usa i
+          token dell'applicazione, quindi regge anche qui dove il contenitore
+          è tornato a `.macro-report`. */}
+      <GuidaTrends />
+
+      {/* Terminale: identità visiva propria, scoped a .macro-report */}
       <div
         className={cn(
-          "md-listino overflow-hidden border",
+          "macro-report overflow-hidden rounded-[var(--md-r-lg)] border",
           fontUi.variable,
           fontMono.variable,
         )}
-        style={{ borderColor: "var(--ml-rule)" }}
+        style={{ borderColor: "var(--md-border)" }}
       >
-        {/* Il riquadro «Come si legge questa sezione», chiuso: si legge una
-            volta, i dati si guardano ogni volta. */}
-        <div
-          className="border-b px-4 pt-4 sm:px-6"
-          style={{ borderColor: "var(--md-border)" }}
-        >
-          <GuidaTrends />
-        </div>
         <TrendsView
           generatedDayKey={generatedDayKey}
           keyless={keyless}
