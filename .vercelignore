@@ -18,6 +18,11 @@ coverage
 # altrimenti node muore con MODULE_NOT_FOUND e `npm install` esce 1.
 scripts/*
 !scripts/setup-hooks.mjs
+# Stessa ragione: gira in `postinstall` E in `build` (genera
+# src/generated/migrazioni-attese.json, che il codice importa). Se non sale,
+# `npm install` esce 1 e il deployment muore prima di compilare — successo il
+# 28/08/2026, deployment c7drs0311.
+!scripts/genera-migrazioni-attese.mjs
 
 # Expert Advisor MetaTrader: si installa nel terminale, non sul server.
 mt5
