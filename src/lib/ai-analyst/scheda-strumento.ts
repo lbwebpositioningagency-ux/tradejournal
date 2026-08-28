@@ -578,10 +578,13 @@ function rigaStruttura(i: IngressiScheda): RigaScheda | null {
  * RIGA 8 — quanto è affollato il posizionamento speculativo, rispetto alla
  * propria storia.
  *
- * UNA riga sola, e per i soli oro e WTI: sugli indici azionari la CFTC non
- * pubblica. È l'unica dimensione di «dove sto rispetto alla norma» che le
- * righe di volatilità non coprono — dicono quanto il mercato si muove, non da
- * chi è tenuto.
+ * UNA riga sola, col numero per i soli oro e WTI. Sugli indici azionari il
+ * saldo non arriva, e la riga lo DICHIARA invece di sparire: sul DAX perché
+ * la CFTC non ha giurisdizione su Eurex, sull'S&P perché il contratto esiste
+ * ma solo nei report legacy e TFF, non nel disaggregato da cui questa riga
+ * prende il dato. È l'unica dimensione di «dove sto rispetto alla norma» che
+ * le righe di volatilità non coprono — dicono quanto il mercato si muove, non
+ * da chi è tenuto.
  *
  * NESSUNA DIREZIONE, e non è prudenza: il test pre-registrato sulla capacità
  * predittiva del COT è fallito su tutti e tre i criteri (v.
@@ -591,7 +594,21 @@ function rigaStruttura(i: IngressiScheda): RigaScheda | null {
  */
 function rigaCot(i: IngressiScheda): RigaScheda | null {
   const def = AI_ANALYST_DEFS[i.strumento];
-  if (def.cot === null) return null;
+  /* ASSENZA STRUTTURALE, DICHIARATA. Fino al 28/08/2026 qui si restituiva
+     `null` e la riga spariva: la scheda del DAX ne aveva otto invece di nove
+     e nulla diceva perché. Una riga che manca in silenzio si legge come un
+     dato in ritardo — cioè come un guasto nostro — mentre è una proprietà del
+     mondo. Il motivo è per strumento (`cotAssenza`) perché le cause sono
+     diverse: sul DAX il dato non esiste, sull'S&P sta in un altro report. */
+  if (def.cot === null) {
+    return def.cotAssenza === null
+      ? null
+      : assente(
+          "cot",
+          "Posizionamento dei fondi (COT, settimanale)",
+          def.cotAssenza,
+        );
+  }
   const carta = i.cot.find((c) => c.metrica === "mm_net");
   if (!carta) {
     return assente(

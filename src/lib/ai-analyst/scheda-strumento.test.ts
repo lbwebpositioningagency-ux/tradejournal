@@ -360,7 +360,7 @@ describe("le righe di contesto", () => {
 /* ── differenze fra strumenti ────────────────────────────────────────── */
 
 describe("ogni strumento mostra quello che ha davvero", () => {
-  it("l'S&P 500 non ha il COT ma ha la curva del VIX", () => {
+  it("l'S&P 500 DICHIARA perché non ha il COT, e ha la curva del VIX", () => {
     const s = schedaStrumento(
       ingressiOro({
         strumento: "SP500",
@@ -394,7 +394,14 @@ describe("ogni strumento mostra quello che ha davvero", () => {
       }),
     );
     const ids = s.righe.map((r) => r.id);
-    expect(ids).not.toContain("cot");
+    /* La riga c'è, marcata assente, e dice la ragione GIUSTA: sull'S&P il
+       contratto CFTC esiste (E-mini, 13874A), manca nel disaggregato. Dire
+       «la CFTC non pubblica» sarebbe falso. */
+    expect(ids).toContain("cot");
+    const cot = s.righe.find((x) => x.id === "cot")!;
+    expect(cot.assente).toBe(true);
+    expect(cot.oggi).toContain("disaggregato");
+    expect(cot.oggi).not.toContain("Eurex");
     expect(ids).toContain("struttura");
     const r = s.righe.find((x) => x.id === "struttura")!;
     expect(r.oggi).toContain("0,871");
@@ -425,10 +432,21 @@ describe("ogni strumento mostra quello che ha davvero", () => {
     expect(r.norma).toContain("ottobre 2026");
   });
 
-  it("il DAX non ha né COT né curva: due schede diverse, non due colonne vuote", () => {
+  it("il DAX dichiara l'assenza strutturale del COT invece di far sparire la riga", () => {
     const s = schedaStrumento(ingressiOro({ strumento: "DAX", cot: [] }));
     const ids = s.righe.map((r) => r.id);
-    expect(ids).not.toContain("cot");
+    expect(ids).toContain("cot");
+    const cot = s.righe.find((x) => x.id === "cot")!;
+    expect(cot.assente).toBe(true);
+    /* La ragione, non un trattino: il DAX si tratta a Eurex e la CFTC non ha
+       giurisdizione. Zero contratti '%DAX%' in tutti e tre i dataset CFTC,
+       verificato il 28/08/2026. */
+    expect(cot.oggi).toContain("Eurex");
+    expect(cot.oggi).toContain("CFTC");
+    /* Nessun numero inventato accanto all'assenza. */
+    expect(cot.oggi).not.toMatch(/\d/);
+    /* La curva invece resta fuori del tutto: sul DAX non esiste né un
+       contratto a termine nostro né una curva di volatilità propria. */
     expect(ids).not.toContain("struttura");
   });
 

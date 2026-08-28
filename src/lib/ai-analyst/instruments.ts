@@ -50,6 +50,19 @@ interface AiAnalystInstrumentDef {
   /** Strumento COT, `null` dove la CFTC non pubblica (indici azionari). */
   cot: CodiceStrumentoCot | null;
   /**
+   * Perché il COT manca, quando `cot` è `null`. Obbligatorio in quel caso, e
+   * `null` quando il COT c'è.
+   *
+   * Esiste perché fino al 28/08/2026 la riga spariva e basta: `rigaCot`
+   * restituiva `null` e la scheda del DAX aveva otto righe invece di nove,
+   * senza dire perché. Una riga che manca in silenzio si legge come un dato
+   * non ancora arrivato — cioè come un guasto nostro — mentre qui è una
+   * proprietà del mondo che non cambierà. Le due assenze hanno cause
+   * DIVERSE, e vanno dette diverse: sul DAX il dato non esiste, sull'S&P
+   * esiste ma in un altro report.
+   */
+  cotAssenza: string | null;
+  /**
    * Riga del contesto di volatilità (`COPPIE_VOL`, chiavata sull'indice IV) da
    * cui prendere i FATTI DI PREZZO di questo strumento: escursione vera,
    * movimento osservato, ultima chiusura.
@@ -79,6 +92,7 @@ export const AI_ANALYST_DEFS: Record<
     rigaContestoPrezzo: "GVZ",
     rigaContestoIv: "GVZ",
     cot: "GOLD",
+    cotAssenza: null,
   },
   WTI: {
     code: "WTI",
@@ -91,6 +105,7 @@ export const AI_ANALYST_DEFS: Record<
     rigaContestoPrezzo: "OVX",
     rigaContestoIv: "OVX",
     cot: "WTI",
+    cotAssenza: null,
   },
   DAX: {
     code: "DAX",
@@ -103,6 +118,14 @@ export const AI_ANALYST_DEFS: Record<
     rigaContestoPrezzo: "VDAX",
     rigaContestoIv: "VIX",
     cot: null,
+    /* Il DAX si tratta a Eurex, fuori dalla giurisdizione CFTC: non è un dato
+       che non abbiamo ancora, è un dato che non esiste. Verificato il
+       28/08/2026 interrogando i tre dataset con
+       `market_and_exchange_names like '%DAX%'`: zero contratti in 72hh-3qpy
+       (disaggregato), zero in gpe5-46if (TFF), zero in 6dca-aqww (legacy).
+       Zero anche allargando a '%STOXX%' e '%GERMAN%'. */
+    cotAssenza:
+      "la CFTC non pubblica: il DAX si tratta a Eurex, fuori dal suo perimetro",
   },
   SP500: {
     code: "SP500",
@@ -115,5 +138,13 @@ export const AI_ANALYST_DEFS: Record<
     rigaContestoPrezzo: "VIX",
     rigaContestoIv: "VIX",
     cot: null,
+    /* Caso DIVERSO dal DAX, e va detto diverso: qui il dato esiste. La CFTC
+       pubblica l'E-mini S&P 500 (codice 13874A), ma nei report legacy
+       (6dca-aqww) e TFF (gpe5-46if) — non nel disaggregato 72hh-3qpy, che è
+       quello da cui questa riga prende il saldo dei money manager: lì gli
+       indici azionari non ci sono (verificato il 28/08/2026, zero contratti
+       con '%S&P 500%'). Scriverlo come «la CFTC non pubblica» sarebbe falso. */
+    cotAssenza:
+      "il saldo dei money manager esiste solo nel report disaggregato, che sugli indici azionari non arriva",
   },
 };
