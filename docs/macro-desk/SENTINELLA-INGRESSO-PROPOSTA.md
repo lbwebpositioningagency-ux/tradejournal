@@ -1,4 +1,4 @@
-# La sentinella all'ingresso — proposta, non implementata
+# La sentinella all'ingresso
 
 **Data**: 28/08/2026 · **Stato**: **IMPLEMENTATA** il 28/08/2026 (era una proposta;
 il documento resta perché il *perché* vale più del *cosa*).
@@ -33,16 +33,20 @@ già legge, e lasciare il segno in un posto che qualcuno guarda.
 
 Una funzione pura, `controllaContratto(payload): Rilievo[]`, in un modulo suo
 (`src/lib/macro-desk-contratto.ts`), chiamata da `upsertMacroDeskReport` accanto a
-`impegnoDellaSettimana`. Quattro controlli, non uno di più:
+`impegnoDellaSettimana`. Cinque controlli, non uno di più:
 
 | # | Controllo | Rilievo |
 |---|---|---|
 | 1 | `news[]` senza `title` **o** senza `impl`, dopo gli alias | `news[3]: voce senza titolo leggibile` |
 | 2 | `news[]` senza `src`, `url` o `when` | `news[3]: manca url` |
 | 3 | Entità HTML (`&lt;` `&gt;` `&amp;` `&quot;`) nei campi testuali | `assets[gold].weekly.invalid: entità HTML nel testo` |
-| 4 | `payload.assets[].weekly.confidence` ≠ `biasRecord.<asset>.confidence` | `gold: payload 44, biasRecord 48` |
+| 4 | `payload.assets[].weekly.confidence` ≠ `biasRecord.<asset>.confidence`, nello STESSO report | `gold: payload 44, biasRecord 48` |
+| 5 | `synthesis` presente e nella forma a oggetto | `synthesis: è string, atteso {pills, risks, conclusion}` |
 
-Il quarto è **già scritto** (`confidenzaPayloadRifiutata`) e passa dal canale che segue.
+Il quarto somiglia a `confidenzaPayloadRifiutata` ma non è lo stesso controllo: quello
+confronta report DIVERSI della stessa settimana, questo prende la contraddizione dentro
+un singolo report, già alla partenza. Servono entrambi, e infatti il secondo ha trovato
+qualcosa che il primo non poteva vedere (v. in fondo).
 
 ## Dove finiscono i rilievi
 
@@ -54,10 +58,14 @@ Nel canale che esiste già, senza inventarne uno nuovo:
    Il ponte che spedisce lo legge già per i rifiuti dell'impegno: **questo è il punto
    che avrebbe fatto la differenza il 18 agosto stesso**, perché il mittente vede la
    risposta nel momento in cui spedisce;
-3. **la colonna `impegnoRifiutato`**, o una gemella `rilieviContratto`, così il rilievo
-   sopravvive al log e si può interrogare a posteriori;
-4. **la banda già in pagina** (`banda-impegno.tsx`) mostra quel che c'è in colonna: un
-   report con rilievi si vede aprendo il report, senza nessuna schermata nuova.
+3. **la colonna `rilieviContratto`**, gemella di `impegnoRifiutato` e distinta da essa
+   (sono due difetti diversi e confonderli renderebbe sbagliato il testo di entrambe le
+   bande), così il rilievo sopravvive al log e si può interrogare a posteriori;
+4. **una banda in testa al report** (`banda-rilievi.tsx`), gemella di quella
+   dell'impegno ma in un posto diverso, e per una ragione: una modifica all'impegno
+   falsa la MISURA e va vista nella Scorecard insieme ai numeri che falsa, mentre un
+   rilievo di contratto rende illeggibile QUESTO report e va visto aprendolo — che è
+   anche il momento in cui chi legge si sta chiedendo perché una card è vuota.
 
 ## Perché non di più
 
