@@ -2,19 +2,8 @@
  * Fonte Deutsche Bundesbank — SOLO server-side, API REST ufficiale keyless.
  *
  * Endpoint `api.statistiken.bundesbank.de/rest/data/<flow>/<key>?format=csv`:
- * gratuito, senza chiave, senza blocchi anti-bot. È INDIFFERENTE allo user
- * agent, e questo lo distingue da `fredgraph.csv`: misurato il 28/08/2026
- * sulla stessa URL, `curl/8.0.1` → HTTP 200 in 1,12 s e
- * `Mozilla/5.0 (compatible; LB-TradingSpace/1.0)` → HTTP 200 in 1,05 s, con
- * risposta identica (230.399 byte in entrambi i casi).
- *
- * La costante qui sotto NON è più la stessa del client FRED — lo era fino al
- * 28/08/2026, quando FRED è passato a `curl/8.0.1` perché era l'unico valore
- * che risponde sia in locale sia da una funzione serverless. Restano quindi
- * due user agent nel repo, e la differenza è deliberata: FRED sta dietro un
- * filtro che guarda l'intestazione, questo endpoint no.
- *
- * Serve UNA serie al
+ * gratuito, senza chiave, senza blocchi anti-bot (verificato dal vivo il
+ * 2026-08-03 con lo stesso User-Agent del client FRED). Serve UNA serie al
  * Driver Desk: il rendimento del Bund a 10 anni, giornaliero dal 1997 —
  * l'unica fonte gratuita e affidabile trovata per questo dato (FRED è
  * mensile, Yahoo non ha un ticker di rendimento tedesco).
