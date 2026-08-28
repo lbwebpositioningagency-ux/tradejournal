@@ -10,9 +10,11 @@ import { parseMacroPayload } from "@/lib/macro-desk-payload";
 import { ASSET_PAYLOAD_A_RECORD, parseMonitor } from "@/lib/macro-desk-bias-record";
 import type { MonitorConfidenza } from "@/lib/macro-desk-confidenza";
 import type { Rilievo } from "@/lib/macro-desk-contratto";
+import { getRevisioneReport } from "@/lib/queries/macro-desk-versioni";
 import { cn } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
 import { MacroReportDetail } from "@/components/macro-desk/report-detail";
+import { RigaRevisione } from "@/components/macro-desk/riga-revisione";
 import type { NaturaBias } from "@/components/macro-desk/report-tabs";
 
 export const metadata: Metadata = { title: "Report Macro Desk" };
@@ -119,12 +121,15 @@ export default async function MacroReportPage({
   if (!session?.user?.id) redirect("/login");
 
   const { id } = await params;
-  const [report, user] = await Promise.all([
+  const [report, user, revisione] = await Promise.all([
     prisma.macroDeskReport.findUnique({ where: { id } }),
     prisma.user.findUniqueOrThrow({
       where: { id: session.user.id },
       select: { timezone: true },
     }),
+    /* La riga «è stato rifatto», che compare SOLO se la revisione ha cambiato
+       un bias o una confidenza: vedi `macro-desk-versioni.ts`. */
+    getRevisioneReport(id),
   ]);
   if (!report) notFound();
 
@@ -154,8 +159,14 @@ export default async function MacroReportPage({
             </Badge>
           </h1>
           <p className="page-subtitle">
-            {headerDateLabel(report.reportDate)} · generato {generatedLabel} UTC
+            {/* «UTC» è caduto: `formatDateTime` rende nel fuso dell'utente, e
+                l'etichetta diceva il falso da quando quel calcolo è cambiato. */}
+            {headerDateLabel(report.reportDate)} · generato {generatedLabel}
           </p>
+          {/* Non conta le rispedizioni: dice che cosa è cambiato, e per questo
+              può permettersi di comparire di rado. Rende `null` da sé quando
+              non c'è niente da dire. */}
+          <RigaRevisione revisione={revisione} timezone={user.timezone} />
         </div>
       </div>
 

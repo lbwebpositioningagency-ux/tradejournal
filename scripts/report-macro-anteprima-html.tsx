@@ -35,6 +35,8 @@ import { ASSET_PAYLOAD_A_RECORD, parseMonitor } from "../src/lib/macro-desk-bias
 import type { MonitorConfidenza } from "../src/lib/macro-desk-confidenza";
 import { controllaContratto } from "../src/lib/macro-desk-contratto";
 import { MacroReportDetail } from "../src/components/macro-desk/report-detail";
+import { RigaRevisione } from "../src/components/macro-desk/riga-revisione";
+import { revisioneDaDire } from "../src/lib/macro-desk-versioni";
 import { NewsTab, type NaturaBias } from "../src/components/macro-desk/report-tabs";
 
 const prisma = new PrismaClient({
@@ -56,6 +58,8 @@ const CASI: {
   news?: string;
   titolo?: string;
   monitorFinto?: Record<string, MonitorConfidenza>;
+  /** Ricostruisce una versione precedente per far comparire la riga. */
+  revisioneFinta?: boolean;
 }[] = [
   {
     data: "2026-08-28",
@@ -105,6 +109,13 @@ const CASI: {
     },
   },
   {
+    data: "2026-08-28",
+    titolo: "2026-08-28 · DAILY · RIGA DELLA REVISIONE (coppia ricostruita)",
+    nota:
+      "La versione delle 04:22 è stata cancellata dall'upsert PRIMA che il journal esistesse, e non si può recuperare: qui la si ricostruisce cambiando un solo bias, per vedere la riga nel posto in cui compare davvero. Il payload della versione corrente è REALE",
+    revisioneFinta: true,
+  },
+  {
     data: "2026-08-16",
     nota: "WEEKLY REALE · bias EMESSO in questo report (non monitorato)",
   },
@@ -133,7 +144,10 @@ function cssDelBuild(): string {
   throw new Error("CSS compilato non trovato: lancia prima `npm run build`.");
 }
 
-function pagina(css: string, blocchi: { titolo: string; nota: string; html: string }[]) {
+function pagina(
+  css: string,
+  blocchi: { titolo: string; nota: string; html: string; intestazione?: string }[],
+) {
   return `<!doctype html>
 <html lang="it" class="dark">
 <head>
@@ -152,6 +166,13 @@ function pagina(css: string, blocchi: { titolo: string; nota: string; html: stri
   .anteprima { max-width: 1180px; margin: 0 auto 56px; }
   .anteprima > h2 { font: 700 15px/1.3 system-ui, sans-serif; margin: 0 0 4px; }
   .anteprima > p { font: 400 12px/1.5 system-ui, sans-serif; opacity: .65; margin: 0 0 12px; }
+  /* L'intestazione della PAGINA (fuori dal terminale): qui serve solo a
+     mostrare la riga della revisione nel contesto in cui compare davvero. */
+  .intestazione { margin: 0 0 10px; color: #e6e9ef; font: 400 13px/1.5 system-ui, sans-serif; }
+  .intestazione .text-muted-foreground { color: #9aa4b2; }
+  .intestazione .text-foreground { color: #e6e9ef; }
+  .intestazione .font-semibold { font-weight: 600; }
+  .intestazione .text-xs { font-size: 12px; }
 </style>
 </head>
 <body>
@@ -160,6 +181,7 @@ ${blocchi
     (b) => `<section class="anteprima" id="${b.titolo.replace(/[^\w-]/g, "-")}">
   <h2>${b.titolo}</h2>
   <p>${b.nota}</p>
+  ${b.intestazione ? `<div class="intestazione">${b.intestazione}</div>` : ""}
   <div class="md-listino" style="border:1px solid var(--ml-rule, var(--md-border));overflow:hidden">
     ${b.html}
   </div>
@@ -197,7 +219,12 @@ function natura(type: string, schemaVersion: number | null): NaturaBias {
 
 async function main() {
   const css = cssDelBuild();
-  const blocchi: { titolo: string; nota: string; html: string }[] = [];
+  const blocchi: {
+    titolo: string;
+    nota: string;
+    html: string;
+    intestazione?: string;
+  }[] = [];
 
   for (const caso of CASI) {
     /* `select` ESPLICITO e non `findFirst` nudo: la colonna
@@ -224,9 +251,36 @@ async function main() {
     const payload = parseMacroPayload(report.payload);
     const n = natura(report.type, report.schemaVersion);
     const monitor = caso.monitorFinto ?? monitorReale(report.monitor);
+
+    /* La coppia di versioni: la corrente è il payload VERO, la precedente si
+       ricostruisce cambiando un bias — quella originale è stata cancellata
+       dall'upsert prima che il journal esistesse, ed è esattamente il buco che
+       il journal chiude da oggi in avanti. */
+    let intestazione: string | undefined;
+    if (caso.revisioneFinta) {
+      const grezzo = report.payload as { assets?: { id?: string; weekly?: { biasLabel?: string } }[] };
+      const precedente = JSON.parse(JSON.stringify(grezzo)) as typeof grezzo;
+      const oil = precedente.assets?.find((a) => a.id === "oil");
+      if (oil?.weekly) oil.weekly.biasLabel = "RIBASSISTA";
+      const revisione = revisioneDaDire(
+        2,
+        { arrivatoIl: new Date("2026-08-28T09:43:28Z"), payload: precedente },
+        { arrivatoIl: new Date("2026-08-28T14:59:24Z"), payload: report.payload },
+      );
+      intestazione = renderToStaticMarkup(
+        <>
+          <p className="page-subtitle">
+            Venerdì 28 agosto 2026 · generato 28/08/2026, 16:46
+          </p>
+          <RigaRevisione revisione={revisione} timezone="Europe/Rome" />
+        </>,
+      );
+    }
+
     blocchi.push({
       titolo: caso.titolo ?? `${caso.data} · ${report.type} · tab ASSET`,
       nota: caso.nota,
+      intestazione,
       html: renderToStaticMarkup(
         <MacroReportDetail
           payload={payload}

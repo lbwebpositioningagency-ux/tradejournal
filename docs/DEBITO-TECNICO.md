@@ -801,3 +801,21 @@ liquidare».
 **Cosa e uscito del tutto dalla UI:** l'open interest. E' la misura la cui
 interpretazione era piu sbagliata, e il suo posto naturale — se un giorno
 tornasse — e in nozionale, non in contratti.
+
+## `tsc` che cita una pagina cancellata: e' `.next`, non il codice (28/08/2026)
+
+Dopo un merge che **elimina una route**, `npx tsc --noEmit` puo' fallire cosi:
+
+```
+.next/types/validator.ts(116,39): error TS2307: Cannot find module
+'../../src/app/(app)/macro-desk/ai-analyst/page.js'
+```
+
+Non c'e' niente di rotto nel codice: e' il validatore delle route che Next
+GENERA dentro `.next/types`, rimasto indietro e ancora convinto che quella
+pagina esista. Basta rilanciare `next build` — che lo rigenera — e `tsc` torna
+pulito. Capitato durante il merge dei ripristini "Listino"; e' costato dieci
+minuti a capirlo, e ne costerebbe altrettanti alla prossima sessione.
+
+Regola pratica: quando `tsc` si lamenta di un percorso che comincia per
+`.next/`, la risposta non e' nel sorgente.

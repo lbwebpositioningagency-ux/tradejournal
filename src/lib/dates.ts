@@ -123,6 +123,15 @@ export function formatDateTime(
   }).format(date);
 }
 
+/** Solo l'ora, nel fuso utente: «16:59». Per chi mostra già la data accanto. */
+export function formatTime(
+  date: Date,
+  timeZone: string,
+  locale = "it-IT",
+): string {
+  return new Intl.DateTimeFormat(locale, { timeZone, timeStyle: "short" }).format(date);
+}
+
 /**
  * Durata in secondi (stringa decimale dal SQL) → "3g 2h" / "2h 14m" / "45m" /
  * "30s". Oltre le 24 ore si passa ai giorni (trade swing/multi-day).
