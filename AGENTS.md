@@ -34,6 +34,37 @@ Next.js 16 App Router · TypeScript strict · PostgreSQL + Prisma 7 (driver adap
 - `npm test` · `npm run lint` · `npm run typecheck` · `npm run build`
 - Ogni fase si chiude con: build verde, test verdi, nota in PROGRESS.md.
 
+## Pubblicare: le migrazioni NON partono da sole
+**La build non applica più le migrazioni.** Dal 28/08/2026 lo script di build è
+`prisma generate && … && next build`: `prisma migrate deploy` è stato tolto, perché su Vercel
+`DATABASE_URL` è **un solo record** valido sia per Production sia per Preview — finché quel
+comando stava nella build, *pubblicare un branch qualsiasi applicava migrazioni al database di
+produzione*. Ora nessuna build tocca lo schema, e applicarlo è compito di chi pubblica.
+
+**Se il tuo push contiene una nuova cartella in `prisma/migrations/`, prima di pushare:**
+
+```
+ALLOW_REMOTE_DB=1 npm run db:deploy      # con l'ambiente di produzione caricato
+```
+
+- **L'ordine è: migrazione PRIMA, push DOPO. Mai il contrario.** Al contrario si ottiene codice
+  in produzione che cerca colonne inesistenti, e l'errore salta fuori a caso, in una pagina a
+  caso, anche giorni dopo.
+- Senza `ALLOW_REMOTE_DB=1` il comando **muore apposta** se il database non è locale: è la
+  guardia di `src/lib/db-guard.ts`, non un intoppo. Stampa l'host prima di agire: leggilo.
+- Se il push non aggiunge migrazioni, non devi fare nulla.
+
+**Come si verifica, dopo il deploy** (`CRON_SECRET` è la stessa dei cron):
+
+```
+curl -H "Authorization: Bearer $CRON_SECRET" https://<dominio>/api/health/migrazioni
+```
+
+**200** = schema allineato. **500** = schema indietro rispetto al codice, e la risposta
+**elenca i nomi** delle migrazioni mancanti e il comando per applicarle. Lo stesso controllo
+gira da solo ogni notte dentro `/api/seasonality-sync`, che diventa rosso in Vercel se qualcosa
+manca: è la rete di sicurezza, non un sostituto della regola qui sopra.
+
 ## Attenzioni pratiche
 - Prisma 7: connection string in `prisma.config.ts` (non nello schema); `prisma generate` gira in postinstall e nel build.
 - Non usare PowerShell `Get-Content/Set-Content` per modificare file sorgente: corrompe le lettere accentate (usare i tool di edit).
