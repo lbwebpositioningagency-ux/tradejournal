@@ -7,6 +7,18 @@
  * 2. fallback keyless: CSV pubblico `fredgraph.csv?id=<ID>` — la pagina
  *    funziona anche senza chiave configurata.
  *
+ * QUANDO SCATTA IL RIPIEGO, e quando NON deve scattare: solo su errore di
+ * TRASPORTO (timeout, rete) o HTTP >= 400. Una risposta 200 con serie vuota
+ * NON è un guasto, è una risposta — e chiedere la stessa cosa al CSV costava
+ * un timeout intero per farsi ripetere che non c'è niente. Il caso reale sono
+ * le serie OECD sul clima d'affari tedesco, ferme a gennaio 2024: rispondono,
+ * semplicemente non hanno osservazioni nuove.
+ *
+ * OGNI RIPIEGO LASCIA TRACCIA, in due posti (v. `registraRipiego`): una riga
+ * di log con prefisso stabile, e — per le serie del Driver Desk — l'etichetta
+ * della rotta dentro `DriverDeskCoverage.source`, che è il registro delle
+ * fonti che il desk già teneva.
+ *
  * Disciplina dati:
  * - il valore "." di FRED = osservazione MANCANTE: scartata, mai uno zero;
  * - cache giornaliera via Next data cache (`next.revalidate` ~86400, con
@@ -24,10 +36,32 @@ export interface FredObservation {
   value: number;
 }
 
+/** Quale delle due strade ha risolto la serie. */
+export type RottaFred = "api" | "csv";
+
 export interface FredSeriesData {
   /** L'ID che ha effettivamente risolto (può essere un altId). */
   id: string;
   observations: FredObservation[];
+  /**
+   * Da dove è arrivato il dato. Serve a chi tiene un registro delle fonti —
+   * il Driver Desk lo scrive in `DriverDeskCoverage.source` — perché «FRED»
+   * e «FRED per ripiego» non sono la stessa affidabilità.
+   */
+  via: RottaFred;
+}
+
+/**
+ * L'API ha risposto correttamente, ma la serie non ha osservazioni valide.
+ *
+ * Ha una classe propria perché è l'unico esito che NON deve far scattare il
+ * ripiego: è una risposta, non un guasto.
+ */
+export class SerieFredSenzaOsservazioni extends Error {
+  constructor(messaggio: string) {
+    super(messaggio);
+    this.name = "SerieFredSenzaOsservazioni";
+  }
 }
 
 /* Base URL sovrascrivibili via env: servono per test locali e per reti
@@ -40,7 +74,16 @@ const CSV_BASE =
   process.env.FRED_CSV_BASE_URL ??
   "https://fred.stlouisfed.org/graph/fredgraph.csv";
 const REVALIDATE_SECONDS = 86_400;
-const TIMEOUT_MS = 15_000;
+/**
+ * Quattro secondi, non quindici.
+ *
+ * Tutte le risposte buone misurate stanno sotto i 400 ms — da questa macchina
+ * e da una funzione serverless in `iad1`. Quindici secondi non davano margine
+ * a una risposta lenta: davano tempo a un ramo bloccato di far sembrare lenta
+ * la pagina invece che rotta. Con ~60 serie in `Promise.allSettled` la
+ * differenza fra i due valori è tutta a carico di chi guarda.
+ */
+const TIMEOUT_MS = 4_000;
 
 /**
  * P-05 — scadenze SCAGLIONATE per serie: con `revalidate` identico per
@@ -107,16 +150,33 @@ export function parseFredCsv(text: string): FredObservation[] {
 }
 
 /**
- * User agent ESPLICITO — non è cosmetico.
+ * User agent ESPLICITO — non è cosmetico, ed è l'unico valore che funziona in
+ * TUTTI E DUE gli ambienti in cui questo codice gira.
  *
- * Con lo user agent di default di Node (undici) `fredgraph.csv` non risponde
- * affatto: la connessione resta appesa fino al timeout. Misurato il
- * 03/08/2026 sulla stessa URL: 20 s di attesa e nessuna risposta senza
- * header, HTTP 200 in 221 ms con header. Il problema non si vedeva finché le
- * uniche chiamate arrivavano dal runtime di Next; si è manifestato appena il
- * client è stato usato da uno script Node (il job Stagionalità).
+ * `fredgraph.csv` sta dietro un filtro che guarda lo user agent, e il filtro
+ * decide in modo OPPOSTO da una macchina di casa e da una funzione serverless.
+ * Matrice misurata il 28/08/2026, stessa URL (`?id=GDPNOW`), stesso codice, in
+ * locale e da una funzione Vercel in `iad1`:
+ *
+ *   user agent                                   locale        Vercel iad1
+ *   Mozilla/5.0 (compatible; LB-TradingSpace/1.0) 200, 320 ms   timeout 15 s
+ *   Mozilla/5.0 … Chrome/140.0.0.0 Safari/537.36  timeout       timeout
+ *   curl/8.0.1                                    200, 121 ms   200, 163 ms
+ *   "" (stringa vuota)                            timeout       timeout
+ *   nessun header                                 timeout       200,  39 ms
+ *
+ * Il valore precedente era `Mozilla/5.0 (compatible; LB-TradingSpace/1.0)`:
+ * verde in locale, MUTO in produzione. Ha retto perché in produzione il
+ * ripiego non veniva quasi mai imboccato — con la chiave configurata l'API
+ * risponde e il CSV non si tocca — e un ramo di riserva che non funziona si
+ * scopre solo il giorno in cui serve.
+ *
+ * ATTENZIONE: `curl/8.0.1` passa un filtro anti-bot su un endpoint che NON è
+ * l'API documentata. Quel filtro può cambiare senza preavviso, e il giorno che
+ * cambia questo ramo torna muto. È esattamente per questo che ogni ripiego
+ * lascia una riga di log: v. `registraRipiego`.
  */
-const USER_AGENT = "Mozilla/5.0 (compatible; LB-TradingSpace/1.0)";
+const USER_AGENT = "curl/8.0.1";
 
 /** fetch con data-cache giornaliera e timeout (la richiesta persa non blocca). */
 async function fetchWithTimeout(
@@ -158,7 +218,12 @@ async function fetchViaApi(
   const payload: unknown = await res.json();
   const observations = parseFredJson(payload);
   if (observations.length === 0) {
-    throw new Error(`API FRED ${id}: nessuna osservazione valida`);
+    /* Classe dedicata, non un Error qualunque: è il discriminante che decide
+       se il ripiego scatta. Qui l'API ha parlato — chiedere al CSV di
+       ripetere «non c'è niente» costa un timeout e non cambia la risposta. */
+    throw new SerieFredSenzaOsservazioni(
+      `API FRED ${id}: risposta valida, nessuna osservazione`,
+    );
   }
   return observations;
 }
@@ -175,9 +240,39 @@ async function fetchViaCsv(id: string): Promise<FredObservation[]> {
 }
 
 /**
+ * REGISTRO DEI RIPIEGHI — una riga per ogni volta che il CSV viene imboccato
+ * perché l'API ha fallito.
+ *
+ * Il prefisso è stabile e cercabile (`[fred:ripiego]`): è così che si vede da
+ * un log quello che altrimenti si vedrebbe solo come una pagina lenta. Serve
+ * soprattutto per il giorno in cui il filtro anti-bot di `fredgraph.csv`
+ * cambierà idea sullo user agent — allora qui compariranno righe con
+ * `esito: "fallito"` invece di `"riuscito"`, e il motivo sarà scritto.
+ *
+ * `console.warn` e non uno stato in memoria: questo modulo serve richieste, e
+ * in un modulo condiviso fra richieste uno stato accumulato finirebbe nella
+ * pagina di un altro utente (regola di progetto). Il registro DUREVOLE, per
+ * le serie che passano da un job, è `DriverDeskCoverage.source`, che riceve
+ * la rotta da `FredSeriesData.via`.
+ */
+function registraRipiego(riga: {
+  id: string;
+  motivo: string;
+  esito: "riuscito" | "fallito";
+  ms: number;
+  dettaglio?: string;
+}): void {
+  console.warn(`[fred:ripiego] ${JSON.stringify(riga)}`);
+}
+
+/**
  * Scarica una serie provando gli ID in ordine (id principale + eventuali
  * alternativi): per ciascuno prima l'API con chiave (se configurata), poi il
  * CSV keyless. Lancia solo se TUTTE le strade falliscono.
+ *
+ * Il CSV è la strada PRINCIPALE quando la chiave non è configurata, e il
+ * RIPIEGO quando c'è: nel secondo caso si imbocca solo se l'API ha fallito
+ * per trasporto o con HTTP >= 400 — mai perché la serie è vuota.
  */
 export async function fetchFredSeries(
   ids: string[],
@@ -185,17 +280,42 @@ export async function fetchFredSeries(
 ): Promise<FredSeriesData> {
   const errors: string[] = [];
   for (const id of ids) {
+    /* Valorizzato solo quando il CSV è un RIPIEGO: porta il motivo per cui
+       l'API non ha risposto, ed è anche il segnale che va registrato. */
+    let motivoRipiego: string | null = null;
+
     if (apiKey) {
       try {
-        return { id, observations: await fetchViaApi(id, apiKey) };
+        return { id, observations: await fetchViaApi(id, apiKey), via: "api" };
       } catch (error) {
         errors.push(String(error));
+        if (error instanceof SerieFredSenzaOsservazioni) {
+          /* Risposta, non guasto: si passa all'ID alternativo (che è un'altra
+             serie, quindi ha senso provarlo) senza interrogare il CSV. */
+          continue;
+        }
+        motivoRipiego = error instanceof Error ? error.message : String(error);
       }
     }
+
+    const inizio = Date.now();
     try {
-      return { id, observations: await fetchViaCsv(id) };
+      const observations = await fetchViaCsv(id);
+      if (motivoRipiego !== null) {
+        registraRipiego({ id, motivo: motivoRipiego, esito: "riuscito", ms: Date.now() - inizio });
+      }
+      return { id, observations, via: "csv" };
     } catch (error) {
       errors.push(String(error));
+      if (motivoRipiego !== null) {
+        registraRipiego({
+          id,
+          motivo: motivoRipiego,
+          esito: "fallito",
+          ms: Date.now() - inizio,
+          dettaglio: error instanceof Error ? error.message : String(error),
+        });
+      }
     }
   }
   throw new Error(`Serie FRED non risolta (${ids.join(", ")}): ${errors.join(" · ")}`);
