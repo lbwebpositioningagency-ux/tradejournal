@@ -6,12 +6,16 @@
  * sovrascrivere settimane esistenti (vincolo unique + skipDuplicates + filtro
  * client-side, tre livelli di difesa).
  *
- * GUARDIA sul nome contratto: il CFTC ha già rinominato il WTI a inizio 2022
- * ("CRUDE OIL, LIGHT SWEET" → "WTI-PHYSICAL"). Se un nome esatto non restituisce
- * più nulla, il job NON lancia: tiene l'ultimo dato buono, risponde con
- * "contratto_non_trovato" e dichiara da quanti giorni il dato è fermo. Idem per
- * gli errori di rete. L'esito complessivo `ok: false` + `console.error` rendono
- * il problema visibile nei log del cron — mai errore silenzioso, mai crash.
+ * IDENTIFICAZIONE PER CODICE, non per nome: il CFTC ha già rinominato il WTI a
+ * inizio 2022 ("CRUDE OIL, LIGHT SWEET" → "WTI-PHYSICAL") e il nome è quindi
+ * una chiave che si muove sotto i piedi; `cftc_contract_market_code` no. Le
+ * misure che lo dimostrano stanno accanto a `CONTRATTI_COT`.
+ *
+ * GUARDIA che resta: se il codice non restituisce più nulla, il job NON lancia:
+ * tiene l'ultimo dato buono, risponde con "contratto_non_trovato" e dichiara da
+ * quanti giorni il dato è fermo. Idem per gli errori di rete. L'esito
+ * complessivo `ok: false` + `console.error` rendono il problema visibile nei
+ * log del cron — mai errore silenzioso, mai crash.
  *
  * Le dipendenze (db, fetch, orologio) sono iniettate: i test girano con fake,
  * senza rete e senza Postgres. L'adapter Prisma reale è in fondo al file.
@@ -21,13 +25,50 @@ import type { PrismaClient } from "@/generated/prisma/client";
 
 export type CodiceStrumentoCot = "GOLD" | "WTI";
 
-/** Nomi ESATTI dei contratti sull'API CFTC (verificati dal vivo il 31/07/2026).
- * Per lo storico pre-2022 del WTI esisteva anche "CRUDE OIL, LIGHT SWEET -
- * NEW YORK MERCANTILE EXCHANGE": non serve qui perché la storia arriva dal
- * CSV; per il dato corrente basta il nome attuale. */
-export const CONTRATTI_COT: Record<CodiceStrumentoCot, string> = {
-  GOLD: "GOLD - COMMODITY EXCHANGE INC.",
-  WTI: "WTI-PHYSICAL - NEW YORK MERCANTILE EXCHANGE",
+/**
+ * Contratti COT, identificati per **codice di mercato CFTC**, non per nome.
+ *
+ * ── PERCHÉ IL CODICE E NON IL NOME ───────────────────────────────────────
+ *
+ * Il nome cambia, il codice no — e nel dataset i due nomi convivono sulla
+ * stessa serie. Misurato il 28/08/2026 interrogando il dataset stesso:
+ *
+ *   $select=distinct market_and_exchange_names, cftc_contract_market_code
+ *   $where=market_and_exchange_names like '%CRUDE%' or ... like '%WTI%'
+ *
+ * restituisce il codice `067651` sotto DUE nomi diversi —
+ * "CRUDE OIL, LIGHT SWEET - NEW YORK MERCANTILE EXCHANGE" (il nome storico) e
+ * "WTI-PHYSICAL - NEW YORK MERCANTILE EXCHANGE" (quello attuale) — con lo
+ * stesso open interest, 1.888.960 al 18/08/2026.
+ *
+ * E il conteggio dice quanto costava filtrare per nome:
+ *
+ *   $select=count(*) $where=cftc_contract_market_code = '067651'   → 1054
+ *   $select=count(*) $where=market_and_exchange_names = 'WTI-PHY…' →  237
+ *
+ * **817 settimane su 1054 erano invisibili alla query per nome.** Non si
+ * vedeva perché il job APPENDE solo le settimane successive all'ultima
+ * salvata e la storia arriva dal CSV di seed: il buco stava nella sonda e in
+ * qualunque ricostruzione da zero, non nel dato di ieri.
+ *
+ * Sull'oro i due conteggi coincidono (1054 = 1054): nessuna rinomina, nessuna
+ * perdita. Il codice è comunque la chiave giusta, perché regge la prossima.
+ *
+ * I codici NON sono stati presi a memoria: sono quelli restituiti dal dataset
+ * per i due contratti con l'open interest maggiore fra gli omonimi —
+ * `088691` (406.260 contro i 63.633 del micro e gli 8.468 del contratto
+ * Coinbase) e `067651` (1.888.960 contro gli 815.351 della gemella ICE).
+ */
+export interface ContrattoCot {
+  /** `cftc_contract_market_code`: l'unica chiave su cui si filtra. */
+  codice: string;
+  /** Nome corrente. Serve agli esiti e ai log: non entra mai nella query. */
+  nome: string;
+}
+
+export const CONTRATTI_COT: Record<CodiceStrumentoCot, ContrattoCot> = {
+  GOLD: { codice: "088691", nome: "GOLD - COMMODITY EXCHANGE INC." },
+  WTI: { codice: "067651", nome: "WTI-PHYSICAL - NEW YORK MERCANTILE EXCHANGE" },
 };
 
 export const STRUMENTI_COT = Object.keys(CONTRATTI_COT) as CodiceStrumentoCot[];
@@ -83,12 +124,13 @@ const CAMPI = [
 
 /**
  * URL Socrata per un contratto, opzionalmente solo le settimane dopo `dopo`.
- * L'apice nel nome va raddoppiato (sintassi SoQL), il resto lo codifica
- * URLSearchParams.
+ * Il filtro è sul CODICE di mercato (v. `CONTRATTI_COT`). L'apice va comunque
+ * raddoppiato (sintassi SoQL): i codici non ne contengono, ma un codice
+ * sbagliato non deve poter rompere la query invece di non trovare nulla.
  */
-export function urlCftc(nomeContratto: string, dopo?: string | null): string {
-  const nome = nomeContratto.replace(/'/g, "''");
-  let where = `market_and_exchange_names = '${nome}'`;
+export function urlCftc(codiceMercato: string, dopo?: string | null): string {
+  const codice = codiceMercato.replace(/'/g, "''");
+  let where = `cftc_contract_market_code = '${codice}'`;
   if (dopo) {
     where += ` AND report_date_as_yyyy_mm_dd > '${dopo}T00:00:00.000'`;
   }
@@ -219,7 +261,10 @@ async function sincronizzaStrumento(
   oggi: Date,
 ): Promise<EsitoStrumento> {
   const contratto = CONTRATTI_COT[strumento];
-  const base: Pick<EsitoStrumento, "strumento" | "contratto"> = { strumento, contratto };
+  const base: Pick<EsitoStrumento, "strumento" | "contratto"> = {
+    strumento,
+    contratto: `${contratto.nome} (${contratto.codice})`,
+  };
   const ultimaPrima = await db.ultimaSettimana(strumento);
 
   const conAnzianita = (
@@ -236,7 +281,7 @@ async function sincronizzaStrumento(
   };
 
   try {
-    const corpo = await fetchJson(urlCftc(contratto, ultimaPrima));
+    const corpo = await fetchJson(urlCftc(contratto.codice, ultimaPrima));
     // Difesa client-side oltre al filtro dell'API: mai righe ≤ ultima salvata.
     const nuove = parseRigheCftc(corpo).filter(
       (r) => ultimaPrima === null || r.reportDate > ultimaPrima,
@@ -249,10 +294,15 @@ async function sincronizzaStrumento(
     }
 
     // Zero righe nuove: normale subito dopo una settimana già presa, oppure
-    // il nome del contratto è sparito (rinomina CFTC). Si distingue con una
-    // sonda SENZA filtro data: se il nome non restituisce nulla in assoluto,
-    // il contratto non esiste più con questo nome.
-    const sonda = parseRigheCftc(await fetchJson(urlCftc(contratto, null)));
+    // il contratto è sparito dal dataset. Si distingue con una sonda SENZA
+    // filtro data: se il codice non restituisce nulla in assoluto, non è più
+    // in `72hh-3qpy`.
+    //
+    // Da quando si filtra per CODICE questo esito ha smesso di scattare per
+    // le rinomine — che erano la causa storica (WTI, 2022) — e resta per il
+    // caso più raro e più grave: contratto ritirato o ricodificato dalla
+    // CFTC, oppure uscito dal report disaggregato.
+    const sonda = parseRigheCftc(await fetchJson(urlCftc(contratto.codice, null)));
     if (sonda.length === 0) {
       return conAnzianita(
         {
@@ -260,7 +310,7 @@ async function sincronizzaStrumento(
           esito: "contratto_non_trovato",
           inserite: 0,
           dettaglio:
-            "Il nome esatto del contratto non restituisce più nulla dall'API: probabile rinomina CFTC (già successo sul WTI nel 2022). Aggiornare CONTRATTI_COT.",
+            `Il codice di mercato ${contratto.codice} non restituisce più nulla da 72hh-3qpy: contratto ritirato, ricodificato, o uscito dal report disaggregato. Ricavare il nuovo codice con "$select=distinct market_and_exchange_names, cftc_contract_market_code" e aggiornare CONTRATTI_COT.`,
         },
         ultimaPrima,
       );

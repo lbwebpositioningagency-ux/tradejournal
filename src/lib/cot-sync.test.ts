@@ -72,23 +72,29 @@ const SETT_14: SettimanaCot = { reportDate: "2026-07-14", openInterest: 1875496,
 /* ── urlCftc ────────────────────────────────────────────────────────── */
 
 describe("urlCftc", () => {
-  it("filtra sul nome esatto del contratto, codificato", () => {
-    const url = urlCftc(CONTRATTI_COT.WTI);
+  it("filtra sul CODICE di mercato, mai sul nome", () => {
+    const url = urlCftc(CONTRATTI_COT.WTI.codice);
     expect(url).toContain("publicreporting.cftc.gov/resource/72hh-3qpy.json");
     expect(decodeURIComponent(url)).toContain(
-      "market_and_exchange_names = 'WTI-PHYSICAL - NEW YORK MERCANTILE EXCHANGE'",
+      "cftc_contract_market_code = '067651'",
     );
+    /* Il nome NON deve comparire nella query: è il punto dell'intervento —
+       il contratto 067651 vive nel dataset sotto due nomi diversi, e filtrare
+       per nome ne vedeva 237 settimane su 1054. */
+    expect(decodeURIComponent(url)).not.toContain("market_and_exchange_names");
+    expect(decodeURIComponent(url)).not.toContain("WTI-PHYSICAL");
   });
 
   it("con `dopo` chiede solo le settimane successive, in ordine crescente", () => {
-    const url = decodeURIComponent(urlCftc(CONTRATTI_COT.GOLD, "2026-07-21"));
+    const url = decodeURIComponent(urlCftc(CONTRATTI_COT.GOLD.codice, "2026-07-21"));
+    expect(url).toContain("cftc_contract_market_code = '088691'");
     expect(url).toContain("report_date_as_yyyy_mm_dd > '2026-07-21T00:00:00.000'");
     expect(url).toContain("$order=report_date_as_yyyy_mm_dd ASC");
   });
 
-  it("raddoppia gli apici nel nome (sintassi SoQL), mai query rotta", () => {
-    const url = decodeURIComponent(urlCftc("CONTRATTO D'ESEMPIO"));
-    expect(url).toContain("'CONTRATTO D''ESEMPIO'");
+  it("raddoppia gli apici (sintassi SoQL): un codice sbagliato non trova nulla, non rompe la query", () => {
+    const url = decodeURIComponent(urlCftc("06'7651"));
+    expect(url).toContain("'06''7651'");
   });
 });
 
@@ -204,17 +210,20 @@ describe("runCotSync", () => {
     expect(tabella.get("GOLD")?.get("2026-07-21")?.openInterest).toBe(1864487);
   });
 
-  it("GUARDIA rinomina: nome sparito → contratto_non_trovato, ultimo dato tenuto, nessun lancio", async () => {
+  it("GUARDIA: codice sparito → contratto_non_trovato, ultimo dato tenuto, nessun lancio", async () => {
     const consoleError = vi.spyOn(console, "error").mockImplementation(() => {});
     const { db, tabella } = dbFinto({ GOLD: [SETT_21], WTI: [SETT_21] });
-    const fetchJson = vi.fn(async () => []); // né nuove né sonda: il nome non esiste più
+    const fetchJson = vi.fn(async () => []); // né nuove né sonda: il codice non risponde
 
     const esito = await runCotSync(db, fetchJson, OGGI);
 
     expect(esito.ok).toBe(false);
     for (const s of esito.strumenti) {
       expect(s.esito).toBe("contratto_non_trovato");
-      expect(s.dettaglio).toContain("rinomina");
+      /* Il messaggio nomina il CODICE e dice come ricavare quello nuovo: da
+         quando si filtra per codice la rinomina non è più la causa attesa. */
+      expect(s.dettaglio).toContain("codice di mercato");
+      expect(s.dettaglio).toContain("cftc_contract_market_code");
       expect(s.ultimaSettimana).toBe("2026-07-21"); // l'ultimo dato buono resta
     }
     expect(tabella.get("GOLD")?.size).toBe(1);

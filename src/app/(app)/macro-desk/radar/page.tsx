@@ -14,6 +14,7 @@ import {
   getRadarSettimane,
   getSettimaneCieche,
 } from "@/lib/queries/macro-radar";
+import { GuidaRadar } from "@/components/macro-desk/guide-sezioni";
 
 export const metadata: Metadata = { title: "Radar · Macro Desk" };
 
@@ -98,6 +99,14 @@ export default async function MacroRadarPage({
         )}
         style={{ borderColor: "var(--ml-rule)" }}
       >
+        {/* Il riquadro «Come si legge questa sezione», chiuso: si legge una
+            volta, i dati si guardano ogni volta. */}
+        <div
+          className="border-b px-4 pt-4 sm:px-6"
+          style={{ borderColor: "var(--md-border)" }}
+        >
+          <GuidaRadar />
+        </div>
         {!report || !weekOfCorrente ? (
           <RadarMaiArrivato />
         ) : (

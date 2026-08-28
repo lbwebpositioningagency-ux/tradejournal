@@ -72,7 +72,7 @@ export const MACRO_DESK_SECTIONS = [
     label: "Volatilità",
     icon: Activity,
     description:
-      "Eventi in arrivo, livelli di volatilità implicita col loro rango, escursione vera della giornata e scorte di greggio.",
+      "Livelli di volatilità implicita col loro rango, escursione vera della giornata, struttura a termine e scorte di greggio.",
     gruppo: "quotidiano",
   },
   {

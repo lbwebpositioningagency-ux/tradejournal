@@ -103,6 +103,21 @@ async function main() {
       // Senza (`--scroll-to`), si fotografa il solo viewport, che è misurato e
       // stabile: i grafici ci sono.
       const beyond = !args.scrollTo;
+
+      /* SCATTO A VUOTO, e poi quello buono.
+         `captureBeyondViewport` fa ri-rasterizzare l'intero documento, e alla
+         PRIMA rasterizzazione dopo l'avvio del browser Chrome ha riusato il
+         disegno di una cella per un'altra strutturalmente identica: la pagina
+         Volatilità è uscita due volte con `VIX9D ÷ VIX` e `VIX ÷ VIX3M` allo
+         stesso identico valore, mentre nel DOM erano 0,871 e 0,848. Un
+         controllo visivo che ogni tanto inventa un numero è peggio di nessun
+         controllo — la prima volta è costato mezz'ora di caccia a un guasto
+         che non esisteva. Il secondo scatto trova il rasterizzatore caldo. */
+      if (beyond) {
+        await client.send("Page.captureScreenshot", { format: "png", captureBeyondViewport: true });
+        await sleep(400);
+      }
+
       const shot = await client.send("Page.captureScreenshot", {
         format: "png",
         captureBeyondViewport: beyond,

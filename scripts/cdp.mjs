@@ -32,6 +32,11 @@ function connect(wsUrl) {
     ws.addEventListener("open", () => resolve());
     ws.addEventListener("error", (e) => reject(e));
   });
+  /* Gli EVENTI, non solo le risposte. Servono a leggere quello che il browser
+     dice di sua iniziativa — errori di console, eccezioni non catturate — che
+     è l'unico modo di vedere un guasto che avviene durante l'idratazione,
+     cioè prima che si possa iniettare qualunque sonda nella pagina. */
+  const ascoltatori = new Map();
   ws.addEventListener("message", (event) => {
     const msg = JSON.parse(event.data);
     if (msg.id && pending.has(msg.id)) {
@@ -39,10 +44,19 @@ function connect(wsUrl) {
       pending.delete(msg.id);
       if (msg.error) reject(new Error(JSON.stringify(msg.error)));
       else resolve(msg.result);
+      return;
+    }
+    if (msg.method) {
+      for (const cb of ascoltatori.get(msg.method) ?? []) cb(msg.params);
     }
   });
   return {
     ready,
+    on(metodo, cb) {
+      const attuali = ascoltatori.get(metodo) ?? [];
+      attuali.push(cb);
+      ascoltatori.set(metodo, attuali);
+    },
     send(method, params = {}) {
       const msgId = ++id;
       return new Promise((resolve, reject) => {

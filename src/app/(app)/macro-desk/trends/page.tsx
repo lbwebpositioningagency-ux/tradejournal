@@ -21,6 +21,7 @@ import { cn } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
 import { MacroDeskSectionNav } from "@/components/macro-desk/section-nav";
 import { TrendsView } from "@/components/macro-desk/trends-view";
+import { GuidaTrends } from "@/components/macro-desk/guide-sezioni";
 
 export const metadata: Metadata = { title: "Trends Macro Desk" };
 
@@ -108,6 +109,14 @@ export default async function MacroTrendsPage() {
         )}
         style={{ borderColor: "var(--ml-rule)" }}
       >
+        {/* Il riquadro «Come si legge questa sezione», chiuso: si legge una
+            volta, i dati si guardano ogni volta. */}
+        <div
+          className="border-b px-4 pt-4 sm:px-6"
+          style={{ borderColor: "var(--md-border)" }}
+        >
+          <GuidaTrends />
+        </div>
         <TrendsView
           generatedDayKey={generatedDayKey}
           keyless={keyless}
