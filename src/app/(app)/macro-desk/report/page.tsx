@@ -13,6 +13,7 @@ import { EmptyState } from "@/components/empty-state";
 import { MacroDeskSectionNav } from "@/components/macro-desk/section-nav";
 import { Info } from "@/components/macro-desk/listino/info";
 import { Provenienza, Tab, Titolo } from "@/components/macro-desk/listino/primitive";
+import { GuidaReport } from "@/components/macro-desk/guide-sezioni";
 
 export const metadata: Metadata = { title: "Report · Macro Desk" };
 
@@ -153,6 +154,14 @@ export default async function MacroDeskReportPage() {
           )}
           style={{ borderColor: "var(--ml-rule)" }}
         >
+          {/* Il riquadro «Come si legge questa sezione», chiuso: si legge una
+              volta, i dati si guardano ogni volta. */}
+          <div
+            className="border-b px-4 pt-4 sm:px-6"
+            style={{ borderColor: "var(--md-border)" }}
+          >
+            <GuidaReport />
+          </div>
           <div className="px-4 py-4 sm:px-6 sm:py-5">
             <Provenienza>
               archivio dei report ricevuti via API · ultimo giornaliero{" "}

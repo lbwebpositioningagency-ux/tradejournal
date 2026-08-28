@@ -1,12 +1,11 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { Inter, JetBrains_Mono } from "next/font/google";
+import { ChevronRight } from "lucide-react";
 import { auth } from "@/lib/auth";
 import { getFreschezzaReport } from "@/lib/queries/macro-desk-freschezza";
-import { cn } from "@/lib/utils";
+import { Card, CardContent } from "@/components/ui/card";
 import { BandaFreschezza } from "@/components/macro-desk/banda-freschezza";
-import { Tab, Titolo } from "@/components/macro-desk/listino/primitive";
 import {
   SEZIONI_ARCHIVIO,
   SEZIONI_QUOTIDIANE,
@@ -16,26 +15,24 @@ import {
 
 export const metadata: Metadata = { title: "Macro Desk" };
 
-const fontUi = Inter({
-  subsets: ["latin"],
-  weight: ["400", "500", "600", "700"],
-  variable: "--md-font-ui",
-});
-const fontMono = JetBrains_Mono({
-  subsets: ["latin"],
-  weight: ["500", "600", "700"],
-  variable: "--md-font-mono",
-});
-
 /**
- * Indice del Macro Desk: le sezioni quotidiane, poi l'archivio, poi il
- * registro.
+ * Indice del Macro Desk: le cinque sezioni quotidiane, poi l'archivio.
  *
- * Dal 28/08/2026 è un ELENCO e non una griglia di schede. Le schede erano otto
- * riquadri alti quanto la descrizione più lunga, con dentro un'icona, un nome
- * e una frase: tre righe di contenuto in un rettangolo da centoventi pixel,
- * ripetuto otto volte. Un indice deve dire in una schermata cosa c'è e ogni
- * quanto si guarda, e per farlo bastano due colonne.
+ * LA GRIGLIA A SCHEDE È TORNATA il 28/08/2026, dopo che la revisione visiva
+ * del desk l'aveva trasformata in un elenco a due colonne. L'elenco stava in
+ * mezzo schermo invece che in uno intero — ed era il motivo per cui era stato
+ * fatto — ma un indice non è una tabella: qui non ci sono valori da
+ * incolonnare e da confrontare in verticale, ci sono otto porte, e una porta
+ * si riconosce dalla sua forma. Le descrizioni sono quelle dell'elenco, cioè
+ * quelle di sempre: è cambiato solo il contenitore, tornato quello di prima.
+ *
+ * Fino al 26/08/2026 erano otto schede identiche, tutte di pari peso. Ma la
+ * Scorecard si guarda una volta al mese e la Volatilità ogni mattina: un
+ * indice che non distingue le frequenze costringe chi legge a ricordarsele, e
+ * dà alle due pagine di consultazione rara la stessa aria di urgenza delle
+ * altre. Il 27/08/2026 è uscita Posizionamento e le quotidiane sono passate
+ * da sei a cinque: il conteggio a schermo viene dall'elenco, non da un numero
+ * scritto a mano, ma la frase di apertura sì ed è stata aggiornata con esso.
  *
  * Qui non si legge nessun dato di mercato: l'unica lettura è la DATA
  * dell'ultimo report giornaliero, che serve alla banda di allarme quando il
@@ -60,61 +57,63 @@ export default async function MacroDeskPage() {
 
       {freschezza ? <BandaFreschezza esito={freschezza} /> : null}
 
-      <div
-        className={cn(
-          "md-listino overflow-hidden border",
-          fontUi.variable,
-          fontMono.variable,
-        )}
-        style={{ borderColor: "var(--ml-rule)" }}
-      >
-        <div className="px-4 py-4 sm:px-6 sm:py-5">
-          <Titolo>Ogni mattina</Titolo>
-          <Elenco sezioni={SEZIONI_QUOTIDIANE} />
+      <Griglia sezioni={SEZIONI_QUOTIDIANE} />
 
-          <Titolo>Archivio · si legge di rado</Titolo>
-          <Elenco sezioni={SEZIONI_ARCHIVIO} />
+      <div className="mt-2 flex flex-col gap-3">
+        <h2 className="text-sm font-semibold text-muted-foreground">Archivio</h2>
+        <Griglia sezioni={SEZIONI_ARCHIVIO} />
+      </div>
 
-          {/* Il registro sta per conto suo, in fondo: le sezioni sopra
-              guardano i prezzi, questa guarda le REGOLE dentro cui si opera.
-              Sono due mestieri diversi e la pagina lo dice con la
-              disposizione, prima ancora che con le parole. */}
-          <Titolo>Registro · non i prezzi, le regole</Titolo>
-          <Elenco sezioni={SEZIONI_REGISTRO} />
+      {/* Il registro sta per conto suo, in fondo e sotto un filo: le sezioni
+          sopra guardano i prezzi, questa guarda le REGOLE dentro cui si
+          opera. Sono due mestieri diversi e la pagina lo dice con la
+          disposizione, prima ancora che con le parole. */}
+      <div className="mt-2 flex flex-col gap-3 border-t pt-6">
+        <div>
+          <h2 className="text-sm font-semibold text-muted-foreground">Registro</h2>
+          <p className="text-sm text-muted-foreground">
+            Non i prezzi: le regole, gli strumenti e i costi dentro cui si
+            opera, settimana per settimana.
+          </p>
         </div>
+        <Griglia sezioni={SEZIONI_REGISTRO} />
       </div>
     </div>
   );
 }
 
-/** Un gruppo di sezioni. Stessa resa per tutti: cambia solo il posto. */
-function Elenco({ sezioni }: { sezioni: readonly MacroDeskSection[] }) {
+/** Le schede di un gruppo. Stessa resa per entrambi: cambia solo il posto. */
+function Griglia({ sezioni }: { sezioni: readonly MacroDeskSection[] }) {
   return (
-    <Tab>
-      <tbody>
-        {sezioni.map((section) => {
-          const Icon = section.icon;
-          return (
-            <tr key={section.key}>
-              <td className="ml-sx w-[11rem] align-top">
-                <Link
-                  href={section.href}
-                  className="inline-flex items-center gap-2 font-semibold underline decoration-[var(--md-border)] underline-offset-2 hover:decoration-current"
-                >
-                  <Icon
-                    className="size-3.5 text-[var(--md-muted)]"
+    <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+      {sezioni.map((section) => {
+        const Icon = section.icon;
+        return (
+          <Link
+            key={section.key}
+            href={section.href}
+            className="group block h-full rounded-xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+          >
+            <Card className="h-full transition-colors group-hover:border-primary/40 group-hover:bg-accent/40">
+              <CardContent className="flex h-full flex-col gap-2">
+                <div className="flex items-center justify-between gap-2">
+                  <span className="flex items-center gap-2">
+                    <Icon className="size-4 text-primary" aria-hidden />
+                    <span className="font-semibold">{section.label}</span>
+                  </span>
+                  <ChevronRight
+                    className="size-4 shrink-0 text-muted-foreground/50 transition-colors group-hover:text-foreground"
                     aria-hidden
                   />
-                  {section.label}
-                </Link>
-              </td>
-              <td className="ml-sx ml-wrap align-top text-[11.5px] leading-[1.5] text-[var(--md-text-2)]">
-                {section.description}
-              </td>
-            </tr>
-          );
-        })}
-      </tbody>
-    </Tab>
+                </div>
+                <p className="text-sm leading-relaxed text-muted-foreground">
+                  {section.description}
+                </p>
+              </CardContent>
+            </Card>
+          </Link>
+        );
+      })}
+    </div>
   );
 }

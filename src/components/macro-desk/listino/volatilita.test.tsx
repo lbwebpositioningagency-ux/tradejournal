@@ -33,10 +33,6 @@ function dati(override: Partial<DatiVolatilita> = {}): DatiVolatilita {
   const vol = full.volPanel;
   return {
     contesto: contestoVuoto,
-    eventi: [],
-    calendarioValido: true,
-    validoFinoAl: "2027-12-31",
-    trascrittoIl: "2026-08-26",
     fuso: "Europe/Rome",
     oggi: "2026-08-28",
     lacune: LACUNE_VOL,
@@ -112,6 +108,14 @@ describe("Listino Volatilità — la forma", () => {
 
   it("senza scorte lo dichiara invece di mostrare una tabella vuota", () => {
     expect(html()).toContain("chiave non configurata");
+  });
+
+  /* Il calendario è uscito dalla sezione il 28/08/2026: gli eventi in arrivo
+     si leggono nella Sintesi. Qui non deve tornare per sbaglio. */
+  it("il calendario degli eventi NON è in questa sezione", () => {
+    const out = html();
+    expect(out).not.toContain("Prossimi sette giorni");
+    expect(out).not.toContain("Ora della fonte");
   });
 
   it("con l'archivio muto la pagina regge e non lancia", () => {

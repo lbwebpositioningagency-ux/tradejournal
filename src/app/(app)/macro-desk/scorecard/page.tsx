@@ -13,6 +13,7 @@ import { cn } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
 import { MacroDeskSectionNav } from "@/components/macro-desk/section-nav";
 import { ScorecardEmView } from "@/components/macro-desk/scorecard-em-view";
+import { GuidaScorecard } from "@/components/macro-desk/guide-sezioni";
 
 export const metadata: Metadata = { title: "Scorecard Macro Desk" };
 
@@ -82,6 +83,14 @@ export default async function MacroScorecardPage() {
         )}
         style={{ borderColor: "var(--ml-rule)" }}
       >
+        {/* Il riquadro «Come si legge questa sezione», chiuso: si legge una
+            volta, i dati si guardano ogni volta. */}
+        <div
+          className="border-b px-4 pt-4 sm:px-6"
+          style={{ borderColor: "var(--md-border)" }}
+        >
+          <GuidaScorecard />
+        </div>
         <ScorecardEmView
           weeks={weeks}
           eligibleReports={source.eligibleReports}

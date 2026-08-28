@@ -21,6 +21,7 @@ import { fraQuanto, prossimiEventi, type StrumentoColpito } from "@/lib/calendar
 import { formatDateTime } from "@/lib/dates";
 import { prisma } from "@/lib/db";
 import { caricaFontiCondivise, giornoRoma } from "@/lib/queries/ai-analyst";
+import { GuidaSintesi } from "@/components/macro-desk/guide-sezioni";
 
 export const metadata: Metadata = { title: "Sintesi · Macro Desk" };
 
@@ -152,6 +153,14 @@ export default async function AiAnalystPage() {
         )}
         style={{ borderColor: "var(--ml-rule)" }}
       >
+        {/* Il riquadro «Come si legge questa sezione», chiuso: si legge una
+            volta, i dati si guardano ogni volta. */}
+        <div
+          className="border-b px-4 pt-4 sm:px-6"
+          style={{ borderColor: "var(--md-border)" }}
+        >
+          <GuidaSintesi />
+        </div>
         <ListinoSintesi
           schede={schede}
           giorno={giorno}
