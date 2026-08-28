@@ -160,7 +160,7 @@ ${blocchi
     (b) => `<section class="anteprima" id="${b.titolo.replace(/[^\w-]/g, "-")}">
   <h2>${b.titolo}</h2>
   <p>${b.nota}</p>
-  <div class="macro-report" style="border:1px solid var(--md-border);border-radius:var(--md-r-lg);overflow:hidden">
+  <div class="md-listino" style="border:1px solid var(--ml-rule, var(--md-border));overflow:hidden">
     ${b.html}
   </div>
 </section>`,
