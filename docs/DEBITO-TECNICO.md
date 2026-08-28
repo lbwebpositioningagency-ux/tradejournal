@@ -819,3 +819,32 @@ minuti a capirlo, e ne costerebbe altrettanti alla prossima sessione.
 
 Regola pratica: quando `tsc` si lamenta di un percorso che comincia per
 `.next/`, la risposta non e' nel sorgente.
+
+## Preview e produzione condividono il database (28/08/2026)
+
+**Registrato, non risolto: e' un lavoro a se' e viene dopo il Macro Desk.**
+
+`DATABASE_URL` su Vercel non e' due variabili con lo stesso valore: e' **un
+solo record** con `target: ["production","preview"]`. Verificato dai metadati
+del progetto il 28/08/2026 — e va verificato cosi', perche' la variabile e' di
+tipo `sensitive` e `vercel env pull` restituisce il segnaposto `[SENSITIVE]`
+invece del valore, quindi confrontare i valori scaricati non prova nulla (ci
+ho perso tre giri prima di accorgermene). Stessa forma per
+`DATABASE_URL_UNPOOLED`, `POSTGRES_URL` e `POSTGRES_PRISMA_URL`.
+
+Conseguenza: **ogni deployment di anteprima parla col database di
+PRODUZIONE.** Una server action eseguita su un URL di preview scrive su Neon
+come se fosse la produzione.
+
+Meta' del problema e' stata chiusa lo stesso giorno togliendo
+`prisma migrate deploy` dallo script di build: prima bastava pushare un branch
+perche' la build dell'anteprima applicasse migrazioni allo schema di
+produzione. Ora le migrazioni sono un passo deliberato (`npm run db:deploy`,
+dietro la guardia di `db-guard.ts`), e nessuna build tocca piu' lo schema.
+
+**L'altra meta' resta aperta, ed e' la piu' grande**: i DATI. Il rimedio vero
+e' un database separato per Preview — un branch Neon con la sua
+`DATABASE_URL` sul solo scope Preview. Finche' non c'e', vale la regola
+pratica: **non esercitare scritture da un deployment di anteprima**, e
+ricordare che qualunque prova fatta su un URL di preview e' una prova fatta
+sui dati veri.

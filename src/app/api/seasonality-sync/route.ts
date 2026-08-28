@@ -7,6 +7,8 @@ import {
   type EsitoSerie,
 } from "@/lib/job-esito";
 import { isAuthorizedMacroRequest } from "@/lib/macro-desk";
+import { descriviConfronto } from "@/lib/migrazioni";
+import { verificaMigrazioni } from "@/lib/queries/migrazioni";
 import { AVAILABLE_INSTRUMENTS } from "@/lib/seasonality/instruments";
 import { BUDGET_DEFAULT_MS, runSeasonalityDailyJob } from "@/lib/seasonality/job";
 
@@ -44,9 +46,15 @@ export const maxDuration = 300;
  * timing-safe e fail-closed. È l'header che Vercel aggiunge da sé alle
  * invocazioni cron quando la env var esiste sul progetto.
  *
- * Risponde SEMPRE 200 con l'esito per strumento: una fonte ritirata o una
- * rete lenta finiscono nel corpo e nei log, mai in un crash che spegnerebbe
- * il cron in silenzio.
+ * Non lancia MAI: una fonte ritirata o una rete lenta finiscono nel corpo e
+ * nei log, mai in un crash che spegnerebbe il cron in silenzio. Il codice di
+ * stato però dichiara l'esito — 500 quando la verifica non è riuscita, perché
+ * è l'unico segnale che Vercel mostra rosso senza doverlo cercare nei log.
+ *
+ * Tre cose lo fanno diventare rosso: una serie della Stagionalità senza
+ * esito o in errore, una del Driver Desk, e — dal 28/08/2026 — uno schema di
+ * database indietro rispetto al codice deployato (v. il blocco MIGRAZIONI in
+ * fondo, e `scripts/migra.ts` per il perché).
  */
 export async function GET(request: Request) {
   if (
@@ -144,10 +152,39 @@ export async function GET(request: Request) {
       : DRIVER_SERIES.map((s) => s.code);
   const verificaDriver = verificaEsitoJob(driverPrevisto, esitiDriver);
 
-  const riuscito = verificaStagionalita.riuscito && verificaDriver.riuscito;
+  /* ── MIGRAZIONI: lo schema è allineato al codice che sta girando? ─────
+     Dal 28/08/2026 `prisma migrate deploy` non è più nella build — lo era, e
+     poiché `DATABASE_URL` è un solo record Vercel con target
+     `["production","preview"]`, un push di branch applicava migrazioni alla
+     PRODUZIONE. Toglierlo introduce il rischio opposto: codice deployato che
+     presuppone una migrazione mai applicata.
+     Il controllo sta QUI e non solo in `/api/health/migrazioni` perché una
+     rotta che nessuno chiama è una convenzione travestita da meccanismo:
+     questo cron gira ogni notte, quindi la cecità massima è di 24 ore.
+     Non poter rispondere è trattato come rosso: uno schema di stato ignoto
+     non è uno schema sano. */
+  const migrazioni = await verificaMigrazioni().catch((e: unknown) => {
+    console.error("[seasonality-sync] confronto migrazioni non riuscito:", e);
+    return null;
+  });
+  const migrazioniAllineate = migrazioni?.allineate ?? false;
+
+  const riuscito =
+    verificaStagionalita.riuscito && verificaDriver.riuscito && migrazioniAllineate;
   if (!riuscito) {
     console.error(
       `[seasonality-sync] esito NON riuscito · stagionalità: ${verificaStagionalita.messaggio} · driver: ${verificaDriver.messaggio}`,
+    );
+  }
+  if (!migrazioniAllineate) {
+    /* Riga PROPRIA e coi NOMI: un rosso senza dettaglio costa mezz'ora di
+       caccia per scoprire quale migrazione manca. */
+    console.error(
+      `[seasonality-sync] MIGRAZIONI: ${
+        migrazioni
+          ? descriviConfronto(migrazioni)
+          : "confronto non riuscito, stato dello schema ignoto"
+      }`,
     );
   }
 
@@ -155,10 +192,25 @@ export async function GET(request: Request) {
     {
       ...esito,
       driverDesk,
+      migrazioni: migrazioni
+        ? {
+            allineate: migrazioni.allineate,
+            mancanti: migrazioni.mancanti,
+            sconosciute: migrazioni.sconosciute,
+            attese: migrazioni.attese,
+            applicate: migrazioni.applicate,
+            messaggio: descriviConfronto(migrazioni),
+          }
+        : {
+            allineate: null,
+            messaggio:
+              "Confronto delle migrazioni non riuscito: stato dello schema ignoto.",
+          },
       verifica: {
         riuscito,
         stagionalita: verificaStagionalita,
         driver: verificaDriver,
+        migrazioniAllineate,
       },
       // Istruzione esplicita al chiamante: nessuno deve dedurla dai campi.
       richiamare: !esito.completo,
