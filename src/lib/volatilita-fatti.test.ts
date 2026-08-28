@@ -4,7 +4,6 @@ import {
   escursioneOsservata,
   escursioneUltimaSeduta,
   etaInGiorni,
-  movimentoOsservato,
   quantile,
   rangoStorico,
   rendimentiLog,
@@ -112,33 +111,6 @@ describe("volRealizzata", () => {
 
   it("sotto le dieci osservazioni → null: non è una misura", () => {
     expect(volRealizzata(serie([100, 101, 102, 103]), 20)).toBeNull();
-  });
-});
-
-describe("movimentoOsservato", () => {
-  it("mediana e banda 25-75% del movimento assoluto, col campione", () => {
-    const valori: number[] = [100];
-    for (let i = 0; i < 30; i += 1) {
-      valori.push(valori[valori.length - 1] * (i % 2 === 0 ? 1.02 : 1 / 1.02));
-    }
-    const m = movimentoOsservato(serie(valori), 20);
-    expect(m).not.toBeNull();
-    expect(m!.n).toBe(20);
-    expect(m!.mediana).toBeCloseTo(0.02, 3);
-    expect(m!.q25).toBeLessThanOrEqual(m!.mediana);
-    expect(m!.q75).toBeGreaterThanOrEqual(m!.mediana);
-    expect(m!.massimo).toBeGreaterThanOrEqual(m!.q75);
-  });
-
-  it("il movimento è sempre positivo: è un'ampiezza, non una direzione", () => {
-    const valori = [100, 90, 99, 80, 96, 70, 91, 60, 88, 50, 85, 45];
-    const m = movimentoOsservato(serie(valori), 20);
-    expect(m!.mediana).toBeGreaterThan(0);
-    expect(m!.q25).toBeGreaterThan(0);
-  });
-
-  it("sotto le dieci osservazioni → null", () => {
-    expect(movimentoOsservato(serie([100, 101, 102]), 20)).toBeNull();
   });
 });
 

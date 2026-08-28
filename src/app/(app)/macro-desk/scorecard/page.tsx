@@ -17,7 +17,7 @@ import { ScorecardEmView } from "@/components/macro-desk/scorecard-em-view";
 export const metadata: Metadata = { title: "Scorecard Macro Desk" };
 
 /* Stessa identità tipografica del dettaglio report: Inter per la UI,
-   JetBrains Mono per tutti i numeri (variabili consumate da .macro-report). */
+   JetBrains Mono per tutti i numeri (variabili consumate da .md-listino). */
 const fontUi = Inter({
   subsets: ["latin"],
   weight: ["400", "500", "600", "700", "800"],
@@ -72,14 +72,15 @@ export default async function MacroScorecardPage() {
           nulla quando non c'è niente da dire. */}
       <BandaImpegno segnalazioni={source.impegniRifiutati} />
 
-      {/* Terminale: identità visiva propria, scoped a .macro-report */}
+      {/* Ambiente del desk: token theme-aware, niente scatole, colore solo sul
+          segno. Scoped a .md-listino. */}
       <div
         className={cn(
-          "macro-report overflow-hidden rounded-[var(--md-r-lg)] border",
+          "md-listino overflow-hidden border",
           fontUi.variable,
           fontMono.variable,
         )}
-        style={{ borderColor: "var(--md-border)" }}
+        style={{ borderColor: "var(--ml-rule)" }}
       >
         <ScorecardEmView
           weeks={weeks}

@@ -150,14 +150,15 @@ export default async function MacroReportPage({
         </div>
       </div>
 
-      {/* Terminale: identità visiva propria, scoped a .macro-report */}
+      {/* Ambiente del desk: token theme-aware, niente scatole, colore solo sul
+          segno. Scoped a .md-listino. */}
       <div
         className={cn(
-          "macro-report overflow-hidden rounded-[var(--md-r-lg)] border",
+          "md-listino overflow-hidden border",
           fontUi.variable,
           fontMono.variable,
         )}
-        style={{ borderColor: "var(--md-border)" }}
+        style={{ borderColor: "var(--ml-rule)" }}
       >
         <MacroReportDetail
           payload={payload}

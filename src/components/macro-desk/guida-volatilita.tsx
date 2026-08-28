@@ -12,7 +12,7 @@ import { PanelLabel } from "./primitives";
  * QUI STA SOLO L'ESSENZIALE: cosa è ciascun blocco e a quale decisione serve.
  * La guida estesa — con l'aritmetica dello stop e della size, gli esempi
  * lavorati sui numeri veri e la lettura d'insieme dei tre strumenti — sta in
- * `docs/macro-desk/GUIDA-VOLATILITA.md`. Metterla tutta qui rifarebbe il
+ * `docs/macro-desk/GUIDA-MACRO-DESK.md`. Metterla tutta qui rifarebbe il
  * difetto che questa revisione ha appena tolto dalla Sintesi: riquadri di
  * testo che occupano lo spazio dei numeri.
  *
@@ -86,17 +86,6 @@ export function GuidaVolatilita() {
         </div>
 
         <div>
-          <PanelLabel>Movimento giornaliero osservato</PanelLabel>
-          <p className="mt-1">
-            La variazione fra due chiusure. Sta <em>accanto</em> all&apos;escursione
-            e non al suo posto: l&apos;escursione dice quanto spazio la giornata
-            attraversa, il movimento quanto ne porta a casa. Una giornata che
-            sale del 2% e torna in pari vale 2% di escursione e{" "}
-            <strong>zero</strong> di movimento.
-          </p>
-        </div>
-
-        <div>
           <PanelLabel>Struttura a termine, VVIX e SKEW</PanelLabel>
           <p className="mt-1">
             La curva del VIX distingue <strong>volatilità alta</strong> da{" "}
@@ -123,7 +112,8 @@ export function GuidaVolatilita() {
         <p className="text-xs text-[var(--md-muted)]">
           La guida estesa — l&apos;aritmetica di stop e size, cosa costa usare la
           finestra sbagliata, e la lettura d&apos;insieme dei quattro strumenti —
-          sta in <span className="md-mono">docs/macro-desk/GUIDA-VOLATILITA.md</span>.
+          sta in <span className="md-mono">docs/macro-desk/GUIDA-MACRO-DESK.md</span>,
+          che copre tutte le sezioni del desk.
         </p>
       </div>
     </details>

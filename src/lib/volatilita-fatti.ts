@@ -191,18 +191,7 @@ export function volRealizzata(
   };
 }
 
-/* ── movimento giornaliero osservato ─────────────────────────────────── */
-
-export interface MovimentoOsservato {
-  sedute: FinestraVariazione;
-  /** Mediana del movimento assoluto, in frazione del prezzo. */
-  mediana: number;
-  q25: number;
-  q75: number;
-  /** Movimento più ampio della finestra: dice quanto può andare storto. */
-  massimo: number;
-  n: number;
-}
+/* ── quantili ────────────────────────────────────────────────────────── */
 
 /**
  * Quantile con interpolazione lineare fra i due punti adiacenti (metodo 7 di
@@ -218,34 +207,20 @@ export function quantile(valori: readonly number[], q: number): number {
   return s[lo] + (s[hi] - s[lo]) * (pos - lo);
 }
 
-/**
- * Distribuzione del movimento giornaliero ASSOLUTO delle ultime `sedute`
- * sedute, in frazione del prezzo.
- *
- * ONESTÀ SULLA GRANDEZZA MISURATA: è il movimento chiusura-chiusura, non
- * l'escursione massima intragiornaliera (High-Low). Sottostima l'ampiezza
- * vera della giornata — un giorno che sale del 2% e torna in pari chiude a
- * zero — e la pagina lo deve dire. La ragione è che in questo repo
- * `SeasonalityDailyBar` conserva solo `close`: l'OHLC non c'è. Meglio una
- * grandezza più piccola dichiarata che una grandezza giusta inventata.
- */
-export function movimentoOsservato(
-  serie: readonly PuntoSerie[],
-  sedute: FinestraVariazione,
-): MovimentoOsservato | null {
-  const assoluti = rendimentiLog(serie)
-    .slice(-sedute)
-    .map((r) => Math.abs(Math.expm1(r)));
-  if (assoluti.length < MINIMO_RENDIMENTI_VOL) return null;
-  return {
-    sedute,
-    mediana: quantile(assoluti, 0.5),
-    q25: quantile(assoluti, 0.25),
-    q75: quantile(assoluti, 0.75),
-    massimo: Math.max(...assoluti),
-    n: assoluti.length,
-  };
-}
+/* IL MOVIMENTO CHIUSURA-CHIUSURA È STATO RIMOSSO il 28/08/2026, ed è l'unica
+   misura tolta nel giro di riforma visiva del desk.
+
+   Duplicava l'escursione vera con la grandezza sbagliata: misurava quanto la
+   giornata ha portato via da dove era partita, non quanto spazio ha
+   attraversato. Un giorno che sale del 2% e torna in pari valeva zero, ma lo
+   stop lo aveva già preso. Sull'oro sottostimava di più della metà — 0,84%
+   contro 1,94% di escursione mediana sulla stessa finestra — quindi chi
+   dimensionava uno stop su quel numero lo dimensionava a metà.
+
+   Esisteva perché fino al 26/08/2026 `SeasonalityDailyBar` conservava solo
+   `close`, e una grandezza più piccola dichiarata era meglio di una giusta
+   inventata. Da quando l'archivio ha massimo e minimo la ragione è decaduta,
+   ma la misura era rimasta accanto a quella che la sostituiva. */
 
 /* ── escursione vera della giornata ──────────────────────────────────── */
 

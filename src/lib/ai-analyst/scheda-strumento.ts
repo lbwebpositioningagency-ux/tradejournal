@@ -34,7 +34,7 @@
  * 2. OGNI RIGA È UN FATTO DI MERCATO CON UN NUMERO. Tre colonne: la misura,
  *    il valore di oggi, il confronto con la norma. Niente colonna «lettura»:
  *    il significato operativo sta nell'ETICHETTA della misura, e la guida
- *    (`docs/macro-desk/GUIDA-VOLATILITA.md`) lo spiega una volta per tutte.
+ *    (`docs/macro-desk/GUIDA-MACRO-DESK.md`) lo spiega una volta per tutte.
  * 3. LE INFORMAZIONI DI SERVIZIO — copertura, freschezza, campione, fonti —
  *    stanno in UNA riga discreta in fondo alla scheda. Non spariscono: si
  *    smette di farle occupare le colonne che servono ai prezzi.
@@ -161,7 +161,6 @@ export const RIGHE_SCHEDA = [
   "ampiezza_attesa",
   "escursione_tipica",
   "escursione_ultima",
-  "movimento_tipico",
   "iv_livello",
   "iv_vs_realizzata",
   "struttura",
@@ -406,44 +405,16 @@ function rigaEscursioneUltima(i: IngressiScheda): RigaScheda {
   };
 }
 
-/**
- * RIGA 4 — quanto la giornata PORTA VIA, non quanto spazio attraversa.
- *
- * Perché sta accanto alla riga 2 e non al suo posto: sono due misure diverse
- * della stessa giornata. La differenza fra le due è quanto il mercato
- * restituisce prima della chiusura — su uno strumento dove l'escursione è
- * doppia del movimento, tenere fino alla chiusura costa metà del percorso.
- * È anche l'unica riga confrontabile alla pari con l'ampiezza attesa, che è
- * anch'essa chiusura-chiusura.
- */
-function rigaMovimentoTipico(i: IngressiScheda): RigaScheda {
-  const def = AI_ANALYST_DEFS[i.strumento];
-  const corta = i.prezzo?.movimento.find((m) => m.sedute === FINESTRA_CORTA);
-  const lunga = i.prezzo?.movimento.find((m) => m.sedute === FINESTRA_LUNGA);
-  const chiusura = i.prezzo?.ultimaChiusura ?? null;
-  if (!corta) {
-    return assente(
-      "movimento_tipico",
-      `Movimento tipico chiusura-chiusura (${FINESTRA_CORTA} sedute)`,
-      "serie di prezzo del sottostante non disponibile",
-    );
-  }
-  const mediana =
-    chiusura === null ? null : num(corta.mediana * chiusura, def.decimaliPrezzo);
-  return {
-    id: "movimento_tipico",
-    misura: `Movimento tipico chiusura-chiusura (${FINESTRA_CORTA} sedute)`,
-    oggi: `${mediana === null ? "" : `${mediana} ${def.unita} · `}${pct(corta.mediana)} · massimo ${pct(corta.massimo)}`,
-    norma:
-      lunga === undefined
-        ? `nessun confronto a ${FINESTRA_LUNGA} sedute`
-        : `${pct(lunga.mediana)} su ${FINESTRA_LUNGA} sedute`,
-    assente: false,
-    cardine: false,
-    nota: "Una giornata che sale del 2% e torna in pari vale zero qui.",
-  };
-}
+/* LA RIGA «movimento tipico chiusura-chiusura» È STATA TOLTA il 28/08/2026,
+   insieme alla tabella omonima della Volatilità e per la stessa ragione: era
+   la stessa misura, e misurava la cosa sbagliata.
 
+   Diceva quanto la giornata aveva portato via da dove era partita, non quanto
+   spazio aveva attraversato — e lo spazio attraversato è quello che uno stop
+   incontra. Sull'oro dava 0,84% contro l'1,94% dell'escursione mediana sulla
+   stessa finestra: chi dimensionava su quel numero dimensionava a metà. La
+   riga «escursione tipica della giornata», due posizioni più su, risponde
+   alla stessa domanda con la grandezza giusta. */
 /**
  * RIGA 5 — dove sta il prezzo del rischio rispetto a tutta la propria storia,
  * e in che direzione si sta muovendo.
@@ -744,7 +715,6 @@ export function schedaStrumento(i: IngressiScheda): SchedaStrumento {
     rigaAmpiezzaAttesa(i),
     rigaEscursioneTipica(i),
     rigaEscursioneUltima(i),
-    rigaMovimentoTipico(i),
     rigaIvLivello(i),
     rigaIvVsRealizzata(i),
     rigaStruttura(i),

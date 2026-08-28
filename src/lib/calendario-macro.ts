@@ -70,6 +70,22 @@ export interface EventoMacro {
   origine: "regola" | "calendario";
 }
 
+/**
+ * Un evento già pronto per la resa: gli orari sono stati portati nel fuso di
+ * chi legge e la distanza è stata calcolata.
+ *
+ * Stava nel componente `calendario-eventi.tsx`, che il 28/08/2026 è stato
+ * sostituito dalla tabella del listino. Il tipo però non era del componente:
+ * è la forma con cui questo modulo consegna i suoi eventi a chiunque li
+ * mostri, quindi vive qui.
+ */
+export interface EventoReso extends EventoMacro {
+  /** Data e ora già formattate nel fuso dell'utente. */
+  quando: string;
+  /** "fra 2 ore", "domani", "fra 3 giorni". */
+  fraQuanto: string;
+}
+
 /* ── FOMC ─────────────────────────────────────────────────────────────────
    Date lette il 26/08/2026 da federalreserve.gov/monetarypolicy/fomccalendars.htm.
    Il giorno indicato è il SECONDO della riunione, quello della decisione.

@@ -1,0 +1,303 @@
+/* ============================================================================
+   MACRO DESK — LISTINO (direzione visiva scelta il 28/08/2026)
+
+   Sostituisce `.macro-report` in tutte le sezioni TRANNE Driver e
+   Stagionalità, che restano com'erano perché erano già fatte bene ed è stato
+   deciso di non toccarle.
+
+   Tre differenze rispetto a `.macro-report`, e sono la direzione:
+
+   1. THEME-AWARE. `.macro-report` è dark fisso: in tema chiaro il desk è un
+      rettangolo nero appoggiato su un'app bianca. Qui i token sono dichiarati
+      per il tema chiaro su `.md-listino` e ridichiarati sotto `.dark`, quindi
+      il desk appartiene alla pagina invece di essere un'isola.
+   2. NIENTE SCATOLE. Nessun raggio, nessuna ombra, nessun glow radiale: la
+      struttura la fanno i filetti e l'incolonnamento. Un raggio di 18px
+      ripetuto su tre livelli di annidamento era la ragione per cui la pagina
+      Volatilità era alta 5.191px.
+   3. COLORE SOLO SUL SEGNO. Verde e rosso compaiono dove c'è un segno da
+      leggere (variazioni, scarti) e in nessun altro punto. Tutto il resto è
+      una gerarchia di luminanza — la regola dei terminali.
+
+   I NOMI DEI TOKEN SONO GLI STESSI di `.macro-report` di proposito: i
+   pannelli non ancora riscritti che vivono dentro `.md-listino` prendono
+   comunque i colori giusti nei due temi, invece di restare illeggibili.
+   ========================================================================= */
+
+.md-listino {
+  /* Superfici — tema chiaro */
+  --md-bg: #ffffff;
+  --md-surface: #f7f9fb;
+  --md-surface-2: #f1f4f8;
+  --md-surface-3: #e9eef4;
+  --md-border: #e3e7ed;
+  /* Filetto forte: intestazioni di tabella e chiusure di blocco */
+  --ml-rule: #c3cad4;
+  --ml-track: #eceff3;
+  /* Testo */
+  --md-text: #0e131a;
+  --md-text-2: #414c5b;
+  --md-muted: #6f7c8d;
+  /* Semantica sul fondo chiaro: verde e rosso scelti per reggere il
+     contrasto anche su --md-surface, non solo su bianco. */
+  --md-up: #0f7a4e;
+  --md-down: #c02040;
+  --md-warn: #9a6608;
+  --md-info: #2c5fc9;
+  /* Accenti per asset: gli stessi ruoli del desk, riportati a contrasto
+     sufficiente su fondo chiaro. */
+  --md-gold: #8a6d12;
+  --md-oil: #a75218;
+  --md-idx: #33499f;
+  --md-cross: #6a41ab;
+  /* Finestre di lookback: la palette categorica Okabe-Ito va scurita sul
+     chiaro, altrimenti il giallo sparisce. */
+  --md-w20: #2f6fd0;
+  --md-w15: #b06a12;
+  --md-w10: #1d7f8a;
+  --md-w5: #a3459a;
+  --md-w2: #7a7414;
+  /* Raggi: azzerati. Il listino non ha scatole. */
+  --md-r-lg: 0px;
+  --md-r-md: 0px;
+  --md-r-sm: 2px;
+  --md-shadow: none;
+  --md-shadow-hover: none;
+
+  background-color: var(--md-bg);
+  color: var(--md-text);
+  font-family: var(--md-font-ui), var(--font-geist-sans), system-ui, sans-serif;
+  font-variant-numeric: tabular-nums lining-nums;
+  font-feature-settings: "tnum" 1, "lnum" 1;
+}
+
+.dark .md-listino {
+  --md-bg: #06080d;
+  --md-surface: #0c1119;
+  --md-surface-2: #101722;
+  --md-surface-3: #151d2b;
+  --md-border: #1a2130;
+  --ml-rule: #2b3547;
+  --ml-track: #151b27;
+  --md-text: #e7edf6;
+  --md-text-2: #a6b3c6;
+  --md-muted: #67748a;
+  --md-up: #2fd67a;
+  --md-down: #ff4160;
+  --md-warn: #f5a623;
+  --md-info: #4f8ef7;
+  --md-gold: #e0bc4f;
+  --md-oil: #e0894a;
+  --md-idx: #8b9ef7;
+  --md-cross: #b18af7;
+  --md-w20: #5b9dff;
+  --md-w15: #f2a03d;
+  --md-w10: #45d4e0;
+  --md-w5: #e07bd0;
+  --md-w2: #ece75f;
+}
+
+/* La coppia P&L daltonica scelta in Impostazioni vale anche qui, come vale
+   per `.macro-report`. Valori distinti per tema: sul chiaro servono più
+   scuri per reggere il contrasto. */
+[data-pnl="blue-red"] .md-listino {
+  --md-up: #1d4ed8;
+}
+[data-pnl="green-violet"] .md-listino {
+  --md-down: #6d28d9;
+}
+.dark [data-pnl="blue-red"] .md-listino {
+  --md-up: #4a87ff;
+}
+.dark [data-pnl="green-violet"] .md-listino {
+  --md-down: #9970ff;
+}
+
+/* Dentro il listino le card ereditate perdono la scatola e restano un blocco
+   separato da un filetto: così un pannello non ancora riscritto non
+   reintroduce raggi e ombre in mezzo alle tabelle. */
+.md-listino .md-card,
+.md-listino .md-card-2 {
+  background-color: transparent;
+  border: 0;
+  border-top: 1px solid var(--md-border);
+  border-radius: 0;
+  box-shadow: none;
+}
+.md-listino .md-card-hover:hover {
+  transform: none;
+  background-color: transparent;
+  box-shadow: none;
+}
+.md-listino .scrollbar-none {
+  scrollbar-width: none;
+}
+.md-listino .scrollbar-none::-webkit-scrollbar {
+  display: none;
+}
+
+/* ── titolo di sezione ───────────────────────────────────────────────────
+   Il filetto corre fino al margine destro: separa i blocchi senza spendere
+   una riga vuota, che è il modo in cui un listino stampato guadagna spazio. */
+.ml-titolo {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--md-muted);
+  white-space: nowrap;
+}
+.ml-titolo::after {
+  content: "";
+  flex: 1;
+  height: 1px;
+  background: var(--md-border);
+}
+
+/* ── tabella ─────────────────────────────────────────────────────────────
+   Numeri a destra, testo a sinistra, l'intestazione prende l'allineamento
+   della sua colonna. Nessuna riga zebrata: evidenzierebbe una riga sì e una
+   no, cioè un motivo che nei dati non c'è. */
+.ml-tab {
+  width: 100%;
+  border-collapse: collapse;
+  font-family: var(--md-font-mono), var(--font-geist-mono), ui-monospace, monospace;
+  font-size: 12px;
+  line-height: 1;
+  font-variant-numeric: tabular-nums lining-nums;
+}
+.ml-tab th {
+  font-family: var(--md-font-ui), var(--font-geist-sans), system-ui, sans-serif;
+  font-size: 9.5px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--md-muted);
+  text-align: right;
+  padding: 4px 8px 5px;
+  border-bottom: 1px solid var(--ml-rule);
+  white-space: nowrap;
+  vertical-align: bottom;
+}
+/* Intestazione di GRUPPO: il secondo livello di un listino stampato. */
+.ml-tab th.ml-gruppo {
+  text-align: center;
+  font-size: 9px;
+  color: var(--md-text-2);
+  border-bottom: 1px solid var(--md-border);
+  padding-bottom: 3px;
+}
+.ml-tab th.ml-sx,
+.ml-tab td.ml-sx {
+  text-align: left;
+}
+.ml-tab td {
+  padding: 6px 8px;
+  border-bottom: 1px solid var(--md-border);
+  text-align: right;
+  white-space: nowrap;
+  color: var(--md-text);
+}
+.ml-tab tbody tr:last-child td {
+  border-bottom: 0;
+}
+/* Riga di uno strumento che non si opera: resta, ma non compete. */
+.ml-tab tr.ml-contesto td {
+  color: var(--md-text-2);
+}
+/* Riga corrente: filetto d'accento a sinistra, come la riga «adesso» della
+   Stagionalità. Unico accento posizionale del sistema. */
+.ml-tab tr.ml-ora td:first-child {
+  box-shadow: inset 2px 0 0 var(--md-warn);
+}
+.ml-tab .ml-sep {
+  border-left: 1px solid var(--md-border);
+}
+/* Una cella che deve andare a capo (prosa breve dentro una tabella). */
+.ml-tab td.ml-wrap {
+  white-space: normal;
+}
+/* Tabella che non ci sta: scorre da sola, la pagina non si allarga mai. */
+.ml-scroll {
+  overflow-x: auto;
+}
+
+/* ── barra-parola ────────────────────────────────────────────────────────
+   La storia di un valore compressa alla dimensione di una parola: 56px
+   dentro la cella, con la tacca del 50% come riferimento. Prima lo stesso
+   dato occupava una barra larga quanto la card — 1.100px per un numero. */
+.ml-spark {
+  position: relative;
+  display: inline-block;
+  width: 56px;
+  height: 9px;
+  vertical-align: -1px;
+  background: var(--ml-track);
+  border-radius: 1px;
+}
+.ml-spark > i {
+  position: absolute;
+  top: -2px;
+  bottom: -2px;
+  width: 2px;
+  margin-left: -1px;
+  background: currentColor;
+}
+.ml-spark::after {
+  content: "";
+  position: absolute;
+  left: 50%;
+  top: 2px;
+  bottom: 2px;
+  width: 1px;
+  background: var(--md-border);
+}
+
+/* ── icona informativa ───────────────────────────────────────────────────
+   La spiegazione non sta più in fondo alla pagina come nota numerata: sta
+   qui, accanto alla misura che spiega, e si apre al click. Venticinque note
+   in coda occupavano un terzo della pagina. */
+.ml-info {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 13px;
+  height: 13px;
+  margin-left: 3px;
+  vertical-align: 1px;
+  border: 1px solid var(--md-border);
+  border-radius: 999px;
+  color: var(--md-muted);
+  font-family: var(--md-font-ui), var(--font-geist-sans), system-ui, sans-serif;
+  font-size: 8.5px;
+  font-weight: 700;
+  line-height: 1;
+  letter-spacing: 0;
+  text-transform: none;
+  cursor: pointer;
+  transition:
+    color 0.15s var(--motion-ease),
+    border-color 0.15s var(--motion-ease);
+}
+.ml-info:hover,
+.ml-info[data-state="open"] {
+  color: var(--md-text);
+  border-color: var(--ml-rule);
+}
+@media (prefers-reduced-motion: reduce) {
+  .ml-info {
+    transition: none;
+  }
+}
+
+/* Contenuto della finestrella: prosa, quindi misura di lettura controllata
+   e corpo che non compete con i numeri della tabella. */
+.ml-info-corpo {
+  font-family: var(--font-geist-sans), system-ui, sans-serif;
+  font-size: 12px;
+  line-height: 1.55;
+  font-variant-numeric: normal;
+}

@@ -1,5 +1,19 @@
 # Macro Desk — lavoro di forma sulla pagina Volatilità
 
+> **ESITO — 28/08/2026.** È stata scelta la direzione **A · Listino**, ed è
+> stata applicata a tutto il Macro Desk tranne Driver e Stagionalità. Le rotte
+> di lavoro `/macro-desk/volatilita/forma/[a|b|c]` non esistono più: erano un
+> banco di prova, e il loro contenuto è diventato
+> `src/components/macro-desk/listino/`. Le schermate del confronto restano in
+> `proposte/`, quelle del risultato applicato in `dopo/`. Le due correzioni
+> chieste alla direzione — spiegazioni dietro un'icona invece che in note
+> numerate, commento del report in fondo e chiuso — sono nel risultato, non in
+> queste schermate. Il resoconto della sezione «In più» qui sotto resta una
+> proposta: di quelle rimozioni ne è stata applicata **una sola**, il movimento
+> chiusura-chiusura.
+
+---
+
 Ramo `macro/forma-visiva`, worktree `C:/wt/mdforma`. **Niente è pubblicato, niente è
 su main.** Nessun dato è stato toccato, aggiunto o rimosso: le tre direzioni ricevono
 lo stesso oggetto (`src/components/macro-desk/forma/tipi.ts`) dalle stesse query della

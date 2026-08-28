@@ -370,8 +370,8 @@ function SetteAree({ aree }: { aree: StatoArea[] }) {
         ))}
       </ul>
       <p className="text-2xs leading-relaxed text-[var(--md-muted)]">
-        <span style={{ color: "var(--md-warn)" }}>Fonte non letta</span> non vuol dire
-        «nessuna novità»: di quell&apos;area, questa settimana, non si sa nulla. Può
+        <span style={{ color: "var(--md-warn)" }}>Fonte non letta</span>{" "}
+        non vuol dire «nessuna novità»: di quell&apos;area, questa settimana, non si sa nulla. Può
         comunque portare una voce nel registro — significa che qualcosa è stato
         trovato, ma senza poter guardare l&apos;elenco completo della fonte.
       </p>
@@ -579,22 +579,15 @@ function TabellaCambiamenti({ report }: { report: RadarReportCompleto }) {
       ) : (
         // La tabella scorre DENTRO il suo contenitore: la pagina non scorre
         // mai in orizzontale.
-        <div
-          className="overflow-x-auto rounded-[var(--md-r-md)] border"
-          style={{ borderColor: "var(--md-border)" }}
-        >
-          <table className="w-full min-w-[44rem] border-collapse text-sm">
+        <div className="ml-scroll">
+          <table className="ml-tab min-w-[44rem]">
             <thead>
-              <tr style={{ backgroundColor: "var(--md-surface-2)" }}>
-                <th scope="col" className="w-7 px-2 py-2">
+              <tr>
+                <th scope="col" className="w-7">
                   <span className="sr-only">In evidenza</span>
                 </th>
                 {["Area", "Cambiamento", "Chi", "In vigore dal", "Fonte"].map((h) => (
-                  <th
-                    key={h}
-                    scope="col"
-                    className="whitespace-nowrap px-3 py-2 text-left text-2xs font-semibold uppercase tracking-[0.12em] text-[var(--md-muted)]"
-                  >
+                  <th key={h} scope="col" className="ml-sx">
                     {h}
                   </th>
                 ))}
@@ -606,11 +599,7 @@ function TabellaCambiamenti({ report }: { report: RadarReportCompleto }) {
                 return (
                   <tr
                     key={c.id}
-                    className="align-top"
-                    style={{
-                      borderTop: "1px solid var(--md-border)",
-                      backgroundColor: azione ? "var(--md-surface-2)" : undefined,
-                    }}
+                    className={azione ? "ml-ora align-top" : "align-top"}
                   >
                     <td className="px-2 py-3">
                       {azione ? (
@@ -621,11 +610,11 @@ function TabellaCambiamenti({ report }: { report: RadarReportCompleto }) {
                         />
                       ) : null}
                     </td>
-                    <td className="px-3 py-3">
+                    <td className="ml-sx px-3 py-3">
                       <MonoChip>{etichettaArea(c.area)}</MonoChip>
                     </td>
                     <td
-                      className="min-w-[18rem] max-w-[34rem] px-3 py-3"
+                      className="ml-sx ml-wrap min-w-[18rem] max-w-[34rem] px-3 py-3"
                       style={{ overflowWrap: "anywhere" }}
                     >
                       <p className="font-medium leading-snug text-[var(--md-text)]">
@@ -670,7 +659,7 @@ function TabellaCambiamenti({ report }: { report: RadarReportCompleto }) {
                         ) : null}
                       </div>
                     </td>
-                    <td className="px-3 py-3 text-xs">
+                    <td className="ml-sx px-3 py-3 text-xs">
                       <Fonte url={c.sourceUrl} nome={c.sourceName} />
                     </td>
                   </tr>

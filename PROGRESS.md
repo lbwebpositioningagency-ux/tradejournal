@@ -2211,3 +2211,92 @@ nulla.
 dei pilastri unanimi, WEEKLY 16/08, DAILY 18/08 senza verdetto, DAILY v1
 31/07 senza sintesi, più i due tab News) — anteprima e screenshot in
 `docs/macro-desk-report-2tab/`.
+
+---
+
+## Macro Desk — direzione visiva «Listino» (28/08/2026)
+
+Il desk aveva otto sezioni scritte in due linguaggi diversi e nessuno dei due
+era una scelta: `.macro-report` era un ambiente **dark fisso**, quindi in tema
+chiaro il desk era un rettangolo nero appoggiato su un'app bianca, e dentro
+quell'ambiente ogni sezione aveva reinventato la propria forma. La Volatilità
+era il caso peggiore, **5.191 px** di altezza: la stessa struttura tabellare
+(finestra, mediana, banda, massimo, n) compariva **trentadue volte** senza mai
+essere una tabella — erano frasi con i punti mediani, quindi due mediane di due
+strumenti stavano a due `x` diversi e non si confrontavano.
+
+Dopo uno studio di forma con tre direzioni a confronto (diagnosi, riferimenti e
+schermate in `docs/macro-forma/REFERTO.md`) è stata scelta la direzione
+**«Listino»** e applicata a tutto il desk.
+
+### Le tre regole
+
+1. **Quello che si ripete diventa una colonna.** Le quattro schede-strumento
+   della Volatilità sono due tabelle; le quattro tabelle della Sintesi sono una
+   matrice misura × strumento, dove l'escursione di oro, WTI e DAX finalmente
+   si legge su una riga sola.
+2. **La spiegazione esce dal flusso.** Non note numerate in coda — la prima
+   stesura ne aveva venticinque, un terzo della pagina — ma un'icona
+   informativa accanto alla misura che spiega, apribile al click
+   (`listino/info.tsx`, `Popover` di Radix: click e non hover, così funziona da
+   tastiera e sul tattile).
+3. **Il colore significa il segno, e nient'altro.** Verde e rosso solo nelle
+   colonne dove c'è un segno da leggere. Tutto il resto è gerarchia di
+   luminanza.
+
+Più due conseguenze: **niente scatole** (raggi, ombre e i due glow radiali
+spariti; `--md-r-lg` vale 0 dentro `.md-listino`) e **ambiente theme-aware**,
+dichiarato per il tema chiaro e ridichiarato sotto `.dark`.
+
+### Cosa è cambiato, sezione per sezione
+
+| Sezione | Prima | Adesso |
+| --- | --- | --- |
+| Indice | otto schede in griglia | elenco a due colonne, tre gruppi |
+| Sintesi | quattro tabelle impilate | una matrice misura × strumento |
+| Volatilità | quattro schede + due blocchi, 5.191 px | sei tabelle, **1.633 px** |
+| Report | due card + lista cliccabile | una tabella dei bias, sintesi dietro l'icona |
+| Scorecard · Trends · Radar | tabelle con bordi e riempimenti propri | `.ml-tab` |
+| Driver · Stagionalità | **non toccate** | **non toccate** |
+
+`.macro-report` resta e serve solo Driver e Stagionalità, che erano già fatte
+bene. **Conseguenza dichiarata: in tema chiaro quelle due sezioni restano
+un'isola scura.** Renderle theme-aware significherebbe toccarle, ed è stato
+chiesto di non farlo.
+
+### L'unica misura rimossa
+
+Il **movimento chiusura-chiusura** — tabella nella Volatilità, riga 4 della
+scheda nella Sintesi. Duplicava l'escursione vera con la grandezza sbagliata:
+misurava quanto la giornata aveva portato via da dove era partita, non quanto
+spazio aveva attraversato. Una giornata che sale del 2% e torna in pari valeva
+zero, ma lo stop lo aveva già preso; sull'oro dava 0,84% contro 1,94% di
+escursione sulla stessa finestra. Tolto alla radice — `movimentoOsservato`,
+`MovimentoOsservato`, il campo `movimento` di `RigaContestoVol` e i loro test —
+non solo dalla resa.
+
+### Due difetti trovati dalla verifica, non dall'occhio
+
+- **Spazi mangiati dal montaggio JSX**: «28/08/2026nel fuso» nella Volatilità e
+  «Fonte non lettanon vuol dire» nel Radar. In uno screenshot ridotto non si
+  vedono. Trovati leggendo il DOM con `scripts/measure.mjs` e la sonda
+  `scripts/sonda-spazi.js`, che resta come strumento.
+- **Un falso allarme istruttivo**: il primo screenshot mostrava `VIX9D ÷ VIX` e
+  `VIX ÷ VIX3M` con lo stesso 0,848. Il DOM diceva 0,871 e 0,848, e il database
+  confermava: era un transitorio della prima richiesta al dev server. Resta un
+  test di regressione sui due rapporti — sono numeri diversi che si
+  assomigliano, e una resa che ne ripetesse uno sarebbe indistinguibile da
+  quella giusta a colpo d'occhio.
+
+### La guida
+
+`docs/macro-desk/GUIDA-VOLATILITA.md` è diventata
+**`docs/macro-desk/GUIDA-MACRO-DESK.md`** e copre tutto il desk: ogni misura
+con cosa è, come si calcola e a quale delle tre decisioni serve (dimensionare ·
+scegliere lo stop · stare fuori), come si legge un rango storico, implicita
+contro realizzata, struttura a termine, contango e backwardation, il COT con
+ciò che **non** dice, e le convenzioni su fonti, date ed età dei dati.
+
+**Verificato:** typecheck ✅ · eslint ✅ · **1859 test** ✅ · build ✅ ·
+controllo visivo su **tutte e otto le pagine toccate a 1440 e 1920 px, in tema
+chiaro e scuro** (32 schermate in `docs/macro-forma/dopo/`).
