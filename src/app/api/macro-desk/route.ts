@@ -28,6 +28,19 @@ import { macroDeskReportSchema } from "@/lib/validations/macro-desk";
  * La risposta resta 200 ma NON è muta: porta `impegnoRifiutato` con campo,
  * valore tenuto e valore rifiutato. Lo stesso elenco finisce in colonna e si
  * vede nella Scorecard, che è la pagina che quei numeri li misura.
+ *
+ * ── LA SENTINELLA D'INGRESSO ─────────────────────────────────────────────
+ *
+ * Stesso principio, difetto diverso: il report può essere formalmente valido
+ * e comunque illeggibile in pagina. Il 18/08/2026 ne è arrivato uno con 11
+ * notizie su 11 senza titolo, ed è stato accettato, salvato e servito per
+ * dieci giorni senza che nulla lo segnalasse.
+ *
+ * `controllaContratto` produce dei RILIEVI e non rifiuta mai nulla — la
+ * ragione è la stessa dell'impegno, moltiplicata: qui il report non
+ * contraddice niente, è solo scritto male, e buttarlo via sarebbe assurdo.
+ * I rilievi tornano nella risposta (che è dove chi spedisce li legge subito),
+ * finiscono in colonna e si vedono aprendo il report.
  */
 export async function POST(request: Request) {
   if (
@@ -60,9 +73,20 @@ export async function POST(request: Request) {
     );
   }
 
-  const { report, rifiutate } = await upsertMacroDeskReport(prisma, parsed.data);
+  const { report, rifiutate, rilievi } = await upsertMacroDeskReport(
+    prisma,
+    parsed.data,
+  );
+  /* Due esiti diversi e uno stato solo: `ok_con_rifiuti` vince perché dice la
+     cosa più grave (qualcosa NON è stato applicato), mentre i rilievi sono
+     stati salvati per intero. Gli elenchi restano comunque distinti. */
+  const status = rifiutate.length > 0
+    ? "ok_con_rifiuti"
+    : rilievi.length > 0
+      ? "ok_con_rilievi"
+      : "ok";
   return Response.json({
-    status: rifiutate.length > 0 ? "ok_con_rifiuti" : "ok",
+    status,
     id: report.id,
     type: report.type,
     reportDate: parsed.data.reportDate,
@@ -73,6 +97,18 @@ export async function POST(request: Request) {
             "Il report è stato salvato, ma le modifiche elencate qui sopra " +
             "riguardano campi dichiarati all'apertura della settimana e non " +
             "sono state applicate: restano i valori originali.",
+        }
+      : {}),
+    /* IL PUNTO DELLA SENTINELLA. Chi spedisce legge questa risposta nel
+       momento in cui spedisce: è qui che il 18/08 si sarebbe visto lo stesso
+       giorno, invece che dieci giorni dopo. */
+    ...(rilievi.length > 0
+      ? {
+          rilieviContratto: rilievi,
+          notaRilievi:
+            "Il report è stato salvato INTERO: nessun rilievo qui sopra ne " +
+            "impedisce la pubblicazione. Sono cose che in pagina si vedono " +
+            "male o non si vedono affatto, e vanno corrette alla fonte.",
         }
       : {}),
   });

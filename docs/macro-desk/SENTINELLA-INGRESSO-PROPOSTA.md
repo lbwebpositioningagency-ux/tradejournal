@@ -1,6 +1,8 @@
 # La sentinella all'ingresso — proposta, non implementata
 
-**Data**: 28/08/2026 · **Stato**: PROPOSTA, nessuna riga di codice scritta
+**Data**: 28/08/2026 · **Stato**: **IMPLEMENTATA** il 28/08/2026 (era una proposta;
+il documento resta perché il *perché* vale più del *cosa*).
+Codice: `src/lib/macro-desk-contratto.ts` · test: `macro-desk-contratto.test.ts`
 **Origine**: il report DAILY del 18/08/2026
 
 ## Il fatto da cui nasce
@@ -76,3 +78,27 @@ ripara il 18 agosto. Quel report è in Neon e **non si rigenera**. Per questo il
 ha imparato gli alias `t`/`note` e `risk`/`concl` (test di regressione sulla fixture
 reale in `src/lib/macro-desk-1808.fixture.ts`) — la sentinella serve per il prossimo
 campo che nessuno ha ancora immaginato, non per questo.
+
+## Che cosa ha trovato al primo giro, sui report veri
+
+Rieseguita sui 23 report in archivio (che sono entrati prima che esistesse, quindi
+hanno la colonna vuota), la sentinella non ha prodotto rumore ma nemmeno silenzio.
+Sul report più recente, il **28/08**, tre rilievi tutti veri:
+
+- `news` — 11 voci su 11 senza `url`;
+- `testi` — entità HTML non decodificata in `synthesis.conclusion` (`&lt;81`);
+- `assets[oil].weekly.confidence` — **payload 44, biasRecord 45**: la stessa
+  confidenza dichiarata due volte con due valori, dentro lo stesso report.
+
+L'ultimo è il controllo n. 4 e non lo aveva mai visto nessuno: il guardiano
+dell'impegno confronta report DIVERSI della stessa settimana, e una contraddizione
+interna a un singolo report gli passava sotto il naso.
+
+## Una nota sul controllo n. 1
+
+Sul report del 18/08 la sentinella **non** segnala più «news senza titolo», e va bene
+così: guarda il payload dopo il parser, e da quando `t`/`note` sono alias riconosciuti
+quei titoli ci sono davvero. Il rilievo sarebbe scattato il giorno in cui il report
+arrivò — allora l'alias non esisteva — ed è quello il momento in cui serviva. Oggi quel
+controllo sorveglia il prossimo nome di campo che nessuno ha ancora immaginato, che è
+esattamente il suo mestiere.

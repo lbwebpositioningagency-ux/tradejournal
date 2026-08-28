@@ -248,8 +248,16 @@ function BloccoConfidenza({
 }) {
   const lettura = letturaConfidenza(horizon, monitor);
   if (!lettura) return null;
-  const { impegno, fasciaImpegno, oggi, fasciaOggi, delta, motivi } = lettura;
-  const stimato = motivi[0].fonte === "estratto";
+  const {
+    impegno,
+    fasciaImpegno,
+    oggi,
+    fasciaOggi,
+    delta,
+    motivi,
+    scostamentoNonMotivato,
+  } = lettura;
+  const stimato = motivi.length > 0 && motivi[0].fonte === "estratto";
 
   return (
     <div className="flex flex-col gap-2">
@@ -300,6 +308,32 @@ function BloccoConfidenza({
         )}
       </div>
 
+      {/* LO SCOSTAMENTO NON MOTIVATO. Dal 28/08/2026 il report deve dichiarare
+          il perché di ogni scarto fra impegno e lettura di oggi: se non lo fa,
+          la card lo dice invece di far finta di niente. Nasconderlo sarebbe
+          esattamente il difetto del 18/08 — un errore invisibile perché la
+          pagina non lo espone. Tono da constatazione, non da accusa: chi legge
+          deve sapere che manca qualcosa, non sentirsi rimproverare. */}
+      {scostamentoNonMotivato ? (
+        <div
+          className="rounded-[var(--md-r-sm)] py-1.5 pl-2.5"
+          style={{ borderLeft: "2px solid var(--md-down)" }}
+        >
+          <p
+            className="text-2xs font-semibold uppercase tracking-[0.12em]"
+            style={{ color: "var(--md-down)" }}
+          >
+            Scostamento non motivato
+          </p>
+          <p className="mt-1 text-xs leading-relaxed text-[var(--md-text-2)]">
+            Il report ha cambiato la propria confidenza senza dichiarare perché.
+            Il motivo è previsto a ogni scostamento: qui manca, e il numero di
+            oggi va letto sapendolo.
+          </p>
+        </div>
+      ) : null}
+
+      {motivi.length > 0 ? (
       <div
         className="rounded-[var(--md-r-sm)] py-1.5 pl-2.5"
         style={{ borderLeft: "2px solid var(--md-warn)" }}
@@ -333,6 +367,7 @@ function BloccoConfidenza({
           </p>
         ) : null}
       </div>
+      ) : null}
     </div>
   );
 }
@@ -427,11 +462,12 @@ function LetturaSettimanale({
  * Nei report reali non porta mai pilastri né edge: bias, confidenza, `since`,
  * invalidazione e narrativa.
  *
- * La regola del silenzio vale ANCHE qui, e qui morde: senza pilastri
- * l'euristica non ha dove cercare, quindi finché il generatore non manda un
- * `confMotivo` trimestrale il numero non compare. È la conseguenza coerente
- * della stessa misura — la confidenza trimestrale ha dev.std 5,46 su 69
- * osservazioni, ancora meno informativa di quella settimanale.
+ * La regola del silenzio vale ANCHE qui, con la stessa precedenza stretta:
+ * `quarterly.confMotivo` dichiarato dal generatore (dal 28/08/2026), poi
+ * l'euristica, poi niente. Sui 23 report storici resterà sempre niente, ed è
+ * il risultato giusto: nessuno di quei numeri trimestrali è mai stato
+ * motivato, e la confidenza trimestrale ha dev.std 5,46 su 69 osservazioni —
+ * ancora meno informativa di quella settimanale.
  */
 function LetturaTrimestrale({ horizon }: { horizon: MacroHorizon }) {
   const tone = biasTone(horizon.biasLabel, horizon.bias);
@@ -459,8 +495,13 @@ function LetturaTrimestrale({ horizon }: { horizon: MacroHorizon }) {
 
       {conf ? (
         <p className="text-2xs leading-relaxed text-[var(--md-text-2)]">
-          <span className="font-semibold uppercase tracking-wider" style={{ color: "var(--md-warn)" }}>
-            Motivo ·{" "}
+          <span
+            className="font-semibold uppercase tracking-wider"
+            style={{ color: "var(--md-warn)" }}
+          >
+            {conf.motivi[0].fonte === "estratto"
+              ? "Motivo riconosciuto nel testo · "
+              : "Motivo dichiarato · "}
           </span>
           «{conf.motivi[0].testo}»
         </p>

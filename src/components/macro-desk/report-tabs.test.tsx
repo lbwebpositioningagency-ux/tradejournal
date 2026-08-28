@@ -279,6 +279,57 @@ describe("tab Asset — i due numeri della confidenza", () => {
     expect(html).toContain("quadro invariato");
   });
 
+  it("scostamento NON motivato: si mostra e si dice che manca il motivo", () => {
+    /* Il silenzio vale per un numero solo. Due numeri diversi senza motivo
+       sono una violazione del contratto, e nasconderla ripeterebbe il difetto
+       del 18/08 — un errore invisibile perché la pagina non lo espone. */
+    const html = renderToStaticMarkup(
+      <AssetsTab
+        payload={conDivergenza}
+        natura="monitorato"
+        monitor={{ gold: { confidenceOggi: 48 } }}
+      />,
+    );
+    expect(html).toContain("55/100");
+    expect(html).toContain("48/100");
+    expect(html).toContain("−7");
+    expect(html).toContain("Scostamento non motivato");
+    expect(html).toContain("senza dichiarare perché");
+    // e nessun motivo inventato al suo posto
+    expect(html).not.toContain("Motivo dichiarato");
+    expect(html).not.toContain("Motivo riconosciuto nel testo");
+  });
+
+  it("il trimestrale mostra il numero quando il report lo motiva", () => {
+    const conQuarterly = parseMacroPayload({
+      assets: [
+        {
+          id: "gold",
+          name: "Oro",
+          quarterly: {
+            biasLabel: "RIALZISTA",
+            confidence: 62,
+            since: "9 ago 2026",
+            confMotivo: "regime di debasement stabile da tre trimestri",
+          },
+        },
+      ],
+    });
+    const html = renderToStaticMarkup(
+      <AssetsTab payload={conQuarterly} natura="monitorato" />,
+    );
+    expect(html).toContain("Trimestrale · regime di fondo");
+    expect(html).toContain("confidenza 62/100 · Media");
+    expect(html).toContain("Motivo dichiarato");
+    expect(html).toContain("regime di debasement stabile da tre trimestri");
+  });
+
+  it("il trimestrale senza motivo tace, come in tutti i report storici", () => {
+    const html = renderToStaticMarkup(<AssetsTab payload={full} natura="monitorato" />);
+    expect(html).toContain("Trimestrale · regime di fondo");
+    expect(html).not.toContain("confidenza 55/100");
+  });
+
   it("il campo dichiarato ha la precedenza sull'euristica, che resta un ripiego", () => {
     const conEntrambi = parseMacroPayload({
       assets: [
@@ -479,6 +530,49 @@ describe("shell del dettaglio — due sole schede", () => {
     expect(criticoIdx).toBeLessThan(tabIdx); // critici: sopra le schede
     expect(html).toContain("[critical]");
     expect(minorIdx).toBeGreaterThan(verdettoIdx); // minori: in coda al tab
+  });
+});
+
+describe("banda dei rilievi — quel che nel report non rispetta il contratto", () => {
+  it("compare in testa, fuori dalle schede, e dice che il report è salvato intero", () => {
+    const html = renderToStaticMarkup(
+      <MacroReportDetail
+        payload={full}
+        natura="monitorato"
+        rilievi={[
+          { campo: "news", problema: "11 × voce senza provenienza — news[0]: manca url" },
+          { campo: "synthesis.risk", problema: "grafia non canonica: atteso «risks»" },
+        ]}
+      />,
+    );
+    expect(html).toContain("2 rilievi sulla forma di questo report");
+    expect(html).toContain("salvato per intero");
+    expect(html).toContain("11 × voce senza provenienza");
+    expect(html).toContain("synthesis.risk");
+    // sta PRIMA della barra delle schede: si legge prima di cercare la sezione
+    expect(html.indexOf("rilievi sulla forma")).toBeLessThan(html.indexOf('role="tablist"'));
+  });
+
+  it("il singolare è singolare", () => {
+    const html = renderToStaticMarkup(
+      <MacroReportDetail
+        payload={full}
+        natura="monitorato"
+        rilievi={[{ campo: "synthesis", problema: "assente" }]}
+      />,
+    );
+    expect(html).toContain("Un rilievo sulla forma di questo report");
+  });
+
+  it("nessun rilievo → NIENTE: una banda che dice sempre «tutto a posto» non si legge più", () => {
+    const html = renderToStaticMarkup(
+      <MacroReportDetail payload={full} natura="monitorato" rilievi={[]} />,
+    );
+    expect(html).not.toContain("sulla forma di questo report");
+    const senzaProp = renderToStaticMarkup(
+      <MacroReportDetail payload={full} natura="monitorato" />,
+    );
+    expect(senzaProp).not.toContain("sulla forma di questo report");
   });
 });
 

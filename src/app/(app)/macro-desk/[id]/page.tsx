@@ -9,6 +9,7 @@ import { prisma } from "@/lib/db";
 import { parseMacroPayload } from "@/lib/macro-desk-payload";
 import { parseMonitor } from "@/lib/macro-desk-bias-record";
 import type { MonitorConfidenza } from "@/lib/macro-desk-confidenza";
+import type { Rilievo } from "@/lib/macro-desk-contratto";
 import { cn } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
 import { MacroReportDetail } from "@/components/macro-desk/report-detail";
@@ -85,6 +86,21 @@ function monitorPerAsset(monitor: unknown): Record<string, MonitorConfidenza> {
   return fuori;
 }
 
+/**
+ * I rilievi salvati in colonna, letti con la stessa diffidenza di tutto il
+ * resto: la colonna è JSON libero e un report vecchio non ne ha affatto.
+ */
+function rilieviDelReport(colonna: unknown): Rilievo[] {
+  if (!Array.isArray(colonna)) return [];
+  return colonna.flatMap((r) => {
+    if (typeof r !== "object" || r === null) return [];
+    const o = r as Record<string, unknown>;
+    return typeof o.campo === "string" && typeof o.problema === "string"
+      ? [{ campo: o.campo, problema: o.problema }]
+      : [];
+  });
+}
+
 export default async function MacroReportPage({
   params,
 }: {
@@ -148,6 +164,7 @@ export default async function MacroReportPage({
           natura={naturaDelBias(report.type, report.schemaVersion)}
           monitor={monitorPerAsset(report.monitor)}
           reportDate={report.reportDate}
+          rilievi={rilieviDelReport(report.rilieviContratto)}
         />
       </div>
     </div>

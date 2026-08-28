@@ -33,6 +33,7 @@ import { guardedPgAdapter } from "../src/lib/db-guard";
 import { parseMacroPayload } from "../src/lib/macro-desk-payload";
 import { parseMonitor } from "../src/lib/macro-desk-bias-record";
 import type { MonitorConfidenza } from "../src/lib/macro-desk-confidenza";
+import { controllaContratto } from "../src/lib/macro-desk-contratto";
 import { MacroReportDetail } from "../src/components/macro-desk/report-detail";
 import { NewsTab, type NaturaBias } from "../src/components/macro-desk/report-tabs";
 
@@ -78,6 +79,17 @@ const CASI: {
         confMotivo: "ramo b1 a un soffio (81,85 contro 81,0): la lettura è appesa a una chiusura",
       },
       idx: { confidenceOggi: 46, confMotivo: "breadth negativa con indice in tenuta: due segnali opposti" },
+    },
+  },
+  {
+    data: "2026-08-28",
+    titolo: "2026-08-28 · DAILY · SCOSTAMENTO NON MOTIVATO (monitor simulato)",
+    nota:
+      "Il report cambia la confidenza senza dichiarare perché: dal 28/08 è una violazione del contratto, e la card la DICE invece di tacere. I due numeri restano visibili",
+    monitorFinto: {
+      gold: { confidenceOggi: 44 },
+      oil: { confidenceOggi: 38 },
+      idx: { confidenceOggi: 52 },
     },
   },
   {
@@ -174,9 +186,22 @@ async function main() {
   const blocchi: { titolo: string; nota: string; html: string }[] = [];
 
   for (const caso of CASI) {
+    /* `select` ESPLICITO e non `findFirst` nudo: la colonna
+       `rilieviContratto` esiste in locale (migrazione applicata) ma non ancora
+       su Neon, dove la migrazione arriva col deploy. Chiedere tutte le colonne
+       farebbe fallire l'anteprima sui dati veri per una colonna che
+       all'anteprima non serve. */
     const report = await prisma.macroDeskReport.findFirst({
       where: { reportDate: new Date(`${caso.data}T00:00:00.000Z`) },
       orderBy: { type: "asc" },
+      select: {
+        type: true,
+        reportDate: true,
+        schemaVersion: true,
+        payload: true,
+        monitor: true,
+        biasRecord: true,
+      },
     });
     if (!report) {
       console.warn(`report ${caso.data} non trovato: saltato`);
@@ -194,6 +219,11 @@ async function main() {
           natura={n}
           monitor={monitor}
           reportDate={report.reportDate}
+          /* I rilievi si CALCOLANO sul payload vero invece di leggerli dalla
+             colonna: i 23 report in archivio sono entrati prima che la
+             sentinella esistesse, e la loro colonna è vuota. È lo stesso
+             risultato che avrebbero avuto arrivando oggi. */
+          rilievi={controllaContratto(report.payload, report.biasRecord)}
         />,
       ),
     });

@@ -3,6 +3,8 @@
 import { useState } from "react";
 import { isCriticalIssue, type MacroPayload } from "@/lib/macro-desk-payload";
 import type { MonitorConfidenza } from "@/lib/macro-desk-confidenza";
+import type { Rilievo } from "@/lib/macro-desk-contratto";
+import { BandaRilievi } from "./banda-rilievi";
 import { cn } from "@/lib/utils";
 import { AssetsTab, DataIssuesList, NewsTab, type NaturaBias } from "./report-tabs";
 
@@ -40,6 +42,7 @@ export function MacroReportDetail({
   natura,
   monitor,
   reportDate,
+  rilievi,
 }: {
   payload: MacroPayload;
   natura: NaturaBias;
@@ -47,6 +50,8 @@ export function MacroReportDetail({
   monitor?: Record<string, MonitorConfidenza>;
   /** Ancora delle date relative delle news: senza, «Ieri» resta «Ieri». */
   reportDate?: Date;
+  /** Rilievi della sentinella d'ingresso su QUESTO report. */
+  rilievi?: Rilievo[];
 }) {
   const [active, setActive] = useState<TabId>("assets");
   const critici = payload.dataIssues.filter((issue) => isCriticalIssue(issue.sev));
@@ -66,6 +71,10 @@ export function MacroReportDetail({
       ) : null}
 
       {critici.length > 0 ? <DataIssuesList issues={critici} /> : null}
+
+      {/* I rilievi stanno accanto agli alert critici e sopra le schede: dicono
+          perché una sezione potrebbe mancare, e vanno letti PRIMA di cercarla. */}
+      <BandaRilievi rilievi={rilievi ?? []} />
 
       {/* Barra schede: scrollabile su mobile, mai wrap */}
       <div

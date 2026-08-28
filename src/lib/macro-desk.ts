@@ -10,6 +10,7 @@ import {
   versoJsonDesk,
   type ModificaRifiutata,
 } from "@/lib/macro-desk-impegno";
+import { controllaContratto, riassuntoRilievi } from "@/lib/macro-desk-contratto";
 
 /**
  * Macro Desk: autorizzazione della route e upsert del report.
@@ -135,6 +136,20 @@ export async function upsertMacroDeskReport(
 ) {
   const reportDate = new Date(`${input.reportDate}T00:00:00.000Z`);
   const impegno = await impegnoDellaSettimana(db, input);
+
+  /* LA SENTINELLA. Non decide niente e non rifiuta niente: guarda il report
+     che sta per essere salvato e dice che cosa non torna. Il 18/08/2026 un
+     report con 11 news su 11 senza titolo è passato con 200 e nessuno l'ha
+     saputo per dieci giorni — non perché mancasse la sorveglianza, ma perché
+     l'informazione non veniva prodotta. */
+  const rilievi = controllaContratto(input.payload, input.biasRecord);
+  if (rilievi.length > 0) {
+    console.error(
+      `[macro-desk] ${input.type} ${input.reportDate}: ` +
+        `${rilievi.length} rilievi sul contratto — ${riassuntoRilievi(rilievi)}`,
+    );
+  }
+
   const data = {
     generatedAt: new Date(input.generatedAt),
     biasXau: input.assets.xau.bias,
@@ -156,13 +171,17 @@ export async function upsertMacroDeskReport(
     monitor: toJson(input.monitor),
     impegnoRifiutato:
       impegno.rifiutate.length > 0 ? toJson(impegno.rifiutate) : Prisma.DbNull,
+    /* `DbNull` e non `undefined`: un report che si corregge e viene rispedito
+       deve PULIRE i rilievi vecchi, non lasciarli in giro a sporcare la
+       pagina di un report ormai in regola. */
+    rilieviContratto: rilievi.length > 0 ? toJson(rilievi) : Prisma.DbNull,
   };
   const report = await db.macroDeskReport.upsert({
     where: { type_reportDate: { type: input.type, reportDate } },
     update: data,
     create: { type: input.type, reportDate, ...data },
   });
-  return { report, rifiutate: impegno.rifiutate };
+  return { report, rifiutate: impegno.rifiutate, rilievi };
 }
 
 /** Colore semantico del bias: stessa codifica P&L dell'app. */

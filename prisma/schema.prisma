@@ -475,6 +475,16 @@ model MacroDeskReport {
    * Regola in `src/lib/macro-desk-impegno.ts`.
    */
   impegnoRifiutato  Json?
+  /**
+   * RILIEVI DELLA SENTINELLA: quel che nel report non rispetta il contratto e
+   * che pero' NON e' motivo di rifiuto (news senza titolo, entita' HTML nei
+   * testi, confidenza dichiarata due volte con due valori, synthesis nella
+   * forma sbagliata). `null` = report in regola.
+   * Esiste per il report del 18/08/2026: arrivo' con 11 news su 11 senza
+   * titolo, fu accettato e servito, e nessuno lo seppe per dieci giorni.
+   * Regola in `src/lib/macro-desk-contratto.ts`.
+   */
+  rilieviContratto  Json?
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt

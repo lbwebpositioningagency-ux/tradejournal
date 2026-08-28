@@ -302,3 +302,83 @@ describe("letturaConfidenza — la regola del silenzio e la precedenza delle fon
     expect(JSON.stringify(l)).not.toContain("Bassa\"");
   });
 });
+
+describe("letturaConfidenza — lo scostamento non motivato si MOSTRA", () => {
+  const orizzonteMuto: MacroHorizon = {
+    biasLabel: "RIALZISTA",
+    confidence: 55,
+    pillars: [{ k: "Regime", dir: "up", note: "Spread HY compressi." }],
+  };
+
+  it("due numeri diversi senza motivo: si mostrano, marcati come non motivati", () => {
+    /* Il silenzio vale per un numero SOLO e non motivato. Due numeri diversi
+       senza motivo sono una violazione del contratto, e nasconderla
+       ripeterebbe il difetto del 18/08: un errore invisibile perché la pagina
+       non lo espone. */
+    const l = letturaConfidenza(orizzonteMuto, { confidenceOggi: 48 });
+    expect(l).not.toBeNull();
+    expect(l?.impegno).toBe(55);
+    expect(l?.oggi).toBe(48);
+    expect(l?.delta).toBe(-7);
+    expect(l?.scostamentoNonMotivato).toBe(true);
+    expect(l?.motivi).toEqual([]);
+  });
+
+  it("un numero solo e non motivato resta in silenzio: la regola non è cambiata", () => {
+    expect(letturaConfidenza(orizzonteMuto)).toBeNull();
+    expect(letturaConfidenza(orizzonteMuto, { confidenceOggi: 55 })).toBeNull();
+  });
+
+  it("scostamento motivato: nessuna violazione da segnalare", () => {
+    const l = letturaConfidenza(orizzonteMuto, {
+      confidenceOggi: 48,
+      confMotivo: "evento binario oggi",
+    });
+    expect(l?.scostamentoNonMotivato).toBe(false);
+    expect(l?.motivi[0].fonte).toBe("dichiarato");
+  });
+
+  it("l'euristica NON può motivare uno scostamento", () => {
+    /* Una frase pescata dalla nota di un pilastro parla della lettura della
+       settimana, non del perché oggi il numero differisca da domenica.
+       Accettarla lì coprirebbe con una spiegazione plausibile un campo che il
+       generatore non ha mandato — cioè renderebbe invisibile la violazione. */
+    const conEuristica: MacroHorizon = {
+      biasLabel: "RIALZISTA",
+      confidence: 55,
+      pillars: [{ k: "Eventi", dir: "fl", note: "Evento binario: confidence limitata." }],
+    };
+    const l = letturaConfidenza(conEuristica, { confidenceOggi: 48 });
+    expect(l?.scostamentoNonMotivato).toBe(true);
+    expect(l?.motivi).toEqual([]);
+
+    // senza scostamento la stessa euristica fa il suo mestiere di ripiego
+    const senza = letturaConfidenza(conEuristica);
+    expect(senza?.motivi[0].fonte).toBe("estratto");
+    expect(senza?.scostamentoNonMotivato).toBe(false);
+  });
+});
+
+describe("letturaConfidenza — il trimestrale ha il suo confMotivo", () => {
+  /* Il blocco quarterly non porta MAI pilastri nei report reali: senza il
+     campo dichiarato l'euristica non ha dove cercare, e il numero tace. */
+  const quarterly: MacroHorizon = {
+    biasLabel: "RIALZISTA",
+    confidence: 62,
+    since: "9 ago 2026",
+    pillars: [],
+  };
+
+  it("con `quarterly.confMotivo` il numero compare, marcato come dichiarato", () => {
+    const l = letturaConfidenza({ ...quarterly, confMotivo: "regime di debasement stabile" });
+    expect(l?.impegno).toBe(62);
+    expect(l?.fasciaImpegno).toBe("Media");
+    expect(l?.motivi).toEqual([
+      { testo: "regime di debasement stabile", fonte: "dichiarato" },
+    ]);
+  });
+
+  it("senza motivo il trimestrale tace, come tutti gli storici", () => {
+    expect(letturaConfidenza(quarterly)).toBeNull();
+  });
+});

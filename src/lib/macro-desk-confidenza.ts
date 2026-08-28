@@ -142,29 +142,51 @@ export interface LetturaConfidenza {
   fasciaOggi?: string;
   /** `oggi − impegno`, col segno. Presente insieme a `oggi`. */
   delta?: number;
-  /** Mai vuoto: se non c'è nessun motivo, questa funzione torna `null`. */
+  /**
+   * Vuoto SOLO quando `scostamentoNonMotivato` è vero: in ogni altro caso, se
+   * non c'è un motivo questa funzione torna `null` e la card tace.
+   */
   motivi: MotivoConfidenza[];
+  /**
+   * C'è uno scostamento fra impegno e lettura di oggi, e il report non l'ha
+   * motivato. È una violazione del contratto e la card la DICE.
+   */
+  scostamentoNonMotivato: boolean;
 }
 
 /**
  * TUTTO ciò che la card deve sapere per rendere la confidenza — o per non
  * renderla affatto.
  *
- * ── La regola del silenzio ──────────────────────────────────────────────
- * Senza un motivo, il numero NON si mostra. Non è ritrosia: su 138
+ * ── La regola del silenzio, e il suo unico limite ───────────────────────
+ * Senza un motivo, un numero SOLO non si mostra. Non è ritrosia: su 138
  * osservazioni reali vive fra 41 e 65 con deviazione standard ~5, e correla
  * 0,06 con la composizione dei pilastri. Un «51/100» da solo non sposta
  * nessuna decisione — mentre i pilastri e il bias sì. Mostrarlo comunque
  * darebbe l'impressione di una misura là dove c'è un'opinione senza appiglio.
  *
+ * Il silenzio si ferma però davanti a DUE numeri diversi. Dal 28/08/2026 il
+ * generatore deve dichiarare `confMotivo` a ogni scostamento: uno scostamento
+ * non motivato non è un dato povero, è una VIOLAZIONE del contratto — e
+ * nasconderla ripeterebbe alla lettera il difetto del 18/08, un errore
+ * invisibile perché la pagina non lo espone. Si mostra, e si dice che non è
+ * stato motivato.
+ *
  * ── Precedenza delle fonti, e mai le due insieme ────────────────────────
  * 1. il campo DICHIARATO (`monitor.<asset>.confMotivo` nei giornalieri,
- *    `weekly.confMotivo` nei settimanali). Il monitor vince quando ci sono
- *    entrambi: è la lettura di oggi, quella cui il numero di oggi si riferisce;
+ *    `weekly.confMotivo` nei settimanali, `quarterly.confMotivo` nel regime di
+ *    fondo). Il monitor vince quando ci sono entrambi: è la lettura di oggi,
+ *    quella cui il numero di oggi si riferisce;
  * 2. solo se non c'è, l'EURISTICA sulle note dei pilastri — che resta un
  *    ripiego per i 23 report storici, non una fonte alla pari.
  * Mai unite: due spiegazioni della stessa cosa, una vera e una indovinata,
  * si commentano a vicenda invece di informare.
+ *
+ * L'euristica NON può però motivare uno scostamento, e infatti non ci prova:
+ * una frase pescata dalla nota di un pilastro parla della lettura della
+ * settimana, non del perché oggi il numero differisca da domenica. Accettarla
+ * lì significherebbe coprire con una spiegazione plausibile un campo che il
+ * generatore non ha mandato — cioè rendere invisibile proprio la violazione.
  *
  * ── I due numeri ────────────────────────────────────────────────────────
  * `oggi` compare solo se DIVERGE dall'impegno. Uguali, sarebbero due volte lo
@@ -176,34 +198,43 @@ export function letturaConfidenza(
 ): LetturaConfidenza | null {
   if (horizon.confidence === undefined) return null;
 
-  const dichiarato = monitor?.confMotivo?.trim() || horizon.confMotivo?.trim();
-  const motivi: MotivoConfidenza[] = dichiarato
-    ? [{ testo: dichiarato, fonte: "dichiarato" }]
-    : ragioniDelTaglio(horizon).map((r) => ({
-        testo: r.frase,
-        fonte: "estratto" as const,
-        pilastro: r.pilastro,
-      }));
-  if (motivi.length === 0) return null;
-
   const impegno = entroScala(horizon.confidence);
   const grezzoOggi = monitor?.confidenceOggi;
-  const oggi =
+  const oggiGrezzo =
     typeof grezzoOggi === "number" && Number.isFinite(grezzoOggi)
       ? entroScala(grezzoOggi)
       : undefined;
+  const scostamento =
+    oggiGrezzo !== undefined && oggiGrezzo !== impegno ? oggiGrezzo : undefined;
+
+  const dichiarato = monitor?.confMotivo?.trim() || horizon.confMotivo?.trim();
+  const motivi: MotivoConfidenza[] = dichiarato
+    ? [{ testo: dichiarato, fonte: "dichiarato" }]
+    : /* Senza scostamento l'euristica può fare da ripiego; con uno scostamento
+         no, per la ragione spiegata sopra. */
+      scostamento === undefined
+      ? ragioniDelTaglio(horizon).map((r) => ({
+          testo: r.frase,
+          fonte: "estratto" as const,
+          pilastro: r.pilastro,
+        }))
+      : [];
+
+  const scostamentoNonMotivato = scostamento !== undefined && motivi.length === 0;
+  if (motivi.length === 0 && !scostamentoNonMotivato) return null;
 
   return {
     impegno,
     fasciaImpegno: fasciaConfidenza(impegno),
-    ...(oggi !== undefined && oggi !== impegno
+    ...(scostamento !== undefined
       ? {
-          oggi,
-          fasciaOggi: fasciaConfidenza(oggi),
-          delta: oggi - impegno,
+          oggi: scostamento,
+          fasciaOggi: fasciaConfidenza(scostamento),
+          delta: scostamento - impegno,
         }
       : {}),
     motivi,
+    scostamentoNonMotivato,
   };
 }
 
