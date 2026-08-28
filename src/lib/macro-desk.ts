@@ -10,7 +10,11 @@ import {
   versoJsonDesk,
   type ModificaRifiutata,
 } from "@/lib/macro-desk-impegno";
-import { controllaContratto, riassuntoRilievi } from "@/lib/macro-desk-contratto";
+import {
+  controllaContratto,
+  riassuntoRilievi,
+  type Rilievo,
+} from "@/lib/macro-desk-contratto";
 
 /**
  * Macro Desk: autorizzazione della route e upsert del report.
@@ -34,7 +38,10 @@ export function isAuthorizedMacroRequest(
 }
 
 /** Client minimo richiesto: consente di passare prisma reale o di test. */
-type MacroDeskDb = Pick<PrismaClient, "macroDeskReport">;
+type MacroDeskDb = Pick<
+  PrismaClient,
+  "macroDeskReport" | "macroDeskReportVersione"
+>;
 
 /**
  * Blocchi v2 opzionali → colonna Json. `undefined` (campo assente) diventa
@@ -123,6 +130,64 @@ async function impegnoDellaSettimana(
 }
 
 /**
+ * IL JOURNAL DELLE VERSIONI — scrive, e se non ci riesce non trascina giù nulla.
+ *
+ * ── Perché DOPO l'upsert e non prima ────────────────────────────────────
+ * La riga del journal punta al report con una chiave esterna, e per un report
+ * nuovo quell'id non esiste prima dell'upsert. Si potrebbe rinunciare alla
+ * chiave esterna e scrivere prima, ma sarebbe peggio: se poi l'upsert
+ * fallisse, resterebbe in archivio la versione di un report che non è mai
+ * stato salvato — una storia di qualcosa che non è successo. Meglio perdere
+ * una riga d'archivio che inventarne una.
+ *
+ * ── Perché non può far fallire l'upsert ─────────────────────────────────
+ * Il report è il dato VIVO: è ciò che la pagina mostra e che il desk non
+ * rispedisce. Il journal è archivio, e un archivio che impedisce di
+ * registrare il presente ha smesso di essere utile. Quindi l'errore si
+ * cattura, si logga e si dichiara — ma il 200 al mittente resta, perché il
+ * report c'è davvero.
+ *
+ * L'insuccesso torna come RILIEVO, cioè nel canale che chi spedisce già
+ * legge. Non si riscrive invece la colonna `rilieviContratto`: quella è già
+ * stata scritta dall'upsert, e una seconda scrittura per registrare che una
+ * scrittura è fallita è una rincorsa che può fallire a sua volta.
+ */
+async function registraVersione(
+  db: MacroDeskDb,
+  reportId: string,
+  input: MacroDeskReportInput,
+  rilievi: Rilievo[],
+): Promise<Rilievo[]> {
+  try {
+    await db.macroDeskReportVersione.create({
+      data: {
+        reportId,
+        generatedAt: new Date(input.generatedAt),
+        payload: input.payload as Prisma.InputJsonValue,
+        biasRecord: toJson(input.biasRecord),
+        monitor: toJson(input.monitor),
+        rilievi: rilievi.length > 0 ? toJson(rilievi) : Prisma.DbNull,
+      },
+    });
+    return [];
+  } catch (e: unknown) {
+    const motivo = e instanceof Error ? e.message : String(e);
+    console.error(
+      `[macro-desk] journal delle versioni NON scritto per ${input.type} ` +
+        `${input.reportDate}: ${motivo}`,
+    );
+    return [
+      {
+        campo: "journal",
+        problema:
+          "questa versione non è stata archiviata (il report è salvato lo " +
+          `stesso): ${motivo}`,
+      },
+    ];
+  }
+}
+
+/**
  * Upsert su (type, reportDate): il re-invio dello stesso report aggiorna la
  * riga esistente, mai duplicati. reportDate "YYYY-MM-DD" → mezzanotte UTC
  * (stessa convenzione di Note.dayDate).
@@ -183,7 +248,18 @@ export async function upsertMacroDeskReport(
     update: data,
     create: { type: input.type, reportDate, ...data },
   });
-  return { report, rifiutate: impegno.rifiutate, rilievi };
+
+  /* ARCHIVIO. Ogni arrivo lascia una riga, anche quando è identico al
+     precedente: sapere che il desk ha rispedito è a sua volta informazione, e
+     il costo è un JSON da ~45 KB per volta. Il fallimento qui non tocca il
+     report: torna come rilievo e basta. */
+  const dalJournal = await registraVersione(db, report.id, input, rilievi);
+
+  return {
+    report,
+    rifiutate: impegno.rifiutate,
+    rilievi: [...rilievi, ...dalJournal],
+  };
 }
 
 /** Colore semantico del bias: stessa codifica P&L dell'app. */

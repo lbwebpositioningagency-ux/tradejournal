@@ -486,10 +486,57 @@ model MacroDeskReport {
    */
   rilieviContratto  Json?
 
+  /**
+   * Storico append-only delle versioni arrivate per questo report.
+   * Relazione, non colonna: la riga di `MacroDeskReport` resta identica.
+   */
+  versioni MacroDeskReportVersione[]
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
   @@unique([type, reportDate])
+}
+
+/**
+ * IL JOURNAL DELLE VERSIONI — append-only, mai aggiornato, mai cancellato.
+ *
+ * L'upsert su (type, reportDate) e' idempotente per scelta e resta tale: il
+ * re-invio dello stesso giorno SOSTITUISCE la riga. Comodo e giusto per la
+ * lettura, ma il 28/08/2026 ha mostrato il costo: il report delle 04:22 e'
+ * sparito quando alle 14:59 e' arrivata la versione delle 14:46. Con lui sono
+ * sparite le prove del difetto (confidenza 44 contro 45 nel record, entita'
+ * HTML, news senza url) E la prova che il difetto era stato corretto.
+ *
+ * Questa tabella conserva OGNI arrivo. Nessuna lettura esistente la tocca:
+ * le pagine continuano a leggere `MacroDeskReport`, che resta la versione
+ * corrente. E' archivio, non sorgente.
+ *
+ * `arrivatoIl` non e' `generatedAt`: il primo dice quando la versione e'
+ * ENTRATA, il secondo quando il desk dichiara di averla prodotta. Sulla riga
+ * del 28/08 `createdAt` era rimasto alle 09:43 mentre `generatedAt` diceva
+ * 14:46 — una riga che non sapeva piu' dire quando era arrivata.
+ */
+model MacroDeskReportVersione {
+  id       String          @id @default(cuid())
+  reportId String
+  report   MacroDeskReport @relation(fields: [reportId], references: [id], onDelete: Cascade)
+
+  /** Istante dichiarato dal desk per QUESTA versione. */
+  generatedAt DateTime
+  /** Istante in cui la versione e' entrata: lo mette il database, non il desk. */
+  arrivatoIl  DateTime @default(now())
+
+  /** Il report completo di questa versione, come spedito. */
+  payload    Json
+  /** Blocchi v2 di questa versione; `null` quando non arrivano. */
+  biasRecord Json?
+  monitor    Json?
+  /** Rilievi della sentinella su QUESTA versione. */
+  rilievi    Json?
+
+  /** Lo storico di un report si legge in ordine di arrivo. */
+  @@index([reportId, arrivatoIl])
 }
 
 // ───────────────────────── COT (posizionamento futures) ─────────────────────────

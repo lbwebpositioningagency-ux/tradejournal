@@ -363,3 +363,124 @@ describe.skipIf(!hasDb)("impegno della domenica su Postgres", () => {
     expect(row.impegnoRifiutato).toBeNull();
   });
 });
+
+describe.skipIf(!hasDb)("il journal delle versioni", () => {
+  /* eslint-disable @typescript-eslint/no-explicit-any */
+  let prisma: any;
+  let upsertMacroDeskReport: any;
+  /* eslint-enable @typescript-eslint/no-explicit-any */
+  const where = { reportDate: new Date(`${TEST_DATE}T00:00:00.000Z`) };
+
+  beforeAll(async () => {
+    ({ prisma } = await import("@/lib/db"));
+    ({ upsertMacroDeskReport } = await import("@/lib/macro-desk"));
+    /* Le versioni se ne vanno in cascata col report: basta cancellare quello. */
+    await prisma.macroDeskReport.deleteMany({ where });
+  });
+
+  afterAll(async () => {
+    if (prisma) {
+      await prisma.macroDeskReport.deleteMany({ where });
+      await prisma.$disconnect();
+    }
+  });
+
+  const versioni = async (reportId: string) =>
+    prisma.macroDeskReportVersione.findMany({
+      where: { reportId },
+      orderBy: { arrivatoIl: "asc" },
+    });
+
+  it("ogni arrivo lascia una riga, e la riga del report resta UNA", async () => {
+    const primo = await upsertMacroDeskReport(
+      prisma,
+      input({ summary: "prima", payload: { v: 1 }, generatedAt: "2026-08-28T04:22:05Z" }),
+    );
+    const secondo = await upsertMacroDeskReport(
+      prisma,
+      input({ summary: "seconda", payload: { v: 2 }, generatedAt: "2026-08-28T14:46:03Z" }),
+    );
+    expect(secondo.report.id).toBe(primo.report.id);
+
+    const righe = await prisma.macroDeskReport.findMany({ where });
+    expect(righe).toHaveLength(1);
+
+    /* IL PUNTO DI TUTTO IL LAVORO: la versione delle 04:22 non è più sparita.
+       Il 28/08/2026 lo era, e con lei le prove del difetto e della correzione. */
+    const storico = await versioni(primo.report.id);
+    expect(storico).toHaveLength(2);
+    expect(storico[0].payload).toEqual({ v: 1 });
+    expect(storico[1].payload).toEqual({ v: 2 });
+    expect(storico[0].generatedAt.toISOString()).toBe("2026-08-28T04:22:05.000Z");
+    expect(storico[1].generatedAt.toISOString()).toBe("2026-08-28T14:46:03.000Z");
+    // e la riga viva è l'ultima versione
+    expect(righe[0].payload).toEqual({ v: 2 });
+  });
+
+  it("`arrivatoIl` è l'istante REALE d'ingresso, non quello dichiarato dal desk", async () => {
+    const prima = new Date();
+    const { report } = await upsertMacroDeskReport(
+      prisma,
+      /* Un `generatedAt` di mesi fa: se il journal copiasse quello, non
+         saprebbe dire quando la versione è entrata — che è esattamente il
+         difetto della riga del 28/08, ferma a `createdAt` delle 09:43. */
+      input({ payload: { v: 3 }, generatedAt: "2026-06-01T05:00:00Z" }),
+    );
+    const storico = await versioni(report.id);
+    const ultima = storico[storico.length - 1];
+    expect(ultima.generatedAt.toISOString()).toBe("2026-06-01T05:00:00.000Z");
+    expect(ultima.arrivatoIl.getTime()).toBeGreaterThanOrEqual(prima.getTime() - 1000);
+    expect(ultima.arrivatoIl.getTime()).toBeGreaterThan(ultima.generatedAt.getTime());
+  });
+
+  it("archivia anche i blocchi v2 e i rilievi della sentinella", async () => {
+    const { report, rilievi } = await upsertMacroDeskReport(
+      prisma,
+      input({
+        payload: { v: 4, news: [{ title: "senza provenienza", impl: "x" }] },
+        schemaVersion: 3,
+        monitor: { xau: { state: "stress", move_EM: -0.5 } },
+      }),
+    );
+    const storico = await versioni(report.id);
+    const ultima = storico[storico.length - 1];
+    expect(ultima.monitor).toEqual({ xau: { state: "stress", move_EM: -0.5 } });
+    // la sentinella ha visto qualcosa, e resta scritto anche nella versione
+    expect(rilievi.length).toBeGreaterThan(0);
+    expect(ultima.rilievi).not.toBeNull();
+  });
+
+  it("un report cancellato si porta via le sue versioni, non le lascia orfane", async () => {
+    const { report } = await upsertMacroDeskReport(prisma, input({ payload: { v: 5 } }));
+    expect((await versioni(report.id)).length).toBeGreaterThan(0);
+    await prisma.macroDeskReport.deleteMany({ where });
+    expect(await versioni(report.id)).toHaveLength(0);
+  });
+
+  it("se il journal fallisce, il report si salva LO STESSO e lo dichiara", async () => {
+    /* Il journal è archivio, il report è il dato vivo: un archivio che
+       impedisce di registrare il presente ha smesso di essere utile.
+       Si simula il guasto passando un client il cui `create` lancia. */
+    const dbRotto = {
+      macroDeskReport: prisma.macroDeskReport,
+      macroDeskReportVersione: {
+        create: async () => {
+          throw new Error("colonna sparita");
+        },
+      },
+    };
+    const esito = await upsertMacroDeskReport(dbRotto, input({ payload: { v: 6 } }));
+    expect(esito.report.id).toBeTruthy();
+
+    // il report c'è, con il payload nuovo
+    const righe = await prisma.macroDeskReport.findMany({ where });
+    expect(righe).toHaveLength(1);
+    expect(righe[0].payload).toEqual({ v: 6 });
+
+    // e il guasto non è silenzioso: torna dove i rilievi vanno già
+    const daJournal = esito.rilievi.find((r: { campo: string }) => r.campo === "journal");
+    expect(daJournal).toBeDefined();
+    expect(daJournal.problema).toContain("non è stata archiviata");
+    expect(daJournal.problema).toContain("colonna sparita");
+  });
+});
