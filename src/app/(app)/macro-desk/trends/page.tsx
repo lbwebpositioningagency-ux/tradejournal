@@ -21,6 +21,7 @@ import { cn } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
 import { MacroDeskSectionNav } from "@/components/macro-desk/section-nav";
 import { TrendsView } from "@/components/macro-desk/trends-view";
+import { GuidaTrends } from "@/components/macro-desk/guide-sezioni";
 
 export const metadata: Metadata = { title: "Trends Macro Desk" };
 
@@ -97,6 +98,12 @@ export default async function MacroTrendsPage() {
         </div>
         <MacroDeskSectionNav active="trends" />
       </div>
+
+      {/* Il riquadro «Come si legge questa sezione», chiuso: si legge una
+          volta, i dati si guardano ogni volta. Sta FUORI dal terminale e usa i
+          token dell'applicazione, quindi regge anche qui dove il contenitore è
+          `.macro-report`. */}
+      <GuidaTrends />
 
       {/* Terminale: identità visiva propria, scoped a .macro-report */}
       <div
