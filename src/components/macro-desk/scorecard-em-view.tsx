@@ -302,11 +302,17 @@ export function ScorecardEmView({
               ? `La prima settimana valutata parte dal ${trackRecordStart}.`
               : "La prima settimana valutabile arriverà col primo Weekly Bias Record."}
           </p>
-          <p className="mt-3 text-2xs" style={{ color: "var(--md-muted)" }}>
-            {excludedReports} report storici restano in archivio ma fuori dai
-            conteggi: prodotti con una metodologia diversa (valutazione
-            giornaliera close-to-close), non sono confrontabili con questi.
-          </p>
+          {/* La frase parla di report ESCLUSI: con zero esclusi non ha oggetto,
+              e «0 report storici restano in archivio» è una riga che occupa
+              spazio per non dire niente. Con l'archivio vuoto è esattamente
+              quello che compariva. */}
+          {excludedReports > 0 ? (
+            <p className="mt-3 text-2xs" style={{ color: "var(--md-muted)" }}>
+              {excludedReports} report storici restano in archivio ma fuori dai
+              conteggi: prodotti con una metodologia diversa (valutazione
+              giornaliera close-to-close), non sono confrontabili con questi.
+            </p>
+          ) : null}
         </div>
       ) : (
         <>
