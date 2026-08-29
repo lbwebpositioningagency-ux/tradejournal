@@ -1,20 +1,15 @@
 import { prisma } from "@/lib/db";
-import {
-  dataAChiave,
-  settimaneNonVerificabili,
-  type SettimanaNonVerificabile,
-} from "@/lib/macro-radar-testo";
+import { dataAChiave } from "@/lib/macro-radar-testo";
 
 /**
  * Radar di settore — letture per la pagina.
  *
  * Dato di istanza, non per utente: nessun filtro su userId (come Macro Desk e
- * COT). Le aggregazioni restano in SQL/Prisma: qui si caricano una settimana
- * per volta e, per il conteggio delle aree non verificabili, le sole colonne
- * `weekOf` e `area` — mai i report interi.
+ * COT). Le aggregazioni restano in SQL/Prisma: qui si carica una settimana per
+ * volta e, per lo storico navigabile, i soli conteggi — mai i report interi.
  */
 
-/** Quante settimane guardare all'indietro per il conteggio delle aree cieche. */
+/** Quante settimane guardare all'indietro nello storico navigabile. */
 const SETTIMANE_STORICO = 104;
 
 const ORDINE = { ordine: "asc" } as const;
@@ -74,30 +69,4 @@ export async function getRadarSettimane(): Promise<
     weekOf: dataAChiave(r.weekOf),
     voci: r._count.changes + r._count.readings,
   }));
-}
-
-/**
- * Da quante settimane consecutive ciascuna area della settimana corrente
- * risulta NON verificabile.
- *
- * Si leggono le sole coppie (settimana, area) — due colonne, niente report —
- * e il conteggio lo fa una funzione pura testata. È un conteggio di fatti
- * registrati, non un punteggio: serve a far emergere l'avviso che si ripete
- * identico, che altrimenti diventa rumore.
- */
-export async function getSettimaneCieche(
-  weekOfCorrente: string,
-): Promise<Map<string, number>> {
-  const righe = await prisma.radarReport.findMany({
-    orderBy: { weekOf: "desc" },
-    take: SETTIMANE_STORICO,
-    select: { weekOf: true, unverifiable: { select: { area: true } } },
-  });
-
-  const settimane: SettimanaNonVerificabile[] = righe.map((r) => ({
-    weekOf: dataAChiave(r.weekOf),
-    aree: r.unverifiable.map((u) => u.area),
-  }));
-
-  return settimaneNonVerificabili(settimane, weekOfCorrente);
 }

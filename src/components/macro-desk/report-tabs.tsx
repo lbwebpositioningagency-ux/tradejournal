@@ -885,7 +885,14 @@ function tagDaMostrare(tags: string[], categoria: MacroNewsCategory): string[] {
   return categoria === "global" ? tags : tags.filter((t) => t !== categoria);
 }
 
-function NewsCard({
+/**
+ * La scheda di UNA notizia. Esportata perché il Radar di settore la RIUSA
+ * così com'è (`radar-view.tsx`): il registro settimanale ha la stessa forma
+ * — voce con titolo, fonte, data, riga di sintesi e approfondimento chiuso —
+ * e ridisegnarla a parte significava due stili per la stessa cosa. Chi tocca
+ * questo componente tocca due sezioni: verificare anche il Radar.
+ */
+export function NewsCard({
   item,
   categoria,
   reportDate,

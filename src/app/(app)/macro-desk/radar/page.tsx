@@ -9,11 +9,7 @@ import { Badge } from "@/components/ui/badge";
 import { MacroDeskSectionNav } from "@/components/macro-desk/section-nav";
 import { RadarMaiArrivato, RadarView } from "@/components/macro-desk/radar-view";
 import { dataAChiave } from "@/lib/macro-radar-testo";
-import {
-  getRadarReport,
-  getRadarSettimane,
-  getSettimaneCieche,
-} from "@/lib/queries/macro-radar";
+import { getRadarReport, getRadarSettimane } from "@/lib/queries/macro-radar";
 import { GuidaRadar } from "@/components/macro-desk/guide-sezioni";
 
 export const metadata: Metadata = { title: "Radar · Macro Desk" };
@@ -60,10 +56,10 @@ export default async function MacroRadarPage({
     getRadarSettimane(),
   ]);
 
+  /* Il conteggio «non verificabile da N settimane» non si legge più: era il
+     dato della griglia delle sette aree, tolta il 29/08/2026. Le aree non
+     lette restano, come una riga in fondo alla lista, senza storicizzazione. */
   const weekOfCorrente = report ? dataAChiave(report.weekOf) : null;
-  const cieche = weekOfCorrente
-    ? await getSettimaneCieche(weekOfCorrente)
-    : new Map<string, number>();
 
   return (
     <div className="flex flex-col gap-4">
@@ -114,7 +110,6 @@ export default async function MacroRadarPage({
             report={report}
             settimane={settimane}
             weekOfCorrente={weekOfCorrente}
-            settimaneCieche={Object.fromEntries(cieche)}
           />
         )}
       </div>

@@ -3,6 +3,7 @@ import { renderToStaticMarkup } from "react-dom/server";
 
 import { RADAR_COLLAUDO_2026_08_23 } from "@/lib/macro-radar.fixture";
 import { righeDaPayload } from "@/lib/macro-radar";
+import { listaRadar } from "@/lib/macro-radar-news";
 import { radarReportSchema } from "@/lib/validations/macro-radar";
 import type { RadarReportCompleto } from "@/lib/queries/macro-radar";
 import { RadarMaiArrivato, RadarView } from "./radar-view";
@@ -11,9 +12,11 @@ import { RadarMaiArrivato, RadarView } from "./radar-view";
  * Rendering del Radar senza DOM (renderToStaticMarkup), come per il pannello
  * COT e il termometro.
  *
- * I vincoli verificati qui sono quelli che l'audit ha messo per iscritto:
- * niente contenuto ripetuto, sette aree sempre visibili, «vuota» e «fonte non
- * letta» inequivocabili anche senza colore, e nessun verdetto calcolato.
+ * Dal 29/08/2026 il Radar RIUSA `NewsCard`: quello che qui si verifica non è
+ * più un impaginato proprio, ma che la mappatura verso quel componente non
+ * perda niente e non duplichi niente. In particolare la DEDUPLICA di `top[]`,
+ * che era la trappola: quelle voci non sono voci in più, sono le stesse di
+ * `items[]` che hanno un'azione conseguente.
  */
 
 function reportDa(payload: unknown): RadarReportCompleto {
@@ -47,16 +50,12 @@ function collaudo(modifiche: Record<string, unknown> = {}): RadarReportCompleto 
   });
 }
 
-function rendi(
-  report: RadarReportCompleto,
-  settimaneCieche: Record<string, number> = { B: 1, C: 1, F: 1 },
-): string {
+function rendi(report: RadarReportCompleto): string {
   return renderToStaticMarkup(
     <RadarView
       report={report}
       settimane={[{ weekOf: "2026-08-23", voci: 4 }]}
       weekOfCorrente="2026-08-23"
-      settimaneCieche={settimaneCieche}
     />,
   );
 }
@@ -66,297 +65,198 @@ function quante(html: string, ago: string): number {
   return html.split(ago).length - 1;
 }
 
-// ═══════════════════════ 1 — la duplicazione ═══════════════════════
+// ═══════════════════ 1 — la deduplica di top[] ═══════════════════
 
-describe("RadarView — niente più contenuto scritto due volte", () => {
-  const html = rendi(collaudo());
+describe("RadarView — top[] non aggiunge voci, aggiunge azioni", () => {
+  const report = collaudo();
+  const html = rendi(report);
+  const lista = listaRadar(report);
 
-  it("il blocco «Le cose che contano» non esiste più", () => {
-    expect(html).not.toContain("Le cose che contano");
+  it("il payload del 27/08 rende QUATTRO schede, non sei", () => {
+    const voci = lista.gruppi.reduce((n, g) => n + g.items.length, 0);
+    expect(voci).toBe(4);
+    // Due delle quattro sono in `top[]`: se il merge non fosse avvenuto ne
+    // uscirebbero sei.
+    expect(report.highlights).toHaveLength(2);
   });
 
-  it("l'azione conseguente compare UNA volta sola, sulla riga della voce", () => {
-    expect(quante(html, "Verificare con il broker")).toBe(1);
-    expect(html).toContain("Cosa fare");
+  it("nessuna evidenza resta orfana", () => {
+    expect(lista.orfane).toEqual([]);
   });
 
-  it("il titolo della voce in evidenza compare una volta sola", () => {
-    // Prima c'erano due titoli diversi per lo stesso fatto: quello della
-    // scheda e quello della riga. Ora resta solo quello del registro.
-    expect(quante(html, "listing dei futures E-nano")).toBe(1);
+  it("i titoli di top[] non compaiono: valgono quelli del registro", () => {
     expect(html).not.toContain("CME lancia gli E-nano");
+    expect(html).not.toContain("FTMO aggiunge TradingView");
+    expect(quante(html, "listing dei futures E-nano")).toBe(1);
   });
 
-  it("le voci in evidenza vengono per prime: è l'ordine dichiarato dal task", () => {
-    const tabella = html.slice(html.indexOf("Cosa è cambiato"));
-    const cme = tabella.indexOf("listing dei futures E-nano");
-    const tv = tabella.indexOf("alert su rettangolo");
-    expect(cme).toBeGreaterThan(-1);
-    expect(tv).toBeGreaterThan(cme);
+  it("l'azione conseguente compare UNA volta, dentro l'approfondimento", () => {
+    expect(quante(html, "Verificare con il broker")).toBe(1);
+    expect(quante(html, "Cosa fare: ")).toBe(2);
   });
 
-  it("una voce senza evidenza non porta né spillo né azione", () => {
+  it("ogni cambiamento dichiara la sua entrata in vigore, anche quando manca", () => {
+    // Quattro cambiamenti, quattro righe: tre con una data, una che dice a
+    // voce alta di non averla. Il silenzio si leggerebbe «già in vigore».
+    expect(quante(html, "In vigore dal: ")).toBe(4);
+    expect(quante(html, "In vigore dal: non ancora dichiarata")).toBe(1);
+  });
+
+  it("una voce senza evidenza non porta nessuna nota operativa", () => {
     const senza = rendi(collaudo({ top: [] }));
-    expect(senza).not.toContain("Cosa fare");
-    // L'intestazione della colonna resta (è la colonna dello spillo), ma
-    // nessuna riga porta lo spillo.
-    expect(senza).not.toContain("porta un&#x27;azione conseguente");
+    expect(senza).not.toContain("Cosa fare: ");
+    // …ma le quattro voci restano tutte.
+    expect(senza).toContain("listing dei futures E-nano");
+    expect(senza).toContain("alert su rettangolo");
   });
 });
 
-// ═══════════════════ 2/5 — aree a parole, mai lettere ═══════════════════
+// ═══════════════════ 2 — la forma è quella di News ═══════════════════
 
-describe("RadarView — le aree si chiamano per nome", () => {
+describe("RadarView — riusa la scheda News, non ne inventa una", () => {
   const html = rendi(collaudo());
 
-  it("mostra le parole", () => {
-    for (const parola of [
-      "Prop firm",
-      "Borse",
-      "Broker",
-      "Regole",
-      "Piattaforme",
-      "Dati",
-      "Ricerca",
-    ]) {
-      expect(html, parola).toContain(parola);
-    }
+  it("ogni voce con testo esteso ha il comando «Approfondimento»", () => {
+    expect(quante(html, "Approfondimento")).toBe(4);
   });
 
-  it("non mostra mai la vecchia forma con la sigla davanti", () => {
-    for (const vecchia of [
-      "B · Borse",
-      "C · Broker",
-      "D · Regolamentazione",
-      "G · Letture e ricerca",
-    ]) {
-      expect(html, vecchia).not.toContain(vecchia);
-    }
-  });
-});
-
-// ═══════════════ 1b — le sette aree ci sono sempre tutte ═══════════════
-
-describe("RadarView — nessuna area può sparire in silenzio", () => {
-  it("mostra tutte e sette le aree anche quando il payload ne dichiara meno", () => {
-    // Un report già a database, scritto prima che il confine lo vietasse.
-    const monco = collaudo();
-    const html = rendi({
-      ...monco,
-      emptyAreas: [],
-      unverifiable: [],
-    } as RadarReportCompleto);
-
-    for (const parola of [
-      "Prop firm",
-      "Borse",
-      "Broker",
-      "Regole",
-      "Piattaforme",
-      "Dati",
-      "Ricerca",
-    ]) {
-      expect(html, parola).toContain(parola);
-    }
-    // Le quattro aree senza voci risultano NON DICHIARATE, non vuote.
-    expect(quante(html, "non dichiarata")).toBeGreaterThanOrEqual(4);
-    expect(html).toContain("non dice niente di quest");
-  });
-
-  it("«non dichiarata» è distinta da «nessuna novità», e non è ambra", () => {
-    const monco = collaudo();
-    const html = rendi({
-      ...monco,
-      emptyAreas: [],
-      unverifiable: [],
-    } as RadarReportCompleto);
-    // Rosso: è un buco nel registro, non uno stato del mondo.
-    expect(html).toContain("border-left:3px solid var(--md-down)");
-  });
-
-  it("con un payload completo nessuna area risulta non dichiarata", () => {
-    const html = rendi(collaudo());
-    expect(html).not.toContain("non dichiarate");
-  });
-});
-
-// ═══════════════ vuota ≠ non letta, anche senza colore ═══════════════
-
-describe("RadarView — vuota e non letta restano inequivocabili", () => {
-  const html = rendi(collaudo());
-
-  it("ogni stato porta la sua PAROLA, non solo il suo colore", () => {
-    expect(html).toContain("fonte non letta");
-    expect(html).toContain("nessuna novità");
-  });
-
-  it("le tre aree non lette portano il motivo per esteso", () => {
-    expect(html).toContain("non espone l&#x27;elenco");
-    expect(html).toContain("nessun canale di annunci ufficiale enumerabile");
-  });
-
-  it("solo le aree non lette hanno il bordo d'allarme", () => {
-    // Tre non verificabili (B, C, F) e nessun'altra.
-    expect(quante(html, "border-left:3px solid var(--md-warn)")).toBe(3);
-  });
-
-  it("la pagina dice a parole che «non letta» non è «nessuna novità»", () => {
-    expect(html).toContain("non vuol dire");
-    expect(html).toContain("non si sa nulla");
-  });
-
-  it("un'area non letta può portare comunque una voce, e lo dice", () => {
-    expect(html).toContain("voce trovata");
-  });
-});
-
-describe("RadarView — l'avviso che si ripete deve saltare all'occhio", () => {
-  it("alla prima settimana non mostra il conteggio: non direbbe nulla", () => {
-    expect(rendi(collaudo(), { B: 1, C: 1, F: 1 })).not.toContain("da 1 settimane");
-  });
-
-  it("ripetuta, l'area porta il conteggio e un contorno che la stacca", () => {
-    const html = rendi(collaudo(), { B: 1, C: 5, F: 2 });
-    expect(html).toContain("da 5 settimane");
-    expect(html).toContain("da 2 settimane");
-    expect(html).toContain("outline:1px solid var(--md-warn)");
-  });
-
-  it("lo stato delle aree sta PRIMA della tabella, non in fondo alla pagina", () => {
-    const html = rendi(collaudo());
-    expect(html.indexOf("Le sette aree")).toBeLessThan(html.indexOf("Cosa è cambiato"));
-  });
-});
-
-// ═══════════════════════ 3/4/6 — la tabella ═══════════════════════
-
-describe("RadarView — la tabella è tornata una tabella", () => {
-  const html = rendi(collaudo());
-
-  it("ha le cinque colonne, e «Impatto» non è più una di esse", () => {
-    for (const colonna of ["Area", "Cambiamento", "Chi", "In vigore dal", "Fonte"]) {
-      expect(html, colonna).toContain(`>${colonna}<`);
-    }
-    expect(html).not.toContain(">Impatto<");
-    expect(html).not.toContain(">Cosa è cambiato</th>");
-  });
-
-  it("il paragrafo sta dietro un'apertura, non nella cella", () => {
-    // Quattro voci, quattro dettagli richiudibili.
-    expect(quante(html, "<details")).toBeGreaterThanOrEqual(4);
-    expect(quante(html, "+ dettaglio")).toBeGreaterThanOrEqual(4);
-  });
-
-  it("la cella regge un titolo lungo: va a capo, non tronca e non sborda", () => {
-    const lungo = JSON.parse(
-      JSON.stringify(RADAR_COLLAUDO_2026_08_23),
-    ) as Record<string, unknown>;
-    (lungo.items as Record<string, unknown>[])[0].title =
-      "CME Group annuncia il listing iniziale dei futures E-nano su S&P 500, Nasdaq-100, Russell 2000 e Dow Jones Industrial Average con negoziazione continua su Globex e accesso tramite broker registrati";
-    const conLungo = rendi(reportDa(lungo));
-    // Nessun troncamento: il titolo intero è in pagina.
-    expect(conLungo).toContain("accesso tramite broker registrati");
-    // La cella ha un tetto di larghezza e spezza anche un token infinito.
-    expect(conLungo).toContain("max-w-[34rem]");
-    expect(conLungo).toContain("overflow-wrap:anywhere");
-  });
-
-  it("la fonte è l'ente, e il nome intero resta nel titolo del link", () => {
-    expect(html).toContain(">CME Group<");
-    expect(html).toContain('title="CME Group - Special Executive Report SER-9789 (24 ago 2026)"');
-    // Il nome lungo non è più il testo del link.
-    expect(html).not.toContain(">CME Group - Special Executive Report SER-9789 (24 ago 2026)<");
+  it("il titolo è un link alla fonte, come nella sezione News", () => {
+    expect(html).toContain(
+      'href="https://www.cmegroup.com/notices/ser/2026/08/ser-9789.html"',
+    );
     expect(html).toContain('rel="noopener noreferrer"');
   });
 
-  it("una voce senza data di efficacia lo dice, non lascia un buco", () => {
-    expect(html).toContain("non dichiarata");
+  it("non reintroduce gli elementi che la sezione News non ha", () => {
+    // Nessuna tabella, nessun chip mono di stato, nessuno spillo.
+    expect(html).not.toContain("<table");
+    expect(html).not.toContain("annunciato</span>");
+    expect(html).not.toContain("In evidenza");
+  });
+
+  it("l'ente della fonte è il chip in testa alla scheda", () => {
+    expect(html).toContain("CME Group");
+    expect(html).toContain("FTMO");
+    // Il nome completo della circolare NON sta nel chip: sarebbe una riga da
+    // cinquanta caratteri.
+    expect(html).not.toContain("Special Executive Report SER-9789 (24 ago 2026)");
   });
 });
 
-// ═══════════════════════ 4 — il caveat ═══════════════════════
+// ═══════════════════ 3 — i gruppi ═══════════════════
 
-describe("RadarView — il limite di lettura è distinto dalla conseguenza", () => {
-  it("rende il caveat con la sua etichetta, separato dall'impatto", () => {
-    const con = JSON.parse(
+describe("RadarView — le aree sono i gruppi, nell'ordine A-G", () => {
+  const report = collaudo();
+  const html = rendi(report);
+  const lista = listaRadar(report);
+
+  it("un gruppo per area con voci, e nessun gruppo vuoto", () => {
+    expect(lista.gruppi.map((g) => g.label)).toEqual([
+      "Prop firm",
+      "Borse",
+      "Piattaforme",
+    ]);
+  });
+
+  it("le aree si chiamano per nome, mai con la lettera", () => {
+    for (const parola of ["Prop firm", "Borse", "Piattaforme"]) {
+      expect(html).toContain(parola);
+    }
+    expect(html).not.toContain(">B<");
+  });
+
+  it("dentro un gruppo le voci scendono per data d'annuncio", () => {
+    const piattaforme = lista.gruppi.find((g) => g.label === "Piattaforme");
+    expect(piattaforme?.items.map((i) => i.when)).toEqual([
+      "2026-08-21",
+      "2026-08-14",
+    ]);
+  });
+
+  it("una voce senza area finisce in fondo, nel gruppo «Altro»", () => {
+    const conWatch = collaudo({
+      watchlist: [
+        {
+          id: "osservazione-senza-area",
+          title: "Annuncio senza data di efficacia",
+          note: "In attesa di una data.",
+        },
+      ],
+    });
+    const gruppi = listaRadar(conWatch).gruppi;
+    expect(gruppi.at(-1)?.label).toBe("Altro");
+    expect(gruppi.at(-1)?.items).toHaveLength(1);
+  });
+});
+
+// ═══════════════════ 4 — la copertura delle fonti ═══════════════════
+
+describe("RadarView — le due righe in fondo", () => {
+  it("elenca le aree vuote e quelle non lette, senza il motivo", () => {
+    const html = rendi(collaudo());
+    // `emptyAreas` del run vero è ["D", "G"] — Regole e Ricerca.
+    expect(html).toContain("Aree guardate senza novità: Regole, Ricerca.");
+    expect(html).toContain(
+      "Non è stato possibile leggere l&#x27;elenco completo di: Borse, Broker, Dati.",
+    );
+    // Il `reason` resta nelle note del run, non in questa riga.
+    expect(html).not.toContain("non espone l&#x27;elenco; documento raggiunto");
+  });
+
+  it("se tutte le aree sono state lette, la riga non compare", () => {
+    const html = rendi(
+      collaudo({ emptyAreas: ["C", "D", "F", "G"], unverifiableAreas: [] }),
+    );
+    expect(html).not.toContain("Non è stato possibile leggere");
+    expect(html).toContain("Aree guardate senza novità:");
+  });
+
+  it("la griglia delle sette aree e la legenda in prosa non esistono più", () => {
+    const html = rendi(collaudo());
+    expect(html).not.toContain("Le sette aree");
+    expect(html).not.toContain("fonte non letta");
+    expect(html).not.toContain("non dichiarata");
+    expect(html).not.toContain("In osservazione");
+    expect(html).not.toContain("Letture");
+  });
+});
+
+// ═══════════════════ 5 — quante voci sono, il layout regge ═══════════════════
+
+describe("RadarView — il numero di voci è variabile", () => {
+  it("una voce sola: nessun gruppo vuoto, nessun buco", () => {
+    const payload = JSON.parse(
       JSON.stringify(RADAR_COLLAUDO_2026_08_23),
     ) as Record<string, unknown>;
-    const voce = (con.items as Record<string, unknown>[])[0];
-    voce.impact = "Nuovo scalino di size sotto i Micro sugli indici USA.";
-    voce.caveat =
-      "Tick size, valore del tick e margini non sono indicati nelle pagine pubbliche consultate.";
-
-    const html = rendi(reportDa(con));
-    expect(html).toContain("Conseguenza:");
-    expect(html).toContain("Limite di lettura:");
-    expect(html).toContain("non sono indicati nelle pagine pubbliche consultate");
-    // Sono due blocchi diversi, non due frasi nello stesso.
-    expect(html.indexOf("Conseguenza:")).toBeLessThan(html.indexOf("Limite di lettura:"));
-  });
-
-  it("senza caveat non compare l'etichetta", () => {
-    expect(rendi(collaudo())).not.toContain("Limite di lettura:");
-  });
-});
-
-// ═══════════════════════ 7/8 — colore e conteggio ═══════════════════════
-
-describe("RadarView — l'ambra vuol dire una cosa sola", () => {
-  it("lo stato «annunciato» non è più ambra", () => {
-    const html = rendi(collaudo());
-    expect(html).toContain("annunciato");
-    // L'ambra resta solo dove c'è l'allarme: tre aree non lette.
-    expect(quante(html, "var(--md-warn)")).toBe(quante(html, "var(--md-warn)"));
-    const tabella = html.slice(
-      html.indexOf("Cosa è cambiato"),
-      html.indexOf("In osservazione"),
-    );
-    expect(tabella).not.toContain("var(--md-warn)");
-  });
-
-  it("«attivo» resta verde: è uno stato del mondo, non un allarme", () => {
-    expect(rendi(collaudo())).toContain("var(--md-up)");
-  });
-});
-
-describe("RadarView — il conteggio dei giorni", () => {
-  it("la finestra estesa del collaudo fa quindici giorni, non quattordici", () => {
-    const html = rendi(collaudo());
-    expect(html).toContain("13 ago – 27 ago 2026");
-    expect(html).toContain("15 giorni");
-    expect(html).toContain("estesa");
-  });
-
-  it("una settimana piena fa sette giorni, non sei", () => {
+    const items = (payload.items as unknown[]).slice(0, 1);
     const html = rendi(
       collaudo({
-        coverage: { from: "2026-08-17", to: "2026-08-23", extended: false },
+        items,
+        top: [],
+        // Le altre sei aree vanno dichiarate, o lo schema rifiuta il payload.
+        emptyAreas: ["A", "C", "D", "E", "F", "G"],
+        unverifiableAreas: [],
       }),
     );
-    expect(html).toContain("7 giorni");
-    expect(html).not.toContain("6 giorni");
-    expect(html).not.toContain("estesa");
+    expect(quante(html, "Approfondimento")).toBe(1);
+    expect(html).toContain("Borse");
+    expect(html).not.toContain("Piattaforme</h3>");
+  });
+
+  it("nessuna voce: lo stato vuoto della sezione, non una pagina muta", () => {
+    const html = rendi(
+      collaudo({
+        items: [],
+        top: [],
+        emptyAreas: ["A", "B", "C", "D", "E", "F", "G"],
+        unverifiableAreas: [],
+      }),
+    );
+    expect(html).toContain("Registro della settimana non disponibile");
   });
 });
 
-// ═══════════════════════ Round-26 ═══════════════════════
-
-describe("RadarView — fatti, non verdetti", () => {
-  it("nessuna probabilità, nessun punteggio, nessun giudizio calcolato", () => {
-    const testo = rendi(collaudo()).replace(/<[^>]*>/g, " ").toLowerCase();
-    for (const parola of [
-      "probabilit",
-      "punteggio",
-      "score",
-      "rilevanza",
-      "previsione",
-      "raccomandazione",
-      "%",
-    ]) {
-      expect(testo, `la pagina non deve contenere «${parola}»`).not.toContain(parola);
-    }
-  });
-});
+// ═══════════════════ 6 — nessun registro ═══════════════════
 
 describe("RadarMaiArrivato", () => {
   it("dice che non è mai arrivato niente, non che non è cambiato niente", () => {

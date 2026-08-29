@@ -5,8 +5,6 @@ import {
   etichettaArea,
   giorniFinestra,
   normalizzaAccenti,
-  settimaneNonVerificabili,
-  statoDelleAree,
 } from "./macro-radar-testo";
 
 /** "YYYY-MM-DD" → Date a mezzanotte UTC, come le colonne @db.Date. */
@@ -129,96 +127,5 @@ describe("giorniFinestra", () => {
   it("regge il confine di mese e di anno", () => {
     expect(giorniFinestra(d("2026-08-31"), d("2026-09-01"))).toBe(2);
     expect(giorniFinestra(d("2026-12-28"), d("2027-01-03"))).toBe(7);
-  });
-});
-
-describe("statoDelleAree", () => {
-  const base = {
-    vociPerArea: { A: 2, B: 1 },
-    vuote: ["D", "E"],
-    cieche: [{ area: "C", reason: "nessun canale enumerabile" }],
-    settimaneCieche: { C: 4 },
-  };
-
-  it("torna SEMPRE tutte e sette le aree, in ordine", () => {
-    const aree = statoDelleAree(base);
-    expect(aree.map((a) => a.area)).toEqual(["A", "B", "C", "D", "E", "F", "G"]);
-  });
-
-  it("l'area che il payload non nomina risulta NON DICHIARATA, non vuota", () => {
-    const aree = statoDelleAree(base);
-    const f = aree.find((a) => a.area === "F")!;
-    const g = aree.find((a) => a.area === "G")!;
-    // È il difetto più grave dell'audit: prima F e G sparivano e basta.
-    expect(f.dichiarata).toBe(false);
-    expect(f.vuota).toBe(false);
-    expect(g.dichiarata).toBe(false);
-  });
-
-  it("un'area vuota è dichiarata, e non va confusa con una non dichiarata", () => {
-    const d1 = statoDelleAree(base).find((a) => a.area === "D")!;
-    expect(d1.vuota).toBe(true);
-    expect(d1.dichiarata).toBe(true);
-    expect(d1.cieca).toBeNull();
-  });
-
-  it("un'area cieca porta il motivo e da quante settimane lo è", () => {
-    const c = statoDelleAree(base).find((a) => a.area === "C")!;
-    expect(c.cieca).toEqual({ motivo: "nessun canale enumerabile", settimane: 4 });
-  });
-
-  it("cieca E con voci convivono: si può trovare qualcosa senza vedere l'elenco", () => {
-    const aree = statoDelleAree({
-      ...base,
-      vociPerArea: { ...base.vociPerArea, C: 1 },
-    });
-    const c = aree.find((a) => a.area === "C")!;
-    expect(c.cieca).not.toBeNull();
-    expect(c.voci).toBe(1);
-  });
-
-  it("un'area fuori dalle sette non viene persa: si aggiunge in coda", () => {
-    const aree = statoDelleAree({ ...base, vuote: [...base.vuote, "H"] });
-    expect(aree.map((a) => a.area)).toEqual(["A", "B", "C", "D", "E", "F", "G", "H"]);
-  });
-});
-
-describe("settimaneNonVerificabili", () => {
-  const settimane = [
-    { weekOf: "2026-09-06", aree: ["B", "C"] },
-    { weekOf: "2026-08-30", aree: ["B", "C", "F"] },
-    { weekOf: "2026-08-23", aree: ["B", "C", "F"] },
-    { weekOf: "2026-08-16", aree: ["C"] },
-  ];
-
-  it("conta le settimane consecutive all'indietro dalla corrente", () => {
-    const conteggi = settimaneNonVerificabili(settimane, "2026-09-06");
-    // B: cieca il 6, il 30 e il 23; il 16 no → 3.
-    expect(conteggi.get("B")).toBe(3);
-    // C: cieca in tutte e quattro.
-    expect(conteggi.get("C")).toBe(4);
-  });
-
-  it("un'area verificabile nella settimana corrente non compare", () => {
-    const conteggi = settimaneNonVerificabili(settimane, "2026-09-06");
-    expect(conteggi.has("F")).toBe(false);
-  });
-
-  it("la catena si spezza e non riparte: una lettura riuscita azzera", () => {
-    // Guardando dal 30, F è cieca il 30 e il 23 ma non il 16 → 2.
-    const conteggi = settimaneNonVerificabili(settimane, "2026-08-30");
-    expect(conteggi.get("F")).toBe(2);
-  });
-
-  it("la prima settimana in assoluto vale 1, non 0: è comunque una settimana", () => {
-    const conteggi = settimaneNonVerificabili(
-      [{ weekOf: "2026-08-23", aree: ["B"] }],
-      "2026-08-23",
-    );
-    expect(conteggi.get("B")).toBe(1);
-  });
-
-  it("una settimana sconosciuta non produce conteggi inventati", () => {
-    expect(settimaneNonVerificabili(settimane, "2026-07-05").size).toBe(0);
   });
 });

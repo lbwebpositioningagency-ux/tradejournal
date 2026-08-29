@@ -129,24 +129,26 @@ export function GuidaRadar() {
         <strong>Fatti e fonti</strong>: qui non si stima e non si giudica.
       </p>
 
-      <VoceGuida titolo="«Fonte non letta» non vuol dire «nessuna novità»">
-        Vuol dire che di quell&apos;area, quella settimana, non si sa nulla —
-        perché la fonte non era enumerabile. Può comunque portare una voce nel
-        registro: qualcosa è stato trovato, ma senza poter guardare
-        l&apos;elenco completo.
+      <VoceGuida titolo="Le due righe in fondo">
+        La prima elenca le aree guardate che non hanno prodotto novità. La
+        seconda quelle di cui non si è potuto leggere l&apos;elenco completo:
+        non è la stessa cosa — di quelle, quella settimana, non si sa nulla.
+        Un&apos;area può comparire lì e portare comunque una voce: qualcosa è
+        stato trovato, ma senza poter guardare tutto.
       </VoceGuida>
 
       <VoceGuida titolo="«Cosa fare»">
-        Compare solo dove il cambiamento porta un&apos;azione conseguente per
-        chi opera. Dove non c&apos;è, il cambiamento è registrato e basta: non
-        ogni notizia richiede di fare qualcosa.
+        Sta dentro l&apos;approfondimento, e solo dove il cambiamento porta
+        un&apos;azione conseguente per chi opera. Dove non c&apos;è, il
+        cambiamento è registrato e basta: non ogni notizia richiede di fare
+        qualcosa.
       </VoceGuida>
 
-      <VoceGuida titolo="«In vigore dal» e «annunciato il»">
-        Sono due date diverse e servono a due cose diverse. Quella che conta per
-        operare è la prima; quando manca è scritto{" "}
-        <strong>non dichiarata</strong>, invece di essere sostituita con la
-        seconda.
+      <VoceGuida titolo="Le due date">
+        Quella sulla scheda è il giorno dell&apos;annuncio. Quella che conta per
+        operare — <strong>in vigore dal</strong> — sta nell&apos;approfondimento
+        e compare solo quando il report la dichiara: non viene mai sostituita
+        con la prima.
       </VoceGuida>
 
       <RimandoGuida />
