@@ -22,7 +22,7 @@ import {
 describe("perditaContinuita", () => {
   it("una serie che cresce e non ha buchi non è una perdita", () => {
     expect(
-      perditaContinuita({ primaDelGiro: 8256, dopoIlGiro: 8260, mesiVuoti: [] }),
+      perditaContinuita({ primaDelGiro: 8256, dopoIlGiro: 8260, mesiPersi: [], mesiVuoti: [] }),
     ).toBeNull();
   });
 
@@ -30,7 +30,7 @@ describe("perditaContinuita", () => {
     const m = perditaContinuita({
       primaDelGiro: 8256,
       dopoIlGiro: 7944,
-      mesiVuoti: [],
+      mesiPersi: [], mesiVuoti: [],
     });
     expect(m).toContain("8256");
     expect(m).toContain("7944");
@@ -44,6 +44,7 @@ describe("perditaContinuita", () => {
     const m = perditaContinuita({
       primaDelGiro: 8256,
       dopoIlGiro: 8300,
+      mesiPersi: ["2005-01", "2005-02", "2005-03"],
       mesiVuoti: ["2005-01", "2005-02", "2005-03"],
     });
     expect(m).not.toBeNull();
@@ -58,6 +59,7 @@ describe("perditaContinuita", () => {
     const m = perditaContinuita({
       primaDelGiro: 8256,
       dopoIlGiro: 8300,
+      mesiPersi: dodici,
       mesiVuoti: dodici,
     });
     expect(m).toContain("12 mesi");
@@ -66,16 +68,44 @@ describe("perditaContinuita", () => {
 
   it("il primo giro di una serie non è una regressione", () => {
     expect(
-      perditaContinuita({ primaDelGiro: 0, dopoIlGiro: 4584, mesiVuoti: [] }),
+      perditaContinuita({ primaDelGiro: 0, dopoIlGiro: 4584, mesiPersi: [], mesiVuoti: [] }),
     ).toBeNull();
   });
 
   it("una serie ferma sullo stesso conteggio non è una perdita", () => {
     expect(
-      perditaContinuita({ primaDelGiro: 500, dopoIlGiro: 500, mesiVuoti: [] }),
+      perditaContinuita({ primaDelGiro: 500, dopoIlGiro: 500, mesiPersi: [], mesiVuoti: [] }),
     ).toBeNull();
   });
 
+
+  it("i buchi che la fonte NON HA MAI AVUTO non fanno rosso", () => {
+    /* Misurato il 29/08/2026: Dukascopy non restituisce il 2002 dell'oro, e
+       non l'ha mai restituito. Con la vecchia regola assoluta il cron sarebbe
+       stato rosso ogni notte per un fatto del mondo — e una sentinella che
+       suona sempre viene spenta. Il mese vuoto si dichiara, non fallisce. */
+    expect(
+      perditaContinuita({
+        primaDelGiro: 7000,
+        dopoIlGiro: 7540,
+        mesiPersi: [],
+        mesiVuoti: ["2002-01", "2002-02"],
+      }),
+    ).toBeNull();
+  });
+
+  it("ma un mese che PRIMA aveva sedute e ora no resta un fallimento", () => {
+    const m = perditaContinuita({
+      primaDelGiro: 7000,
+      dopoIlGiro: 7540,
+      mesiPersi: ["2022-06"],
+      mesiVuoti: ["2002-01", "2022-06"],
+    });
+    expect(m).not.toBeNull();
+    expect(m).toContain("2022-06");
+    /* Il messaggio parla di ciò che si è PERSO, non dei buchi della fonte. */
+    expect(m).not.toContain("2002-01");
+  });
   it("senza contabilità non si inventa un verdetto", () => {
     expect(perditaContinuita(undefined)).toBeNull();
   });
@@ -94,7 +124,7 @@ describe("la continuità entra nella verifica di esito del job", () => {
         conContinuita("XAUUSD", {
           primaDelGiro: 8256,
           dopoIlGiro: 7944,
-          mesiVuoti: [],
+          mesiPersi: [], mesiVuoti: [],
         }),
       ],
     );
@@ -110,6 +140,7 @@ describe("la continuità entra nella verifica di esito del job", () => {
         conContinuita("XAUUSD", {
           primaDelGiro: 8256,
           dopoIlGiro: 8256,
+          mesiPersi: ["2005-01", "2005-02"],
           mesiVuoti: ["2005-01", "2005-02"],
         }),
       ],
@@ -126,7 +157,7 @@ describe("la continuità entra nella verifica di esito del job", () => {
         conContinuita("XAUUSD", {
           primaDelGiro: 8256,
           dopoIlGiro: 8260,
-          mesiVuoti: [],
+          mesiPersi: [], mesiVuoti: [],
         }),
       ],
     );
@@ -147,6 +178,7 @@ describe("la continuità entra nella verifica di esito del job", () => {
           continuita: {
             primaDelGiro: 8256,
             dopoIlGiro: 8256,
+            mesiPersi: ["2005-06"],
             mesiVuoti: ["2005-06"],
           },
         },
