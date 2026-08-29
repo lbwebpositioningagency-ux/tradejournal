@@ -24,10 +24,18 @@ import { PanelLabel } from "./primitives";
  * fonte e tre numeri di grandezze diverse. Su quella materia la densità del
  * listino non aggiunge leggibilità, toglie aria.
  *
- * Quindi: il contenitore è `.macro-report` come Driver e Stagionalità —
+ * Quindi: la forma è quella di Driver e Stagionalità — contenitore
  * arrotondato, con le sue superfici e la sua ombra — i selettori sono i
  * `Chip` della Stagionalità, i blocchi sono `md-card`, e la tabella ha righe
  * alte, nessun filetto verticale e le intestazioni in maiuscoletto.
+ *
+ * I COLORI però non sono quelli di `.macro-report`, che è dark-fisso: il
+ * contenitore è `.md-calendario` (v. `styles/listino.css`), che condivide la
+ * palette theme-aware del listino e ridichiara solo raggi e ombre. Il
+ * pannello è chiaro in tema chiaro e scuro in tema scuro, come le altre tre
+ * sezioni riscritte. Nessun colore è scritto a mano qui dentro: tutto passa
+ * dai token `--md-*`, ed è la ragione per cui il cambio di tema è costato una
+ * classe e non una riscrittura.
  *
  * ── Le due celle che non devono essere trattini ──────────────────────────
  *
@@ -213,7 +221,16 @@ function Chip({
       aria-pressed={premuto}
       className="md-mono inline-flex cursor-pointer items-center gap-1.5 rounded-[var(--md-r-sm)] border px-2 py-1 text-2xs leading-none transition-colors"
       style={{
-        borderColor: attivo ? "var(--md-info)" : "var(--md-border)",
+        /* Il bordo del chip SPENTO è `--md-muted`, non `--md-border`.
+           Misurato in tema chiaro: `--md-border` sulla superficie della scheda
+           dà 1,18:1, cioè un contorno che non si vede — e quando il fondo del
+           chip è a sua volta a un passo da quello della scheda, il bottone
+           smette di avere una forma. WCAG 1.4.11 chiede 3:1 per ciò che
+           identifica un controllo; `--md-muted` misura 4,0 sul chiaro e 4,2
+           sullo scuro. Sul fondo scuro il difetto non si vedeva, ed è
+           esattamente il motivo per cui i colori tarati su un tema solo vanno
+           rimisurati sull'altro. */
+        borderColor: attivo ? "var(--md-info)" : "var(--md-muted)",
         backgroundColor: attivo
           ? "color-mix(in oklab, var(--md-info) 18%, transparent)"
           : "var(--md-surface-2)",
@@ -516,9 +533,10 @@ function Importanza({ livello }: { livello: LivelloImportanza }) {
  * La chiave di lettura, chiusa.
  *
  * Nella forma del Driver e non in quella di `GuidaSezione`: quel riquadro usa
- * i token dell'applicazione perché deve reggere anche fuori dal terminale,
- * e qui dentro `.macro-report` sarebbe una scheda chiara appoggiata su un
- * pannello scuro. Il contenuto è lo stesso.
+ * i token dell'applicazione (`bg-card`, `border-border`), che qui dentro
+ * darebbero una scheda con una superficie sua, staccata dalle altre del
+ * pannello. Usando `md-card` e i token `--md-*` la guida è una scheda come
+ * le altre, in entrambi i temi. Il contenuto è lo stesso.
  */
 function ComeSiLegge() {
   return (
