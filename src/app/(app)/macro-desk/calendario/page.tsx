@@ -10,15 +10,15 @@ import {
   getCalendarioEconomico,
   VALUTE_PREDEFINITE,
 } from "@/lib/queries/calendario-economico";
+import { Badge } from "@/components/ui/badge";
 import { MacroDeskSectionNav } from "@/components/macro-desk/section-nav";
-import { GuidaCalendario } from "@/components/macro-desk/guide-sezioni";
-import { ListinoCalendario } from "@/components/macro-desk/listino/calendario";
+import { CalendarioView } from "@/components/macro-desk/calendario-view";
 import { cn } from "@/lib/utils";
 
 export const metadata: Metadata = { title: "Calendario · Macro Desk" };
 
-/* Stessa identità tipografica delle altre sezioni del listino: Inter per la
-   UI, JetBrains Mono per orari, valute e valori. */
+/* Identità tipografica del terminale: Inter per la UI, JetBrains Mono per
+   orari, valute e valori (variabili consumate dai token in CSS). */
 const fontUi = Inter({
   subsets: ["latin"],
   weight: ["400", "500", "600", "700", "800"],
@@ -31,7 +31,7 @@ const fontMono = JetBrains_Mono({
 });
 
 /**
- * Calendario economico — sesta sezione del Macro Desk.
+ * Calendario economico — sesta voce del Macro Desk.
  *
  * Il calendario del desk era stato eliminato il 28/08/2026 perché era un
  * elenco scritto a mano: nessun consenso, nessun effettivo, nessuna fonte —
@@ -39,6 +39,10 @@ const fontMono = JetBrains_Mono({
  * domanda con una risposta diversa: dati vivi presi da TradingView al momento
  * della richiesta, con il precedente, il consenso quando esiste, l'effettivo
  * appena esce, e il link all'istituto che pubblica il numero.
+ *
+ * LA RESA È QUELLA DI DRIVER E STAGIONALITÀ (`.macro-report`), non quella del
+ * «Listino». La prima stesura era un listino, ed era il linguaggio sbagliato
+ * per questa materia: le ragioni stanno per esteso in `calendario-view.tsx`.
  *
  * NON c'è una tabella nuova e NON c'è un cron: le ragioni, entrambe misurate,
  * stanno in `lib/queries/calendario-economico.ts`. In breve: il consenso non
@@ -75,7 +79,10 @@ export default async function MacroCalendarioPage() {
             <ArrowLeft className="size-4" />
             Macro Desk
           </Link>
-          <h1 className="page-title">Calendario</h1>
+          <h1 className="page-title flex flex-wrap items-center gap-2.5">
+            Calendario
+            <Badge variant="outline">eventi · in tempo reale</Badge>
+          </h1>
           <p className="page-subtitle">
             Cosa esce e a che ora, con il valore precedente, il consenso degli
             analisti quando è stato pubblicato e l&apos;effettivo appena esce.
@@ -85,23 +92,18 @@ export default async function MacroCalendarioPage() {
         <MacroDeskSectionNav active="calendario" />
       </div>
 
+      {/* Terminale: identità visiva propria, scoped a .macro-report — la
+          stessa di Driver e Stagionalità. */}
       <div
         className={cn(
-          "md-listino overflow-hidden border",
+          "macro-report overflow-hidden rounded-[var(--md-r-lg)] border",
           fontUi.variable,
           fontMono.variable,
         )}
-        style={{ borderColor: "var(--ml-rule)" }}
+        style={{ borderColor: "var(--md-border)" }}
       >
-        <div
-          className="border-b px-4 pt-4 sm:px-6"
-          style={{ borderColor: "var(--md-border)" }}
-        >
-          <GuidaCalendario />
-        </div>
-
         {esito.ok ? (
-          <ListinoCalendario
+          <CalendarioView
             dati={{
               giorni: esito.dati.giorni,
               valute: esito.dati.valute,
@@ -116,7 +118,11 @@ export default async function MacroCalendarioPage() {
             }}
           />
         ) : (
-          <StatoAssente motivo={esito.motivo} tentativoIl={esito.tentativoIl} fuso={fuso} />
+          <StatoAssente
+            motivo={esito.motivo}
+            tentativoIl={esito.tentativoIl}
+            fuso={fuso}
+          />
         )}
       </div>
     </div>
@@ -148,21 +154,23 @@ function StatoAssente({
   }).format(new Date(tentativoIl));
 
   return (
-    <div className="px-4 py-8 sm:px-6">
-      <p className="text-[13px] font-semibold text-[var(--md-warn)]">
-        Dati non disponibili — ultimo tentativo alle {ora}
-      </p>
-      {/* `first-letter:uppercase`: i motivi sono frammenti che nascono
-          minuscoli («la risposta non è JSON») perché altrove compaiono a metà
-          frase. Qui aprono un periodo, e maiuscolarli nel modulo li
-          rovinerebbe negli altri usi. */}
-      <p className="mt-1.5 text-[12px] leading-[1.6] text-[var(--md-muted)] first-letter:uppercase">
-        {motivo}. Il calendario si legge da TradingView a ogni richiesta, con
-        cinque minuti di cache: ricaricare fra qualche minuto è l&apos;unica
-        cosa che può cambiare l&apos;esito. Non c&apos;è una copia conservata da
-        mostrare al posto di questa — il desk preferisce dire che non sa,
-        piuttosto che mostrare un calendario vecchio senza dirlo.
-      </p>
+    <div className="p-4 sm:p-5">
+      <div className="md-card p-4 sm:p-5">
+        <p className="text-sm font-semibold text-[var(--md-warn)]">
+          Dati non disponibili — ultimo tentativo alle {ora}
+        </p>
+        {/* `first-letter:uppercase`: i motivi sono frammenti che nascono
+            minuscoli («la risposta non è JSON») perché altrove compaiono a
+            metà frase. Qui aprono un periodo, e maiuscolarli nel modulo li
+            rovinerebbe negli altri usi. */}
+        <p className="mt-1.5 text-xs leading-relaxed text-[var(--md-muted)] first-letter:uppercase">
+          {motivo}. Il calendario si legge da TradingView a ogni richiesta, con
+          cinque minuti di cache: ricaricare fra qualche minuto è l&apos;unica
+          cosa che può cambiare l&apos;esito. Non c&apos;è una copia conservata
+          da mostrare al posto di questa — il desk preferisce dire che non sa,
+          piuttosto che mostrare un calendario vecchio senza dirlo.
+        </p>
+      </div>
     </div>
   );
 }

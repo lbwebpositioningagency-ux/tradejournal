@@ -1,19 +1,19 @@
 import { describe, expect, it } from "vitest";
 import { renderToStaticMarkup } from "react-dom/server";
 import { perGiorno, type RigaCalendario } from "@/lib/calendario-economico";
-import { ListinoCalendario, type DatiCalendario } from "./calendario";
+import { CalendarioView, type DatiCalendario } from "./calendario-view";
 
 /**
- * La resa del Calendario.
+ * La resa del Calendario, nel linguaggio di Driver e Stagionalità.
  *
- * I casi sorvegliano le due celle che DEVONO smettere di essere trattini — il
- * consenso non pubblicato e l'effettivo non ancora uscito — e la promessa di
- * forma del listino: una tabella vera, righe raggruppate per giorno, unità
- * visibile in riga.
+ * I casi sorvegliano tre cose: le due celle che devono smettere di essere
+ * trattini (consenso non pubblicato, effettivo non ancora uscito), il
+ * comportamento dei filtri, e le promesse di FORMA — perché la forma qui è
+ * stata rifatta una volta e la ragione per cui è stata rifatta va bloccata.
  *
  * `renderToStaticMarkup` rende il primo stato del componente, cioè il filtro
- * predefinito: importanza «Solo alta», valute USD ed EUR. È esattamente lo
- * stato che serve verificare, perché è quello che si vede aprendo la pagina.
+ * predefinito: importanza «Solo alta», valute USD ed EUR. È lo stato che si
+ * vede aprendo la pagina.
  */
 
 function riga(over: Partial<RigaCalendario> = {}): RigaCalendario {
@@ -38,7 +38,10 @@ function riga(over: Partial<RigaCalendario> = {}): RigaCalendario {
   };
 }
 
-function dati(righe: RigaCalendario[], over: Partial<DatiCalendario> = {}): DatiCalendario {
+function dati(
+  righe: RigaCalendario[],
+  over: Partial<DatiCalendario> = {},
+): DatiCalendario {
   return {
     giorni: perGiorno(righe),
     valute: [...new Set(righe.map((r) => r.valuta))].sort(),
@@ -53,68 +56,85 @@ function dati(righe: RigaCalendario[], over: Partial<DatiCalendario> = {}): Dati
 }
 
 const html = (righe: RigaCalendario[], over?: Partial<DatiCalendario>) =>
-  renderToStaticMarkup(<ListinoCalendario dati={dati(righe, over)} />);
+  renderToStaticMarkup(<CalendarioView dati={dati(righe, over)} />);
 
 describe("Calendario — le celle che non devono essere trattini", () => {
   it("scrive «non pubblicato» sul consenso mancante, non un trattino", () => {
     /* Sarà vuota più spesso che piena: il consenso è un sondaggio che esce
        pochi giorni prima del dato. Un trattino ripetuto su venti righe
        assomiglia a un guasto nostro invece che a un fatto della fonte. */
-    const out = html([riga({ consenso: null })]);
-    expect(out).toContain("non pubblicato");
+    expect(html([riga({ consenso: null })])).toContain("non pubblicato");
   });
 
   it("scrive «in uscita» sull'effettivo di un evento non ancora arrivato", () => {
-    const out = html([riga({ effettivo: null, passato: false })]);
-    expect(out).toContain("in uscita");
+    expect(html([riga({ effettivo: null, passato: false })])).toContain("in uscita");
   });
 
-  it("usa il trattino solo dove il dato è davvero mancante: evento passato senza effettivo", () => {
+  it("usa il trattino solo dove il dato manca davvero: evento passato senza effettivo", () => {
     const out = html([riga({ effettivo: null, passato: true })]);
     expect(out).not.toContain("in uscita");
     expect(out).toContain("—");
   });
 
-  it("mostra l'effettivo quando c'è, e allora non dice né l'una né l'altra cosa", () => {
+  it("mostra l'effettivo quando c'è", () => {
     const out = html([riga({ effettivo: "79K", passato: true })]);
     expect(out).toContain("79K");
     expect(out).not.toContain("in uscita");
   });
 });
 
-describe("Calendario — la forma del listino", () => {
-  it("è una tabella vera, dentro il contenitore che scorre da solo", () => {
+describe("Calendario — la forma è quella di Driver e Stagionalità, non del Listino", () => {
+  it("NON usa le classi del listino: niente `.ml-tab`, niente filetti verticali", () => {
+    /* È la ragione per cui questa resa è stata rifatta il 29/08/2026: il
+       listino è il linguaggio della Volatilità, dove si confrontano misure
+       omogenee incolonnate. Un calendario si scorre un giorno alla volta. */
     const out = html([riga()]);
-    expect(out).toContain("<table");
-    expect(out).toContain('class="ml-scroll"');
-    expect(out).toContain("ml-tab");
+    expect(out).not.toContain("ml-tab");
+    expect(out).not.toContain("ml-scroll");
+    expect(out).not.toContain("ml-sep");
   });
 
-  it("intesta ogni giorno con una riga separatrice in italiano", () => {
+  it("usa le schede e i chip del terminale", () => {
+    const out = html([riga()]);
+    expect(out).toContain("md-card");
+    expect(out).toContain("var(--md-r-sm)");
+  });
+
+  it("dà due rese: tabella da md in su, schede sotto md", () => {
+    /* Una tabella a sei colonne su un telefono si legge scorrendola in
+       orizzontale, e scorrendo si perde la colonna che dice di quale evento
+       si sta leggendo il numero. Stessa scelta del riepilogo Stagionalità. */
+    const out = html([riga()]);
+    expect(out).toContain("hidden overflow-x-auto md:block");
+    expect(out).toContain("md:hidden");
+    /* Nella resa a schede le tre misure restano etichettate. */
+    expect(out).toContain("Prec.");
+    expect(out).toContain("Cons.");
+    expect(out).toContain("Eff.");
+  });
+
+  it("raggruppa i giorni in `tbody` con intestazione, non in righe finte", () => {
     const out = html([riga(), riga({ id: "x", giorno: "2026-09-07", ora: "09:00" })]);
+    expect(out).toContain('scope="colgroup"');
     expect(out).toContain("venerdì 4 settembre");
     expect(out).toContain("lunedì 7 settembre");
   });
 
   it("porta l'unità in riga, accanto al nome dell'evento", () => {
-    /* La regola che questa sezione esiste per non violare: una percentuale e
-       un conteggio di teste nella stessa colonna senza unità. */
-    const out = html([riga({ unita: "%" })]);
-    expect(out).toContain("[%]");
+    expect(html([riga({ unita: "%" })])).toContain("[%]");
   });
 
-  it("linka la fonte ORIGINALE del numero, non TradingView", () => {
+  it("mostra e linka la fonte ORIGINALE del numero, non TradingView", () => {
     const out = html([riga()]);
     expect(out).toContain('href="https://www.bls.gov/"');
     expect(out).toContain("Bureau of Labor Statistics");
   });
 
   it("dice gli eventi di giornata come tali, senza inventargli un orario", () => {
-    const out = html([riga({ ora: null, titolo: "Labor Day" })]);
-    expect(out).toContain("giornata");
+    expect(html([riga({ ora: null, titolo: "Labor Day" })])).toContain("giornata");
   });
 
-  it("mostra la banda di freschezza con età, fonte e fuso", () => {
+  it("mostra freschezza, fonte e fuso sopra la tabella", () => {
     const out = html([riga()]);
     expect(out).toContain("3 min fa");
     expect(out).toContain("TradingView");
@@ -122,14 +142,16 @@ describe("Calendario — la forma del listino", () => {
   });
 
   it("dichiara gli eventi scartati dal confine Zod invece di tacerli", () => {
-    const out = html([riga()], { scartati: 4 });
-    expect(out).toContain("4 scartati");
+    expect(html([riga()], { scartati: 4 })).toContain("4 scartati");
   });
 });
 
 describe("Calendario — i filtri", () => {
   it("parte da «Solo alta» e nasconde la bassa importanza", () => {
-    const out = html([riga(), riga({ id: "b", titolo: "Redbook YoY", importanza: "bassa" })]);
+    const out = html([
+      riga(),
+      riga({ id: "b", titolo: "Redbook YoY", importanza: "bassa" }),
+    ]);
     expect(out).toContain("Non Farm Payrolls");
     expect(out).not.toContain("Redbook YoY");
   });
@@ -143,13 +165,11 @@ describe("Calendario — i filtri", () => {
     expect(out).toContain("Non Farm Payrolls");
     expect(out).toContain("Inflation Rate YoY Flash");
     expect(out).not.toContain("NAB Business Confidence");
-    /* La pillola AUD c'è comunque: il filtro si allarga senza rifare la rete. */
+    /* Il chip AUD c'è comunque: il filtro si allarga senza rifare la rete. */
     expect(out).toContain(">AUD<");
   });
 
   it("quando il filtro non lascia passare niente, spiega che è il filtro", () => {
-    /* Una tabella vuota qui si leggerebbe come «non succede niente»: il fatto
-       vero è che ci sono eventi, ma non con questi filtri. */
     const out = html([riga({ importanza: "bassa" })]);
     expect(out).toContain("Nessun evento con questi filtri");
     expect(out).not.toContain("<table");
