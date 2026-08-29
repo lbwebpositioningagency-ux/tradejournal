@@ -151,3 +151,56 @@ export function GuidaRadar() {
     </GuidaSezione>
   );
 }
+
+/** Calendario — gli eventi in arrivo, col loro consenso. */
+export function GuidaCalendario() {
+  return (
+    <GuidaSezione richiamo="dice quando esce un dato e rispetto a cosa verrà misurato">
+      <p>
+        Cosa esce, <strong>a che ora</strong>, e rispetto a quale attesa il
+        mercato lo giudicherà. Non dice come reagiranno i prezzi: dice dove
+        stanno le ore in cui la volatilità ha una ragione nota per esserci, e
+        serve a decidere se stare fermi o se ridurre size prima di
+        un&apos;uscita.
+      </p>
+
+      <VoceGuida titolo="Il consenso, e perché la colonna è quasi sempre vuota">
+        Il consenso è la <strong>media delle attese</strong> degli analisti
+        censiti prima dell&apos;uscita. Non è una previsione della fonte né
+        nostra: è il metro rispetto a cui si misura la sorpresa. È vuoto sugli
+        eventi lontani perché è un <strong>sondaggio</strong>, e il sondaggio
+        esce pochi giorni prima del dato — oltre i sei giorni non esiste
+        praticamente mai. Per questo la cella dice «non pubblicato» e non «—»:
+        il vuoto è un fatto della fonte, non un buco nostro.
+      </VoceGuida>
+
+      <VoceGuida titolo="L'importanza">
+        È il pallino davanti al nome, ed è quella <strong>dichiarata dalla
+        fonte</strong>: pieno alta, mezzo media, vuoto bassa. Riguarda quanto
+        l&apos;indicatore è seguito, non quanto il prezzo si muoverà. Il filtro
+        parte da «Solo alta» perché è la lista che si guarda la mattina; «Tutte»
+        serve quando si cerca un dato preciso.
+      </VoceGuida>
+
+      <VoceGuida titolo="Le unità, e perché sono attaccate a ogni numero">
+        Nella stessa colonna convivono un tasso d&apos;inflazione, un conteggio
+        di posti di lavoro e un saldo commerciale in miliardi. Ogni valore
+        porta la sua unità e la sua scala (<strong>K</strong> migliaia,{" "}
+        <strong>M</strong> milioni, <strong>B</strong> miliardi) perché
+        incolonnare tre grandezze diverse senza dirlo inviterebbe a un
+        confronto che non esiste.
+      </VoceGuida>
+
+      <VoceGuida titolo="Da dove vengono i numeri">
+        Il calendario è di <strong>TradingView</strong>, letto al momento e non
+        conservato: la banda in cima dice di quanti minuti fa è la lettura. Ma
+        il numero lo pubblica l&apos;istituto che lo produce — Bureau of Labor
+        Statistics, BCE, Eurostat — ed è quello linkato sul nome
+        dell&apos;evento. Gli orari sono nel tuo fuso, come nel resto
+        dell&apos;applicazione.
+      </VoceGuida>
+
+      <RimandoGuida />
+    </GuidaSezione>
+  );
+}
