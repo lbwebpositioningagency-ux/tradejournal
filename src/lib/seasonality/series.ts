@@ -410,3 +410,52 @@ export function levelPathsByYear(bars: DailyBar[]): Map<number, number[]> {
   }
   return paths;
 }
+
+/**
+ * UNIONE fra la serie in archivio e quella appena scaricata.
+ *
+ * ── PERCHÉ ESISTE ────────────────────────────────────────────────────────
+ *
+ * La scrittura giornaliera era una SOSTITUZIONE (`deleteMany` + `createMany`),
+ * e con una fonte che risponde a metà quella sostituzione distrugge la storia.
+ * Misurato il 29/08/2026 sull'oro, unica serie giornaliera che viene da
+ * Dukascopy: due chiamate consecutive con la stessa finestra (1990 → oggi)
+ * hanno restituito 7.540 barre con VENTIQUATTRO mesi vuoti — tutto il 2002 e
+ * tutto il 2007 — mentre in archivio ce n'erano 6.713 con buchi in punti
+ * DIVERSI (2002 e 2022) e la coda ferma al 29/12/2023. Il giro notturno aveva
+ * cancellato 8.258 barre riparate la sera prima per riscriverne 6.713.
+ *
+ * Con l'unione un download parziale può solo AGGIUNGERE: la serie non si
+ * accorcia mai, e il primo giro in cui la fonte riporta il 2002 lo rimette
+ * dentro per sempre. È anche ciò che rende la scrittura idempotente — due giri
+ * di fila lasciano lo stesso numero di barre.
+ *
+ * ── LA REGOLA A PARITÀ DI DATA ───────────────────────────────────────────
+ *
+ * Vince la barra APPENA SCARICATA: se la fonte corregge un prezzo, la
+ * correzione deve entrare. Il prezzo di ieri non è più autorevole di quello di
+ * oggi solo perché è arrivato prima.
+ *
+ * ── COSA NON FA, E VA SAPUTO ─────────────────────────────────────────────
+ *
+ * Non toglie mai una data. Se la fonte un giorno RIMUOVE deliberatamente una
+ * seduta perché era sbagliata, quella seduta resta in archivio: l'unione non
+ * sa distinguere una rimozione voluta da un download a metà, e fra le due
+ * ipotesi sceglie quella che non perde dati. Una potatura vera si fa a mano.
+ */
+export function unisciBarre(
+  archivio: readonly DailyBar[],
+  fonte: readonly DailyBar[],
+): DailyBar[] {
+  const perData = new Map<string, DailyBar>();
+  for (const b of archivio) perData.set(b.date, b);
+  for (const b of fonte) perData.set(b.date, b);
+  return [...perData.values()].sort((a, b) =>
+    a.date < b.date ? -1 : a.date > b.date ? 1 : 0,
+  );
+}
+
+/** I mesi civili che hanno almeno una seduta, in forma "YYYY-MM". */
+export function mesiPopolati(bars: readonly DailyBar[]): Set<string> {
+  return new Set(bars.map((b) => b.date.slice(0, 7)));
+}

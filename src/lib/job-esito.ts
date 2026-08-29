@@ -68,9 +68,21 @@ export interface ContinuitaSerie {
   /** Barre che il giro ha scritto. */
   dopoIlGiro: number;
   /**
-   * Mesi civili compresi fra la prima e l'ultima seduta scritta che non hanno
-   * nemmeno una seduta. I mesi di bordo non entrano: sono parziali per
-   * costruzione.
+   * Mesi che PRIMA del giro avevano sedute e dopo non ne hanno più. È una
+   * perdita NOSTRA, e fa fallire il giro.
+   *
+   * Dal 29/08/2026 il confronto è relativo e non assoluto. La regola assoluta
+   * — «nessun mese vuoto, mai» — era giusta come diagnosi e sbagliata come
+   * allarme: la fonte dell'oro non ha il 2002, e non l'ha mai avuto, quindi
+   * avrebbe reso il cron rosso ogni notte per un fatto del mondo. Una
+   * sentinella che suona sempre viene spenta, e a quel punto non protegge da
+   * niente.
+   */
+  mesiPersi: readonly string[];
+  /**
+   * TUTTI i mesi vuoti nella serie scritta, compresi quelli che la fonte non
+   * ha mai fornito. Non fa fallire nulla: si riporta perché è il limite della
+   * fonte, e va visto senza essere scambiato per un guasto nostro.
    */
   mesiVuoti: readonly string[];
 }
@@ -85,12 +97,26 @@ export interface ContinuitaSerie {
  *    o abbiamo perso qualcosa per strada, e in entrambi i casi il giro non è
  *    riuscito. Nessuna tolleranza: la differenza è esattamente il numero di
  *    sedute che non abbiamo più;
- *  - un mese della storia resta VUOTO. È il buco del 2005, ed è più insidioso
+ *  - un mese della storia si SVUOTA. È il buco del 2005, ed è più insidioso
  *    del conteggio perché può convivere con un totale che cresce — basta che
  *    le sedute nuove in coda coprano quelle perse in mezzo.
  *
  * Il primo giro di una serie ha `primaDelGiro` a zero e non può regredire:
  * zero non è un valore sospetto, è l'assenza di storico.
+ *
+ * ── PERCHÉ IL SECONDO CONTROLLO GUARDA IL DELTA E NON L'ASSOLUTO ─────────
+ *
+ * Fino al 29/08/2026 bastava un mese vuoto, qualunque, per far fallire il
+ * giro. Poi si è misurato che la fonte dell'oro NON HA il 2002: la regola
+ * assoluta avrebbe reso il cron rosso ogni notte per sempre, senza che ci
+ * fosse niente da riparare. Ora fallisce solo un mese che PRIMA aveva sedute
+ * e ora non ne ha — cioè una perdita nostra. I buchi della fonte restano
+ * visibili in `mesiVuoti`, dichiarati e non fatali.
+ *
+ * Con la scrittura per UNIONE introdotta lo stesso giorno questo controllo non
+ * dovrebbe più poter scattare: è un'invariante, e resta qui proprio perché il
+ * giorno in cui qualcuno tornasse a sostituire invece di unire, il rosso si
+ * riaccenda da solo.
  */
 export function perditaContinuita(
   c: ContinuitaSerie | undefined,
@@ -99,11 +125,11 @@ export function perditaContinuita(
   if (c.dopoIlGiro < c.primaDelGiro) {
     return `la serie si è accorciata: ${c.primaDelGiro} barre prima, ${c.dopoIlGiro} dopo (${c.primaDelGiro - c.dopoIlGiro} sedute perse)`;
   }
-  if (c.mesiVuoti.length > 0) {
-    const primi = c.mesiVuoti.slice(0, 3).join(", ");
+  if (c.mesiPersi.length > 0) {
+    const primi = c.mesiPersi.slice(0, 3).join(", ");
     const resto =
-      c.mesiVuoti.length > 3 ? ` e altri ${c.mesiVuoti.length - 3}` : "";
-    return `${c.mesiVuoti.length} mesi senza nemmeno una seduta: ${primi}${resto}`;
+      c.mesiPersi.length > 3 ? ` e altri ${c.mesiPersi.length - 3}` : "";
+    return `${c.mesiPersi.length} mesi avevano sedute e ora sono vuoti: ${primi}${resto}`;
   }
   return null;
 }
