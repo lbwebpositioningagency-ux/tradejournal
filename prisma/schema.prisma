@@ -699,6 +699,14 @@ model SeasonalityDailyBar {
   open       Decimal?              @db.Decimal(18, 8)
   high       Decimal?              @db.Decimal(18, 8)
   low        Decimal?              @db.Decimal(18, 8)
+  // Quando la riga e' stata scritta. Le barre si riscrivono per INTERO a ogni
+  // giro (deleteMany + createMany), quindi questo e' il timestamp
+  // dell'ingestione che l'ha prodotta. Esiste per una domanda precisa: il
+  // 26/08/2026 tutto il 2005 dell'oro e' sparito in una riscrittura e per
+  // datarla si e' dovuto interrogare `xmin`, l'identificativo di transazione
+  // fisica di Postgres — che funziona, ma e' un dettaglio del motore e sparisce
+  // a ogni VACUUM FULL. La prossima volta la risposta e' una colonna.
+  writtenAt  DateTime              @default(now())
 
   @@id([instrument, date])
 }
