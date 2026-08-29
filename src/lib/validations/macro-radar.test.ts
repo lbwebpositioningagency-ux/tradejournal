@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { RADAR_COLLAUDO_2026_08_23 } from "@/lib/macro-radar.fixture";
-import { radarReportSchema } from "./macro-radar";
+import { righeDaPayload } from "@/lib/macro-radar";
+import { radarReportSchema, VALORI_DISCOVERY } from "./macro-radar";
 
 /** Copia profonda modificabile del payload vero. */
 function payload(modifiche: Record<string, unknown> = {}) {
@@ -214,6 +215,71 @@ describe("radarReportSchema — il caveat", () => {
     const esito = radarReportSchema.safeParse(payload());
     if (!esito.success) throw new Error(messaggi(esito));
     expect(esito.data.changes[0].caveat).toBeUndefined();
+  });
+});
+
+describe("radarReportSchema — discovery, come la voce è stata trovata", () => {
+  /** Il payload con `discovery` messo sulla prima voce. */
+  function conDiscovery(valore: unknown) {
+    const p = payload();
+    (p.items as Record<string, unknown>[])[0].discovery = valore;
+    return p;
+  }
+
+  for (const valore of VALORI_DISCOVERY) {
+    it(`accetta «${valore}» e lo conserva`, () => {
+      const esito = radarReportSchema.safeParse(conDiscovery(valore));
+      if (!esito.success) throw new Error(messaggi(esito));
+      expect(esito.data.changes[0].discovery).toBe(valore);
+    });
+  }
+
+  it("i due valori ammessi sono esattamente quelli, e sono due", () => {
+    expect([...VALORI_DISCOVERY]).toEqual(["ufficiale", "ricerca"]);
+  });
+
+  /*
+   * LA PROVA CHE CONTA, ed è quella che il committente ha chiesto per prima:
+   * le settimane già a registro non hanno questo campo. Se diventasse
+   * obbligatorio, rispedire un payload storico — che l'upsert su `weekOf`
+   * prevede — lo renderebbe invalido, e la settimana si perderebbe.
+   */
+  it("il payload STORICO del 27/08 passa senza il campo, e resta assente", () => {
+    const esito = radarReportSchema.safeParse(payload());
+    if (!esito.success) throw new Error(messaggi(esito));
+    for (const c of esito.data.changes) expect(c.discovery).toBeUndefined();
+    for (const r of esito.data.readings) expect(r.discovery).toBeUndefined();
+  });
+
+  /*
+   * La regola del file: si rifiuta l'INDECIDIBILE, non lo scritto male. Un
+   * 400 costa la settimana intera perché il ponte non ritenta, e un
+   * `discovery` sconosciuto non rende illeggibile nient'altro della voce.
+   */
+  it("un valore fuori dai due NON fa cadere il registro: diventa assente", () => {
+    for (const rotto of ["ufficale", "OFFICIAL", "", "  ", 3, null, {}, ["ricerca"]]) {
+      const esito = radarReportSchema.safeParse(conDiscovery(rotto));
+      if (!esito.success) {
+        throw new Error(`discovery=${JSON.stringify(rotto)} ha fatto cadere il report: ${messaggi(esito)}`);
+      }
+      expect(esito.data.changes[0].discovery).toBeUndefined();
+      // …e il resto della voce arriva intatto: non si è perso niente.
+      expect(esito.data.changes[0].title).toBeTruthy();
+      expect(esito.data.changes[0].whatChanged).toBeTruthy();
+    }
+  });
+
+  it("spazi e maiuscole non contano: «  Ufficiale » è «ufficiale»", () => {
+    const esito = radarReportSchema.safeParse(conDiscovery("  Ufficiale "));
+    if (!esito.success) throw new Error(messaggi(esito));
+    expect(esito.data.changes[0].discovery).toBe("ufficiale");
+  });
+
+  it("senza colonna sua, il campo finisce in `extra` e non nel nulla", () => {
+    const esito = radarReportSchema.safeParse(conDiscovery("ricerca"));
+    if (!esito.success) throw new Error(messaggi(esito));
+    const { changes } = righeDaPayload(esito.data);
+    expect(changes[0].extra).toEqual({ discovery: "ricerca" });
   });
 });
 

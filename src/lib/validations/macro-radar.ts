@@ -87,6 +87,42 @@ function chiaveDataOpzionale(nome: string) {
   return chiaveData(nome).nullish().transform((v) => v ?? null);
 }
 
+/**
+ * Come la voce è stata TROVATA: enumerando la fonte ufficiale, oppure con una
+ * ricerca web mirata. Il task lo manda dal run di domenica 30/08/2026.
+ *
+ * OPZIONALE, e non per prudenza: le settimane già a registro non ce l'hanno e
+ * devono continuare a validare. Un payload storico rispedito — cosa che
+ * l'upsert su `weekOf` rende non solo possibile ma prevista — non può
+ * diventare invalido perché nel frattempo il task ha imparato un campo nuovo.
+ *
+ * TOLLERANTE come il resto di questo confine, e non `z.enum()`: un valore
+ * fuori dai due diventa ASSENTE invece di far cadere il registro. È la regola
+ * scritta in cima al file — si rifiuta solo l'indecidibile, e un 400 costa la
+ * settimana intera perché il ponte non ritenta. Un `discovery` scritto male
+ * non rende indecidibile nient'altro: le voci restano tutte leggibili, e il
+ * valore grezzo sopravvive comunque nella colonna `payload`, che è la copia
+ * fedele di ciò che è arrivato.
+ *
+ * Non ha una colonna sua: finisce in `extra`, come ogni campo che il task
+ * manda e la pagina non legge ancora (vedi `campiExtra` in `macro-radar.ts`).
+ * La pagina NON lo mostra: la provenienza è già scritta in chiaro dentro
+ * `whatChanged`, che si legge nell'approfondimento della scheda.
+ */
+export const VALORI_DISCOVERY = ["ufficiale", "ricerca"] as const;
+export type Discovery = (typeof VALORI_DISCOVERY)[number];
+
+const provenienza = z
+  .unknown()
+  .transform((v) => {
+    if (typeof v !== "string") return undefined;
+    const pulito = v.trim().toLowerCase();
+    return (VALORI_DISCOVERY as readonly string[]).includes(pulito)
+      ? (pulito as Discovery)
+      : undefined;
+  })
+  .optional();
+
 /** URL http(s). Uno malformato non fa cadere il report: diventa assente. */
 const urlFonte = z
   .unknown()
@@ -167,6 +203,8 @@ const voce = z
     announcedOn: chiaveDataOpzionale("items[].announcedOn"),
     effectiveFrom: chiaveDataOpzionale("items[].effectiveFrom"),
     status: testo("items[].status", 60),
+    /** «ufficiale» o «ricerca». Vedi `provenienza`: opzionale e tollerante. */
+    discovery: provenienza,
     impact: testoOpzionale(),
     /** Limite di lettura della fonte. Campo NUOVO, distinto da `impact`. */
     caveat: testoOpzionale(2000),
