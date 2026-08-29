@@ -23,6 +23,7 @@ import {
   DRIVER_SERIES,
   type DriverSeriesDef,
   type DriverSourceRef,
+  type DriverTransform,
 } from "@/lib/driver-desk/catalog";
 
 const CHUNK = 1000;
@@ -282,6 +283,43 @@ async function writeSeries(
  */
 export const DELTA_WINDOW_DAYS = 14;
 
+/**
+ * Giorni civili di scarico ANTICIPATO rispetto all'inizio finestra: e' il
+ * margine entro cui un ripiego cerca la sua ancora sull'archivio. Dieci
+ * giorni = sei o sette sedute anche col ponte piu' lungo dell'anno.
+ */
+export const ANCORA_GIORNI = 10;
+
+/** Sposta una chiave "YYYY-MM-DD" di N giorni civili (N puo' essere negativo). */
+export function spostaGiorni(date: string, giorni: number): string {
+  return new Date(Date.parse(`${date}T00:00:00Z`) + giorni * MS_PER_DAY)
+    .toISOString()
+    .slice(0, 10);
+}
+
+/**
+ * Livelli gia' in archivio nella finestra che precede il delta: sono quelli
+ * scritti dalla fonte PRIMARIA, e sono il riferimento su cui un ripiego si
+ * aggancia.
+ */
+async function archivioPrimaDellaFinestra(
+  prisma: PrismaClient,
+  series: DriverDeskSeries,
+  da: string,
+  a: string,
+): Promise<Map<string, number>> {
+  const righe = await prisma.driverDeskBar.findMany({
+    where: {
+      series,
+      date: { gte: new Date(`${da}T00:00:00Z`), lt: new Date(`${a}T00:00:00Z`) },
+    },
+    select: { date: true, value: true },
+  });
+  return new Map(
+    righe.map((r) => [r.date.toISOString().slice(0, 10), Number(r.value)]),
+  );
+}
+
 /** "YYYY-MM-DD" di inizio finestra: `lastDate` meno DELTA_WINDOW_DAYS. */
 export function deltaWindowStart(lastDate: string): string {
   const t = Date.parse(`${lastDate}T00:00:00Z`) - DELTA_WINDOW_DAYS * MS_PER_DAY;
@@ -295,26 +333,123 @@ export interface DriverDeskDeltaEsito {
   elapsedMs: number;
 }
 
+/* ═══════════ RACCORDO DEI RIPIEGHI SUI RENDIMENTI ═══════════════════════
+ *
+ * Il problema, in una riga: il pannello non disegna LIVELLI, disegna
+ * variazioni giornaliere standardizzate. Scrivere dentro una serie spot una
+ * barra che vive su un altro livello non sposta un'etichetta — INVENTA un
+ * rendimento il giorno in cui entra e il suo opposto il giorno in cui esce.
+ *
+ * Quanto vale, misurato sui giorni comuni del 2026 (scarto del ripiego dalla
+ * primaria, in percentuale del livello):
+ *
+ *   BRENT    ripiego Yahoo BZ=F            mediana −3,03%   da −22,41% a +4,89%
+ *   WTI      ripiego Dukascopy lightcmd    mediana −1,48%   da −15,83% a +6,49%
+ *   GER40    ripiego Dukascopy deuidxeur   mediana +0,01%   da  −1,45% a +3,73%
+ *   XAUUSD   ripiego Yahoo GC=F            mediana −0,08%   da  −3,82% a +3,36%
+ *   STOXX50E ripiego Dukascopy eusidxeur   mediana  0,00%   da  −1,52% a +1,87%
+ *   CAC40    ripiego Dukascopy fraidxeur   mediana +0,04%   da  −1,02% a +1,60%
+ *   DXY      ripiego Dukascopy dollaridx   mediana −0,17%   da  −0,69% a +0,46%
+ *   EURUSD   ripiego FRED DEXUSEU          mediana +0,03%   da  −0,99% a +0,75%
+ *   SPX      ripiego FRED SP500            mediana  0,00%   ESATTAMENTE zero
+ *
+ * Due cose che questa tabella dice e che vanno lette bene. La prima: il
+ * problema NON e' dell'oro, e l'oro non e' nemmeno il caso peggiore — Brent e
+ * WTI lo sono, di un ordine di grandezza. La seconda: la base non e' una
+ * costante da sottrarre una volta per tutte. Sul future si muove ogni giorno
+ * col carry e con la scadenza, e su un oro da ~1% di deviazione giornaliera
+ * un salto da 3,8% e' quasi quattro sigma. Per questo si raccorda sui
+ * RENDIMENTI e non si "corregge" un offset fisso.
+ *
+ * Unica eccezione: FRED SP500 e' letteralmente la stessa serie di ^GSPC,
+ * scarto esattamente nullo su 165 giorni. Il raccordo la lascia intatta da
+ * se' (fattore 1), quindi non serve trattarla a parte.
+ *
+ * NON si applica al backfill completo: li' la serie viene sostituita TUTTA da
+ * una sola fonte, quindi e' internamente coerente e non c'e' nessuna giuntura
+ * da raccordare. Il problema nasce solo quando il ripiego riscrive una CODA
+ * dentro una storia scritta da un'altra fonte.
+ */
+
+/**
+ * Riporta le osservazioni del ripiego sul livello della fonte primaria,
+ * conservandone i rendimenti.
+ *
+ * L'ancora e' l'ultima data PRIMA della finestra in cui esistono entrambe:
+ * il livello dell'archivio (scritto dalla primaria) e quello del ripiego. Da
+ * li' in avanti si applica un fattore costante — moltiplicativo per i prezzi,
+ * additivo per i tassi, che e' la stessa operazione nello spazio in cui la
+ * serie viene poi derivata. L'effetto e' esattamente
+ * `ultimo_livello_primario × (R_T / R_ancora)`: la giuntura e' continua e
+ * ogni variazione giornaliera del ripiego resta quella vera.
+ *
+ * Restituisce `null` quando l'ancora non esiste — archivio vuoto, oppure
+ * nessuna data in comune. In quel caso NON si scrive: un buco di un giorno lo
+ * richiude la finestra delta la notte dopo, un salto inventato no.
+ */
+export function raccordaRipiego(
+  serieRipiego: DriverObservation[],
+  archivioPrima: ReadonlyMap<string, number>,
+  windowStart: string,
+  transform: DriverTransform,
+): { finestra: DriverObservation[]; ancora: string; fattore: number } | null {
+  const primaDellaFinestra = serieRipiego.filter((o) => o.date < windowStart);
+  let ancora: DriverObservation | null = null;
+  for (let i = primaDellaFinestra.length - 1; i >= 0; i -= 1) {
+    if (archivioPrima.has(primaDellaFinestra[i].date)) {
+      ancora = primaDellaFinestra[i];
+      break;
+    }
+  }
+  if (!ancora) return null;
+
+  const livelloPrimario = archivioPrima.get(ancora.date) as number;
+  if (transform === "logret") {
+    /* Un livello non positivo renderebbe il rapporto privo di senso, ed e'
+       comunque gia' escluso da `normalizeObservations` per i prezzi: qui e'
+       una cintura, non un caso atteso. */
+    if (!(ancora.value > 0) || !(livelloPrimario > 0)) return null;
+    const fattore = livelloPrimario / ancora.value;
+    return {
+      ancora: ancora.date,
+      fattore,
+      finestra: serieRipiego
+        .filter((o) => o.date >= windowStart)
+        .map((o) => ({ date: o.date, value: o.value * fattore })),
+    };
+  }
+  const scarto = livelloPrimario - ancora.value;
+  return {
+    ancora: ancora.date,
+    fattore: scarto,
+    finestra: serieRipiego
+      .filter((o) => o.date >= windowStart)
+      .map((o) => ({ date: o.date, value: o.value + scarto })),
+  };
+}
+
 /**
  * Nota da scrivere in `DriverDeskCoverage.note` quando ha risposto un anello
  * della catena che NON e' il primo.
  *
  * Serve perche' un ripiego non e' mai equivalente alla fonte primaria: puo'
- * avere un'altra base di prezzo (il caso limite e' l'oro, dove il ripiego e'
- * il future COMEX, +1,79% sullo spot il 28/08/2026), un altro orario di
- * scatto, un'altra profondita' storica. Finora la sostituzione era muta —
- * cambiava solo l'etichetta della fonte — e una serie poteva restare sul
- * ripiego per settimane senza che nulla lo dicesse. La nota compare in
- * pagina, dove il desk gia' dichiara la copertura.
+ * avere un'altra base di prezzo, un altro orario di scatto, un'altra
+ * profondita' storica. La nota compare in pagina, dove il desk gia' dichiara
+ * la copertura, e dice anche che i livelli sono stati raccordati: chi legge
+ * deve sapere che quei numeri non sono quelli grezzi della fonte.
  */
 export function noteDiRipiego(
   def: DriverSeriesDef,
   indiceUsato: number,
+  ancora?: string,
 ): string | null {
   if (indiceUsato <= 0) return null;
   const primaria = sourceLabel(def.daily[0]);
   const usata = sourceLabel(def.daily[indiceUsato]);
-  return `Ripiego: ha risposto ${usata} al posto di ${primaria}. Base di prezzo e orario di scatto possono differire dalla fonte primaria.`;
+  const raccordo = ancora
+    ? ` Livelli raccordati sull'ultimo dato ${primaria} del ${ancora}: i rendimenti sono quelli del ripiego, i livelli no.`
+    : "";
+  return `Ripiego: ha risposto ${usata} al posto di ${primaria}.${raccordo} Orario di scatto e profondità storica possono differire dalla fonte primaria.`;
 }
 
 /**
@@ -412,21 +547,61 @@ export async function runDriverDeskDeltaIngest(
     }
 
     const windowStart = deltaWindowStart(lastDate);
-    const from = new Date(`${windowStart}T00:00:00Z`);
+    /* Si scarica un po' PRIMA dell'inizio finestra. Serve solo ai ripieghi,
+       che hanno bisogno di almeno una data in comune con l'archivio per
+       agganciarcisi (v. `raccordaRipiego`), e conta perche' Dukascopy e'
+       l'unica fonte che rispetta davvero questo estremo: con `from` fissato a
+       `windowStart` un ripiego Dukascopy non avrebbe NESSUN dato precedente
+       su cui ancorarsi. Dieci giorni civili sono sei-sette sedute: abbastanza
+       anche attraversando un ponte. */
+    const inizioScarico = spostaGiorni(windowStart, -ANCORA_GIORNI);
+    const from = new Date(`${inizioScarico}T00:00:00Z`);
     const errors: string[] = [];
     let done = false;
     for (const [indiceRef, ref] of def.daily.entries()) {
       try {
         log(`${def.code}: delta da ${sourceLabel(ref)} (dal ${windowStart})…`);
         const { source, obs: raw } = await fetchFrom(ref, now, from);
-        const finestra = normalizeObservations(
-          raw,
-          def.transform === "logret",
-        ).filter((o) => o.date >= windowStart);
+        const completa = normalizeObservations(raw, def.transform === "logret");
+        let finestra = completa.filter((o) => o.date >= windowStart);
         if (finestra.length === 0) {
           errors.push(`${sourceLabel(ref)}: nessuna osservazione nella finestra`);
           continue;
         }
+
+        /* ── Il ripiego entra RACCORDATO, mai col suo livello grezzo ─────
+           Vedi il blocco sopra `raccordaRipiego`: scrivere il livello grezzo
+           di un'altra fonte dentro questa serie inventerebbe un rendimento
+           all'ingresso e il suo opposto all'uscita. Senza ancora non si
+           scrive: la finestra di 14 giorni ricuce la notte dopo, un salto
+           inventato invece resta nel grafico e nelle correlazioni. */
+        let ancora: string | undefined;
+        if (indiceRef > 0) {
+          const archivio = await archivioPrimaDellaFinestra(
+            prisma,
+            def.code,
+            inizioScarico,
+            windowStart,
+          );
+          const raccordo = raccordaRipiego(
+            completa,
+            archivio,
+            windowStart,
+            def.transform,
+          );
+          if (!raccordo) {
+            errors.push(
+              `${sourceLabel(ref)}: nessuna data in comune con l'archivio fra ${inizioScarico} e ${windowStart}, impossibile raccordare i livelli senza inventare un salto`,
+            );
+            continue;
+          }
+          finestra = raccordo.finestra;
+          ancora = raccordo.ancora;
+          log(
+            `${def.code}: ripiego raccordato sull'ancora ${raccordo.ancora} (fattore ${raccordo.fattore.toFixed(6)})`,
+          );
+        }
+
         const qa = qaSeries(def, finestra);
         await writeSeriesDelta(
           prisma,
@@ -434,7 +609,7 @@ export async function runDriverDeskDeltaIngest(
           source,
           finestra,
           windowStart,
-          noteDiRipiego(def, indiceRef),
+          noteDiRipiego(def, indiceRef, ancora),
         );
         results.push({
           series: def.code,

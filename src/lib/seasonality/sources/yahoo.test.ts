@@ -179,3 +179,125 @@ describe("parseYahooError", () => {
     expect(parseYahooError(risposta())).toBeNull();
   });
 });
+
+/* ═══════ La guardia a mercato APERTO ═══════════════════════════════════
+   Il percorso a seduta aperta È raggiungibile: il cron notturno gira a
+   mercati chiusi, ma gli script di backfill si lanciano a mano a qualsiasi
+   ora. Se `regularMarketPrice` finisse in archivio a mercato aperto, dentro
+   ventisei anni di storia della Stagionalità ci sarebbe un prezzo intraday
+   spacciato per chiusura — un errore che non si vede. */
+
+/** 2024-01-03: apertura 14:30Z, chiusura 21:00Z, come una seduta di New York. */
+const APERTURA = 1704292200; // 14:30Z
+const CHIUSURA = 1704315600; // 21:00Z
+
+const rispostaConMeta = (meta: Record<string, unknown>) =>
+  risposta({
+    indicators: { quote: [{ close: [100, null] }] },
+    timestamp: [1704186000, APERTURA],
+    meta: { dataGranularity: "1d", ...meta },
+  });
+
+describe("chiusuraDaMeta — il percorso a mercato aperto è chiuso a chiave", () => {
+  it("A METÀ SEDUTA non ripesca: il calendario dice che manca ancora un'ora", () => {
+    const out = parseYahooChart(
+      rispostaMezzaSeduta(),
+      new Date("2024-01-03T20:00:00Z"), // mercato aperto, chiude alle 21:00Z
+    );
+    expect(out).toEqual([{ date: "2024-01-02", close: 100 }]);
+  });
+
+  it("METÀ SEDUTA col CALENDARIO STANTIO: la quarta guardia regge lo stesso", () => {
+    /* Il caso cattivo: `currentTradingPeriod` è rimasto a IERI — quindi la
+       guardia sul calendario passa — mentre il mercato è aperto ADESSO e
+       `regularMarketPrice` è il prezzo vivo. Senza la guardia sulla
+       quotazione ferma, qui finirebbe un intraday in archivio. */
+    const adesso = new Date("2024-01-03T20:00:00Z");
+    const out = parseYahooChart(
+      rispostaConMeta({
+        regularMarketPrice: 110,
+        regularMarketTime: Math.floor(adesso.getTime() / 1000) - 60, // scattato un minuto fa
+        currentTradingPeriod: {
+          regular: { start: APERTURA - 86_400, end: CHIUSURA - 86_400 }, // IERI
+        },
+      }),
+      adesso,
+    );
+    expect(out).toEqual([{ date: "2024-01-02", close: 100 }]);
+  });
+
+  it("feed RITARDATO di 15 minuti a mercato aperto: bloccato comunque", () => {
+    const adesso = new Date("2024-01-03T20:00:00Z");
+    const out = parseYahooChart(
+      rispostaConMeta({
+        regularMarketPrice: 110,
+        regularMarketTime: Math.floor(adesso.getTime() / 1000) - 15 * 60,
+        currentTradingPeriod: {
+          regular: { start: APERTURA - 86_400, end: CHIUSURA - 86_400 },
+        },
+      }),
+      adesso,
+    );
+    expect(out).toEqual([{ date: "2024-01-02", close: 100 }]);
+  });
+
+  it("subito DOPO la campana non ripesca ancora: la quotazione è troppo fresca", () => {
+    const out = parseYahooChart(
+      rispostaConMeta({
+        regularMarketPrice: 110,
+        regularMarketTime: CHIUSURA,
+        currentTradingPeriod: { regular: { start: APERTURA, end: CHIUSURA } },
+      }),
+      new Date("2024-01-03T21:05:00Z"), // cinque minuti dopo la chiusura
+    );
+    expect(out).toEqual([{ date: "2024-01-02", close: 100 }]);
+  });
+
+  it("mezz'ora dopo la campana ripesca: seduta chiusa E quotazione ferma", () => {
+    const out = parseYahooChart(
+      rispostaConMeta({
+        regularMarketPrice: 110,
+        regularMarketTime: CHIUSURA,
+        currentTradingPeriod: { regular: { start: APERTURA, end: CHIUSURA } },
+      }),
+      new Date("2024-01-03T21:35:00Z"),
+    );
+    expect(out).toEqual([
+      { date: "2024-01-02", close: 100 },
+      { date: "2024-01-03", close: 110 },
+    ]);
+  });
+
+  it("l'orario del cron notturno passa su qualunque orario di chiusura", () => {
+    /* La guardia usa la fine seduta DEL SIMBOLO, non una costante: qui la
+       stessa risposta con tre calendari diversi — Francoforte 15:30Z, New
+       York 20:00Z, future 03:59Z del giorno dopo — vista alle 04:23Z, che è
+       l'ora in cui il cron ha girato il 29/08/2026. */
+    const cron = new Date("2024-01-04T04:23:00Z");
+    for (const fine of [
+      Date.parse("2024-01-03T15:30:00Z") / 1000,
+      Date.parse("2024-01-03T20:00:00Z") / 1000,
+      Date.parse("2024-01-04T03:59:00Z") / 1000,
+    ]) {
+      const out = parseYahooChart(
+        rispostaConMeta({
+          regularMarketPrice: 110,
+          regularMarketTime: Date.parse("2024-01-03T20:59:00Z") / 1000,
+          currentTradingPeriod: { regular: { start: APERTURA, end: fine } },
+        }),
+        cron,
+      );
+      expect(out).toHaveLength(2);
+      expect(out[1]).toEqual({ date: "2024-01-03", close: 110 });
+    }
+  });
+});
+
+/** Risposta a metà seduta con calendario CORRETTO (la guardia 3 basta). */
+function rispostaMezzaSeduta() {
+  return rispostaConMeta({
+    regularMarketPrice: 110,
+    regularMarketTime: Date.parse("2024-01-03T19:59:00Z") / 1000,
+    currentTradingPeriod: { regular: { start: APERTURA, end: CHIUSURA } },
+  });
+}

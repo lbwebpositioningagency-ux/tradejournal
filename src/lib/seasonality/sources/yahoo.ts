@@ -30,6 +30,31 @@ export function utcDateKey(epochSeconds: number): string {
 }
 
 /**
+ * Da quanto deve essere ferma l'ultima quotazione perché la si possa
+ * considerare una chiusura e non un prezzo vivo.
+ *
+ * Trenta minuti, e il numero non è arbitrario: Yahoo distribuisce diversi
+ * feed con quindici minuti di ritardo, quindi a mercato APERTO
+ * `regularMarketTime` può già trovarsi un quarto d'ora indietro. La soglia sta
+ * al doppio di quel ritardo perché lo scarto fra «mercato aperto, dato
+ * ritardato» e «mercato chiuso» resti netto.
+ *
+ * Il costo di sbagliare non è simmetrico, e la soglia è tarata su quello:
+ * BLOCCARE a torto significa scartare la barra, che è il comportamento che il
+ * modulo aveva prima di questa riparazione — la recupera il consolidamento
+ * entro 24 ore, dentro la finestra delta. PASSARE a torto significa scrivere
+ * un prezzo intraday nell'archivio come se fosse una chiusura. Nel dubbio si
+ * blocca.
+ *
+ * Misurato il 29/08/2026 sul percorso reale: il cron gira fra le 03:30 e le
+ * 04:23 UTC e trova scarti fra le 6 e le 13 ore su tutti i simboli del desk —
+ * la soglia non tocca mai il percorso notturno. Tocca invece un backfill
+ * lanciato a mano subito dopo una chiusura, che è esattamente il caso in cui
+ * si vuole essere prudenti.
+ */
+const QUOTAZIONE_FERMA_MS = 30 * 60 * 1000;
+
+/**
  * Chiusura dell'ULTIMA barra recuperata dai metadati, quando Yahoo non l'ha
  * ancora consolidata nell'array `quote.close`.
  *
@@ -45,12 +70,18 @@ export function utcDateKey(epochSeconds: number): string {
  * i 26.551,69 del CFD Dukascopy (scarto 0,069%), S&P 500 7.711,76 contro
  * 7.708,54 (0,042%) — scarti da CFD-contro-cash, il livello è quello giusto.
  *
- * TRE GUARDIE, tutte necessarie. La più importante è la terza: durante una
+ * QUATTRO GUARDIE, tutte necessarie, e servono a una cosa sola: durante una
  * seduta APERTA `regularMarketPrice` è il prezzo VIVO, e scriverlo come
- * chiusura sarebbe falsificare il dato. Se una qualsiasi non è verificabile
- * si rinuncia — la barra resta scartata come prima, e il consolidamento la
- * recupererà la notte dopo dentro la finestra delta.
+ * chiusura sarebbe falsificare il dato dentro ventisei anni di archivio. Le
+ * ultime due sono deliberatamente RIDONDANTI — la terza si fida del
+ * calendario dichiarato da Yahoo, la quarta no — perché il percorso a seduta
+ * aperta è raggiungibile: il cron gira a mercati chiusi, ma gli script di
+ * backfill si lanciano a mano a qualsiasi ora.
+ * Se una qualsiasi non è verificabile si rinuncia — la barra resta scartata
+ * come prima, e il consolidamento la recupera entro 24 ore dentro la finestra
+ * delta.
  */
+
 function chiusuraDaMeta(
   meta: unknown,
   ts: number,
@@ -72,7 +103,7 @@ function chiusuraDaMeta(
   }
   if (utcDateKey(marketTime) !== utcDateKey(ts)) return undefined;
 
-  // 3. la seduta è FINITA: altrimenti quello è un prezzo vivo, non una chiusura
+  // 3. la finestra di seduta DICHIARATA da Yahoo è passata
   const periodo = m.currentTradingPeriod;
   if (periodo === null || typeof periodo !== "object") return undefined;
   const regular = (periodo as Record<string, unknown>).regular;
@@ -80,6 +111,18 @@ function chiusuraDaMeta(
   const end = (regular as Record<string, unknown>).end;
   if (typeof end !== "number" || !Number.isFinite(end)) return undefined;
   if (now.getTime() < end * 1000) return undefined;
+
+  /* 4. …e la QUOTAZIONE è ferma da un pezzo.
+     Questa guardia esiste perché la 3 si fida di un campo di Yahoo. Se
+     `currentTradingPeriod` fosse stantio — puntasse a una seduta già chiusa
+     mentre il mercato è di nuovo aperto — la 3 passerebbe, `regularMarketTime`
+     sarebbe di oggi e coinciderebbe con la data della barra, e finirebbe in
+     archivio un prezzo INTRADAY spacciato per chiusura. Su ventisei anni di
+     storia della Stagionalità è un errore che non si vede.
+     Questa invece non dipende da nessun metadato di calendario: a mercato
+     aperto Yahoo tiene `regularMarketTime` addosso all'ora corrente, quindi
+     basta pretendere che l'ultimo scatto sia VECCHIO. */
+  if (now.getTime() - marketTime * 1000 < QUOTAZIONE_FERMA_MS) return undefined;
 
   return price;
 }
@@ -89,8 +132,8 @@ function chiusuraDaMeta(
  * usa per i giorni di sospensione — che sono osservazioni MANCANTI, mai zeri.
  *
  * UNICA eccezione, e solo per l'ULTIMA barra: v. `chiusuraDaMeta`. `now` è
- * iniettabile perché la terza guardia dipende dall'orologio e un test non può
- * dipendere da quando lo si esegue.
+ * iniettabile perché due delle quattro guardie dipendono dall'orologio, e un
+ * test non può dipendere da quando lo si esegue.
  */
 export function parseYahooChart(
   payload: unknown,
