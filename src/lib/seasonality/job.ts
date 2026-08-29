@@ -55,7 +55,7 @@ import {
 } from "@/lib/seasonality/quarter-ingest";
 import { resolveDailySeries } from "@/lib/seasonality/sources";
 import type { ContinuitaSerie, ContoOhlc } from "@/lib/job-esito";
-import { hasOhlc } from "@/lib/seasonality/series";
+import { hasOhlc, mesiPopolati, unisciBarre, type DailyBar } from "@/lib/seasonality/series";
 import { mesiSenzaSedute } from "@/lib/seasonality/continuita";
 
 /** Postgres accetta al massimo 65535 parametri per statement: le righe di
@@ -310,25 +310,66 @@ export async function runSeasonalityDailyJob(
     try {
       const {
         source,
-        bars,
+        bars: barreDallaFonte,
         fornisceOhlc,
         barreConOhlc,
         barreScartatePerIncoerenza,
       } = await resolveDailySeries(def, now);
 
-      /* IL CONTEGGIO DI PRIMA, letto ADESSO e non dopo: la scrittura più sotto
-         sovrascrive `dailyRows`, e chiederlo dopo significherebbe confrontare
-         un numero con se stesso. È lo stesso errore che l'audit del 26/08 ha
-         evitato per l'OHLC, e vale identico qui. */
-      const covPrima = await prisma.seasonalityCoverage.findUnique({
+      /* ── UNIONE, NON SOSTITUZIONE ─────────────────────────────────────
+         La scrittura più sotto cancella e riscrive la serie intera. Con una
+         fonte che risponde a metà — misurato il 29/08/2026 su Dukascopy, che
+         serve l'oro: 7.540 barre con ventiquattro mesi vuoti, e buchi DIVERSI
+         a ogni chiamata — quella sostituzione distrugge la storia buona. Era
+         già successo due volte in tre giorni.
+         Si legge quindi l'archivio PRIMA e si scrive l'unione: un download
+         parziale può solo aggiungere. La serie non si accorcia, e il primo
+         giro in cui la fonte riporta un anno mancante lo rimette dentro.
+         Le barre si rileggono come `number` perché è in `number` che tutto lo
+         strato statistico lavora — non è denaro né una quantità contrattuale,
+         e la conversione avviene una volta sola, al confine della query. */
+      const inArchivio = await prisma.seasonalityDailyBar.findMany({
         where: { instrument: def.code },
-        select: { dailyRows: true },
+        select: { date: true, close: true, open: true, high: true, low: true },
+        orderBy: { date: "asc" },
       });
+      const barreArchivio: DailyBar[] = inArchivio.map((r) => {
+        const o = r.open === null ? undefined : Number(r.open);
+        const h = r.high === null ? undefined : Number(r.high);
+        const l = r.low === null ? undefined : Number(r.low);
+        return {
+          date: r.date.toISOString().slice(0, 10),
+          close: Number(r.close),
+          ...(o !== undefined && h !== undefined && l !== undefined
+            ? { open: o, high: h, low: l }
+            : {}),
+        };
+      });
+      const bars = unisciBarre(barreArchivio, barreDallaFonte);
+
+      /* IL CONTEGGIO DI PRIMA si legge dall'archivio appena caricato, non da
+         `SeasonalityCoverage.dailyRows`: è la stessa cosa quando la copertura
+         è coerente, ma qui abbiamo il dato vero sotto mano e non serve fidarsi
+         di un contatore scritto da un giro precedente. */
+      const mesiPrima = mesiPopolati(barreArchivio);
+      const mesiDopo = mesiPopolati(bars);
       const continuita: ContinuitaSerie = {
-        primaDelGiro: covPrima?.dailyRows ?? 0,
+        primaDelGiro: barreArchivio.length,
         dopoIlGiro: bars.length,
+        mesiPersi: [...mesiPrima].filter((m) => !mesiDopo.has(m)).sort(),
         mesiVuoti: mesiSenzaSedute(bars),
       };
+
+      /* RIFIUTO RESIDUO: con l'unione la serie non può accorciarsi, quindi
+         questo non dovrebbe mai scattare. Resta perché il giorno in cui
+         qualcuno tornasse a sostituire invece di unire, il giro deve morire
+         PRIMA di scrivere — non scrivere e poi segnalarlo. Un dato mutilato in
+         pagina è peggio di un dato vecchio. */
+      if (bars.length < barreArchivio.length) {
+        throw new Error(
+          `scrittura rifiutata: la serie si accorcerebbe da ${barreArchivio.length} a ${bars.length} barre`,
+        );
+      }
 
       const result = precomputeDaily({
         instrument: def.code,
