@@ -100,8 +100,14 @@ export function SeasonalPathChart({
   currentMonthDoy: number;
 }) {
   const [spente, setSpente] = useState<ReadonlySet<number>>(
-    // L'anno in corso (chiave 0) parte spento: è un'opzione, non il default.
-    () => new Set(currentYear ? [0] : []),
+    /* NESSUNA LINEA PARTE SPENTA, dal 29/08/2026.
+       L'anno in corso (chiave 0) partiva spento — «è un'opzione, non il
+       default» — ed è rimasto invisibile dal 03/08. Ma è la sola linea che
+       risponde alla domanda per cui si apre questa pagina: dove siamo ADESSO
+       rispetto alla stagionalità. Le altre cinque descrivono il passato e
+       fra loro si somigliano; questa è l'unica che si muove ogni giorno.
+       Resta spegnibile dal suo interruttore, come tutte. */
+    () => new Set<number>(),
   );
 
   const windows = useMemo(

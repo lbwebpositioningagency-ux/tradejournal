@@ -2300,3 +2300,73 @@ ciò che **non** dice, e le convenzioni su fonti, date ed età dei dati.
 **Verificato:** typecheck ✅ · eslint ✅ · **1859 test** ✅ · build ✅ ·
 controllo visivo su **tutte e otto le pagine toccate a 1440 e 1920 px, in tema
 chiaro e scuro** (32 schermate in `docs/macro-forma/dopo/`).
+
+---
+
+## Stagionalità: punti di ritorno (29/08/2026)
+
+La Stagionalità si è rotta due volte in due giorni senza che nessuno se ne
+accorgesse subito: una volta dal codice (un ripristino sul commit sbagliato
+cancellò «Dove siamo adesso») e una volta dai dati (un giro di ingest riscrisse
+la serie dell'oro perdendo tutte le 312 sedute del 2005). In entrambi i casi il
+costo non è stata la riparazione: è stato **capire dove fosse il buono**.
+
+Da qui in avanti il punto buono è marcato.
+
+### Tornare al punto buono in un comando
+
+```
+git checkout stagionalita-buona-2026-08-29 -- "src/lib/seasonality" "src/components/seasonality" "src/app/(app)/stagionalita" "src/app/(app)/macro-desk/stagionalita"
+```
+
+Riporta **solo** i file della Stagionalità a quello stato, lascia intatto tutto
+il resto del progetto e non sposta il branch. Le virgolette servono: senza,
+`(app)` finisce interpretato dalla shell.
+
+Dopo, il diff contro il tag sugli stessi percorsi deve essere **vuoto**. È la
+prova che il ripristino è avvenuto davvero, e va guardata prima di dire che è
+fatto — l'ultima volta che non lo si è fatto, mancava una finestra intera.
+
+```
+git diff stagionalita-buona-2026-08-29 -- "src/lib/seasonality" "src/components/seasonality" "src/app/(app)/stagionalita" "src/app/(app)/macro-desk/stagionalita"
+```
+
+Per vedere cosa contiene un punto di ritorno prima di usarlo:
+`git tag -n20 stagionalita-buona-2026-08-29`. Il messaggio del tag dice cosa
+era stato verificato in quel momento, non solo la data.
+
+### La regola: il tag PRIMA della modifica
+
+**Prima di ogni modifica alla Stagionalità si mette un tag**, non dopo. Un tag
+messo dopo marca uno stato che nessuno ha ancora guardato; messo prima marca
+l'ultimo stato di cui si sa che funzionava.
+
+```
+git tag -a stagionalita-buona-2026-09-01 -m "cosa contiene e cosa e' stato verificato" HEAD
+```
+
+Se nello stesso giorno ce n'è più di uno, si aggiunge una lettera:
+`stagionalita-buona-2026-08-29b`. I tag restano locali finché non si spingono:
+`git push origin stagionalita-buona-2026-08-29`.
+
+### Cosa comprende «la Stagionalità»
+
+Quattro percorsi, ed è l'elenco da passare a `git checkout`:
+
+| Percorso | Cosa contiene |
+| --- | --- |
+| `src/lib/seasonality/` | Calcolo: serie, precalcolo, statistiche, bucket, ingest, continuità |
+| `src/components/seasonality/` | Resa: grafici, tabelle, controlli, riepilogo |
+| `src/app/(app)/stagionalita/` | La pagina autonoma |
+| `src/app/(app)/macro-desk/stagionalita/` | La sezione dentro il Macro Desk |
+
+Restano **fuori** i dati: un tag marca il codice, non l'archivio. Se a cambiare
+sono i numeri e non la resa, il ripristino del codice non serve a niente — si
+guardano `scripts/strumenti/buchi-serie.mjs` e la colonna `writtenAt` di
+`SeasonalityDailyBar`, che dice quando ogni barra è stata scritta.
+
+### Primo punto marcato
+
+`stagionalita-buona-2026-08-29` su `e56824a`: il ripristino a `19348d5`, il 2005
+dell'oro recuperato (8258 barre, zero mesi vuoti su tutte e tredici le serie),
+la sentinella di continuità e la colonna `writtenAt`.
