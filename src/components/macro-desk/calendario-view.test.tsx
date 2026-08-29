@@ -100,6 +100,21 @@ describe("Calendario — la forma è quella di Driver e Stagionalità, non del L
     expect(out).toContain("var(--md-r-sm)");
   });
 
+  it("non scrive NESSUN colore a mano: tutto passa dai token, quindi segue il tema", () => {
+    /* È la condizione che rende la sezione theme-aware. Il contenitore
+       `.md-calendario` ridichiara i token per tema chiaro e scuro; se un
+       colore fosse scritto qui come esadecimale, resterebbe quello in
+       entrambi — ed è esattamente il difetto per cui la sezione è passata da
+       `.macro-report` (dark-fisso) a `.md-calendario` il 29/08/2026. */
+    const out = html([
+      riga(),
+      riga({ id: "b", importanza: "media" }),
+      riga({ id: "c", importanza: "bassa", valuta: "EUR" }),
+    ]);
+    expect(out).not.toMatch(/#[0-9a-fA-F]{3,8}\b/);
+    expect(out).not.toMatch(/\brgba?\(/);
+  });
+
   it("dà due rese: tabella da md in su, schede sotto md", () => {
     /* Una tabella a sei colonne su un telefono si legge scorrendola in
        orizzontale, e scorrendo si perde la colonna che dice di quale evento

@@ -40,9 +40,13 @@ const fontMono = JetBrains_Mono({
  * della richiesta, con il precedente, il consenso quando esiste, l'effettivo
  * appena esce, e il link all'istituto che pubblica il numero.
  *
- * LA RESA È QUELLA DI DRIVER E STAGIONALITÀ (`.macro-report`), non quella del
- * «Listino». La prima stesura era un listino, ed era il linguaggio sbagliato
- * per questa materia: le ragioni stanno per esteso in `calendario-view.tsx`.
+ * LA FORMA È QUELLA DI DRIVER E STAGIONALITÀ — card arrotondate, righe alte,
+ * nessun filetto verticale — ma i COLORI sono quelli theme-aware del listino.
+ * La prima stesura era un listino, ed era il linguaggio sbagliato per questa
+ * materia (le ragioni stanno per esteso in `calendario-view.tsx`); la seconda
+ * prendeva la forma giusta insieme al dark-fisso di `.macro-report`, che era
+ * l'unico punto in cui questa sezione non seguiva il tema. La classe
+ * `.md-calendario` tiene le due cose separate.
  *
  * NON c'è una tabella nuova e NON c'è un cron: le ragioni, entrambe misurate,
  * stanno in `lib/queries/calendario-economico.ts`. In breve: il consenso non
@@ -92,11 +96,16 @@ export default async function MacroCalendarioPage() {
         <MacroDeskSectionNav active="calendario" />
       </div>
 
-      {/* Terminale: identità visiva propria, scoped a .macro-report — la
-          stessa di Driver e Stagionalità. */}
+      {/* `.md-calendario`: la FORMA di Driver e Stagionalità — card
+          arrotondate, ombre, righe alte — con i COLORI del listino, cioè
+          quelli che seguono il tema. `.macro-report` è dark-fisso: in tema
+          chiaro sarebbe un rettangolo nero appoggiato su un'app bianca, ed
+          era l'unico punto in cui questa sezione si comportava diversamente
+          dalle tre già theme-aware. La classe sta in `styles/listino.css` e
+          condivide la palette con `.md-listino`, non la ricopia. */}
       <div
         className={cn(
-          "macro-report overflow-hidden rounded-[var(--md-r-lg)] border",
+          "md-calendario overflow-hidden rounded-[var(--md-r-lg)] border",
           fontUi.variable,
           fontMono.variable,
         )}
@@ -162,8 +171,15 @@ function StatoAssente({
         {/* `first-letter:uppercase`: i motivi sono frammenti che nascono
             minuscoli («la risposta non è JSON») perché altrove compaiono a
             metà frase. Qui aprono un periodo, e maiuscolarli nel modulo li
-            rovinerebbe negli altri usi. */}
-        <p className="mt-1.5 text-xs leading-relaxed text-[var(--md-muted)] first-letter:uppercase">
+            rovinerebbe negli altri usi.
+
+            Il colore è `--md-text-2` e non `--md-muted`: misurato in tema
+            chiaro, `--md-muted` su questa superficie dà 4,03:1, sotto la
+            soglia AA per il testo normale. Su un'etichetta di assenza dentro
+            una tabella quel livello è una scelta — deve recedere rispetto ai
+            numeri — ma qui è l'unica prosa in pagina, ed è quella che spiega
+            perché la pagina è vuota: se non si legge, non serve a niente. */}
+        <p className="mt-1.5 text-xs leading-relaxed text-[var(--md-text-2)] first-letter:uppercase">
           {motivo}. Il calendario si legge da TradingView a ogni richiesta, con
           cinque minuti di cache: ricaricare fra qualche minuto è l&apos;unica
           cosa che può cambiare l&apos;esito. Non c&apos;è una copia conservata

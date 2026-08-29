@@ -22,9 +22,26 @@
    I NOMI DEI TOKEN SONO GLI STESSI di `.macro-report` di proposito: i
    pannelli non ancora riscritti che vivono dentro `.md-listino` prendono
    comunque i colori giusti nei due temi, invece di restare illeggibili.
+
+   ── `.md-calendario`: la stessa palette, ma con le scatole ────────────────
+
+   Dal 29/08/2026 il Calendario prende il punto 1 (theme-aware) e RIFIUTA il
+   punto 2 (niente scatole). Non è un'incoerenza: il punto 2 è una regola
+   sulla DENSITÀ, e vale dove si confrontano misure omogenee incolonnate —
+   dodici righe della stessa grandezza, dove un raggio ripetuto su tre livelli
+   di annidamento è spazio rubato ai numeri. Un calendario si scorre un giorno
+   alla volta, ogni riga ha un nome lungo e una fonte, e lì la scatola separa
+   invece di gonfiare.
+
+   Quindi `.md-calendario` CONDIVIDE la palette con `.md-listino` — sta nella
+   stessa lista di selettori, non in una copia, così i due non divergono al
+   primo ritocco di un token — e ridichiara solo raggi e ombre.
+
+   `.macro-report` NON è toccato: Driver e Stagionalità restano dark-fissi.
    ========================================================================= */
 
-.md-listino {
+.md-listino,
+.md-calendario {
   /* Superfici — tema chiaro */
   --md-bg: #ffffff;
   --md-surface: #f7f9fb;
@@ -71,7 +88,8 @@
   font-feature-settings: "tnum" 1, "lnum" 1;
 }
 
-.dark .md-listino {
+.dark .md-listino,
+.dark .md-calendario {
   --md-bg: #06080d;
   --md-surface: #0c1119;
   --md-surface-2: #101722;
@@ -100,17 +118,54 @@
 /* La coppia P&L daltonica scelta in Impostazioni vale anche qui, come vale
    per `.macro-report`. Valori distinti per tema: sul chiaro servono più
    scuri per reggere il contrasto. */
-[data-pnl="blue-red"] .md-listino {
+[data-pnl="blue-red"] .md-listino,
+[data-pnl="blue-red"] .md-calendario {
   --md-up: #1d4ed8;
 }
-[data-pnl="green-violet"] .md-listino {
+[data-pnl="green-violet"] .md-listino,
+[data-pnl="green-violet"] .md-calendario {
   --md-down: #6d28d9;
 }
-.dark [data-pnl="blue-red"] .md-listino {
+.dark [data-pnl="blue-red"] .md-listino,
+.dark [data-pnl="blue-red"] .md-calendario {
   --md-up: #4a87ff;
 }
-.dark [data-pnl="green-violet"] .md-listino {
+.dark [data-pnl="green-violet"] .md-listino,
+.dark [data-pnl="green-violet"] .md-calendario {
   --md-down: #9970ff;
+}
+
+/* ── `.md-calendario`: le scatole tornano ────────────────────────────────
+   Tutto ciò che precede è condiviso con `.md-listino`. Qui si ridichiara la
+   sola cosa che il Calendario NON prende dal listino: raggi e ombre, cioè i
+   valori di `.macro-report`, così la forma resta quella di Driver e
+   Stagionalità mentre i colori seguono il tema.
+
+   L'ombra è dichiarata DUE VOLTE, una per tema, e non è pedanteria: quella
+   di `.macro-report` è calcolata su fondo #080b12 — nera al 55% e profonda
+   30px. Sul bianco la stessa ombra è una macchia grigia sotto ogni card.
+   Sul chiaro serve poco alone e un filo di contatto; sul scuro serve il
+   contrario, perché lì l'ombra non separa (nero su nero non si vede) ma dà
+   profondità insieme al filo chiaro interno. */
+.md-calendario {
+  --md-r-lg: 18px;
+  --md-r-md: 13px;
+  --md-r-sm: 9px;
+  --md-shadow:
+    0 1px 2px rgba(16, 24, 40, 0.04),
+    0 8px 24px -14px rgba(16, 24, 40, 0.18);
+  --md-shadow-hover:
+    0 1px 2px rgba(16, 24, 40, 0.06),
+    0 16px 36px -16px rgba(16, 24, 40, 0.26);
+}
+
+.dark .md-calendario {
+  --md-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.03) inset,
+    0 10px 30px -12px rgba(0, 0, 0, 0.55);
+  --md-shadow-hover:
+    0 1px 0 rgba(255, 255, 255, 0.05) inset,
+    0 18px 44px -14px rgba(0, 0, 0, 0.75);
 }
 
 /* Dentro il listino le card ereditate perdono la scatola e restano un blocco
