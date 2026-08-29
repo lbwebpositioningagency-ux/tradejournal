@@ -1,6 +1,7 @@
 import Link from "next/link";
 import {
   Activity,
+  CalendarClock,
   CalendarRange,
   ChartSpline,
   FileText,
@@ -30,6 +31,10 @@ import { Button } from "@/components/ui/button";
  * due. La barra mostra le cinque; se la sezione corrente è d'archivio compare
  * anche quella, così non si resta mai senza sapere dove si è.
  *
+ * Il 29/08/2026 è entrato il CALENDARIO, che non è il ritorno di quello tolto
+ * il 28: quello era un elenco scritto a mano senza consenso né effettivo,
+ * questo è la stessa domanda con dati vivi e la loro fonte.
+ *
  * Dal 27/08/2026 c'è un terzo gruppo, REGISTRO, con il solo Radar: è l'unica
  * sezione che non parla di prezzi, e sta fuori dalla griglia della barra —
  * sotto un filo, in fondo. Metterla in fila con le sezioni di mercato avrebbe
@@ -46,7 +51,7 @@ export interface MacroDeskSection {
   /** Riga singola: descrive la sezione nella griglia dell'indice. */
   description: string;
   /**
-   * `quotidiano` = le sei di consultazione giornaliera.
+   * `quotidiano` = le cinque di consultazione giornaliera.
    * `archivio`   = si consulta di rado, fuori dalla barra quotidiana.
    * `registro`   = il Radar. Gruppo A SÉ e non una nona voce delle altre:
    *                è l'unica sezione che NON parla di prezzi, e affiancarla
@@ -90,6 +95,15 @@ export const MACRO_DESK_SECTIONS = [
     icon: CalendarRange,
     description:
       "Come si è comportato ogni strumento nello stesso periodo dell'anno, anno dopo anno.",
+    gruppo: "quotidiano",
+  },
+  {
+    key: "calendario",
+    href: "/macro-desk/calendario",
+    label: "Calendario",
+    icon: CalendarClock,
+    description:
+      "Cosa esce e a che ora, col precedente, il consenso degli analisti quando esiste e l'effettivo appena pubblicato.",
     gruppo: "quotidiano",
   },
   {
@@ -145,12 +159,12 @@ export type MacroDeskSectionKey = (typeof MACRO_DESK_SECTIONS)[number]["key"];
  * sinistra. Le colonne sono `1fr` dentro un contenitore `w-fit`, quindi larghe
  * quanto la pillola più larga: il blocco resta uniforme e allineato a destra.
  *
- * Dal 27/08/2026 le quotidiane sono CINQUE, quindi tre più due; su una pagina
- * d'archivio diventano sei, cioè due righe piene. Finché erano sei, la voce
- * d'archivio finiva da sola sulla terza riga ed era un segnale visivo in più:
- * quel segnale non c'è più, e a distinguere la pagina corrente resta la
- * pillola piena con `aria-current`, che è il segnale vero e non dipende da
- * quante sezioni ci sono.
+ * Dal 29/08/2026, con l'ingresso del Calendario, le quotidiane sono CINQUE:
+ * tre più due, e su una pagina d'archivio diventano sei, cioè due righe piene.
+ * A distinguere la pagina corrente non è più la posizione — con quattro voci
+ * quella d'archivio restava da sola in fondo, e si vedeva — ma la pillola
+ * piena con `aria-current`, che è il segnale vero e non dipende da quante
+ * sezioni ci sono.
  *
  * Sotto 720px il comportamento resta quello di prima — una riga sola che scorre
  * in orizzontale — perché a quelle larghezze tre colonne non ci starebbero
