@@ -2370,3 +2370,85 @@ guardano `scripts/strumenti/buchi-serie.mjs` e la colonna `writtenAt` di
 `stagionalita-buona-2026-08-29` su `e56824a`: il ripristino a `19348d5`, il 2005
 dell'oro recuperato (8258 barre, zero mesi vuoti su tutte e tredici le serie),
 la sentinella di continuità e la colonna `writtenAt`.
+
+---
+
+## Il registro «cos'è cambiato e quando» (29/08/2026)
+
+Il 26/08 la serie dell'oro è passata da 8256 a 7944 barre e il cron è rimasto
+verde; il 29/08 è successo di nuovo con anni diversi. In entrambi i casi la
+riparazione è costata poco: è costato **capire quando fosse cambiato e quanto
+valesse prima**, una risposta che non esisteva da nessuna parte e si è dovuta
+ricostruire a mano dagli `xmin` di Postgres.
+
+Ora esiste. In coda a `/api/seasonality-sync` si prende un'**impronta** di ciò
+che è stato memorizzato — barre, estremi delle date, `n` e media di ogni mese,
+cumulato di fine anno del percorso — e si scrive una riga in
+`SeasonalityImpronta` **solo quando cambia**. Scrivere ogni notte darebbe
+~24.000 righe l'anno quasi tutte identiche, cioè di nuovo un lavoro manuale per
+trovare il giorno buono: così la tabella resta a poche decine di righe e due
+righe consecutive **sono** il cambiamento.
+
+### Le due regole d'allarme
+
+Il giro diventa rosso solo quando:
+
+1. si **perde** qualcosa — barre in meno, storia che comincia più tardi, `n` che
+   scende, un bucket che sparisce;
+2. una media cambia a **`n` invariato** — stesso campione, risposta diversa. È
+   sbagliato per costruzione, quindi non serve nessuna soglia da tarare: o il
+   campione è lo stesso, o non lo è.
+
+Tutto il resto — una barra nuova, la finestra che scorre a capodanno, una media
+che si muove perché è entrato un anno — è **atteso** e viene registrato senza
+far fallire niente. Una sentinella che suona sempre viene spenta.
+
+Il registro non fa mai fallire il giro che dovrebbe sorvegliare: se la
+registrazione stessa va in errore, finisce nei log e basta.
+
+### Come si consulta
+
+```
+node scripts/strumenti/impronta-storia.mjs XAUUSD 20
+```
+
+Stampa gli stati registrati in ordine, con sotto ciascuno cosa è cambiato
+rispetto al precedente. Per prendere l'impronta subito, senza aspettare la
+notte — dopo un deploy o dopo una riparazione a mano:
+
+```
+npx tsx scripts/impronta-stagionalita.ts
+```
+
+È idempotente: al secondo giro non scrive niente e lo dice.
+
+### Cosa NON fa
+
+Non dice **perché** un valore è cambiato, e non distingue «la fonte ha
+revisionato la storia» da «il nostro ingest ha perso righe»: per quello ci sono
+`writtenAt` su `SeasonalityDailyBar` e `scripts/strumenti/buchi-serie.mjs`. È un
+allarme, non una diagnosi. E protegge **dal giorno dopo l'installazione**: non
+ricostruisce retroattivamente il 26/08.
+
+## L'avviso di copertura misurava la cosa sbagliata
+
+Accanto, e per la stessa vicenda: l'avviso «hai chiesto 20 anni, ce ne sono 18»
+calcolava la copertura come `min(finestra, ultimoAnno − primoAnno + 1)`, cioè da
+quanto tempo la serie **esiste**. L'oro partiva dal 1999 in ogni momento della
+vicenda, quindi l'avviso **non si è mai acceso** mentre la colonna `n` in pagina
+diceva 17 su una finestra da 20.
+
+Ora la copertura si misura sui dati (`copertura.ts`, modulo puro e testato), e
+le due cause restano distinte perché portano ad azioni diverse: una storia che
+comincia tardi è un limite della fonte e si accetta, un anno vuoto dentro una
+storia lunga è un guasto e si ripara. In più, in pagina:
+
+- `n` è diventato una **frazione**: `17/20 anni`, gialla quando il numeratore è
+  più basso. Un `17` isolato e un `20` isolato si leggono uguale — due numeri — e
+  il primo è un avviso;
+- ogni intestazione di finestra porta gli **anni civili** (`20 anni · 2006-2025`):
+  il numero da solo non dice quali venti, e a capodanno la finestra scorre in
+  silenzio;
+- le colonne `n · anni` e `Campione` erano **due**, e sul mese dicevano lo
+  stesso numero due volte (una riga per anno, per costruzione). Ora sono una,
+  con la seconda riga solo quando dice qualcosa di diverso.

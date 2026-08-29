@@ -854,6 +854,42 @@ model SeasonalityRun {
   @@index([startedAt])
 }
 
+// REGISTRO DELLE VARIAZIONI dei valori chiave della Stagionalità: barre della
+// serie grezza, estremi delle date, `n` e media di ogni bucket, cumulato di
+// fine anno del percorso. Serve a rispondere a «questo numero è cambiato il
+// giorno X, prima valeva Y» — la domanda che il 26/08/2026 è costata una
+// ricostruzione a mano dagli `xmin` di Postgres, perché la risposta non
+// esisteva da nessuna parte.
+//
+// UNA RIGA NUOVA SOLO QUANDO IL VALORE CAMBIA. Scrivere ogni notte darebbe
+// ~24.000 righe l'anno quasi tutte identiche, cioè di nuovo un lavoro manuale
+// per trovare il giorno buono; quando l'impronta si ripete si aggiorna solo
+// `ultimaVista`. Così la tabella resta sulle poche decine di righe ed è
+// leggibile a occhio: due righe consecutive SONO il cambiamento.
+//
+// `digest` è l'hash della forma canonica di `payload` (v. `impronta.ts`): il
+// confronto «uguale o diverso» è una stringa, non una visita ricorsiva.
+model SeasonalityImpronta {
+  id            String                @id @default(cuid())
+  instrument    SeasonalityInstrument
+  lookbackYears Int
+  /**
+   * Quando questa impronta è comparsa per la prima volta: è la DATA DEL
+   * CAMBIAMENTO, quella che si cerca.
+   */
+  primaVista    DateTime              @default(now())
+  /** Ultimo giro che l'ha ritrovata identica: dice fin dove è rimasta valida. */
+  ultimaVista   DateTime              @default(now())
+  digest        String
+  barre         Int
+  primaData     DateTime?             @db.Date
+  ultimaData    DateTime?             @db.Date
+  /** `n` e media di ogni bucket, più il cumulato di fine anno. */
+  payload       Json
+
+  @@index([instrument, lookbackYears, primaVista])
+}
+
 // Una riga per (strumento, granularità, anno, bucket): è ciò che alimenta le
 // HEATMAP anni × {mesi | settimane | giorni}, che per definizione mostrano le
 // singole osservazioni e non un'aggregazione — le righe finali Media / StDev /
