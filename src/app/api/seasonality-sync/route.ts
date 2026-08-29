@@ -180,6 +180,58 @@ export async function GET(request: Request) {
       `[seasonality-sync] esito NON riuscito · stagionalità: ${verificaStagionalita.messaggio} · driver: ${verificaDriver.messaggio}`,
     );
   }
+  /* ── IL REGISTRO DEVE DIRE LA VERITÀ ──────────────────────────────────
+     `SeasonalityRun` viene scritta dal job della Stagionalità, che di suo non
+     sa niente né del Driver Desk né delle migrazioni: fino al 29/08/2026 la
+     riga risultava `ok: true` anche nelle notti in cui il driver falliva. È
+     così che `DGS10` — nel catalogo e nell'enum di produzione, ma senza riga
+     di coverage — ha fatto rispondere 500 a questo endpoint per giorni senza
+     che nessuna traccia leggibile lo dicesse.
+
+     Qui sopra ci scriviamo l'esito COMPLESSIVO, ed è quello che l'indice del
+     Macro Desk mostra in banda (v. `getEsitoNotturno`): il 500 resta, ma
+     smette di essere l'unico posto dove il fallimento esiste.
+
+     Non deve mai far cadere la risposta: se questa scrittura fallisce, il
+     giro è comunque avvenuto e l'esito va restituito lo stesso. */
+  await prisma.seasonalityRun
+    .update({
+      where: { id: esito.runId },
+      data: {
+        ok: riuscito,
+        detail: {
+          fase: esito.fase,
+          completo: esito.completo,
+          prossimo: esito.prossimo,
+          strumenti: esito.strumenti.map((x) => ({
+            strumento: x.strumento,
+            esito: x.esito,
+            barre: x.barre,
+          })),
+          verifica: {
+            riuscito,
+            stagionalita: {
+              riuscito: verificaStagionalita.riuscito,
+              messaggio: verificaStagionalita.messaggio,
+            },
+            driver: {
+              riuscito: verificaDriver.riuscito,
+              messaggio: verificaDriver.messaggio,
+            },
+            migrazioni: {
+              allineate: migrazioni?.allineate ?? null,
+              messaggio: migrazioni
+                ? descriviConfronto(migrazioni)
+                : "confronto non riuscito, stato dello schema ignoto",
+            },
+          },
+        },
+      },
+    })
+    .catch((e: unknown) => {
+      console.error("[seasonality-sync] registro non aggiornato:", e);
+    });
+
   if (!migrazioniAllineate) {
     /* Riga PROPRIA e coi NOMI: un rosso senza dettaglio costa mezz'ora di
        caccia per scoprire quale migrazione manca. */

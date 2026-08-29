@@ -7,6 +7,14 @@
  *
  *   vercel env pull .env.production.local --environment production --yes
  *   npx tsx scripts/driver-desk-backfill-prod-dosato.ts
+ *   npx tsx scripts/driver-desk-backfill-prod-dosato.ts --solo DXY,EURUSD
+ *
+ * `--solo` limita il giro a un elenco di serie. Serve perche' un backfill
+ * completo RISCRIVE l'intera storia di ogni serie dalla fonte che risponde in
+ * quel momento: se la primaria e' giu', l'intera serie finisce sul ripiego,
+ * che puo' avere un'altra base di prezzo (l'oro ripiega sul future COMEX,
+ * +1,79% sullo spot). Quando serve toccare due serie, toccarne quindici e'
+ * rischio regalato.
  *
  * Legge SEMPRE `.env.production.local`, esplicitamente — mai il default
  * `.env` (locale) che `dotenv/config` senza argomenti caricherebbe invece,
@@ -63,15 +71,34 @@ async function main() {
     process.exit(1);
   }
 
+  const iSolo = process.argv.indexOf("--solo");
+  const richieste =
+    iSolo >= 0 && process.argv[iSolo + 1]
+      ? process.argv[iSolo + 1].split(",").map((x) => x.trim().toUpperCase())
+      : null;
+  if (richieste) {
+    const ignote = richieste.filter(
+      (r) => !DRIVER_SERIES.some((d) => d.code === r),
+    );
+    if (ignote.length > 0) {
+      console.error(`STOP: serie non nel catalogo: ${ignote.join(", ")}`);
+      process.exit(1);
+    }
+  }
+  const serie = richieste
+    ? DRIVER_SERIES.filter((d) => richieste.includes(d.code))
+    : DRIVER_SERIES;
+
   const adapter = guardedPgAdapter("backfill Driver Desk produzione");
   const prisma = new PrismaClient({ adapter });
 
-  console.log(`Driver Desk — backfill DOSATO verso produzione, ${DRIVER_SERIES.length} serie, pausa ${PAUSA_MS}ms fra una e l'altra\n`);
+  console.log(`Driver Desk — backfill DOSATO verso produzione, ${serie.length} serie${richieste ? ` (--solo ${richieste.join(", ")})` : ""}, pausa ${PAUSA_MS}ms fra una e l'altra
+`);
 
   let ok = true;
   try {
-    for (let i = 0; i < DRIVER_SERIES.length; i += 1) {
-      const def = DRIVER_SERIES[i];
+    for (let i = 0; i < serie.length; i += 1) {
+      const def = serie[i];
       const results = await runDriverDeskIngest(prisma, {
         only: [def.code],
         onProgress: (msg) => console.log(`  ${msg}`),
@@ -89,7 +116,7 @@ async function main() {
           console.log(`          QA ${f.kind.toUpperCase()}: ${f.detail}`);
         }
       }
-      if (i < DRIVER_SERIES.length - 1) {
+      if (i < serie.length - 1) {
         console.log(`  … pausa ${PAUSA_MS}ms …\n`);
         await sleep(PAUSA_MS);
       }

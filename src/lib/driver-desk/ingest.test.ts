@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import { DRIVER_SERIES, DRIVER_SERIES_BY_CODE } from "@/lib/driver-desk/catalog";
 import {
   deltaWindowStart,
+  isWeekendKey,
   normalizeObservations,
   qaSeries,
   runDriverDeskDeltaIngest,
@@ -36,6 +37,31 @@ describe("normalizeObservations", () => {
     expect(normalizeObservations(obs, true)).toEqual([]);
     // tasso: il negativo resta (lo zero pure: è un livello legittimo)
     expect(normalizeObservations(obs, false)).toEqual(obs);
+  });
+
+  it("scarta sabato e domenica: la domenica Dukascopy è una coda di due ore, non una seduta", () => {
+    const out = normalizeObservations(
+      [
+        { date: "2026-08-21", value: 1 }, // venerdì
+        { date: "2026-08-22", value: 2 }, // sabato
+        { date: "2026-08-23", value: 3 }, // domenica
+        { date: "2026-08-24", value: 4 }, // lunedì
+      ],
+      true,
+    );
+    expect(out).toEqual([
+      { date: "2026-08-21", value: 1 },
+      { date: "2026-08-24", value: 4 },
+    ]);
+  });
+});
+
+describe("isWeekendKey", () => {
+  it("non dipende dal fuso della macchina: la chiave si legge in UTC", () => {
+    expect(isWeekendKey("2026-08-21")).toBe(false); // venerdì
+    expect(isWeekendKey("2026-08-22")).toBe(true); // sabato
+    expect(isWeekendKey("2026-08-23")).toBe(true); // domenica
+    expect(isWeekendKey("2026-08-24")).toBe(false); // lunedì
   });
 });
 

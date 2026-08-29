@@ -3,8 +3,11 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { ChevronRight } from "lucide-react";
 import { auth } from "@/lib/auth";
+import { prisma } from "@/lib/db";
+import { getEsitoNotturno } from "@/lib/queries/esito-notturno";
 import { getFreschezzaReport } from "@/lib/queries/macro-desk-freschezza";
 import { Card, CardContent } from "@/components/ui/card";
+import { BandaEsitoNotturno } from "@/components/macro-desk/banda-esito-notturno";
 import { BandaFreschezza } from "@/components/macro-desk/banda-freschezza";
 import {
   SEZIONI_ARCHIVIO,
@@ -42,7 +45,16 @@ export default async function MacroDeskPage() {
   const session = await auth();
   if (!session?.user?.id) redirect("/login");
 
-  const freschezza = await getFreschezzaReport();
+  const [freschezza, esitoNotturno, utente] = await Promise.all([
+    getFreschezzaReport(),
+    /* Un cron rotto non avvisa nessuno da solo: il 500 del dispatcher finisce
+       in una dashboard che nessuno apre. Qui invece lo vede chi entra. */
+    getEsitoNotturno(),
+    prisma.user.findUniqueOrThrow({
+      where: { id: session.user.id },
+      select: { timezone: true },
+    }),
+  ]);
 
   return (
     <div className="flex flex-col gap-4">
@@ -54,6 +66,8 @@ export default async function MacroDeskPage() {
           fondo il registro: l&apos;unica parte che non guarda i prezzi.
         </p>
       </div>
+
+      <BandaEsitoNotturno esito={esitoNotturno} timeZone={utente.timezone} />
 
       {freschezza ? <BandaFreschezza esito={freschezza} /> : null}
 

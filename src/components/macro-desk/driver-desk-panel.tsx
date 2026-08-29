@@ -214,11 +214,37 @@ function SchedaStrumento({
           </span>
         </div>
 
-        <p className="md-mono text-[11px] leading-relaxed text-[var(--md-muted)]">
-          dati al {card.calendar.end} · confronti calcolati sulla storia comune
-          dal {card.calendar.start} ({card.calendar.sessions} sedute in cui
-          tutte le serie hanno quotato)
-        </p>
+        {/* ── Le DUE date, separate (F3) ────────────────────────────────
+            Prima ce n'era una sola, la fine dell'intersezione, e faceva
+            passare per «dati vecchi» quello che era solo il calendario di
+            pubblicazione della serie più lenta. La prima riga dice fin dove
+            arrivano le LINEE, la seconda su quale finestra sono calcolati i
+            confronti. Il ritardo si nomina solo quando esiste, e si dice in
+            sedute: un numero, non un allarme. */}
+        <div className="md-mono flex flex-col gap-0.5 text-[11px] leading-relaxed text-[var(--md-muted)]">
+          <p>
+            <span className="text-[var(--md-text-2)]">
+              linee aggiornate al {card.freschezza?.end ?? card.calendar.end}
+            </span>
+            {card.freschezza && card.freschezza.inRitardo.length > 0 ? (
+              <>
+                {" · "}
+                {card.freschezza.inRitardo
+                  .map(
+                    (r) =>
+                      `${r.label} al ${r.lastDate} (${r.sedute} ${r.sedute === 1 ? "seduta" : "sedute"} indietro)`,
+                  )
+                  .join(" · ")}
+              </>
+            ) : null}
+          </p>
+          <p>
+            confronti e stabilità sulla finestra allineata {card.calendar.start}
+            {" → "}
+            {card.calendar.end} ({card.calendar.sessions} sedute in cui tutte le
+            serie hanno quotato)
+          </p>
+        </div>
 
         {/* Chiave di lettura per QUESTA scheda (R7): tendenze storiche, mai
             regole — il rimando alla stabilità chiude il blocco, una volta. */}

@@ -114,9 +114,35 @@ async function fetchFrom(
 }
 
 /**
- * Dedup su data (l'ultima vince) + ordinamento + filtro valori non finiti.
+ * Sabato o domenica in UTC. La data è già una chiave "YYYY-MM-DD", quindi si
+ * legge come mezzanotte UTC e il giorno della settimana è deterministico —
+ * non dipende dal fuso della macchina che esegue il job.
+ */
+export function isWeekendKey(date: string): boolean {
+  const g = new Date(`${date}T00:00:00Z`).getUTCDay();
+  return g === 0 || g === 6;
+}
+
+/**
+ * Dedup su data (l'ultima vince) + ordinamento + filtro valori non finiti +
+ * scarto dei giorni NON FERIALI.
  * `mustBePositive` solo per i prezzi: un tasso negativo è un dato, non un
  * errore.
+ *
+ * ── Perché sabato e domenica vanno via ────────────────────────────────────
+ * Le candele giornaliere Dukascopy vanno da mezzanotte a mezzanotte UTC, e il
+ * mercato dei cambi riapre la DOMENICA alle 22:00 UTC: ne esce una "seduta"
+ * domenicale di due ore, con una manciata di tick, che non è una giornata di
+ * mercato — è la coda dell'apertura della settimana. Misurato il 29/08/2026:
+ * Dukascopy `eurusd` ne porta 606 su 3646 barre dal 2015 (16,6%), e in
+ * archivio XAUUSD e XAGUSD ne avevano una per OGNI domenica dal 5 luglio.
+ *
+ * Finora erano invisibili perché l'intersezione del calendario le buttava via
+ * (nessun'altra serie quotava di domenica). Con la F3 le linee arrivano alla
+ * propria ultima data e le renderebbe VISIBILI, e con EURUSD su Dukascopy ne
+ * arriverebbero altre: meglio non farle entrare affatto. Nessuna serie del
+ * catalogo è di un mercato che quota nel fine settimana, quindi il filtro non
+ * può togliere un dato buono.
  */
 export function normalizeObservations(
   obs: DriverObservation[],
@@ -126,6 +152,7 @@ export function normalizeObservations(
   for (const o of obs) {
     if (!Number.isFinite(o.value)) continue;
     if (mustBePositive && o.value <= 0) continue;
+    if (isWeekendKey(o.date)) continue;
     byDate.set(o.date, o.value);
   }
   return [...byDate.entries()]
@@ -214,6 +241,7 @@ async function writeSeries(
   series: DriverDeskSeries,
   source: string,
   obs: DriverObservation[],
+  note: string | null = null,
 ): Promise<void> {
   await prisma.$transaction(
     async (tx) => {
@@ -232,7 +260,7 @@ async function writeSeries(
         firstDate: new Date(`${obs[0].date}T00:00:00Z`),
         lastDate: new Date(`${obs[obs.length - 1].date}T00:00:00Z`),
         rows: obs.length,
-        note: null as string | null,
+        note,
       };
       await tx.driverDeskCoverage.upsert({
         where: { series },
@@ -268,6 +296,28 @@ export interface DriverDeskDeltaEsito {
 }
 
 /**
+ * Nota da scrivere in `DriverDeskCoverage.note` quando ha risposto un anello
+ * della catena che NON e' il primo.
+ *
+ * Serve perche' un ripiego non e' mai equivalente alla fonte primaria: puo'
+ * avere un'altra base di prezzo (il caso limite e' l'oro, dove il ripiego e'
+ * il future COMEX, +1,79% sullo spot il 28/08/2026), un altro orario di
+ * scatto, un'altra profondita' storica. Finora la sostituzione era muta —
+ * cambiava solo l'etichetta della fonte — e una serie poteva restare sul
+ * ripiego per settimane senza che nulla lo dicesse. La nota compare in
+ * pagina, dove il desk gia' dichiara la copertura.
+ */
+export function noteDiRipiego(
+  def: DriverSeriesDef,
+  indiceUsato: number,
+): string | null {
+  if (indiceUsato <= 0) return null;
+  const primaria = sourceLabel(def.daily[0]);
+  const usata = sourceLabel(def.daily[indiceUsato]);
+  return `Ripiego: ha risposto ${usata} al posto di ${primaria}. Base di prezzo e orario di scatto possono differire dalla fonte primaria.`;
+}
+
+/**
  * Riscrive la sola CODA della serie: le barre dalla finestra in poi vengono
  * sostituite, lo storico non si tocca. Il fallimento di un fetch non arriva
  * mai qui: si scrive solo con osservazioni in mano, quindi un'esecuzione
@@ -279,6 +329,7 @@ async function writeSeriesDelta(
   source: string,
   obs: DriverObservation[],
   windowStart: string,
+  note: string | null,
 ): Promise<void> {
   const dallaFinestra = { gte: new Date(`${windowStart}T00:00:00Z`) };
   await prisma.$transaction(
@@ -298,7 +349,7 @@ async function writeSeriesDelta(
           source,
           lastDate: new Date(`${obs[obs.length - 1].date}T00:00:00Z`),
           rows,
-          note: null,
+          note,
         },
       });
     },
@@ -364,7 +415,7 @@ export async function runDriverDeskDeltaIngest(
     const from = new Date(`${windowStart}T00:00:00Z`);
     const errors: string[] = [];
     let done = false;
-    for (const ref of def.daily) {
+    for (const [indiceRef, ref] of def.daily.entries()) {
       try {
         log(`${def.code}: delta da ${sourceLabel(ref)} (dal ${windowStart})…`);
         const { source, obs: raw } = await fetchFrom(ref, now, from);
@@ -377,7 +428,14 @@ export async function runDriverDeskDeltaIngest(
           continue;
         }
         const qa = qaSeries(def, finestra);
-        await writeSeriesDelta(prisma, def.code, source, finestra, windowStart);
+        await writeSeriesDelta(
+          prisma,
+          def.code,
+          source,
+          finestra,
+          windowStart,
+          noteDiRipiego(def, indiceRef),
+        );
         results.push({
           series: def.code,
           ok: true,
@@ -423,7 +481,7 @@ export async function runDriverDeskIngest(
   for (const def of defs) {
     const errors: string[] = [];
     let done = false;
-    for (const ref of def.daily) {
+    for (const [indiceRef, ref] of def.daily.entries()) {
       try {
         log(`${def.code}: scarico da ${sourceLabel(ref)}…`);
         const { source, obs: raw } = await fetchFrom(ref, now);
@@ -433,7 +491,13 @@ export async function runDriverDeskIngest(
           continue;
         }
         const qa = qaSeries(def, obs);
-        await writeSeries(prisma, def.code, source, obs);
+        await writeSeries(
+          prisma,
+          def.code,
+          source,
+          obs,
+          noteDiRipiego(def, indiceRef),
+        );
         results.push({
           series: def.code,
           ok: true,

@@ -56,6 +56,98 @@ describe("parseYahooChart", () => {
   });
 });
 
+/* ─── Ultima barra non consolidata (caso reale del 28/08/2026) ─────────────
+   Yahoo lascia l'ultima barra con `close` nullo per ore dopo la chiusura,
+   mentre `meta.regularMarketPrice` porta già la chiusura vera. Era la causa
+   del ritardo di una seduta su TUTTE le serie Yahoo del desk. */
+
+/** 2024-01-03: apertura 14:30 UTC, chiusura di seduta 21:00 UTC. */
+const APERTURA_2 = 1704272400;
+const FINE_SEDUTA = 1704315600; // 2024-01-03T21:00:00Z
+const DOPO_LA_CHIUSURA = new Date("2024-01-03T22:00:00Z");
+const SEDUTA_APERTA = new Date("2024-01-03T18:00:00Z");
+
+const nonConsolidata = (metaOver: Record<string, unknown> = {}) =>
+  risposta({
+    indicators: { quote: [{ close: [100, null] }] },
+    meta: {
+      dataGranularity: "1d",
+      regularMarketPrice: 110,
+      regularMarketTime: FINE_SEDUTA,
+      currentTradingPeriod: { regular: { start: APERTURA_2, end: FINE_SEDUTA } },
+      ...metaOver,
+    },
+  });
+
+describe("parseYahooChart — ultima barra non consolidata", () => {
+  it("a seduta CHIUSA ripesca la chiusura da meta.regularMarketPrice", () => {
+    expect(parseYahooChart(nonConsolidata(), DOPO_LA_CHIUSURA)).toEqual([
+      { date: "2024-01-02", close: 100 },
+      { date: "2024-01-03", close: 110 },
+    ]);
+  });
+
+  it("a seduta APERTA non ripesca nulla: quello è un prezzo vivo, non una chiusura", () => {
+    expect(parseYahooChart(nonConsolidata(), SEDUTA_APERTA)).toEqual([
+      { date: "2024-01-02", close: 100 },
+    ]);
+  });
+
+  it("non ripesca se il prezzo di meta è di un ALTRO giorno", () => {
+    const out = parseYahooChart(
+      nonConsolidata({ regularMarketTime: FINE_SEDUTA + 86_400 }),
+      new Date("2024-01-04T22:00:00Z"),
+    );
+    expect(out).toEqual([{ date: "2024-01-02", close: 100 }]);
+  });
+
+  it("non ripesca senza currentTradingPeriod: la fine seduta non è verificabile", () => {
+    const out = parseYahooChart(
+      nonConsolidata({ currentTradingPeriod: undefined }),
+      DOPO_LA_CHIUSURA,
+    );
+    expect(out).toEqual([{ date: "2024-01-02", close: 100 }]);
+  });
+
+  it("non ripesca su un prezzo non positivo o non finito", () => {
+    for (const price of [0, -1, Number.NaN, "110"]) {
+      const out = parseYahooChart(
+        nonConsolidata({ regularMarketPrice: price }),
+        DOPO_LA_CHIUSURA,
+      );
+      expect(out).toEqual([{ date: "2024-01-02", close: 100 }]);
+    }
+  });
+
+  it("un buco IN MEZZO alla serie resta un dato mancante, mai ripescato", () => {
+    const out = parseYahooChart(
+      {
+        chart: {
+          result: [
+            {
+              meta: {
+                dataGranularity: "1d",
+                regularMarketPrice: 110,
+                regularMarketTime: FINE_SEDUTA,
+                currentTradingPeriod: {
+                  regular: { start: APERTURA_2, end: FINE_SEDUTA },
+                },
+              },
+              timestamp: [1704186000, APERTURA_2, 1704358800],
+              indicators: { quote: [{ close: [100, null, 120] }] },
+            },
+          ],
+        },
+      },
+      new Date("2024-01-04T22:00:00Z"),
+    );
+    expect(out).toEqual([
+      { date: "2024-01-02", close: 100 },
+      { date: "2024-01-04", close: 120 },
+    ]);
+  });
+});
+
 describe("parseYahooGranularity", () => {
   it("legge la granularità dichiarata", () => {
     expect(parseYahooGranularity(risposta())).toBe("1d");

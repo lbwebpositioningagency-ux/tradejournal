@@ -264,11 +264,15 @@ describe("DriverDeskPanel — chiave di lettura per scheda (R7)", () => {
 });
 
 describe("DriverDeskPanel — schede", () => {
-  it("le tre schede ci sono, con la storia comune dichiarata", () => {
+  it("le tre schede ci sono, con le DUE date dichiarate separatamente (F3)", () => {
     for (const ticker of ["XAU/USD", "WTI", "GER40"]) {
       expect(html).toContain(ticker);
     }
-    expect(html).toContain("storia comune");
+    /* Le linee e la finestra dei confronti sono due cose diverse e la pagina
+       deve dirlo: una sola data faceva passare per «dati vecchi» la cadenza
+       di pubblicazione della serie più lenta. */
+    expect(html).toContain("linee aggiornate al");
+    expect(html).toContain("confronti e stabilità sulla finestra allineata");
   });
 
   it("la legenda cliccabile del grafico ha un pulsante per componente", () => {
