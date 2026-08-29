@@ -50,6 +50,13 @@ ALLOW_REMOTE_DB=1 npm run db:deploy      # con l'ambiente di produzione caricato
 - **L'ordine è: migrazione PRIMA, push DOPO. Mai il contrario.** Al contrario si ottiene codice
   in produzione che cerca colonne inesistenti, e l'errore salta fuori a caso, in una pagina a
   caso, anche giorni dopo.
+- **La regola copre lo SCHEMA, non i DATI: se scrivi un backfill, l'ordine è migrazione →
+  deploy → backfill.** Una riga che contiene un valore d'enum nuovo rompe il codice vecchio
+  esattamente come una colonna mancante: il client Prisma già deployato valida ciò che legge
+  contro il proprio enum e solleva `Value 'X' not found in enum`, quindi la pagina muore. Il
+  29/08/2026 il backfill di `DXY` è partito prima del deploy e per dieci minuti la pagina
+  Driver in produzione ha risposto errore. Aggiungere un valore all'enum è additivo per il
+  database e **distruttivo per il codice vecchio** nell'istante in cui una riga lo usa.
 - Senza `ALLOW_REMOTE_DB=1` il comando **muore apposta** se il database non è locale: è la
   guardia di `src/lib/db-guard.ts`, non un intoppo. Stampa l'host prima di agire: leggilo.
 - Se il push non aggiunge migrazioni, non devi fare nulla.
