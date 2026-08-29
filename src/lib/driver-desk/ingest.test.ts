@@ -4,6 +4,8 @@ import {
   deltaWindowStart,
   isWeekendKey,
   normalizeObservations,
+  raccordaRipiego,
+  spostaGiorni,
   qaSeries,
   runDriverDeskDeltaIngest,
 } from "@/lib/driver-desk/ingest";
@@ -150,5 +152,101 @@ describe("runDriverDeskDeltaIngest — comportamenti senza rete", () => {
       expect(r.ok).toBe(false);
       expect(r.error).toContain("budget");
     }
+  });
+});
+
+/* ═══════ Raccordo dei ripieghi sui rendimenti ═══════════════════════════
+   Il pannello disegna variazioni standardizzate, non livelli: una barra di
+   ripiego scritta col suo livello grezzo inventa un rendimento all'ingresso e
+   il suo opposto all'uscita. Misurato sui giorni comuni del 2026, il ripiego
+   sta lontano dalla primaria fino al 22% (Brent), 15% (WTI), 3,8% (oro). */
+
+describe("spostaGiorni", () => {
+  it("sposta la chiave-giorno in UTC, anche a cavallo di mese", () => {
+    expect(spostaGiorni("2026-08-24", -10)).toBe("2026-08-14");
+    expect(spostaGiorni("2026-03-05", -10)).toBe("2026-02-23");
+    expect(spostaGiorni("2026-01-05", -10)).toBe("2025-12-26");
+  });
+});
+
+describe("raccordaRipiego", () => {
+  /* Oro: archivio spot a 4.450, ripiego future a 4.530 — la base del giorno
+     misurata il 28/08/2026. Il future poi sale dell'1%: il raccordo deve
+     conservare quell'1% e NON la differenza di livello. */
+  const archivio = new Map([
+    ["2026-08-20", 4400],
+    ["2026-08-21", 4450],
+  ]);
+  const ripiego = [
+    { date: "2026-08-21", value: 4530 }, // ancora: stesso giorno dell'archivio
+    { date: "2026-08-24", value: 4530 * 1.01 }, // +1,00% esatto
+    { date: "2026-08-25", value: 4530 * 1.01 * 0.99 }, // −1,00% esatto
+  ];
+
+  it("aggancia all'ultima data in comune e conserva i rendimenti", () => {
+    const out = raccordaRipiego(ripiego, archivio, "2026-08-24", "logret")!;
+    expect(out.ancora).toBe("2026-08-21");
+    // il primo giorno raccordato parte dal livello SPOT, non da quello future
+    expect(out.finestra[0].value).toBeCloseTo(4450 * 1.01, 6);
+    expect(out.finestra[1].value).toBeCloseTo(4450 * 1.01 * 0.99, 6);
+    // e i rendimenti sono identici a quelli della fonte di ripiego
+    const rIn = Math.log(ripiego[2].value / ripiego[1].value);
+    const rOut = Math.log(out.finestra[1].value / out.finestra[0].value);
+    expect(rOut).toBeCloseTo(rIn, 12);
+  });
+
+  it("NON introduce il salto che il livello grezzo avrebbe prodotto", () => {
+    const out = raccordaRipiego(ripiego, archivio, "2026-08-24", "logret")!;
+    const grezzo = Math.log(ripiego[1].value / 4450); // il difetto: livello future su livello spot
+    const raccordato = Math.log(out.finestra[0].value / 4450); // +1,00%: il vero
+    expect(grezzo).toBeGreaterThan(0.017);
+    expect(raccordato).toBeCloseTo(Math.log(1.01), 12);
+  });
+
+  it("le serie 'diff' si raccordano per differenza, non per rapporto", () => {
+    // un tasso puo' essere negativo: il rapporto non avrebbe senso
+    const arch = new Map([["2026-08-21", -0.4]]);
+    const rip = [
+      { date: "2026-08-21", value: 0.1 },
+      { date: "2026-08-24", value: 0.3 }, // +0,20 punti
+    ];
+    const out = raccordaRipiego(rip, arch, "2026-08-24", "diff")!;
+    expect(out.finestra[0].value).toBeCloseTo(-0.2, 12); // −0,4 + 0,20
+  });
+
+  it("senza data in comune non raccorda: meglio un buco che un salto inventato", () => {
+    const arch = new Map([["2026-08-19", 4400]]); // l'ancora non c'e'
+    expect(raccordaRipiego(ripiego, arch, "2026-08-24", "logret")).toBeNull();
+  });
+
+  it("con l'archivio vuoto non raccorda", () => {
+    expect(raccordaRipiego(ripiego, new Map(), "2026-08-24", "logret")).toBeNull();
+  });
+
+  it("sceglie l'ancora PIÙ RECENTE fra quelle in comune", () => {
+    const rip = [
+      { date: "2026-08-20", value: 100 },
+      { date: "2026-08-21", value: 200 },
+      { date: "2026-08-24", value: 220 },
+    ];
+    const out = raccordaRipiego(rip, archivio, "2026-08-24", "logret")!;
+    expect(out.ancora).toBe("2026-08-21");
+    expect(out.fattore).toBeCloseTo(4450 / 200, 12);
+  });
+
+  it("una fonte IDENTICA alla primaria resta identica: fattore 1", () => {
+    // il caso di FRED SP500 contro Yahoo ^GSPC: scarto esattamente nullo
+    const rip = [
+      { date: "2026-08-21", value: 4450 },
+      { date: "2026-08-24", value: 4500 },
+    ];
+    const out = raccordaRipiego(rip, archivio, "2026-08-24", "logret")!;
+    expect(out.fattore).toBe(1);
+    expect(out.finestra[0].value).toBe(4500);
+  });
+
+  it("livelli non positivi su una serie di prezzo: non raccorda", () => {
+    const arch = new Map([["2026-08-21", 0]]);
+    expect(raccordaRipiego(ripiego, arch, "2026-08-24", "logret")).toBeNull();
   });
 });
