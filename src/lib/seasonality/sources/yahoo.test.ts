@@ -301,3 +301,104 @@ function rispostaMezzaSeduta() {
     currentTradingPeriod: { regular: { start: APERTURA, end: CHIUSURA } },
   });
 }
+
+/* ═══════ L'ORA DEL CRON ═══════════════════════════════════════════════════
+   Il giro notturno gira fra le 03:30 e le 04:23 UTC. A quell'ora, nei giorni
+   FERIALI, Yahoo ha gia' fatto rotolare `currentTradingPeriod` alla sessione
+   di oggi — la cui fine e' nel futuro. Misurato il 29/08/2026: con la sola
+   regola `now >= end` la riparazione dell'ultima barra era INERTE proprio nel
+   cron, cioe' nell'unica esecuzione che conta, e ^GDAXI e DX-Y.NYB tornavano
+   indietro di una seduta. */
+
+/** Barra del 28/08, come la vede il cron della notte fra il 28 e il 29. */
+const barraDel28 = (tsBarra: number, meta: Record<string, unknown>) => ({
+  chart: {
+    result: [
+      {
+        meta: { dataGranularity: "1d", regularMarketPrice: 99.677, ...meta },
+        timestamp: [tsBarra - 86_400, tsBarra],
+        indicators: { quote: [{ close: [98.5, null] }] },
+      },
+    ],
+  },
+});
+
+const ORA_CRON = new Date("2026-08-29T04:23:00Z");
+const ORA_CRON_PRESTO = new Date("2026-08-29T03:30:00Z");
+
+describe("chiusuraDaMeta — all'ora del cron la barra arriva", () => {
+  it("indice europeo, periodo GIA' ROTOLATO alla seduta di oggi", () => {
+    const out = parseYahooChart(
+      barraDel28(Date.parse("2026-08-28T07:00:00Z") / 1000, {
+        regularMarketTime: Date.parse("2026-08-28T16:00:00Z") / 1000,
+        currentTradingPeriod: {
+          regular: {
+            start: Date.parse("2026-08-29T07:00:00Z") / 1000,
+            end: Date.parse("2026-08-29T15:30:00Z") / 1000,
+          },
+        },
+      }),
+      ORA_CRON,
+    );
+    expect(out.at(-1)).toEqual({ date: "2026-08-28", close: 99.677 });
+  });
+
+  it("strumento a 23 ore, la cui finestra finisce DENTRO l'orario del cron", () => {
+    /* DX-Y.NYB: periodo 28/08 04:00Z → 29/08 03:59Z. Alle 03:30 la finestra
+       dichiarata e' ancora aperta, ma l'indice ha smesso di quotare alle
+       20:59 del giorno prima. */
+    const meta = {
+      regularMarketTime: Date.parse("2026-08-28T20:59:59Z") / 1000,
+      currentTradingPeriod: {
+        regular: {
+          start: Date.parse("2026-08-28T04:00:00Z") / 1000,
+          end: Date.parse("2026-08-29T03:59:00Z") / 1000,
+        },
+      },
+    };
+    const ts = Date.parse("2026-08-28T04:00:00Z") / 1000;
+    for (const ora of [ORA_CRON_PRESTO, ORA_CRON]) {
+      expect(parseYahooChart(barraDel28(ts, meta), ora).at(-1)).toEqual({
+        date: "2026-08-28",
+        close: 99.677,
+      });
+    }
+  });
+
+  it("…e lo stesso strumento col periodo rotolato al giorno dopo", () => {
+    const out = parseYahooChart(
+      barraDel28(Date.parse("2026-08-28T04:00:00Z") / 1000, {
+        regularMarketTime: Date.parse("2026-08-28T20:59:59Z") / 1000,
+        currentTradingPeriod: {
+          regular: {
+            start: Date.parse("2026-08-29T04:00:00Z") / 1000,
+            end: Date.parse("2026-08-30T03:59:00Z") / 1000,
+          },
+        },
+      }),
+      ORA_CRON,
+    );
+    expect(out.at(-1)).toEqual({ date: "2026-08-28", close: 99.677 });
+  });
+
+  it("ma A METÀ SEDUTA la barra DI OGGI resta fuori, coi tre rami e la quarta guardia", () => {
+    /* Nessuno dei tre rami deve aprirsi: la sessione della barra e' quella
+       corrente, non e' finita, e la barra e' di oggi. */
+    const mezzogiorno = new Date("2026-08-28T12:00:00Z");
+    for (const [inizio, fine] of [
+      ["2026-08-28T07:00:00Z", "2026-08-28T15:30:00Z"], // indice europeo
+      ["2026-08-28T04:00:00Z", "2026-08-29T03:59:00Z"], // strumento a 23 ore
+    ]) {
+      const out = parseYahooChart(
+        barraDel28(Date.parse(inizio) / 1000, {
+          regularMarketTime: Date.parse("2026-08-28T11:59:00Z") / 1000,
+          currentTradingPeriod: {
+            regular: { start: Date.parse(inizio) / 1000, end: Date.parse(fine) / 1000 },
+          },
+        }),
+        mezzogiorno,
+      );
+      expect(out).toHaveLength(1); // solo la barra precedente, gia' consolidata
+    }
+  });
+});

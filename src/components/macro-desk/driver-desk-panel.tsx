@@ -300,6 +300,17 @@ function SchedaStrumento({
                 style={{ borderColor: "var(--md-border)" }}
               >
                 <BloccoRelazioni relations={card.relations} />
+                {/* Una riga sola, sotto il blocco: quando due serie della
+                    scheda sono fotografate in momenti diversi della giornata,
+                    la correlazione fra loro e' misurata su finestre sfasate.
+                    Il numero resta quello misurato — correggerlo vorrebbe dire
+                    stimare quanto dello sfasamento e' orario e quanto e'
+                    mercato, cioe' inventare — ma chi legge deve saperlo. */}
+                {card.notaRilevazione ? (
+                  <p className="mt-3 text-[11px] leading-relaxed text-[var(--md-muted)]">
+                    {card.notaRilevazione}
+                  </p>
+                ) : null}
               </div>
             ) : null}
           </div>

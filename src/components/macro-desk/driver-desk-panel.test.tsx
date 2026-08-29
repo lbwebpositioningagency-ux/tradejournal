@@ -357,3 +357,29 @@ describe("DriverDeskPanel — data dell'ultimo aggiornamento", () => {
     expect(html).toContain("Ultimo aggiornamento dati: 2026-08-12");
   });
 });
+
+describe("DriverDeskPanel — avvertenza sugli orari di rilevazione (C3)", () => {
+  it("la scheda DAX dichiara che la correlazione con EURUSD è prudenziale", () => {
+    const dax = html.split("GER40")[1] ?? "";
+    expect(dax).toContain("misurata su orari diversi");
+    expect(dax).toContain("stima prudenziale");
+  });
+
+  it("le altre due schede NON la portano: sarebbe rumore dove non serve", () => {
+    // una nota per scheda al massimo, e solo dove c'e' lo sfasamento misurato
+    const occorrenze = html.split("misurata su orari diversi").length - 1;
+    expect(occorrenze).toBe(1);
+  });
+});
+
+describe("C3 — collocazione della riga", () => {
+  it("sta DENTRO il blocco di stabilità, dopo l'ultima relazione", () => {
+    const dax = html.split("GER40")[1] ?? "";
+    const iStab = dax.indexOf("Stabilit");
+    const iBund = dax.lastIndexOf("Bund 10Y");
+    const iNota = dax.indexOf("misurata su orari diversi");
+    expect(iStab).toBeGreaterThan(-1);
+    expect(iNota).toBeGreaterThan(iStab);
+    expect(iNota).toBeGreaterThan(iBund);
+  });
+});

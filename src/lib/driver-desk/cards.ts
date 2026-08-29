@@ -151,6 +151,8 @@ export interface DriverCardPayload {
    */
   guide: GuideEntry[];
   relations: RelationStability[];
+  /** Avvertenza sugli orari di rilevazione, sotto il blocco di stabilità. */
+  notaRilevazione?: string;
   /** Nota di freschezza (es. ritardo di pubblicazione FRED). */
   freshnessNote?: string;
 }
@@ -688,6 +690,7 @@ export function composeCard(
         : null,
     guide,
     relations,
+    notaRilevazione: card.notaRilevazione,
     freshnessNote:
       card.id === "WTI"
         ? "Le serie del petrolio arrivano da FRED con circa una settimana di ritardo di pubblicazione: la data dei dati è quella dichiarata sopra."

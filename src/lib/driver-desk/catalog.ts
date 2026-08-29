@@ -357,6 +357,15 @@ export interface DriverCardDef {
    * stessa di quel blocco.
    */
   readingNotes: Record<string, string>;
+  /**
+   * Avvertenza sugli ORARI DI RILEVAZIONE, mostrata sotto il blocco di
+   * stabilita'. Serve quando due serie della scheda vengono fotografate in
+   * momenti diversi della giornata: la correlazione fra loro e' allora
+   * misurata su finestre sfasate, e il numero va letto come prudenziale.
+   * Il numero NON si corregge — correggerlo vorrebbe dire stimare quanto
+   * dello sfasamento e' orario e quanto e' mercato, cioe' inventare.
+   */
+  notaRilevazione?: string;
 }
 
 /**
@@ -427,6 +436,15 @@ export const DRIVER_CARDS: DriverCardDef[] = [
   },
   {
     id: "DAX",
+    /* Misurato il 29/08/2026 confrontando le due fonti di EURUSD sullo stesso
+       insieme di date: la correlazione contemporanea con il DAX passa da
+       +0,342 (DEXUSEU, fixing di mezzogiorno a New York, quasi contemporaneo
+       alla chiusura del DAX) a +0,158 (Dukascopy, chiusura a mezzanotte UTC).
+       La parte che manca non sparisce: ricompare nell'anticipo, che nell'ultimo
+       anno cambia segno da -0,062 a +0,086. E' l'effetto delle otto ore e
+       mezza che separano le due rilevazioni, non un indebolimento del legame. */
+    notaRilevazione:
+      "La correlazione con EURUSD è misurata su orari diversi — il DAX chiude alle 17:30 italiane, il cambio a mezzanotte UTC — e le otto ore che li separano appartengono già alla giornata dopo per l'azionario. Il legame reale è quindi almeno quanto dice il numero, verosimilmente più stretto: leggilo come una stima prudenziale.",
     label: "DAX",
     ticker: "GER40",
     colorToken: "var(--md-idx)",

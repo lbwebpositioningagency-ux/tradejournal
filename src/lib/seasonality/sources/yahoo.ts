@@ -103,14 +103,44 @@ function chiusuraDaMeta(
   }
   if (utcDateKey(marketTime) !== utcDateKey(ts)) return undefined;
 
-  // 3. la finestra di seduta DICHIARATA da Yahoo è passata
+  /* 3. la seduta DI QUESTA BARRA è finita.
+     Tre modi indipendenti di stabilirlo, e ne basta uno. Servono tutti e tre
+     perché `currentTradingPeriod` è la sessione CORRENTE, non quella della
+     barra: dedurre la seconda dalla prima con una regola sola sbaglia in
+     almeno un caso reale.
+
+     (a) è già cominciata una seduta SUCCESSIVA a quella della barra. È il
+         caso del giro notturno nei giorni feriali: alle 04:23 UTC Yahoo ha
+         già fatto rotolare il periodo alla sessione di oggi, la cui fine è
+         nel futuro. Senza questo ramo la riparazione dell'ultima barra
+         sarebbe INERTE proprio nel cron — misurato il 29/08/2026 su ^GDAXI e
+         DX-Y.NYB, entrambi tornavano indietro di una seduta.
+
+     (b) la seduta corrente copre la barra ed è dichiarata conclusa. È il caso
+         del fine settimana, quando nessuna sessione nuova è partita.
+
+     (c) la barra è di un giorno UTC già passato. Da sola non basterebbe, ma
+         qui arriva dopo la guardia 2 — che pretende l'ultimo scatto NELLO
+         STESSO giorno della barra — e prima della 4, che lo pretende fermo da
+         mezz'ora. Le tre insieme dicono: giorno chiuso, ultimo prezzo di quel
+         giorno, e nessuno lo sta più muovendo. Serve agli strumenti a 23 ore
+         come DX-Y.NYB, la cui finestra dichiarata finisce alle 03:59 UTC del
+         giorno dopo — cioè dentro l'orario in cui gira il cron — mentre
+         l'indice ha in realtà smesso di quotare alle 20:59. */
   const periodo = m.currentTradingPeriod;
   if (periodo === null || typeof periodo !== "object") return undefined;
   const regular = (periodo as Record<string, unknown>).regular;
   if (regular === null || typeof regular !== "object") return undefined;
   const end = (regular as Record<string, unknown>).end;
+  const start = (regular as Record<string, unknown>).start;
   if (typeof end !== "number" || !Number.isFinite(end)) return undefined;
-  if (now.getTime() < end * 1000) return undefined;
+  if (typeof start !== "number" || !Number.isFinite(start)) return undefined;
+
+  const sedutaFinita =
+    start > ts ||
+    (now.getTime() >= end * 1000 && start <= ts) ||
+    utcDateKey(ts) < now.toISOString().slice(0, 10);
+  if (!sedutaFinita) return undefined;
 
   /* 4. …e la QUOTAZIONE è ferma da un pezzo.
      Questa guardia esiste perché la 3 si fida di un campo di Yahoo. Se
