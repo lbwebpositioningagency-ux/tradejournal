@@ -699,6 +699,14 @@ model SeasonalityDailyBar {
   open       Decimal?              @db.Decimal(18, 8)
   high       Decimal?              @db.Decimal(18, 8)
   low        Decimal?              @db.Decimal(18, 8)
+  // Quando la riga e' stata scritta. Le barre si riscrivono per INTERO a ogni
+  // giro (deleteMany + createMany), quindi questo e' il timestamp
+  // dell'ingestione che l'ha prodotta. Esiste per una domanda precisa: il
+  // 26/08/2026 tutto il 2005 dell'oro e' sparito in una riscrittura e per
+  // datarla si e' dovuto interrogare `xmin`, l'identificativo di transazione
+  // fisica di Postgres — che funziona, ma e' un dettaglio del motore e sparisce
+  // a ogni VACUUM FULL. La prossima volta la risposta e' una colonna.
+  writtenAt  DateTime              @default(now())
 
   @@id([instrument, date])
 }
@@ -844,6 +852,42 @@ model SeasonalityRun {
   detail     Json?
 
   @@index([startedAt])
+}
+
+// REGISTRO DELLE VARIAZIONI dei valori chiave della Stagionalità: barre della
+// serie grezza, estremi delle date, `n` e media di ogni bucket, cumulato di
+// fine anno del percorso. Serve a rispondere a «questo numero è cambiato il
+// giorno X, prima valeva Y» — la domanda che il 26/08/2026 è costata una
+// ricostruzione a mano dagli `xmin` di Postgres, perché la risposta non
+// esisteva da nessuna parte.
+//
+// UNA RIGA NUOVA SOLO QUANDO IL VALORE CAMBIA. Scrivere ogni notte darebbe
+// ~24.000 righe l'anno quasi tutte identiche, cioè di nuovo un lavoro manuale
+// per trovare il giorno buono; quando l'impronta si ripete si aggiorna solo
+// `ultimaVista`. Così la tabella resta sulle poche decine di righe ed è
+// leggibile a occhio: due righe consecutive SONO il cambiamento.
+//
+// `digest` è l'hash della forma canonica di `payload` (v. `impronta.ts`): il
+// confronto «uguale o diverso» è una stringa, non una visita ricorsiva.
+model SeasonalityImpronta {
+  id            String                @id @default(cuid())
+  instrument    SeasonalityInstrument
+  lookbackYears Int
+  /**
+   * Quando questa impronta è comparsa per la prima volta: è la DATA DEL
+   * CAMBIAMENTO, quella che si cerca.
+   */
+  primaVista    DateTime              @default(now())
+  /** Ultimo giro che l'ha ritrovata identica: dice fin dove è rimasta valida. */
+  ultimaVista   DateTime              @default(now())
+  digest        String
+  barre         Int
+  primaData     DateTime?             @db.Date
+  ultimaData    DateTime?             @db.Date
+  /** `n` e media di ogni bucket, più il cumulato di fine anno. */
+  payload       Json
+
+  @@index([instrument, lookbackYears, primaVista])
 }
 
 // Una riga per (strumento, granularità, anno, bucket): è ciò che alimenta le

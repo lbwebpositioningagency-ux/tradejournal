@@ -16,6 +16,11 @@ con un'ipotesi.
 | `chunk-check.mjs` | I chunk JS referenziati da una pagina esistono tutti, o qualcuno risponde 404? |
 | `sonda-spazi.js` | Spazi mangiati dal montaggio JSX («28/08/2026nel fuso»), invisibili in uno screenshot |
 | `percorso-unita.mjs` | La stessa curva stagionale costruita in quattro modi (% o valuta × media o mediana): quale scelta di metodo cambia la forma |
+| `percorso-varianti.mjs` | La stessa curva cambiando allineamento (giorno di calendario o di negoziazione) e finestra: la forma descrive la stagionalità o quei cinque anni? |
+| `tratto-anno-per-anno.mjs` | Apre la media su un tratto: la discesa è condivisa dagli anni, o la trascina un anno solo? |
+| `ordine-media.mjs` | Ordine delle operazioni: prima i percorsi e poi la media, o prima la media e poi il cumulo? Sono due curve diverse |
+| `percorso-base100.mjs` | Che numero verrebbe indicizzando a 100 come dichiara Seasonax, invece di cumulare i rendimenti |
+| `impronta-storia.mjs` | **Cos'è cambiato e quando**: il registro delle variazioni dei valori chiave della Stagionalità, con il prima e il dopo |
 | `contesi.mjs` | Quali file stanno toccando due sessioni in parallelo sullo stesso `main` |
 | `crop.mjs` | Ritaglia uno screenshot per guardarne una zona a scala 1:1 |
 

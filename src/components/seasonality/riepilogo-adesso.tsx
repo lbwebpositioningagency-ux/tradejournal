@@ -1,5 +1,6 @@
 import type { SeasonalityKind } from "@/generated/prisma/client";
 import type { RigaRiepilogo } from "@/lib/seasonality/riepilogo-adesso";
+import type { WindowCoverage } from "@/lib/seasonality/query";
 import { MetricInfo } from "@/components/metric-info";
 import {
   campioneInfo,
@@ -42,6 +43,7 @@ export function RiepilogoAdesso({
   righe,
   finestre,
   finestraSelezionata,
+  copertura,
   reference = 0,
   motivoVuota,
 }: {
@@ -50,6 +52,8 @@ export function RiepilogoAdesso({
   /** Le finestre di lookback disponibili, dalla più lunga alla più corta. */
   finestre: number[];
   finestraSelezionata: number;
+  /** Copertura della finestra selezionata: anni civili e quanti hanno dati. */
+  copertura?: WindowCoverage;
   /**
    * Riferimento del colore per i LIVELLI, come nella tabella grande: la
    * mediana dei dodici mesi. Con lo zero un indice di volatilità — sempre
@@ -72,8 +76,18 @@ export function RiepilogoAdesso({
         <h2 className="text-sm font-semibold text-[var(--md-text)]">
           Dove siamo adesso
         </h2>
+        {/* Gli anni civili accanto al conteggio: «20 anni» non dice QUALI
+            venti, e a capodanno la finestra scorre in silenzio. Se dietro ce
+            ne sono meno di quanti ne chieda, si dichiara qui — è la riga che
+            si legge per prima. */}
         <span className="md-mono text-2xs text-[var(--md-muted)]">
           finestra selezionata: {finestraSelezionata} anni
+          {copertura ? ` · ${copertura.from}-${copertura.to}` : ""}{" "}
+          {copertura?.truncated ? (
+            <span className="ml-1 text-[var(--md-warn)]">
+              · {copertura.available} con dati
+            </span>
+          ) : null}
         </span>
       </div>
 
@@ -126,8 +140,16 @@ export function RiepilogoAdesso({
                       {positiveLabel(kind)} {formatShare(sel.positiveShare)}
                     </span>
                     <span className="inline-flex items-center gap-1">
-                      n={sel.n}
-                      {sel.rawCount != null
+                      <span
+                        style={
+                          sel.n < finestraSelezionata
+                            ? { color: "var(--md-warn)" }
+                            : undefined
+                        }
+                      >
+                        {sel.n}/{finestraSelezionata} anni
+                      </span>
+                      {sel.rawCount != null && sel.rawCount !== sel.n
                         ? ` · ${sel.rawCount.toLocaleString("it-IT")} ${r.unitaCampione}`
                         : ""}
                       <LowSampleMark quality={sel.quality} n={sel.n} />
@@ -205,15 +227,12 @@ export function RiepilogoAdesso({
                   <MetricInfo info={posInfo(kind)} size="sm" />
                 </span>
               </th>
-              <th scope="col" className="px-2 py-2 text-right font-semibold">
-                <span className="inline-flex items-center justify-end gap-1">
-                  n · anni
-                  <MetricInfo info={numerositaInfo} size="sm" />
-                </span>
-              </th>
+              {/* Una colonna sola, come nella tabella grande: sul mese «n» e
+                  «campione» dicevano lo stesso numero due volte. */}
               <th scope="col" className="px-2 py-2 text-right font-semibold">
                 <span className="inline-flex items-center justify-end gap-1">
                   Campione
+                  <MetricInfo info={numerositaInfo} size="sm" />
                   <MetricInfo info={campioneInfo("mesi, settimane o giorni")} size="sm" />
                 </span>
               </th>
@@ -302,16 +321,30 @@ export function RiepilogoAdesso({
                       <td className="md-mono px-2 py-2 text-right text-[var(--md-text-2)]">
                         {formatShare(sel.positiveShare)}
                       </td>
-                      <td className="md-mono px-2 py-2 text-right text-[var(--md-text-2)]">
-                        <span className="inline-flex items-center justify-end gap-1">
-                          {sel.n}
-                          <LowSampleMark quality={sel.quality} n={sel.n} />
+                      <td className="md-mono px-2 py-2 text-right whitespace-nowrap text-[var(--md-text-2)]">
+                        <span className="inline-flex flex-col items-end gap-0">
+                          <span className="inline-flex items-center justify-end gap-1">
+                            <span
+                              style={
+                                sel.n < finestraSelezionata
+                                  ? { color: "var(--md-warn)" }
+                                  : undefined
+                              }
+                            >
+                              {sel.n}/{finestraSelezionata}
+                            </span>
+                            <span className="text-2xs text-[var(--md-muted)]">
+                              anni
+                            </span>
+                            <LowSampleMark quality={sel.quality} n={sel.n} />
+                          </span>
+                          {sel.rawCount != null && sel.rawCount !== sel.n ? (
+                            <span className="text-2xs text-[var(--md-muted)]">
+                              {sel.rawCount.toLocaleString("it-IT")}{" "}
+                              {r.unitaCampione}
+                            </span>
+                          ) : null}
                         </span>
-                      </td>
-                      <td className="md-mono px-2 py-2 text-right whitespace-nowrap text-[var(--md-muted)]">
-                        {sel.rawCount != null
-                          ? `${sel.rawCount.toLocaleString("it-IT")} ${r.unitaCampione}`
-                          : "—"}
                       </td>
                     </>
                   )}

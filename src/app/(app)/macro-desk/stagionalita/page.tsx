@@ -38,6 +38,8 @@ import {
 } from "@/lib/seasonality/instruments";
 import { detrendInfo, percorsoInfo } from "@/lib/seasonality/metric-info";
 import {
+  anniConDatiPerFinestra,
+  anniSenzaOsservazioni,
   getCoverage,
   getHeatmap,
   getLastRun,
@@ -45,6 +47,7 @@ import {
   getQuarterPaths,
   getStatsByWindow,
   intradayLookbacks,
+  lastCompleteYear,
   windowCoverage,
   type BucketView,
   type HeatmapData,
@@ -327,10 +330,22 @@ export default async function StagionalitaPage({
         )
       : 0;
 
-  const windows = windowCoverage(
-    lookbacksDisponibili,
-    intraday ? (cov?.hourCompleteYears ?? null) : (cov?.completeYears ?? null),
-  );
+  /* La copertura si misura sui DATI, non sulla lunghezza della storia: il
+     massimo `n` raggiunto da ogni finestra. Senza questo l'avviso taceva
+     proprio nel caso che ci interessa — v. `windowCoverage`. */
+  const windows = windowCoverage({
+    lookbacks: lookbacksDisponibili,
+    completeYears: intraday
+      ? (cov?.hourCompleteYears ?? null)
+      : (cov?.completeYears ?? null),
+    lastComplete: lastCompleteYear(),
+    anniConDati: anniConDatiPerFinestra(byWindow),
+  });
+  /* Gli anni vuoti si possono NOMINARE solo per la finestra selezionata: è
+     l'unica di cui la heatmap sia in pagina. Per le altre resta il conteggio. */
+  const anniMancanti = heatmap
+    ? anniSenzaOsservazioni(heatmap, lastCompleteYear())
+    : [];
   const selectedCoverage = windows.find(
     (w) => w.lookbackYears === lookbackEffettivo,
   );
@@ -632,6 +647,7 @@ export default async function StagionalitaPage({
               })}
               finestre={[...LOOKBACK_YEARS].sort((a, b) => b - a)}
               finestraSelezionata={lookbackEffettivo}
+              copertura={selectedCoverage}
               reference={riferimentoRiepilogo}
               motivoVuota={(r) => motivoRigaVuota(r, adessoRoma)}
             />
@@ -887,6 +903,7 @@ export default async function StagionalitaPage({
                   byWindow={byWindow}
                   selectedWindow={lookbackEffettivo}
                   coverage={windows}
+                  anniMancanti={anniMancanti}
                   reference={reference}
                 />
               </div>

@@ -1,0 +1,2 @@
+-- AlterTable
+ALTER TABLE "SeasonalityDailyBar" ADD COLUMN     "writtenAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP;

@@ -2303,6 +2303,158 @@ chiaro e scuro** (32 schermate in `docs/macro-forma/dopo/`).
 
 ---
 
+## Stagionalità: punti di ritorno (29/08/2026)
+
+La Stagionalità si è rotta due volte in due giorni senza che nessuno se ne
+accorgesse subito: una volta dal codice (un ripristino sul commit sbagliato
+cancellò «Dove siamo adesso») e una volta dai dati (un giro di ingest riscrisse
+la serie dell'oro perdendo tutte le 312 sedute del 2005). In entrambi i casi il
+costo non è stata la riparazione: è stato **capire dove fosse il buono**.
+
+Da qui in avanti il punto buono è marcato.
+
+### Tornare al punto buono in un comando
+
+```
+git checkout stagionalita-buona-2026-08-29 -- "src/lib/seasonality" "src/components/seasonality" "src/app/(app)/stagionalita" "src/app/(app)/macro-desk/stagionalita"
+```
+
+Riporta **solo** i file della Stagionalità a quello stato, lascia intatto tutto
+il resto del progetto e non sposta il branch. Le virgolette servono: senza,
+`(app)` finisce interpretato dalla shell.
+
+Dopo, il diff contro il tag sugli stessi percorsi deve essere **vuoto**. È la
+prova che il ripristino è avvenuto davvero, e va guardata prima di dire che è
+fatto — l'ultima volta che non lo si è fatto, mancava una finestra intera.
+
+```
+git diff stagionalita-buona-2026-08-29 -- "src/lib/seasonality" "src/components/seasonality" "src/app/(app)/stagionalita" "src/app/(app)/macro-desk/stagionalita"
+```
+
+Per vedere cosa contiene un punto di ritorno prima di usarlo:
+`git tag -n20 stagionalita-buona-2026-08-29`. Il messaggio del tag dice cosa
+era stato verificato in quel momento, non solo la data.
+
+### La regola: il tag PRIMA della modifica
+
+**Prima di ogni modifica alla Stagionalità si mette un tag**, non dopo. Un tag
+messo dopo marca uno stato che nessuno ha ancora guardato; messo prima marca
+l'ultimo stato di cui si sa che funzionava.
+
+```
+git tag -a stagionalita-buona-2026-09-01 -m "cosa contiene e cosa e' stato verificato" HEAD
+```
+
+Se nello stesso giorno ce n'è più di uno, si aggiunge una lettera:
+`stagionalita-buona-2026-08-29b`. I tag restano locali finché non si spingono:
+`git push origin stagionalita-buona-2026-08-29`.
+
+### Cosa comprende «la Stagionalità»
+
+Quattro percorsi, ed è l'elenco da passare a `git checkout`:
+
+| Percorso | Cosa contiene |
+| --- | --- |
+| `src/lib/seasonality/` | Calcolo: serie, precalcolo, statistiche, bucket, ingest, continuità |
+| `src/components/seasonality/` | Resa: grafici, tabelle, controlli, riepilogo |
+| `src/app/(app)/stagionalita/` | La pagina autonoma |
+| `src/app/(app)/macro-desk/stagionalita/` | La sezione dentro il Macro Desk |
+
+Restano **fuori** i dati: un tag marca il codice, non l'archivio. Se a cambiare
+sono i numeri e non la resa, il ripristino del codice non serve a niente — si
+guardano `scripts/strumenti/buchi-serie.mjs` e la colonna `writtenAt` di
+`SeasonalityDailyBar`, che dice quando ogni barra è stata scritta.
+
+### Primo punto marcato
+
+`stagionalita-buona-2026-08-29` su `e56824a`: il ripristino a `19348d5`, il 2005
+dell'oro recuperato (8258 barre, zero mesi vuoti su tutte e tredici le serie),
+la sentinella di continuità e la colonna `writtenAt`.
+
+---
+
+## Il registro «cos'è cambiato e quando» (29/08/2026)
+
+Il 26/08 la serie dell'oro è passata da 8256 a 7944 barre e il cron è rimasto
+verde; il 29/08 è successo di nuovo con anni diversi. In entrambi i casi la
+riparazione è costata poco: è costato **capire quando fosse cambiato e quanto
+valesse prima**, una risposta che non esisteva da nessuna parte e si è dovuta
+ricostruire a mano dagli `xmin` di Postgres.
+
+Ora esiste. In coda a `/api/seasonality-sync` si prende un'**impronta** di ciò
+che è stato memorizzato — barre, estremi delle date, `n` e media di ogni mese,
+cumulato di fine anno del percorso — e si scrive una riga in
+`SeasonalityImpronta` **solo quando cambia**. Scrivere ogni notte darebbe
+~24.000 righe l'anno quasi tutte identiche, cioè di nuovo un lavoro manuale per
+trovare il giorno buono: così la tabella resta a poche decine di righe e due
+righe consecutive **sono** il cambiamento.
+
+### Le due regole d'allarme
+
+Il giro diventa rosso solo quando:
+
+1. si **perde** qualcosa — barre in meno, storia che comincia più tardi, `n` che
+   scende, un bucket che sparisce;
+2. una media cambia a **`n` invariato** — stesso campione, risposta diversa. È
+   sbagliato per costruzione, quindi non serve nessuna soglia da tarare: o il
+   campione è lo stesso, o non lo è.
+
+Tutto il resto — una barra nuova, la finestra che scorre a capodanno, una media
+che si muove perché è entrato un anno — è **atteso** e viene registrato senza
+far fallire niente. Una sentinella che suona sempre viene spenta.
+
+Il registro non fa mai fallire il giro che dovrebbe sorvegliare: se la
+registrazione stessa va in errore, finisce nei log e basta.
+
+### Come si consulta
+
+```
+node scripts/strumenti/impronta-storia.mjs XAUUSD 20
+```
+
+Stampa gli stati registrati in ordine, con sotto ciascuno cosa è cambiato
+rispetto al precedente. Per prendere l'impronta subito, senza aspettare la
+notte — dopo un deploy o dopo una riparazione a mano:
+
+```
+npx tsx scripts/impronta-stagionalita.ts
+```
+
+È idempotente: al secondo giro non scrive niente e lo dice.
+
+### Cosa NON fa
+
+Non dice **perché** un valore è cambiato, e non distingue «la fonte ha
+revisionato la storia» da «il nostro ingest ha perso righe»: per quello ci sono
+`writtenAt` su `SeasonalityDailyBar` e `scripts/strumenti/buchi-serie.mjs`. È un
+allarme, non una diagnosi. E protegge **dal giorno dopo l'installazione**: non
+ricostruisce retroattivamente il 26/08.
+
+## L'avviso di copertura misurava la cosa sbagliata
+
+Accanto, e per la stessa vicenda: l'avviso «hai chiesto 20 anni, ce ne sono 18»
+calcolava la copertura come `min(finestra, ultimoAnno − primoAnno + 1)`, cioè da
+quanto tempo la serie **esiste**. L'oro partiva dal 1999 in ogni momento della
+vicenda, quindi l'avviso **non si è mai acceso** mentre la colonna `n` in pagina
+diceva 17 su una finestra da 20.
+
+Ora la copertura si misura sui dati (`copertura.ts`, modulo puro e testato), e
+le due cause restano distinte perché portano ad azioni diverse: una storia che
+comincia tardi è un limite della fonte e si accetta, un anno vuoto dentro una
+storia lunga è un guasto e si ripara. In più, in pagina:
+
+- `n` è diventato una **frazione**: `17/20 anni`, gialla quando il numeratore è
+  più basso. Un `17` isolato e un `20` isolato si leggono uguale — due numeri — e
+  il primo è un avviso;
+- ogni intestazione di finestra porta gli **anni civili** (`20 anni · 2006-2025`):
+  il numero da solo non dice quali venti, e a capodanno la finestra scorre in
+  silenzio;
+- le colonne `n · anni` e `Campione` erano **due**, e sul mese dicevano lo
+  stesso numero due volte (una riga per anno, per costruzione). Ora sono una,
+  con la seconda riga solo quando dice qualcosa di diverso.
+
+---
+
 ## Driver Desk — le fonti settimanali escono dalla catena critica (29/08/2026)
 
 Il modulo dichiarava «dati al 21 agosto» il 29 agosto. Non era un guasto: era

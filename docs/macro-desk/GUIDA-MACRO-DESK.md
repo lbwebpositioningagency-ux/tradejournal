@@ -399,5 +399,63 @@ tutto il resto.
 
 ---
 
-*Le sezioni **Driver** e **Stagionalità** hanno una loro logica di lettura, con
-la chiave di lettura direttamente in pagina sopra ciascun grafico.*
+*La sezione **Driver** ha una sua logica di lettura, con la chiave di lettura
+direttamente in pagina sopra ciascun grafico. Per la **Stagionalità** vale lo
+stesso, con in più la nota sulle unità qui sotto: è il punto in cui si sbaglia
+a leggere più spesso.*
+
+---
+
+## Stagionalità: in che unità sono i numeri
+
+Ogni numero della Stagionalità nasce come **log-rendimento**, `ln(P_t / P_{t−1})`,
+perché i log-rendimenti si **sommano** nel tempo: è ciò che rende lecito
+sommare i mesi per ottenere il percorso dell'anno, e mediare senza la
+distorsione che affligge le percentuali semplici (+10% e −10% semplici non si
+annullano; in log sì).
+
+**In pagina, però, non si vede mai un log-rendimento.** Media, mediana,
+quartili, celle della heatmap e asse del grafico passano tutti per
+`(e^r − 1) × 100` prima di essere scritti: quello che leggi è **variazione
+vera in percentuale**, non punti-logaritmo. Su movimenti piccoli le due cose
+quasi coincidono; su un anno intero no — un percorso che in log vale 16,4
+punti è un **+17,9%** vero, e a vent'anni la differenza cresce ancora.
+
+### La media è geometrica, ed è la media onesta
+
+La media dei log-rendimenti, riconvertita, **è la media geometrica**: il
+rendimento che, ripetuto ogni anno, avrebbe prodotto il risultato davvero
+osservato. Non è la media aritmetica delle percentuali, che è sempre più alta e
+descrive un risultato che nessuno ha ottenuto. Per una grandezza che compone —
+e un prezzo compone — è la media geometrica quella che si può usare per
+decidere.
+
+Conseguenza pratica: la media di gennaio a vent'anni **non** è la media
+aritmetica delle venti celle di gennaio che vedi nella heatmap. È leggermente
+più bassa, ed è giusto che lo sia.
+
+### L'unica eccezione: la deviazione standard
+
+**StDev non è riconvertita.** Resta in punti percentuali sui log-rendimenti
+(`σ × 100`), e va letta così. Il motivo è che una dispersione non è un
+rendimento: passarla per `e^x − 1` produrrebbe un numero asimmetrico che non è
+più la deviazione standard di niente.
+
+Questo spiega perché, nella stessa riga, `Media ± 1σ` **non** si ottiene
+sommando e sottraendo il valore della colonna StDev: la banda è
+`e^(μ−σ) − 1 … e^(μ+σ) − 1`, quindi asimmetrica attorno alla media — più
+lunga verso l'alto. È corretto, ed è la ragione per cui la banda si legge dalla
+sua colonna e non si ricostruisce a mente.
+
+### E la colonna «Campione»
+
+`17/20 anni` significa: la finestra ne chiede venti, ma solo diciassette hanno
+prodotto un'osservazione per quel periodo. Quando il numeratore è più basso del
+denominatore è **giallo**, e l'avviso accanto all'intestazione della finestra
+dice quali anni mancano e perché — una storia che comincia tardi è un limite
+della fonte, un anno vuoto in mezzo è un guasto. `20/20` conferma che dietro il
+numero ci sono davvero venti anni.
+
+La seconda riga della cella, quando c'è, conta le osservazioni grezze: su un
+giorno della settimana vent'anni fanno un migliaio di giornate, su un mese ne
+fanno venti — una per anno, e in quel caso non viene ripetuta.

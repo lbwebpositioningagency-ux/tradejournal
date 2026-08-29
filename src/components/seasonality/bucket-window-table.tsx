@@ -3,7 +3,11 @@ import {
   BUCKET_AXIS,
   type SeasonalityGranularityUi,
 } from "@/components/seasonality/bucket-labels";
-import type { BucketView, WindowCoverage } from "@/lib/seasonality/query";
+import {
+  spiegaCopertura,
+  type BucketView,
+  type WindowCoverage,
+} from "@/lib/seasonality/query";
 import { RangeBar } from "@/components/macro-desk/primitives";
 import { MetricInfo } from "@/components/metric-info";
 import {
@@ -50,6 +54,7 @@ export function BucketWindowTable({
   byWindow,
   selectedWindow,
   coverage,
+  anniMancanti,
   reference = 0,
   currentBucket,
 }: {
@@ -59,6 +64,11 @@ export function BucketWindowTable({
   byWindow: Map<number, BucketView[]>;
   selectedWindow: number;
   coverage: WindowCoverage[];
+  /**
+   * Gli anni della finestra SELEZIONATA rimasti senza osservazioni, per nome.
+   * Finiscono nell'avviso: dicono dove guardare invece di far cercare.
+   */
+  anniMancanti?: readonly number[];
   /**
    * Riferimento del colore per i LIVELLI: la mediana della finestra. Senza,
    * il confronto sarebbe con lo zero e un indice di volatilità — sempre
@@ -217,15 +227,31 @@ export function BucketWindowTable({
                         : undefined
                     }
                   >
-                    {w} anni
-                    {cov?.truncated ? (
-                      <span
-                        className="ml-1 text-[var(--md-warn)]"
-                        title={`Storia disponibile: ${cov.available} anni su ${cov.requested} richiesti.`}
-                      >
-                        !
+                    {/* Il numero da solo non dice QUALI anni, e quando la
+                        finestra scorre a capodanno nessuno se ne accorge. */}
+                    <span className="inline-flex flex-col items-end gap-0">
+                      <span>
+                        {w} anni
+                        {cov?.truncated ? (
+                          <span
+                            className="ml-1 text-[var(--md-warn)]"
+                            title={
+                              spiegaCopertura(
+                                cov,
+                                w === selectedWindow ? anniMancanti : undefined,
+                              ) ?? undefined
+                            }
+                          >
+                            !
+                          </span>
+                        ) : null}
                       </span>
-                    ) : null}
+                      {cov ? (
+                        <span className="text-2xs font-normal text-[var(--md-muted)]">
+                          {cov.from}-{cov.to}
+                        </span>
+                      ) : null}
+                    </span>
                   </th>
                 );
               })}
@@ -253,21 +279,17 @@ export function BucketWindowTable({
                   <MetricInfo info={posInfo(kind)} size="sm" />
                 </span>
               </th>
-              <th scope="col" className="px-2 py-2 text-right font-semibold">
-                <span className="inline-flex items-center justify-end gap-1">
-                  n · anni
-                  <MetricInfo info={numerositaInfo} size="sm" />
-                </span>
-              </th>
-              {/* Il campione grezzo NON sostituisce n: `n` resta il
-                  denominatore di media, StDev e Pos% (gli anni), questa
-                  colonna dice su quanti dati di mercato quelle medie annue
-                  si reggono — che a parità di n cambia moltissimo fra un
-                  mese (~21 giorni l'anno) e un giorno della settimana
-                  (~52). */}
+              {/* UNA colonna sola per il campione, dal 29/08/2026. Erano due,
+                  «n · anni» e «Campione», e sul mese dicevano lo stesso
+                  numero due volte (n = 20, campione = 20 mesi): una riga per
+                  anno, per costruzione. Restano due righe nella stessa cella
+                  quando dicono cose diverse — su un giorno della settimana
+                  venti anni fanno ~1.040 giorni — e una sola quando no.
+                  `n` resta il denominatore di media, StDev e Pos%. */}
               <th scope="col" className="px-2 py-2 text-right font-semibold">
                 <span className="inline-flex items-center justify-end gap-1">
                   Campione
+                  <MetricInfo info={numerositaInfo} size="sm" />
                   <MetricInfo info={campioneInfo(axis.rawUnit)} size="sm" />
                 </span>
               </th>
@@ -344,7 +366,7 @@ export function BucketWindowTable({
                           fontWeight: isSelected ? 700 : 500,
                           opacity: isSelected ? 1 : 0.75,
                         }}
-                        title={row ? `n = ${row.n}` : undefined}
+                        title={row ? `n = ${row.n} anni su ${w}` : undefined}
                       >
                         {row ? formatBucketValue(row.mean, kind, dec, unit) : "—"}
                       </td>
@@ -381,18 +403,39 @@ export function BucketWindowTable({
                   <td className={`${cella} text-right md-mono text-[var(--md-text-2)]`}>
                     {sel ? formatShare(sel.positiveShare) : "—"}
                   </td>
-                  <td className={`${cella} text-right md-mono text-[var(--md-text-2)]`}>
-                    <span className="inline-flex items-center justify-end gap-1">
-                      {sel?.n ?? "—"}
-                      {sel ? (
-                        <LowSampleMark quality={sel.quality} n={sel.n} />
-                      ) : null}
-                    </span>
-                  </td>
-                  <td className={`whitespace-nowrap ${cella} text-right md-mono text-[var(--md-muted)]`}>
-                    {sel?.rawCount != null
-                      ? `${sel.rawCount.toLocaleString("it-IT")} ${axis.rawUnit}`
-                      : "—"}
+                  {/* `17/20` invece di `17`: il numeratore sono gli anni che
+                      hanno prodotto il dato, il denominatore quelli chiesti.
+                      Un `17` da solo e un `20` da solo si leggono uguale — due
+                      numeri — e il primo è un avviso. `20/20` conferma la
+                      completezza invece di lasciarla implicita. */}
+                  <td className={`whitespace-nowrap ${cella} text-right md-mono text-[var(--md-text-2)]`}>
+                    {sel ? (
+                      <span className="inline-flex flex-col items-end gap-0">
+                        <span className="inline-flex items-center justify-end gap-1">
+                          <span
+                            style={
+                              sel.n < selectedWindow
+                                ? { color: "var(--md-warn)" }
+                                : undefined
+                            }
+                          >
+                            {sel.n}/{selectedWindow}
+                          </span>
+                          <span className="text-2xs text-[var(--md-muted)]">
+                            anni
+                          </span>
+                          <LowSampleMark quality={sel.quality} n={sel.n} />
+                        </span>
+                        {sel.rawCount != null && sel.rawCount !== sel.n ? (
+                          <span className="text-2xs text-[var(--md-muted)]">
+                            {sel.rawCount.toLocaleString("it-IT")}{" "}
+                            {axis.rawUnit}
+                          </span>
+                        ) : null}
+                      </span>
+                    ) : (
+                      "—"
+                    )}
                   </td>
                   <td className={cella}>
                     {sel && span > 0 ? (

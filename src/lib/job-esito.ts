@@ -146,6 +146,14 @@ export interface EsitoSerie {
   ohlc?: ContoOhlc;
   /** Continuità della serie scritta; assente per le serie non scritte. */
   continuita?: ContinuitaSerie;
+  /**
+   * Variazioni SOSPETTE dell'impronta, già in parole (v.
+   * `seasonality/impronta.ts`). A differenza di `ohlc` e `continuita`, che
+   * guardano la scrittura, questa guarda il RISULTATO memorizzato: prende un
+   * valore cambiato senza una ragione legittima — tipicamente una media che si
+   * muove a campione invariato. Assente per le serie di cui non si è presa.
+   */
+  improntaSospetta?: readonly string[];
 }
 
 /**
@@ -199,6 +207,8 @@ export interface VerificaEsito {
   perditeOhlc: string[];
   /** Serie che si sono accorciate o hanno un buco, col motivo per esteso. */
   perditeContinuita: string[];
+  /** Valori memorizzati cambiati senza ragione legittima, col motivo. */
+  improntaCambiata: string[];
   /** Righe scritte in totale. */
   scritte: number;
   /** Frase pronta per il log e per il corpo della risposta. */
@@ -220,6 +230,7 @@ export function verificaEsitoJob(
   const invariate: string[] = [];
   const perditeOhlc: string[] = [];
   const perditeContinuita: string[] = [];
+  const improntaCambiata: string[] = [];
   let scritte = 0;
 
   for (const codice of attese) {
@@ -236,12 +247,27 @@ export function verificaEsitoJob(
        o che resta con un mese vuoto non è «aggiornata», qualunque cosa il job
        creda di aver fatto. */
     const rottura = perditaContinuita(esito.continuita);
-    if (esito.stato === "errore" || perdita !== null || rottura !== null) {
+    /* Terza promozione a ERRORE: un valore memorizzato che è cambiato senza
+       una ragione legittima. È il controllo che guarda il risultato invece
+       della scrittura — v. `improntaSospetta`. */
+    const impronta = esito.improntaSospetta ?? [];
+    if (
+      esito.stato === "errore" ||
+      perdita !== null ||
+      rottura !== null ||
+      impronta.length > 0
+    ) {
       inErrore.push(codice);
       if (perdita !== null) perditeOhlc.push(`${codice}: ${perdita}`);
       if (rottura !== null) perditeContinuita.push(`${codice}: ${rottura}`);
+      for (const v of impronta) improntaCambiata.push(`${codice}: ${v}`);
     }
-    if (esito.stato === "invariato" && perdita === null && rottura === null) {
+    if (
+      esito.stato === "invariato" &&
+      perdita === null &&
+      rottura === null &&
+      impronta.length === 0
+    ) {
       invariate.push(codice);
     }
     scritte += esito.scritte ?? 0;
@@ -264,6 +290,7 @@ export function verificaEsitoJob(
   // guardare, «WTI: OHLC perso in scrittura» sì.
   if (perditeOhlc.length > 0) parti.push(perditeOhlc.join(" · "));
   if (perditeContinuita.length > 0) parti.push(perditeContinuita.join(" · "));
+  if (improntaCambiata.length > 0) parti.push(improntaCambiata.join(" · "));
   if (riuscito) {
     parti.push(
       invariate.length === attese.length
@@ -279,6 +306,7 @@ export function verificaEsitoJob(
     invariate,
     perditeOhlc,
     perditeContinuita,
+    improntaCambiata,
     scritte,
     messaggio: parti.join(" · "),
   };

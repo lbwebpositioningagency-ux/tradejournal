@@ -9,7 +9,12 @@ import {
 import { isAuthorizedMacroRequest } from "@/lib/macro-desk";
 import { descriviConfronto } from "@/lib/migrazioni";
 import { verificaMigrazioni } from "@/lib/queries/migrazioni";
-import { AVAILABLE_INSTRUMENTS } from "@/lib/seasonality/instruments";
+import {
+  AVAILABLE_INSTRUMENTS,
+  LOOKBACK_YEARS,
+} from "@/lib/seasonality/instruments";
+import { sospette } from "@/lib/seasonality/impronta";
+import { registraImpronta } from "@/lib/seasonality/impronta-store";
 import { BUDGET_DEFAULT_MS, runSeasonalityDailyJob } from "@/lib/seasonality/job";
 
 /** Margine sul limite di piattaforma; il budget interno del job è più stretto. */
@@ -106,6 +111,38 @@ export async function GET(request: Request) {
           },
         );
 
+  /* ── IMPRONTA: cos'è cambiato nei valori memorizzati, e quando ────────
+     Si prende DOPO la scrittura, rileggendo dal database quello che la pagina
+     leggerà. Le due sentinelle precedenti guardano la scrittura (colonne
+     perse, righe perse); questa guarda il RISULTATO, e prende il caso che
+     nessuna delle due vede: una media che si muove a campione invariato.
+     Non deve mai spegnere il cron — un registro che fa fallire il giro che
+     doveva sorvegliare sarebbe il contrario di una rete di sicurezza. */
+  const impronte = new Map<string, string[]>();
+  const esitoPerCodice = new Map(esito.strumenti.map((s) => [s.strumento, s]));
+  for (const def of AVAILABLE_INSTRUMENTS) {
+    const s = esitoPerCodice.get(def.code);
+    if (!s || s.esito === "errore" || s.esito === "in_coda") continue;
+    try {
+      const reg = await registraImpronta(
+        prisma,
+        def.code,
+        LOOKBACK_YEARS,
+        new Date(),
+      );
+      if (reg.cambiata) {
+        const gravi = sospette(reg.variazioni);
+        if (gravi.length > 0) impronte.set(def.code, gravi);
+        console.log(
+          `[impronta] ${def.code}: ${reg.variazioni.length} variazioni` +
+            `${reg.precedenteDal ? `, il valore precedente reggeva dal ${reg.precedenteDal.toISOString()}` : ""}`,
+        );
+      }
+    } catch (e: unknown) {
+      console.error(`[impronta] ${def.code} non registrata:`, e);
+    }
+  }
+
   /* ── VERIFICA DI ESITO REALE ──────────────────────────────────────────
      Un cron che gira, non scrive e risponde 200 è indistinguibile da uno
      che funziona: è già costato report persi. Il confronto è fra le serie
@@ -133,6 +170,8 @@ export async function GET(request: Request) {
        colonne perse: il 26/08/2026 l'oro ha perso tutto il 2005 e il cron era
        verde. V. `perditaContinuita`. */
     continuita: s.continuita ?? undefined,
+    /* Un valore cambiato senza ragione legittima = fallimento: v. sopra. */
+    improntaSospetta: impronte.get(s.strumento),
   }));
   const verificaStagionalita = verificaEsitoJob(
     AVAILABLE_INSTRUMENTS.map((i) => i.code),

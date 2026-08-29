@@ -64,15 +64,16 @@ export interface CoverageView {
   hourCompleteYears: number | null;
 }
 
-export interface WindowCoverage {
-  lookbackYears: number;
-  /** Anni richiesti dalla finestra. */
-  requested: number;
-  /** Anni effettivamente coperti dai dati. */
-  available: number;
-  /** La finestra chiede più storia di quanta ne esista. */
-  truncated: boolean;
-}
+/* La copertura delle finestre vive in un modulo PURO — `copertura.ts` — e da
+   qui si ri-esporta: la pagina continua a importarla da un posto solo, e i
+   test la raggiungono senza tirarsi dietro il client Prisma di riga 13. */
+export {
+  anniConDatiPerFinestra,
+  anniSenzaOsservazioni,
+  spiegaCopertura,
+  windowCoverage,
+  type WindowCoverage,
+} from "@/lib/seasonality/copertura";
 
 function iso(date: Date): string {
   return date.toISOString().slice(0, 10);
@@ -118,25 +119,6 @@ export async function getCoverage(): Promise<CoverageView[]> {
   });
 }
 
-/**
- * Quanto della finestra richiesta è davvero coperto. Serve all'avviso
- * «hai chiesto 20 anni, ce ne sono 18»: la spec vieta di fingere vent'anni,
- * e vieta anche di nascondere l'opzione — resta selezionabile, ma dichiarata.
- */
-export function windowCoverage(
-  lookbacks: readonly number[],
-  completeYears: number | null,
-): WindowCoverage[] {
-  return lookbacks.map((lb) => {
-    const available = completeYears === null ? 0 : Math.min(lb, completeYears);
-    return {
-      lookbackYears: lb,
-      requested: lb,
-      available,
-      truncated: available < lb,
-    };
-  });
-}
 
 function toView(row: {
   bucket: number;
