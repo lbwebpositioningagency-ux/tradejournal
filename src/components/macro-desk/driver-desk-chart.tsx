@@ -105,6 +105,10 @@ export function axisDomain(
   for (const s of series) {
     if (hidden.has(s.key) || axisGroup(s.role) !== group) continue;
     for (const v of s.values) {
+      /* `null` = la linea è già finita (F3: ogni serie arriva alla propria
+         ultima data). Va SALTATO, non confrontato: in JavaScript
+         `null < min` lo tratta come zero e schiaccerebbe il dominio. */
+      if (v === null) continue;
       if (v < min) min = v;
       if (v > max) max = v;
     }
@@ -249,7 +253,10 @@ export function larghezzaUtileAsse(boxWidth: number, conAsseDestro: boolean): nu
 interface Row {
   i: number;
   date: string;
-  [key: string]: number | string;
+  /* `null` = punto assente per quella linea. Recharts interrompe il tratto
+     invece di raccordarlo (`connectNulls` è spento di default), che è
+     esattamente il comportamento voluto dalla F3. */
+  [key: string]: number | string | null;
 }
 
 export function DriverDeskChart({
@@ -441,7 +448,11 @@ export function DriverDeskChart({
                     renderEndPill(
                       props,
                       color,
-                      lastIndex,
+                      /* L'indice dell'ultimo punto di QUESTA linea, non del
+                         grafico: dalla F3 le linee possono finire in punti
+                         diversi, e una pillola inchiodata al bordo destro
+                         finirebbe staccata dalla sua linea. */
+                      s.lastIndex,
                       s.last,
                       /* L'ultimo punto di OGNI linea sta al bordo dell'area
                          di disegno: quando c'è l'asse destro, tutte le

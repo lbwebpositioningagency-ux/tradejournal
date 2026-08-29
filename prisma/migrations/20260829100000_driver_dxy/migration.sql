@@ -1,0 +1,12 @@
+-- Indice ICE del dollaro (DXY), giornaliero, nel Driver Desk.
+--
+-- Sostituisce DTWEXBGS come driver primario del dollaro nelle schede Oro e
+-- WTI. DTWEXBGS viene dal rilascio H.10 della Fed, che esce UNA VOLTA A
+-- SETTIMANA il lunedi: entrando in due schede su tre, era la serie che teneva
+-- indietro l'intero desk, con un dente di sega settimanale permanente
+-- (allineati il martedi, quattro-cinque sedute indietro il venerdi).
+--
+-- DTWEXBGS non sparisce: resta ingerito e in archivio come ultima risorsa
+-- delle stesse due schede, cosi se il DXY non arriva la linea del dollaro si
+-- degrada alla settimanale invece di sparire dal grafico.
+ALTER TYPE "DriverDeskSeries" ADD VALUE IF NOT EXISTS 'DXY';

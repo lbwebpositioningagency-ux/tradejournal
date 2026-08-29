@@ -62,10 +62,22 @@ export interface ChartSeries {
   /** Ruolo nella scheda: l'asset si disegna con tratto più marcato, e la
    * legenda della pagina spiega la direzione dei soli driver. */
   role: "main" | "basket" | "driver";
-  /** Indice cumulato standardizzato, allineato a `chart.dates`. */
-  values: number[];
-  /** Ultimo valore: è quello della pillola a fine linea. */
+  /**
+   * Indice cumulato standardizzato, allineato a `chart.dates`.
+   *
+   * `null` DOPO la fine della storia comune, sulle date in cui questa serie
+   * non ha (ancora) un'osservazione: è così che una serie lenta non tronca
+   * più le altre a video. Prima della fine comune non ci sono buchi — lì il
+   * calendario è un'intersezione, per costruzione tutte quotano.
+   */
+  values: (number | null)[];
+  /** Ultimo valore NON nullo: è quello della pillola a fine linea. */
   last: number;
+  /** Indice in `chart.dates` dell'ultimo valore non nullo: dice dove va
+   * disegnata la pillola, che non è più per forza al bordo destro. */
+  lastIndex: number;
+  /** Ultima data con un'osservazione, "YYYY-MM-DD". */
+  lastDate: string;
   /** Cosa significa che questa linea sale (dal catalogo). */
   risingMeans: string;
 }
@@ -74,6 +86,27 @@ export interface CardChart {
   /** Date dei punti, "YYYY-MM-DD". */
   dates: string[];
   series: ChartSeries[];
+}
+
+/**
+ * Le due date della scheda, tenute separate di proposito (F3, 29/08/2026).
+ *
+ * Prima ce n'era UNA sola — la fine dell'intersezione — e faceva due lavori
+ * incompatibili: delimitava la finestra su cui si misurano correlazioni e
+ * stabilità (dove l'allineamento è obbligatorio: confrontare due serie su
+ * date diverse non significa niente) e insieme decideva dove finivano le
+ * linee del grafico (dove l'allineamento non serve affatto). Risultato: una
+ * sola serie lenta troncava tutte le altre anche a video, e la pagina
+ * dichiarava «dati al 21 agosto» mentre dodici serie su tredici erano
+ * arrivate al 28.
+ */
+export interface CardFreschezza {
+  /** Ultima data disegnata sul grafico: il massimo fra tutte le linee. */
+  end: string;
+  /** Ultima data per linea, nell'ordine del grafico. */
+  perSerie: { label: string; lastDate: string }[];
+  /** Linee che si fermano prima di `end`, con quante sedute di ritardo. */
+  inRitardo: { label: string; lastDate: string; sedute: number }[];
 }
 
 export interface RelationStability {
@@ -104,6 +137,12 @@ export interface DriverCardPayload {
   ticker: string;
   colorToken: string;
   calendar: CardCalendar;
+  /**
+   * Freschezza delle LINEE, indipendente da `calendar` (che resta la finestra
+   * allineata su cui si misurano stabilità e correlazioni). null quando non
+   * c'è grafico.
+   */
+  freschezza: CardFreschezza | null;
   /** null quando la finestra non ha abbastanza punti per disegnare. */
   chart: CardChart | null;
   /**
@@ -178,6 +217,28 @@ function driverMeta(ref: DriverRef): {
 }
 
 /**
+ * Scioglie il ripiego di scheda: se la serie preferita non è in archivio si
+ * usa quella di riserva (dollaro giornaliero → dollaro settimanale). Il ref
+ * restituito è già CONCRETO — senza `fallback` — così tutto quello che sta a
+ * valle (etichetta, livelli, chiave di lettura) lavora sulla serie che sta
+ * davvero disegnando, e la pagina non può dire una cosa mentre ne mostra
+ * un'altra.
+ */
+export function resolveDriverRef(
+  ref: DriverRef,
+  available: ReadonlySet<DriverDeskSeries>,
+): DriverRef | null {
+  if (ref.kind === "derived") {
+    return available.has("WTI") && available.has("BRENT") ? ref : null;
+  }
+  if (available.has(ref.code)) return { kind: "series", code: ref.code };
+  if (ref.fallback && available.has(ref.fallback)) {
+    return { kind: "series", code: ref.fallback };
+  }
+  return null;
+}
+
+/**
  * Livelli di un driver sul calendario della scheda: serie salvata, oppure
  * spread derivato WTI − Brent (mai salvato: una sola fonte di verità).
  */
@@ -211,8 +272,10 @@ export function composeCard(
   const available = new Map<DriverDeskSeries, SeriesObs[]>();
   const needed = new Set<DriverDeskSeries>([card.main, ...card.basket]);
   for (const d of card.drivers) {
-    if (d.kind === "series") needed.add(d.code);
-    else {
+    if (d.kind === "series") {
+      needed.add(d.code);
+      if (d.fallback) needed.add(d.fallback);
+    } else {
       needed.add("WTI");
       needed.add("BRENT");
     }
@@ -226,11 +289,29 @@ export function composeCard(
   }
 
   const basketAvailable = card.basket.filter((b) => available.has(b));
-  const driversAvailable = card.drivers.filter((d) =>
-    d.kind === "series"
-      ? available.has(d.code)
-      : available.has("WTI") && available.has("BRENT"),
-  );
+  const availableCodes = new Set(available.keys());
+  const driversAvailable = card.drivers
+    .map((d) => resolveDriverRef(d, availableCodes))
+    .filter((d): d is DriverRef => d !== null);
+
+  /* ── Le serie di RIPIEGO escono di scena una volta scelte ─────────────
+     `available` contiene anche i ripieghi, perché servivano a decidere. Ma
+     una serie caricata e non disegnata non deve entrare nell'intersezione:
+     DTWEXBGS è settimanale, e lasciarla dentro avrebbe tenuto la finestra
+     allineata al 21 agosto anche dopo averla sostituita con il DXY — cioè
+     avrebbe rifatto, di nascosto, esattamente il danno che questa modifica
+     serve a togliere. Restano solo le serie che la scheda usa davvero. */
+  const usate = new Set<DriverDeskSeries>([card.main, ...basketAvailable]);
+  for (const d of driversAvailable) {
+    if (d.kind === "series") usate.add(d.code);
+    else {
+      usate.add("WTI");
+      usate.add("BRENT");
+    }
+  }
+  for (const code of [...available.keys()]) {
+    if (!usate.has(code)) available.delete(code);
+  }
 
   // Calendario comune (D5) sulle sole serie DISPONIBILI della scheda.
   const forCalendar: Record<string, SeriesObs[]> = {};
@@ -245,6 +326,13 @@ export function composeCard(
   const aligned = new Map<DriverDeskSeries, number[]>();
   for (const [code, obs] of available) {
     aligned.set(code, alignToCalendar(obs, dates));
+  }
+
+  /* Accesso per data: serve alla coda di visualizzazione, che lavora fuori
+     dal calendario allineato e quindi non può usare gli array posizionali. */
+  const byDate = new Map<DriverDeskSeries, Map<string, number>>();
+  for (const [code, obs] of available) {
+    byDate.set(code, new Map(obs.map((o) => [o.date, o.value])));
   }
 
   const calendar: CardCalendar = {
@@ -290,6 +378,7 @@ export function composeCard(
       key: code as string,
       label: seriesLabel(code),
       role: "basket" as const,
+      transform,
       risingMeans: def?.risingMeans ?? "",
       changes: dailyChanges(aligned.get(code) as number[], transform),
     };
@@ -301,6 +390,7 @@ export function composeCard(
           key: "BASKET",
           label: "Paniere azionario",
           role: "basket" as const,
+          transform: "logret" as const,
           risingMeans: "in salita = indici azionari del paniere più alti",
           changes: basketComponents[0].changes.map(
             (_, i) =>
@@ -318,6 +408,7 @@ export function composeCard(
         key: meta.key,
         label: meta.label,
         role: "driver" as const,
+        transform: meta.transform,
         risingMeans: meta.risingMeans,
         changes: dailyChanges(driverLevels(ref, aligned), meta.transform),
       };
@@ -332,11 +423,98 @@ export function composeCard(
   const startIdx = windowStartIndex(dates, CHART_WINDOW_DAYS);
   const chartDates = dates.slice(startIdx);
 
+  /* ── CODA DI VISUALIZZAZIONE (F3) ────────────────────────────────────
+     Le date che almeno una serie ha DOPO la fine della storia comune. Qui
+     l'intersezione non serve — una linea che prosegue da sola non mente su
+     niente, mentre troncarla per solidarietà con la serie più lenta sì: la
+     pagina finiva per dire «dati al 21 agosto» con dodici serie su tredici
+     ferme al 28. Stabilità e correlazioni restano sul calendario allineato:
+     quelle un allineamento ce l'hanno per forza, perché confrontare due
+     serie su date diverse non significa niente. */
+  const commonEnd = dates[dates.length - 1];
+  const oltreLaComune = new Set<string>();
+  for (const obs of available.values()) {
+    for (const o of obs) if (o.date > commonEnd) oltreLaComune.add(o.date);
+  }
+  const tailDates = [...oltreLaComune].sort();
+  const displayDates = [...chartDates, ...tailDates];
+
+  /** Livello di una chiave su una data: serie salvata o spread derivato. */
+  function levelReader(key: string): (d: string) => number | undefined {
+    if (key === "WTI_BRENT_SPREAD") {
+      const w = byDate.get("WTI");
+      const b = byDate.get("BRENT");
+      return (d) => {
+        const a = w?.get(d);
+        const c = b?.get(d);
+        return a !== undefined && c !== undefined ? a - c : undefined;
+      };
+    }
+    const m = byDate.get(key as DriverDeskSeries);
+    return (d) => m?.get(d);
+  }
+
+  /**
+   * Prosegue una linea oltre la storia comune, con la STESSA unità di misura:
+   * si continua a cumulare variazioni divise per la σ storica della serie. Le
+   * date in cui questa serie non ha osservazione restano `null` e NON fanno
+   * avanzare il livello di riferimento — così un buco non si traveste da
+   * giornata piatta.
+   */
+  function tailFor(
+    key: string,
+    transform: "logret" | "diff",
+    sd: number,
+    ultimoValore: number,
+  ): (number | null)[] {
+    const livello = levelReader(key);
+    let prevLivello = livello(commonEnd);
+    let valore = ultimoValore;
+    return tailDates.map((d) => {
+      const l = livello(d);
+      if (l === undefined || prevLivello === undefined) return null;
+      valore +=
+        (transform === "logret" ? Math.log(l / prevLivello) : l - prevLivello) /
+        sd;
+      prevLivello = l;
+      return valore;
+    });
+  }
+
+  /** Chiude una linea: pillola sull'ultimo punto NON nullo, non sul bordo. */
+  function chiudi(
+    key: string,
+    label: string,
+    role: ChartSeries["role"],
+    risingMeans: string,
+    values: (number | null)[],
+  ): ChartSeries | null {
+    let lastIndex = -1;
+    for (let i = values.length - 1; i >= 0; i -= 1) {
+      if (values[i] !== null) {
+        lastIndex = i;
+        break;
+      }
+    }
+    if (lastIndex < 0) return null;
+    return {
+      key,
+      label,
+      role,
+      values,
+      last: values[lastIndex] as number,
+      lastIndex,
+      lastDate: displayDates[lastIndex],
+      risingMeans,
+    };
+  }
+
   function lineFor(
     key: string,
     label: string,
     role: ChartSeries["role"],
     risingMeans: string,
+    transform: "logret" | "diff",
     changes: number[],
   ): ChartSeries | null {
     const sd = sampleStats(changes).sd;
@@ -344,14 +522,8 @@ export function composeCard(
     // changes[i] ↔ dates[i+1]: la finestra parte dal cambio di indice startIdx.
     const values = cumulativeStandardizedIndex(changes.slice(startIdx), sd);
     if (values.length !== chartDates.length) return null;
-    return {
-      key,
-      label,
-      role,
-      values,
-      last: values[values.length - 1],
-      risingMeans,
-    };
+    const coda = tailFor(key, transform, sd, values[values.length - 1]);
+    return chiudi(key, label, role, risingMeans, [...values, ...coda]);
   }
 
   const chartSeries: ChartSeries[] = [];
@@ -361,6 +533,7 @@ export function composeCard(
       seriesLabel(card.main),
       "main",
       mainDef?.risingMeans ?? "",
+      mainDef?.transform ?? "logret",
       mainChanges,
     );
     if (mainLine) chartSeries.push(mainLine);
@@ -374,25 +547,36 @@ export function composeCard(
            variazioni: quella dividerebbe per la σ del paniere (più bassa, la
            diversificazione smussa) e gonfierebbe la linea. */
         const memberLines = basketComponents
-          .map((m) => lineFor(m.key, m.label, "basket", m.risingMeans, m.changes))
+          .map((m) =>
+            lineFor(m.key, m.label, "basket", m.risingMeans, m.transform, m.changes),
+          )
           .filter((l): l is ChartSeries => l !== null);
         if (memberLines.length === 0) continue;
-        const values = memberLines[0].values.map(
-          (_, i) =>
-            memberLines.reduce((a, l) => a + l.values[i], 0) /
-            memberLines.length,
-        );
-        chartSeries.push({
-          key: c.key,
-          label: c.label,
-          role: "basket",
-          values,
-          last: values[values.length - 1],
-          risingMeans: c.risingMeans,
+        /* Nella coda un membro può mancare mentre gli altri ci sono: la media
+           si calcola solo dove ci sono TUTTI. Mediare quelli presenti farebbe
+           saltare la linea del paniere il giorno in cui un membro si ferma —
+           un gradino prodotto dalla composizione, non dal mercato. */
+        const values = memberLines[0].values.map((_, i) => {
+          let somma = 0;
+          for (const l of memberLines) {
+            const v = l.values[i];
+            if (v === null) return null;
+            somma += v;
+          }
+          return somma / memberLines.length;
         });
+        const linea = chiudi(c.key, c.label, "basket", c.risingMeans, values);
+        if (linea) chartSeries.push(linea);
         continue;
       }
-      const line = lineFor(c.key, c.label, c.role, c.risingMeans, c.changes);
+      const line = lineFor(
+        c.key,
+        c.label,
+        c.role,
+        c.risingMeans,
+        c.transform,
+        c.changes,
+      );
       if (line) chartSeries.push(line);
     }
   }
@@ -460,14 +644,48 @@ export function composeCard(
       return [{ label: s.label, text: full }];
     });
 
+  /* ── Freschezza per linea (F3) ───────────────────────────────────────
+     Il massimo fra le ultime date delle linee — non l'ultima data del
+     calendario allineato. Le linee che si fermano prima vengono elencate col
+     loro ritardo IN SEDUTE del grafico: la pagina deve poter dire «questa è
+     indietro di tre sedute» senza far sembrare un guasto la cadenza normale
+     di una fonte. */
+  const freschezza: CardFreschezza | null =
+    chartSeries.length > 0
+      ? (() => {
+          const end = chartSeries.reduce(
+            (a, x) => (x.lastDate > a ? x.lastDate : a),
+            chartSeries[0].lastDate,
+          );
+          const indiceFine = displayDates.lastIndexOf(end);
+          return {
+            end,
+            perSerie: chartSeries.map((x) => ({
+              label: x.label,
+              lastDate: x.lastDate,
+            })),
+            inRitardo: chartSeries
+              .filter((x) => x.lastDate < end)
+              .map((x) => ({
+                label: x.label,
+                lastDate: x.lastDate,
+                sedute: indiceFine - x.lastIndex,
+              })),
+          };
+        })()
+      : null;
+
   return {
     id: card.id,
     label: card.label,
     ticker: card.ticker,
     colorToken: card.colorToken,
     calendar,
+    freschezza,
     chart:
-      chartSeries.length > 0 ? { dates: chartDates, series: chartSeries } : null,
+      chartSeries.length > 0
+        ? { dates: displayDates, series: chartSeries }
+        : null,
     guide,
     relations,
     freshnessNote:

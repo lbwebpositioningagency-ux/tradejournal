@@ -2452,3 +2452,98 @@ storia lunga è un guasto e si ripara. In più, in pagina:
 - le colonne `n · anni` e `Campione` erano **due**, e sul mese dicevano lo
   stesso numero due volte (una riga per anno, per costruzione). Ora sono una,
   con la seconda riga solo quando dice qualcosa di diverso.
+
+---
+
+## Driver Desk — le fonti settimanali escono dalla catena critica (29/08/2026)
+
+Il modulo dichiarava «dati al 21 agosto» il 29 agosto. Non era un guasto: era
+l'ultima data dell'**intersezione** delle serie, e due di esse — `DTWEXBGS` ed
+`EURUSD`/`DEXUSEU` — vengono dal rilascio **H.10 della Fed, settimanale, del
+lunedì**. Ne usciva un dente di sega permanente: allineati il martedì,
+quattro-cinque sedute indietro il venerdì, ogni settimana.
+
+### F0 — la scoperta che ha cambiato il piano
+
+Yahoo **non è affidabile sull'ultima barra**. Misurato alle 08:10 UTC, sedici
+ore dopo la chiusura di venerdì, su cinque simboli su cinque (`^GDAXI`,
+`^STOXX50E`, `^FCHI`, `^GSPC`, `DX-Y.NYB`): ultima barra con `open` valorizzato,
+volume a zero e **`close` nullo**, mentre `meta.regularMarketPrice` porta già la
+chiusura vera. Non è una sospensione — è una barra ancora aperta in scrittura,
+ed era il motivo per cui *tutte* le serie Yahoo del desk erano indietro di una
+seduta.
+
+Escluse le altre due ipotesi: `meta.dataGranularity` è `1d` su tutti e cinque
+(non è un problema di `range`/`interval`), e i timestamp sono l'apertura di
+seduta — 07:00Z gli europei, 13:30Z l'SPX, 04:00Z il DXY — che `utcDateKey`
+mappa al giorno civile giusto (nessuno slittamento di chiave-giorno; il
+database è stato ri-letto **via Prisma**, non con pg grezzo).
+
+Riscontro indipendente sulle chiusure del 28/08: DAX 26.569,99 contro i
+26.551,69 del CFD Dukascopy (**0,069%**), S&P 500 7.711,76 contro 7.708,54
+(**0,042%**). *(Stooq, voluto come terzo riscontro, è dietro un muro anti-bot
+proof-of-work: inutilizzabile sia come controprova sia come fonte.)*
+
+Questo ha cambiato la scelta di fonte della F2: `DX-Y.NYB` avrebbe importato lo
+stesso difetto. La riparazione di `parseYahooChart` è quindi un **prerequisito**,
+non un extra — e vale per tutti, Stagionalità inclusa.
+
+### Cosa è cambiato, per serie
+
+| serie | prima | dopo |
+|---|---|---|
+| `EURUSD` | FRED `DEXUSEU` (settimanale) | **Dukascopy `eurusd`**, DEXUSEU in coda |
+| **`DXY`** (nuova) | — | **Yahoo `DX-Y.NYB`** → Dukascopy `dollaridxusd` |
+| `DTWEXBGS` | driver primario del dollaro | ingerita, **ripiego di scheda** |
+| `XAUUSD` | fonte unica | ripiego su `GC=F` (dichiarato: **+1,79%**, è il future) |
+| `DGS10` | nel catalogo, **mai popolata** | 16.149 righe dal 1962 |
+| Yahoo (4 indici) | indietro di una seduta | allineate |
+
+`dollaridxusd` **non** può fare la primaria: storia dal dicembre 2017 e **manca
+tutto il 2022** (zero barre da gennaio a dicembre, verificato due volte).
+
+Giunzione EURUSD, dichiarata coi numeri: sulle 2.909 date in comune dal 2015 lo
+scarto medio è **+0,3 punti base** sul livello (mediano 9,3 bp, p90 30,8) — nessun
+gradino. Cambia però l'**ora dello scatto** (fixing di mezzogiorno a New York
+contro chiusura a mezzanotte UTC) e i rendimenti giornalieri correlano **0,826**,
+non 0,99: è il prezzo dichiarato della freschezza.
+
+### F3 — le due date, separate
+
+Ogni linea arriva alla **propria** ultima data; stabilità e correlazioni restano
+sulla **finestra allineata**, dove l'allineamento serve davvero. Un ripiego
+caricato ma non disegnato **esce** dall'intersezione — lasciarlo dentro avrebbe
+rifatto di nascosto il danno che tutto questo serve a togliere.
+
+| scheda | prima | linee dopo | finestra allineata dopo |
+|---|---|---|---|
+| Oro | 21/08 | **28/08** | 2003-01-02 → 27/08 (5.408 sedute, da 4.628) |
+| WTI | 21/08 | **28/08** | 2003-01-02 → 25/08 (5.842 sedute, da 5.068) |
+| DAX | 21/08 | **28/08** | 2007-03-30 → **28/08** (4.737 sedute) |
+
+### F4 — quello che non si vedeva
+
+`/api/seasonality-sync` rispondeva già 500, ma **il codice di stato di un cron
+Vercel non lo legge nessuno**: `DGS10` era in catalogo senza riga di coverage e
+faceva fallire il giro **ogni notte**, in silenzio. Il registro `SeasonalityRun`
+ora riceve l'esito **complessivo** (stagionalità, driver, migrazioni) invece del
+solo esito della Stagionalità, e l'indice del Macro Desk lo mostra in banda —
+stesso schema di `BandaFreschezza`. **Nessuna infrastruttura nuova**: tabella e
+banda esistevano già. È un canale *passivo*: avvisa chi entra, non chi non entra.
+
+Via anche **2.297 barre di sabato/domenica** dall'archivio: la «seduta»
+domenicale di Dukascopy è una coda di due ore, non una giornata di mercato.
+Erano invisibili solo perché l'intersezione le buttava via.
+
+**Verificato:** typecheck ✅ · eslint ✅ · **2021 test** ✅ · build ✅ · resa
+visiva sul dev server (le cinque linee della scheda Oro terminano a x diverse —
+883,0 / 879,7 / 876,4 — con un solo segmento `M`, cioè nessuna interruzione
+spuria) · produzione allineata: i chunk serviti da `tradejournal-red-zeta`
+coincidono con la build locale del commit unito.
+
+**Debito lasciato aperto:** il backfill di `DXY` è stato eseguito **prima** del
+deploy, e per una decina di minuti la pagina Driver in produzione ha risposto
+`Value 'DXY' not found in enum` col client Prisma vecchio. La regola del repo
+(«prima le migrazioni, poi il push») copre lo **schema** ma non i **dati**: una
+riga con un valore d'enum nuovo rompe il client vecchio esattamente come una
+colonna mancante. Per la prossima serie: prima il deploy, poi il backfill.

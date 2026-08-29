@@ -54,7 +54,30 @@ export const DRIVER_SERIES: DriverSeriesDef[] = [
     code: "XAUUSD",
     label: "Oro",
     transform: "logret",
-    daily: [{ provider: "dukascopy", symbol: "xauusd" }],
+    /* ── Ripiego sul future, con una AVVERTENZA (29/08/2026) ─────────────
+       Fino a oggi l'oro era a fonte UNICA, e si e' visto: nella notte del
+       29/08 il fetch Dukascopy di `xauusd` e' fallito mentre `xagusd` — stesso
+       provider, stessa chiamata — passava. Un guasto transitorio su un solo
+       strumento lasciava la serie ferma senza alternative.
+
+       Il ripiego NON e' equivalente e non va trattato come tale: non esiste
+       piu' una fonte SPOT giornaliera gratuita (Yahoo non ha ne' `XAUUSD=X`
+       ne' `XAU=X`, entrambi 404; le LBMA su FRED, GOLDAMGBD228NLBM e
+       GOLDPMGBD228NLBM, sono dismesse). `GC=F` e' il future COMEX, che il
+       28/08/2026 quotava 4.529,90 contro i 4.450,07 dello spot Dukascopy:
+       +1,79% di base, e la base si muove nel tempo coi tassi.
+
+       Conseguenza da tenere a mente: se il ripiego scatta, la finestra delta
+       viene riscritta a livelli future e al confine con lo storico spot nasce
+       un gradino di circa l'1,8% — un rendimento giornaliero finto. E' un
+       prezzo accettabile per non restare fermi UNA notte, non per starci
+       sopra: per questo l'ingest scrive in coverage la nota di ripiego, che
+       la pagina mostra (v. `noteDiRipiego` in ingest.ts). Una serie che resta
+       sul ripiego per piu' di una notte va guardata, non ignorata. */
+    daily: [
+      { provider: "dukascopy", symbol: "xauusd" },
+      { provider: "yahoo", symbol: "GC=F" },
+    ],
     unit: "USD/oncia",
     attribution: "Dukascopy Bank SA",
     risingMeans:
@@ -170,6 +193,11 @@ export const DRIVER_SERIES: DriverSeriesDef[] = [
       "in salita = attese di inflazione a dieci anni più alte",
   },
   {
+    /* Dal 29/08/2026 NON è più il driver primario del dollaro (v. DXY): il
+       rilascio H.10 esce una volta a settimana e questa serie, entrando in
+       due schede su tre, teneva indietro tutto il desk. Resta ingerita e in
+       archivio come ULTIMA risorsa delle schede Oro e WTI: settimanale è
+       molto meglio di assente. */
     code: "DTWEXBGS",
     label: "Dollar index (broad)",
     transform: "logret",
@@ -183,14 +211,77 @@ export const DRIVER_SERIES: DriverSeriesDef[] = [
     code: "EURUSD",
     label: "EURUSD",
     transform: "logret",
+    /* ── Dukascopy PRIMA di FRED (29/08/2026) ────────────────────────────
+       DEXUSEU sta nel rilascio H.10 della Fed, che esce UNA VOLTA A
+       SETTIMANA, il lunedì. Come fonte primaria produceva un dente di sega
+       permanente: allineati il martedì, quattro-cinque sedute indietro il
+       venerdì, ogni settimana. Non era un guasto — era la cadenza della
+       fonte, e la cadenza della fonte è una scelta di fonte.
+
+       La giunzione NON spezza la serie, misurato sulle 2.909 date in comune
+       dal 2015: scarto medio Dukascopy − FRED di +0,3 punti base sul
+       livello, cioè nessun gradino sistematico (|scarto| mediano 9,3 bp,
+       p90 30,8 bp). Dukascopy copre dal 2000-01-03 senza buchi — 6.936
+       sedute feriali contro le 6.931 di FRED — quindi la sostituzione è
+       PIENA e dentro la finestra visibile non resta nessuna giuntura.
+
+       Quello che cambia davvero è l'ORA dello scatto: FRED fotografa il
+       fixing di mezzogiorno a New York, Dukascopy chiude la candela a
+       mezzanotte UTC. I rendimenti giornalieri delle due serie correlano
+       0,826, non 0,99: sono due misure diverse della stessa giornata, non
+       la stessa misura. È il prezzo dichiarato della freschezza, ed è
+       coerente con XAUUSD/XAGUSD che chiudono già a mezzanotte UTC.
+       DEXUSEU resta in coda come ripiego. */
     daily: [
+      { provider: "dukascopy", symbol: "eurusd" },
       { provider: "fred", ids: ["DEXUSEU"] },
       { provider: "yahoo", symbol: "EURUSD=X" },
     ],
     unit: "USD per EUR",
-    attribution: "Federal Reserve H.10 via FRED",
+    attribution: "Dukascopy Bank SA",
     risingMeans:
       "in salita = euro più forte sul dollaro",
+  },
+  {
+    /* ── Indice del dollaro GIORNALIERO (29/08/2026) ─────────────────────
+       Sostituisce DTWEXBGS come driver del dollaro nelle schede Oro e WTI.
+       DTWEXBGS è l'altra metà del problema di EURUSD: stesso rilascio H.10,
+       stessa cadenza settimanale, e siccome entra in DUE schede su tre era
+       la serie che trascinava indietro l'intero desk.
+
+       Fonte primaria Yahoo `DX-Y.NYB` — l'indice ICE del dollaro, quello
+       che i terminali chiamano DXY. Utilizzabile solo DOPO la riparazione
+       dell'ultima barra non consolidata (v. `chiusuraDaMeta` in
+       sources/yahoo.ts): senza quella avrebbe portato con sé un ritardo
+       fisso di una seduta.
+
+       Ripiego Dukascopy `dollaridxusd`: fresco e allineato (28/08/2026:
+       99,595 contro i 99,677 di Yahoo, 0,08%), ma NON può fare la primaria
+       perché la sua storia parte dal dicembre 2017 e manca tutto il 2022 —
+       zero barre da gennaio a dicembre, verificato due volte. Come secondo
+       anello va benissimo: copre la finestra recente, che è dove un ripiego
+       serve davvero.
+
+       DTWEXBGS NON sparisce: resta ingerito e in archivio, e le schede lo
+       usano come ultima risorsa (v. `fallback` in DriverRef) — se il DXY
+       non arriva, la linea del dollaro si degrada alla settimanale invece
+       di sparire dal grafico.
+
+       Non sono la stessa cosa e non vanno confusi: DXY pesa sei valute con
+       l'euro al 57,6%, DTWEXBGS pesa ventisei partner commerciali sugli
+       scambi reali. Per il desk conta la direzione del dollaro, che i due
+       raccontano allo stesso modo. */
+    code: "DXY",
+    label: "Dollaro (DXY)",
+    transform: "logret",
+    daily: [
+      { provider: "yahoo", symbol: "DX-Y.NYB" },
+      { provider: "dukascopy", symbol: "dollaridxusd" },
+    ],
+    unit: "punti indice",
+    attribution: "ICE via Yahoo Finance",
+    risingMeans:
+      "in salita = dollaro più forte contro il paniere delle sei valute",
   },
   {
     code: "DGS10",
@@ -228,9 +319,17 @@ export const DRIVER_SERIES_BY_CODE = new Map(
  * Driver di una scheda. `derived: "WTI_BRENT_SPREAD"` marca l'unico driver
  * calcolato (WTI − Brent, spec §2): non ha una riga in tabella, si deriva
  * dalle due serie al momento del calcolo — una sola fonte di verità.
+ *
+ * `fallback` è un ripiego di SCHEDA, non di fonte, e la differenza conta: la
+ * catena `daily` prova più fonti per LA STESSA serie, questo sceglie una
+ * serie DIVERSA quando la prima non c'è in archivio. Serve al dollaro (DXY
+ * giornaliero, altrimenti DTWEXBGS settimanale): senza, una serie nuova non
+ * ancora popolata farebbe sparire la linea del dollaro invece di degradarla.
+ * La legenda dichiara sempre quale delle due sta effettivamente disegnando,
+ * perché sono misure diverse e far finta di no sarebbe una bugia comoda.
  */
 export type DriverRef =
-  | { kind: "series"; code: DriverDeskSeries }
+  | { kind: "series"; code: DriverDeskSeries; fallback?: DriverDeskSeries }
   | { kind: "derived"; derived: "WTI_BRENT_SPREAD" };
 
 export interface DriverCardDef {
@@ -283,7 +382,7 @@ export const DRIVER_CARDS: DriverCardDef[] = [
     drivers: [
       { kind: "series", code: "DFII10" },
       { kind: "series", code: "T10YIE" },
-      { kind: "series", code: "DTWEXBGS" },
+      { kind: "series", code: "DXY", fallback: "DTWEXBGS" },
     ],
     readingNotes: {
       XAGUSD:
@@ -292,6 +391,11 @@ export const DRIVER_CARDS: DriverCardDef[] = [
         "storicamente, in salita è stato un contesto meno favorevole per l'oro (detenerlo costa di più in termini di opportunità); in discesa, più favorevole",
       T10YIE:
         "storicamente, attese di inflazione più alte hanno tendenzialmente sostenuto l'oro come copertura; più basse, meno",
+      // Stesso testo per le due misure del dollaro: la tendenza storica che
+      // descrivono è la stessa, cambia solo il paniere. Servono entrambe
+      // perché la scheda ripiega su DTWEXBGS quando il DXY non c'è.
+      DXY:
+        "storicamente, un dollaro più forte è stato un contesto meno favorevole per l'oro, uno più debole più favorevole — ma il legame si è indebolito negli ultimi anni (acquisti record delle banche centrali, de-dollarizzazione)",
       DTWEXBGS:
         "storicamente, un dollaro più forte è stato un contesto meno favorevole per l'oro, uno più debole più favorevole — ma il legame si è indebolito negli ultimi anni (acquisti record delle banche centrali, de-dollarizzazione)",
     },
@@ -304,13 +408,15 @@ export const DRIVER_CARDS: DriverCardDef[] = [
     main: "WTI",
     basket: ["BRENT"],
     drivers: [
-      { kind: "series", code: "DTWEXBGS" },
+      { kind: "series", code: "DXY", fallback: "DTWEXBGS" },
       { kind: "series", code: "T10YIE" },
       { kind: "derived", derived: "WTI_BRENT_SPREAD" },
     ],
     readingNotes: {
       BRENT:
         "storicamente si muove in modo molto simile al WTI: stesso mercato globale, con differenziali regionali",
+      DXY:
+        "storicamente, un dollaro più forte è stato un contesto meno favorevole per il petrolio, che è quotato in dollari; più debole, più favorevole",
       DTWEXBGS:
         "storicamente, un dollaro più forte è stato un contesto meno favorevole per il petrolio, che è quotato in dollari; più debole, più favorevole",
       T10YIE:

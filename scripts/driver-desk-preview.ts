@@ -39,9 +39,9 @@ async function main() {
           `  grafico: ${c.chart.dates.length} punti, ${c.chart.dates[0]} → ${c.chart.dates[c.chart.dates.length - 1]}`,
         );
         for (const s of c.chart.series) {
-          const v = s.values;
+          const v = s.values.filter((x): x is number => x !== null);
           console.log(
-            `    ${s.role.padEnd(6)} ${s.label.padEnd(26)} fine ${s.last.toFixed(2).padStart(8)} · min ${Math.min(...v).toFixed(1)} max ${Math.max(...v).toFixed(1)}`,
+            `    ${s.role.padEnd(6)} ${s.label.padEnd(26)} al ${s.lastDate} · fine ${s.last.toFixed(2).padStart(8)} · min ${Math.min(...v).toFixed(1)} max ${Math.max(...v).toFixed(1)}`,
           );
         }
       }

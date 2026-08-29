@@ -30,10 +30,72 @@ export function utcDateKey(epochSeconds: number): string {
 }
 
 /**
+ * Chiusura dell'ULTIMA barra recuperata dai metadati, quando Yahoo non l'ha
+ * ancora consolidata nell'array `quote.close`.
+ *
+ * Il caso, misurato il 29/08/2026 alle 08:10 UTC — cioè sedici ore dopo la
+ * chiusura di venerdì — su cinque simboli su cinque (^GDAXI, ^STOXX50E,
+ * ^FCHI, ^GSPC, DX-Y.NYB): l'ultima barra arriva con `open` valorizzato,
+ * `volume` a zero e `close` NULLO, mentre `meta.regularMarketPrice` porta già
+ * la chiusura vera. Non è una sospensione — è una barra ancora aperta in
+ * scrittura. Il consolidamento arriva entro ~24 ore, e questo è il motivo per
+ * cui tutte le serie Yahoo del desk erano indietro di una seduta.
+ *
+ * Riscontro indipendente sulle chiusure del 28/08/2026: DAX 26.569,99 contro
+ * i 26.551,69 del CFD Dukascopy (scarto 0,069%), S&P 500 7.711,76 contro
+ * 7.708,54 (0,042%) — scarti da CFD-contro-cash, il livello è quello giusto.
+ *
+ * TRE GUARDIE, tutte necessarie. La più importante è la terza: durante una
+ * seduta APERTA `regularMarketPrice` è il prezzo VIVO, e scriverlo come
+ * chiusura sarebbe falsificare il dato. Se una qualsiasi non è verificabile
+ * si rinuncia — la barra resta scartata come prima, e il consolidamento la
+ * recupererà la notte dopo dentro la finestra delta.
+ */
+function chiusuraDaMeta(
+  meta: unknown,
+  ts: number,
+  now: Date,
+): number | undefined {
+  if (meta === null || typeof meta !== "object") return undefined;
+  const m = meta as Record<string, unknown>;
+
+  // 1. il prezzo esiste ed è un livello plausibile
+  const price = m.regularMarketPrice;
+  if (typeof price !== "number" || !Number.isFinite(price) || price <= 0) {
+    return undefined;
+  }
+
+  // 2. il prezzo appartiene alla GIORNATA della barra, non a un'altra
+  const marketTime = m.regularMarketTime;
+  if (typeof marketTime !== "number" || !Number.isFinite(marketTime)) {
+    return undefined;
+  }
+  if (utcDateKey(marketTime) !== utcDateKey(ts)) return undefined;
+
+  // 3. la seduta è FINITA: altrimenti quello è un prezzo vivo, non una chiusura
+  const periodo = m.currentTradingPeriod;
+  if (periodo === null || typeof periodo !== "object") return undefined;
+  const regular = (periodo as Record<string, unknown>).regular;
+  if (regular === null || typeof regular !== "object") return undefined;
+  const end = (regular as Record<string, unknown>).end;
+  if (typeof end !== "number" || !Number.isFinite(end)) return undefined;
+  if (now.getTime() < end * 1000) return undefined;
+
+  return price;
+}
+
+/**
  * Parser della risposta chart. Scarta le barre con chiusura `null` — Yahoo le
  * usa per i giorni di sospensione — che sono osservazioni MANCANTI, mai zeri.
+ *
+ * UNICA eccezione, e solo per l'ULTIMA barra: v. `chiusuraDaMeta`. `now` è
+ * iniettabile perché la terza guardia dipende dall'orologio e un test non può
+ * dipendere da quando lo si esegue.
  */
-export function parseYahooChart(payload: unknown): DailyBar[] {
+export function parseYahooChart(
+  payload: unknown,
+  now: Date = new Date(),
+): DailyBar[] {
   if (payload === null || typeof payload !== "object") return [];
   const chart = (payload as { chart?: unknown }).chart;
   if (chart === null || typeof chart !== "object") return [];
@@ -68,14 +130,25 @@ export function parseYahooChart(payload: unknown): DailyBar[] {
     return typeof v === "number" && Number.isFinite(v) && v > 0 ? v : undefined;
   };
 
+  const meta = (first as { meta?: unknown }).meta;
+  const ultima = timestamps.length - 1;
+
   const out: DailyBar[] = [];
   for (let i = 0; i < timestamps.length; i += 1) {
     const ts = timestamps[i];
-    const close = closes[i];
     if (typeof ts !== "number" || !Number.isFinite(ts)) continue;
-    if (typeof close !== "number" || !Number.isFinite(close) || close <= 0) {
-      continue;
+    const grezza = closes[i];
+    let close =
+      typeof grezza === "number" && Number.isFinite(grezza) && grezza > 0
+        ? grezza
+        : undefined;
+    /* Il ripescaggio vale SOLO per l'ultima barra: è l'unica che Yahoo possa
+       avere ancora aperta in scrittura. Un buco in mezzo alla serie è una
+       sospensione vera e resta un dato mancante. */
+    if (close === undefined && i === ultima) {
+      close = chiusuraDaMeta(meta, ts, now);
     }
+    if (close === undefined) continue;
     out.push({
       date: utcDateKey(ts),
       close,
@@ -152,7 +225,7 @@ export async function fetchYahooDaily(
       );
     }
 
-    const bars = parseYahooChart(payload);
+    const bars = parseYahooChart(payload, now);
     if (bars.length === 0) {
       const err = parseYahooError(payload);
       throw new Error(

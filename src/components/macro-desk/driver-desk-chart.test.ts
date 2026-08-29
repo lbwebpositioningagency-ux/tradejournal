@@ -97,13 +97,15 @@ describe("axisGroup / axisDomain — scale indipendenti", () => {
   const mk = (
     key: string,
     role: "main" | "basket" | "driver",
-    values: number[],
+    values: (number | null)[],
   ) => ({
     key,
     label: key,
     role,
     values,
-    last: values[values.length - 1],
+    last: (values.filter((v) => v !== null).at(-1) ?? 0) as number,
+    lastIndex: values.findLastIndex((v) => v !== null),
+    lastDate: "2026-08-28",
     risingMeans: "",
   });
 

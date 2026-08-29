@@ -178,7 +178,7 @@ describe("composeCard — nessun driver invertito di segno", () => {
     }));
     const payload = composeCard(ORO, series);
     const line = payload.chart!.series.find((s) => s.label.includes("Dollar"))!;
-    const v = line.values;
+    const v = line.values.filter((x): x is number => x !== null);
     // l'ultimo tratto dell'indice deve SALIRE, non essere capovolto
     expect(v[v.length - 1]).toBeGreaterThan(v[v.length - 61]);
   });
@@ -451,5 +451,164 @@ describe("composeCard — chiave di lettura per scheda (R7)", () => {
     const dax = composeCard(DAX, series);
     expect(dax.guide[0].label).toBe("S&P 500");
     expect(dax.guide[0].text).toContain("stessa direzione del DAX");
+  });
+});
+
+/* ═══════════ F3 — la data mostrata non dipende più dall'intersezione ═══════
+   Prima una sola serie lenta troncava tutte le altre anche a video. Adesso
+   ogni linea arriva alla PROPRIA ultima data, mentre stabilità e
+   correlazioni restano sulla finestra allineata: sono due cose diverse e la
+   pagina le dichiara separate. */
+
+/** Aggiunge `giorni` sedute feriali in coda a una serie, proseguendo il livello. */
+function prolunga(obs: SeriesObs[], giorni: number, passo = 1.002): SeriesObs[] {
+  const out = [...obs];
+  const d = new Date(`${obs[obs.length - 1].date}T00:00:00Z`);
+  let level = obs[obs.length - 1].value;
+  while (out.length < obs.length + giorni) {
+    d.setUTCDate(d.getUTCDate() + 1);
+    const dow = d.getUTCDay();
+    if (dow === 0 || dow === 6) continue;
+    level *= passo;
+    out.push({ date: d.toISOString().slice(0, 10), value: level });
+  }
+  return out;
+}
+
+describe("composeCard — coda di visualizzazione (F3)", () => {
+  /* Tutte fresche tranne il dollaro, che si ferma 5 sedute prima: è
+     esattamente il caso reale di DTWEXBGS contro le altre dodici serie. */
+  function serieConDollaroLento() {
+    const s = fullSeries();
+    for (const k of ["XAUUSD", "XAGUSD", "DFII10", "T10YIE"] as const) {
+      s[k] = prolunga(s[k]!, 5);
+    }
+    return s;
+  }
+
+  it("il grafico arriva all'ultima data disponibile, non alla fine della storia comune", () => {
+    const p = composeCard(ORO, serieConDollaroLento());
+    const fine = p.chart!.dates[p.chart!.dates.length - 1];
+    expect(fine > DATES[N - 1]).toBe(true); // la coda c'è davvero
+    expect(fine).not.toBe(p.calendar.end);
+    expect(p.freschezza!.end).toBe(fine);
+  });
+
+  it("la finestra allineata NON si muove: è lì che vivono correlazioni e stabilità", () => {
+    const p = composeCard(ORO, serieConDollaroLento());
+    const base = composeCard(ORO, fullSeries());
+    expect(p.calendar.end).toBe(base.calendar.end);
+    expect(p.calendar.sessions).toBe(base.calendar.sessions);
+    expect(p.relations.map((r) => r.label)).toEqual(
+      base.relations.map((r) => r.label),
+    );
+  });
+
+  it("la linea lenta si ferma da sola: null in coda, pillola sull'ultimo punto vero", () => {
+    const p = composeCard(ORO, serieConDollaroLento());
+    const dollaro = p.chart!.series.find((s) => s.label.includes("Dollar"))!;
+    const oro = p.chart!.series.find((s) => s.key === "XAUUSD")!;
+    expect(dollaro.values.at(-1)).toBeNull();
+    expect(oro.values.at(-1)).not.toBeNull();
+    expect(dollaro.lastIndex).toBeLessThan(oro.lastIndex);
+    expect(dollaro.values[dollaro.lastIndex]).not.toBeNull();
+    expect(dollaro.lastDate).toBe(p.calendar.end);
+  });
+
+  it("dichiara quali linee sono indietro e di quante sedute", () => {
+    const p = composeCard(ORO, serieConDollaroLento());
+    const ritardo = p.freschezza!.inRitardo;
+    expect(ritardo.map((r) => r.label)).toEqual(["Dollar index (broad)"]);
+    expect(ritardo[0].sedute).toBe(5);
+    // le altre non compaiono: essere aggiornate non è una notizia
+    expect(p.freschezza!.perSerie).toHaveLength(p.chart!.series.length);
+  });
+
+  it("con tutte le serie alla stessa data non c'è coda e nessuna è in ritardo", () => {
+    const p = composeCard(ORO, fullSeries());
+    expect(p.freschezza!.inRitardo).toEqual([]);
+    expect(p.freschezza!.end).toBe(p.calendar.end);
+  });
+
+  it("il paniere combinato si ferma quando si ferma il PRIMO membro, non l'ultimo", () => {
+    const s = fullSeries();
+    // DAX e CAC proseguono, Stoxx e SPX no: il combinato non può proseguire
+    s.GER40 = prolunga(s.GER40!, 3);
+    s.CAC40 = prolunga(s.CAC40!, 3);
+    s.EURUSD = prolunga(s.EURUSD!, 3);
+    s.BUND10Y = prolunga(s.BUND10Y!, 3);
+    const p = composeCard(DAX, s);
+    const paniere = p.chart!.series.find((x) => x.key === "BASKET")!;
+    const dax = p.chart!.series.find((x) => x.key === "GER40")!;
+    expect(dax.lastDate > paniere.lastDate).toBe(true);
+    expect(paniere.lastDate).toBe(p.calendar.end);
+  });
+});
+
+describe("composeCard — ripiego di scheda sul dollaro (F2)", () => {
+  it("col DXY in archivio disegna quello", () => {
+    const s = fullSeries();
+    s.DXY = priceSeries(21, 100);
+    const p = composeCard(ORO, s);
+    const etichette = p.chart!.series.map((x) => x.label);
+    expect(etichette).toContain("Dollaro (DXY)");
+    expect(etichette).not.toContain("Dollar index (broad)");
+  });
+
+  it("senza DXY la linea si degrada alla settimanale invece di sparire", () => {
+    const p = composeCard(ORO, fullSeries()); // niente DXY nella fixture
+    const etichette = p.chart!.series.map((x) => x.label);
+    expect(etichette).toContain("Dollar index (broad)");
+  });
+
+  it("senza NESSUNA delle due il dollaro sparisce, in silenzio", () => {
+    const s = fullSeries();
+    delete s.DTWEXBGS;
+    const p = composeCard(ORO, s);
+    const etichette = p.chart!.series.map((x) => x.label);
+    expect(etichette.some((e) => e.includes("Dollar"))).toBe(false);
+    expect(etichette).toContain("Oro");
+  });
+
+  it("il ripiego NON usato esce dall'intersezione e non rallenta la finestra", () => {
+    /* Regressione vera, trovata sui dati di produzione il 29/08/2026: DXY e
+       DTWEXBGS erano entrambe in archivio, la scheda disegnava il DXY, ma
+       DTWEXBGS — caricata solo per decidere — restava nell'intersezione e
+       teneva la finestra allineata al 21 agosto. Cioè rifaceva di nascosto
+       il danno che la sostituzione serviva a togliere. */
+    const s = fullSeries();
+    s.DXY = priceSeries(21, 100);
+    // il ripiego si ferma 5 sedute prima, come DTWEXBGS nella realtà
+    s.DTWEXBGS = s.DTWEXBGS!.slice(0, N - 5);
+    const p = composeCard(ORO, s);
+    expect(p.calendar.end).toBe(DATES[N - 1]);
+    expect(p.chart!.series.map((x) => x.label)).not.toContain(
+      "Dollar index (broad)",
+    );
+    // e non compare nemmeno fra le osservazioni scartate: non è della scheda
+    expect(p.calendar.dropped.map((d) => d.label)).not.toContain(
+      "Dollar index (broad)",
+    );
+  });
+
+  it("quando il ripiego è QUELLO usato, resta nell'intersezione come ogni altra serie", () => {
+    const s = fullSeries(); // niente DXY: si disegna DTWEXBGS
+    s.DTWEXBGS = s.DTWEXBGS!.slice(0, N - 5);
+    const p = composeCard(ORO, s);
+    expect(p.calendar.end).toBe(DATES[N - 6]);
+    expect(p.chart!.series.map((x) => x.label)).toContain(
+      "Dollar index (broad)",
+    );
+  });
+
+  it("la chiave di lettura segue la serie che sta DAVVERO disegnando", () => {
+    const s = fullSeries();
+    s.DXY = priceSeries(21, 100);
+    const conDxy = composeCard(ORO, s);
+    const senzaDxy = composeCard(ORO, fullSeries());
+    expect(conDxy.guide.some((g) => g.label === "Dollaro (DXY)")).toBe(true);
+    expect(
+      senzaDxy.guide.some((g) => g.label === "Dollar index (broad)"),
+    ).toBe(true);
   });
 });

@@ -984,6 +984,11 @@ enum DriverDeskSeries {
   DFII10
   T10YIE
   DTWEXBGS
+  // Indice ICE del dollaro, giornaliero. Sostituisce DTWEXBGS come driver
+  // primario del dollaro dal 29/08/2026: il rilascio H.10 della Fed, da cui
+  // viene DTWEXBGS, esce una volta a settimana e teneva indietro due schede
+  // su tre. DTWEXBGS resta ingerito come ripiego.
+  DXY
   EURUSD
   BUND10Y
   // Nominale USA a dieci anni: serve allo spread contro il Bund, che è il
