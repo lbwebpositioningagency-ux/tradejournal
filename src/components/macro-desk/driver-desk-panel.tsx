@@ -177,7 +177,7 @@ function BloccoRelazioni({ relations }: { relations: RelationStability[] }) {
           <p className="text-xs leading-relaxed text-[var(--md-text-2)]">
             {r.sentence}
           </p>
-          <p className="text-[11px] leading-relaxed text-[var(--md-muted)]">
+          <p className="text-2xs leading-relaxed text-[var(--md-muted)]">
             {r.signSentence}.
           </p>
         </div>
@@ -207,7 +207,7 @@ function SchedaStrumento({
             {card.label}
           </span>
           <span
-            className="md-mono text-[11px] font-semibold"
+            className="md-mono text-2xs font-semibold"
             style={{ color: card.colorToken }}
           >
             {card.ticker}
@@ -221,7 +221,7 @@ function SchedaStrumento({
             arrivano le LINEE, la seconda su quale finestra sono calcolati i
             confronti. Il ritardo si nomina solo quando esiste, e si dice in
             sedute: un numero, non un allarme. */}
-        <div className="md-mono flex flex-col gap-0.5 text-[11px] leading-relaxed text-[var(--md-muted)]">
+        <div className="md-mono flex flex-col gap-0.5 text-2xs leading-relaxed text-[var(--md-muted)]">
           <p>
             <span className="text-[var(--md-text-2)]">
               linee aggiornate al {card.freschezza?.end ?? card.calendar.end}
@@ -267,7 +267,7 @@ function SchedaStrumento({
                 </li>
               ))}
             </ul>
-            <p className="text-[11px] leading-relaxed text-[var(--md-muted)]">
+            <p className="text-2xs leading-relaxed text-[var(--md-muted)]">
               Sono tendenze storiche, mai regole fisse: il blocco «Stabilità
               delle relazioni» qui sotto dice se ciascun legame sta reggendo
               adesso.
@@ -307,7 +307,7 @@ function SchedaStrumento({
                     stimare quanto dello sfasamento e' orario e quanto e'
                     mercato, cioe' inventare — ma chi legge deve saperlo. */}
                 {card.notaRilevazione ? (
-                  <p className="mt-3 text-[11px] leading-relaxed text-[var(--md-muted)]">
+                  <p className="mt-3 text-2xs leading-relaxed text-[var(--md-muted)]">
                     {card.notaRilevazione}
                   </p>
                 ) : null}
@@ -318,7 +318,7 @@ function SchedaStrumento({
 
         {card.freshnessNote ? (
           <p
-            className="mt-auto border-t pt-2 text-[11px] leading-relaxed text-[var(--md-muted)]"
+            className="mt-auto border-t pt-2 text-2xs leading-relaxed text-[var(--md-muted)]"
             style={{ borderColor: "var(--md-border)" }}
           >
             {card.freshnessNote}
@@ -391,14 +391,14 @@ export function DriverDeskPanel({
       {noteRitardo ? (
         <p
           role="status"
-          className="md-mono rounded-md border border-dashed px-3 py-2 text-[11px] leading-relaxed"
+          className="md-mono rounded-md border border-dashed px-3 py-2 text-2xs leading-relaxed"
           style={{ borderColor: "var(--md-muted)", color: "var(--md-muted)" }}
         >
           {noteRitardo}
         </p>
       ) : null}
 
-      <p className="md-mono text-[11px] leading-relaxed text-[var(--md-muted)]">
+      <p className="md-mono text-2xs leading-relaxed text-[var(--md-muted)]">
         Fonti: {fontiUniche.join(", ")} — la fonte esatta di ogni serie è
         registrata insieme al dato.
         {ultimoIngest

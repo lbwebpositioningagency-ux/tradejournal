@@ -1,8 +1,7 @@
+import { PageHeader } from "@/components/layout/page-header";
 import type { Metadata } from "next";
-import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import Decimal from "decimal.js";
-import { ArrowLeft } from "lucide-react";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { tradeAccountWhere } from "@/lib/active-account";
@@ -11,7 +10,6 @@ import { addDays, isValidDateKey } from "@/lib/calendar";
 import { zonedInputToUtc } from "@/lib/dates";
 import { profitFactor, winRate } from "@/lib/metrics";
 import { formatPercent, formatProfitFactor, formatSignedMoney } from "@/lib/money";
-import { Button } from "@/components/ui/button";
 import { ReviewWizard } from "./review-wizard";
 
 export const metadata: Metadata = { title: "Revisione guidata" };
@@ -114,19 +112,15 @@ export default async function DayReviewPage({
 
   return (
     <div className="mx-auto flex w-full max-w-xl flex-col gap-4">
-      <div className="flex items-center gap-3">
-        <Button asChild variant="ghost" size="icon" aria-label="Torna alla giornata">
-          <Link href={`/day/${date}`}>
-            <ArrowLeft className="size-4" />
-          </Link>
-        </Button>
-        <div>
-          <h1 className="page-title">Revisione guidata</h1>
-          <p className="page-subtitle">
+      <PageHeader
+        back={{ href: `/day/${date}`, label: "Giornata" }}
+        title="Revisione guidata"
+        description={
+          <>
             {date.split("-").reverse().join("/")} · {trades.length} trade da rivedere
-          </p>
-        </div>
-      </div>
+          </>
+        }
+      />
 
       <ReviewWizard
         date={date}

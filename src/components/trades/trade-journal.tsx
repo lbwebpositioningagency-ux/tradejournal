@@ -1,5 +1,7 @@
 "use client";
 
+import { SegmentedControl } from "@/components/ui/segmented-control";
+
 import { useState, useTransition } from "react";
 import { toast } from "sonner";
 import { Check, ListChecks, PencilLine, X } from "lucide-react";
@@ -320,38 +322,41 @@ function ReviewCard({ data }: { data: TradeJournalData }) {
       <CardContent className="flex flex-col gap-4">
         <div className="flex flex-col gap-2">
           <Label>Ho seguito il piano?</Label>
-          <div className="flex flex-wrap gap-2">
-            {[
-              { value: true, label: "Sì", icon: Check, tone: "profit" as const },
-              { value: false, label: "No", icon: X, tone: "loss" as const },
-            ].map((option) => {
-              const active = review.followedPlan === option.value;
-              const Icon = option.icon;
-              return (
-                <button
-                  key={option.label}
-                  type="button"
-                  disabled={data.readOnly}
-                  aria-pressed={active}
-                  onClick={() =>
-                    setField("followedPlan", active ? null : option.value)
-                  }
-                  className={cn(
-                    "inline-flex items-center gap-1.5 rounded-md border px-3 py-1.5 text-sm transition-colors",
-                    // Fondo tinto + bordo colorato, testo foreground: il
-                    // token P&L su una velatura di se stesso non regge AA.
-                    active && option.tone === "profit" && "border-profit/60 bg-profit/15 font-medium",
-                    active && option.tone === "loss" && "border-loss/60 bg-loss/15 font-medium",
-                    !active && "text-muted-foreground hover:bg-accent",
-                    data.readOnly && "cursor-default",
-                  )}
-                >
-                  <Icon className="size-3.5" aria-hidden />
-                  {option.label}
-                </button>
-              );
-            })}
-          </div>
+          {/* Segmentato dell'app, senza verde e rosso: aver seguito il piano
+              non è un segno di P&L (sistema v2, colore solo sul segno). Si
+              può tornare a «non risposto» ricliccando la scelta. */}
+          <SegmentedControl
+            label="Ho seguito il piano?"
+            allowDeselect
+            value={
+              review.followedPlan === true ? "si" : review.followedPlan === false ? "no" : null
+            }
+            onValueChange={(v) =>
+              setField("followedPlan", v === null ? null : v === "si")
+            }
+            options={[
+              {
+                value: "si",
+                label: (
+                  <>
+                    <Check className="size-3.5" aria-hidden />
+                    Sì
+                  </>
+                ),
+                disabled: data.readOnly,
+              },
+              {
+                value: "no",
+                label: (
+                  <>
+                    <X className="size-3.5" aria-hidden />
+                    No
+                  </>
+                ),
+                disabled: data.readOnly,
+              },
+            ]}
+          />
           <p className="text-xs text-muted-foreground">
             È l&apos;unico campo della revisione che si può aggregare: alimenta
             la riga «piano rispettato» nei Reports. Senza risposta resta fuori

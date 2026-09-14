@@ -1,14 +1,9 @@
+import { PageHeader } from "@/components/layout/page-header";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import Decimal from "decimal.js";
-import {
-  ArrowLeft,
-  CalendarOff,
-  ChevronLeft,
-  ChevronRight,
-  ClipboardCheck,
-} from "lucide-react";
+import { CalendarOff, ChevronLeft, ChevronRight, ClipboardCheck } from "lucide-react";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { tradeAccountWhere } from "@/lib/active-account";
@@ -246,24 +241,17 @@ export default async function DayViewPage({
 
   return (
     <div className="flex flex-col gap-4">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div className="flex items-center gap-3">
-          <Button asChild variant="ghost" size="icon" aria-label="Torna al calendario">
-            <Link href={`/day?month=${date.slice(0, 7)}`}>
-              <ArrowLeft className="size-4" />
-            </Link>
-          </Button>
-          <div>
-            <h1 className="page-title">{dayLabel(date)}</h1>
-            <p className="page-subtitle">
-              {trades.length === 0
-                ? "Nessun trade chiuso in questa giornata"
-                : `${trades.length} trade chiusi · ${wins} W · ${losses} L${breakevens > 0 ? ` · ${breakevens} BE` : ""}`}
-            </p>
-          </div>
-        </div>
-        {/* F44 — frecce sui GIORNI OPERATIVI: mai pagine vuote a catena */}
-        <div className="flex items-center gap-2">
+      <PageHeader
+        back={{ href: `/day?month=${date.slice(0, 7)}`, label: "Calendario" }}
+        title={dayLabel(date)}
+        description={
+          trades.length === 0
+            ? "Nessun trade chiuso in questa giornata"
+            : `${trades.length} trade chiusi · ${wins} W · ${losses} L${breakevens > 0 ? ` · ${breakevens} BE` : ""}`
+        }
+        actions={
+          <>
+          {/* F44 — frecce sui GIORNI OPERATIVI: mai pagine vuote a catena */}
           {/* W5 — il rito serale: revisione trade per trade + Post-Market.
               Scrive sui trade: non compare sul conto demo (sola lettura). */}
           {trades.length > 0 && !tradeScope.isDemo ? (
@@ -316,8 +304,9 @@ export default async function DayViewPage({
               <ChevronRight className="size-4" />
             </Button>
           )}
-        </div>
-      </div>
+          </>
+        }
+      />
 
       <div className="grid gap-4 sm:grid-cols-3">
         <Card className="gap-2 py-4">

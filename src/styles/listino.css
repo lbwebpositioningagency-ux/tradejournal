@@ -1,9 +1,8 @@
 /* ============================================================================
    MACRO DESK — LISTINO (direzione visiva scelta il 28/08/2026)
 
-   Sostituisce `.macro-report` in tutte le sezioni TRANNE Driver e
-   Stagionalità, che restano com'erano perché erano già fatte bene ed è stato
-   deciso di non toccarle.
+   Sostituisce `.macro-report` in tutte le sezioni TRANNE la Stagionalità,
+   congelata dal 29/08/2026. Il Driver è entrato il 14/09/2026 col sistema v2.
 
    Tre differenze rispetto a `.macro-report`, e sono la direzione:
 
@@ -40,43 +39,46 @@
    `.macro-report` NON è toccato: Driver e Stagionalità restano dark-fissi.
    ========================================================================= */
 
+/* ── TOKEN DEL DESK = ALIAS DEI TOKEN DELL'APP (sistema v2, 14/09/2026) ──
+   Fino a questa data qui c'erano diciassette esadecimali per tema: una
+   seconda palette, con il suo verde e il suo rosso e i suoi override
+   daltonici. Ora ogni --md-* rimanda al token dell'app con lo STESSO
+   SIGNIFICATO, quindi tema e coppia P&L scelta in Impostazioni arrivano da
+   lì senza blocchi dedicati. I nomi --md-* restano perché li leggono i
+   componenti del desk; i valori non esistono più qui.
+
+   Semantica (tavola «Sistema visivo v2», riquadro 2):
+   - su/giù   → --profit/--loss (solo valori con segno)
+   - attenzione → --warning
+   - azione   → --primary (il vecchio «info» del desk ci confluisce)
+   - dati     → --data-* (asset e finestre: identificano, non giudicano)
+   Regola del fondo: il testo colorato sta su bg e card, non sui riempimenti
+   (su --muted in scuro rosso e azione scendono sotto 4,5). */
 .md-listino,
 .md-calendario {
-  /* Superfici — tema chiaro */
-  --md-bg: #ffffff;
-  --md-surface: #f7f9fb;
-  --md-surface-2: #f1f4f8;
-  --md-surface-3: #e9eef4;
-  --md-border: #e3e7ed;
-  /* Filetto forte: intestazioni di tabella e chiusure di blocco */
-  --ml-rule: #c3cad4;
-  --ml-track: #eceff3;
-  /* Testo */
-  --md-text: #0e131a;
-  --md-text-2: #414c5b;
-  /* Il più vicino a #6f7c8d (stessa tinta e croma OKLCH, solo più scuro) che
-     regge 4,5:1 su tutte e quattro le superfici: 5,25 su bg, 4,50 su
-     surface-3. Il valore di prima stava a 4,25 / 3,64 — sotto AA. */
-  --md-muted: #616d7e;
-  /* Semantica sul fondo chiaro: verde e rosso scelti per reggere il
-     contrasto anche su --md-surface, non solo su bianco. */
-  --md-up: #0f7a4e;
-  --md-down: #c02040;
-  --md-warn: #9a6608;
-  --md-info: #2c5fc9;
-  /* Accenti per asset: gli stessi ruoli del desk, riportati a contrasto
-     sufficiente su fondo chiaro. */
-  --md-gold: #8a6d12;
-  --md-oil: #a75218;
-  --md-idx: #33499f;
-  --md-cross: #6a41ab;
-  /* Finestre di lookback: la palette categorica Okabe-Ito va scurita sul
-     chiaro, altrimenti il giallo sparisce. */
-  --md-w20: #2f6fd0;
-  --md-w15: #b06a12;
-  --md-w10: #1d7f8a;
-  --md-w5: #a3459a;
-  --md-w2: #7a7414;
+  --md-bg: var(--card);
+  --md-surface: var(--background);
+  --md-surface-2: var(--muted);
+  --md-surface-3: var(--accent);
+  --md-border: var(--border);
+  --ml-rule: var(--rule);
+  --ml-track: var(--track);
+  --md-text: var(--foreground);
+  --md-text-2: var(--foreground-2);
+  --md-muted: var(--muted-foreground);
+  --md-up: var(--profit);
+  --md-down: var(--loss);
+  --md-warn: var(--warning);
+  --md-info: var(--primary);
+  --md-gold: var(--data-gold);
+  --md-oil: var(--data-oil);
+  --md-idx: var(--data-idx);
+  --md-cross: var(--data-cross);
+  --md-w20: var(--data-w20);
+  --md-w15: var(--data-w15);
+  --md-w10: var(--data-w10);
+  --md-w5: var(--data-w5);
+  --md-w2: var(--data-w2);
   /* Raggi: azzerati. Il listino non ha scatole. */
   --md-r-lg: 0px;
   --md-r-md: 0px;
@@ -86,58 +88,19 @@
 
   background-color: var(--md-bg);
   color: var(--md-text);
-  font-family: var(--md-font-ui), var(--font-geist-sans), system-ui, sans-serif;
+  /* Un solo carattere: Geist, con le cifre tabulari. Inter e JetBrains Mono
+     non entrano più nel desk (restano solo nella Stagionalità, congelata). */
+  font-family: var(--font-geist-sans), system-ui, sans-serif;
   font-variant-numeric: tabular-nums lining-nums;
   font-feature-settings: "tnum" 1, "lnum" 1;
 }
 
-.dark .md-listino,
-.dark .md-calendario {
-  --md-bg: #06080d;
-  --md-surface: #0c1119;
-  --md-surface-2: #101722;
-  --md-surface-3: #151d2b;
-  --md-border: #1a2130;
-  --ml-rule: #2b3547;
-  --ml-track: #151b27;
-  --md-text: #e7edf6;
-  --md-text-2: #a6b3c6;
-  /* Come sul chiaro: stessa tinta, luminosità minima per 4,5:1 ovunque
-     (5,35 su bg, 4,52 su surface-3; prima 4,24 / 3,57). */
-  --md-muted: #77859b;
-  --md-up: #2fd67a;
-  --md-down: #ff4160;
-  --md-warn: #f5a623;
-  --md-info: #4f8ef7;
-  --md-gold: #e0bc4f;
-  --md-oil: #e0894a;
-  --md-idx: #8b9ef7;
-  --md-cross: #b18af7;
-  --md-w20: #5b9dff;
-  --md-w15: #f2a03d;
-  --md-w10: #45d4e0;
-  --md-w5: #e07bd0;
-  --md-w2: #ece75f;
-}
-
-/* La coppia P&L daltonica scelta in Impostazioni vale anche qui, come vale
-   per `.macro-report`. Valori distinti per tema: sul chiaro servono più
-   scuri per reggere il contrasto. */
-[data-pnl="blue-red"] .md-listino,
-[data-pnl="blue-red"] .md-calendario {
-  --md-up: #1d4ed8;
-}
-[data-pnl="green-violet"] .md-listino,
-[data-pnl="green-violet"] .md-calendario {
-  --md-down: #6d28d9;
-}
-.dark [data-pnl="blue-red"] .md-listino,
-.dark [data-pnl="blue-red"] .md-calendario {
-  --md-up: #4a87ff;
-}
-.dark [data-pnl="green-violet"] .md-listino,
-.dark [data-pnl="green-violet"] .md-calendario {
-  --md-down: #9970ff;
+/* I numeri del desk erano in mono per allinearsi: le cifre tabulari di Geist
+   allineano uguale, senza l'aspetto da terminale. */
+.md-listino .md-mono,
+.md-calendario .md-mono {
+  font-family: var(--font-geist-sans), system-ui, sans-serif;
+  font-weight: 500;
 }
 
 /* ── `.md-calendario`: le scatole tornano ────────────────────────────────
@@ -153,24 +116,13 @@
    contrario, perché lì l'ombra non separa (nero su nero non si vede) ma dà
    profondità insieme al filo chiaro interno. */
 .md-calendario {
-  --md-r-lg: 18px;
-  --md-r-md: 13px;
-  --md-r-sm: 9px;
-  --md-shadow:
-    0 1px 2px rgba(16, 24, 40, 0.04),
-    0 8px 24px -14px rgba(16, 24, 40, 0.18);
-  --md-shadow-hover:
-    0 1px 2px rgba(16, 24, 40, 0.06),
-    0 16px 36px -16px rgba(16, 24, 40, 0.26);
-}
-
-.dark .md-calendario {
-  --md-shadow:
-    0 1px 0 rgba(255, 255, 255, 0.03) inset,
-    0 10px 30px -12px rgba(0, 0, 0, 0.55);
-  --md-shadow-hover:
-    0 1px 0 rgba(255, 255, 255, 0.05) inset,
-    0 18px 44px -14px rgba(0, 0, 0, 0.75);
+  /* Le scatole del Calendario prendono l'unico raggio e l'unica elevazione
+     dell'app (prima 18/13/9px e due ombre per tema scritte a mano). */
+  --md-r-lg: var(--radius);
+  --md-r-md: calc(var(--radius) * 0.8);
+  --md-r-sm: calc(var(--radius) * 0.6);
+  --md-shadow: var(--shadow-card);
+  --md-shadow-hover: var(--shadow-raised);
 }
 
 /* Dentro il listino le card ereditate perdono la scatola e restano un blocco
@@ -226,13 +178,13 @@
 .ml-tab {
   width: 100%;
   border-collapse: collapse;
-  font-family: var(--md-font-mono), var(--font-geist-mono), ui-monospace, monospace;
+  font-family: var(--font-geist-sans), system-ui, sans-serif;
   font-size: 12px;
   line-height: 1;
   font-variant-numeric: tabular-nums lining-nums;
 }
 .ml-tab th {
-  font-family: var(--md-font-ui), var(--font-geist-sans), system-ui, sans-serif;
+  font-family: var(--font-geist-sans), system-ui, sans-serif;
   font-size: 11px;
   font-weight: 600;
   /* 0,04em e non 0,06: con le intestazioni portate a 11px la tabella a
@@ -287,6 +239,28 @@
 /* Tabella che non ci sta: scorre da sola, la pagina non si allarga mai. */
 .ml-scroll {
   overflow-x: auto;
+  /* Ombra sul bordo destro solo quando la tabella continua: il primo
+     gradiente scorre col contenuto e copre il secondo a fine corsa. */
+  background:
+    linear-gradient(to left, var(--md-bg) 40%, transparent) right center / 28px 100% no-repeat local,
+    linear-gradient(to left, color-mix(in oklab, var(--foreground) 16%, transparent), transparent) right center / 14px 100% no-repeat scroll;
+}
+
+/* ── tabella LARGA (13 colonne o più) ──────────────────────────────────────
+   Regola del sistema v2 (riquadro 4): il minimo di 11px non si tocca, cede il
+   padding orizzontale (8 → 6px). Riconosciuta dal CSS, senza flag per pagina.
+   Sotto la larghezza utile scorre nel suo riquadro con la PRIMA COLONNA FERMA,
+   così il nome dello strumento resta accanto ai suoi numeri. */
+.ml-tab:has(> thead th:nth-child(13)) th,
+.ml-tab:has(> thead th:nth-child(13)) td {
+  padding-left: 6px;
+  padding-right: 6px;
+}
+.ml-tab:has(> thead th:nth-child(13)) :is(th, td):first-child {
+  position: sticky;
+  left: 0;
+  z-index: 1;
+  background-color: var(--md-bg);
 }
 
 /* ── barra-parola ────────────────────────────────────────────────────────
@@ -335,7 +309,7 @@
   border: 1px solid var(--md-border);
   border-radius: 999px;
   color: var(--md-muted);
-  font-family: var(--md-font-ui), var(--font-geist-sans), system-ui, sans-serif;
+  font-family: var(--font-geist-sans), system-ui, sans-serif;
   font-size: 11px;
   font-weight: 700;
   line-height: 1;

@@ -1,8 +1,5 @@
 import type { Metadata } from "next";
-import Link from "next/link";
 import { redirect } from "next/navigation";
-import { Inter, JetBrains_Mono } from "next/font/google";
-import { ArrowLeft } from "lucide-react";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { todayKeyInZone } from "@/lib/dates";
@@ -11,24 +8,12 @@ import {
   VALUTE_PREDEFINITE,
 } from "@/lib/queries/calendario-economico";
 import { Badge } from "@/components/ui/badge";
-import { MacroDeskSectionNav } from "@/components/macro-desk/section-nav";
+import { MacroDeskTabs } from "@/components/macro-desk/section-nav";
+import { PageHeader } from "@/components/layout/page-header";
 import { CalendarioView } from "@/components/macro-desk/calendario-view";
 import { cn } from "@/lib/utils";
 
 export const metadata: Metadata = { title: "Calendario · Macro Desk" };
-
-/* Identità tipografica del terminale: Inter per la UI, JetBrains Mono per
-   orari, valute e valori (variabili consumate dai token in CSS). */
-const fontUi = Inter({
-  subsets: ["latin"],
-  weight: ["400", "500", "600", "700", "800"],
-  variable: "--md-font-ui",
-});
-const fontMono = JetBrains_Mono({
-  subsets: ["latin"],
-  weight: ["500", "600", "700"],
-  variable: "--md-font-mono",
-});
 
 /**
  * Calendario economico — sesta voce del Macro Desk.
@@ -74,27 +59,18 @@ export default async function MacroCalendarioPage() {
 
   return (
     <div className="flex flex-col gap-4">
-      <div className="flex flex-wrap items-start justify-between gap-3">
-        <div className="min-w-0">
-          <Link
-            href="/macro-desk"
-            className="mb-1 inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground"
-          >
-            <ArrowLeft className="size-4" />
-            Macro Desk
-          </Link>
-          <h1 className="page-title flex flex-wrap items-center gap-2.5">
-            Calendario
-            <Badge variant="outline">eventi · in tempo reale</Badge>
-          </h1>
-          <p className="page-subtitle">
-            Cosa esce e a che ora, con il valore precedente, il consenso degli
-            analisti quando è stato pubblicato e l&apos;effettivo appena esce.
-            Fatti con la loro fonte — nessuna previsione di reazione.
-          </p>
-        </div>
-        <MacroDeskSectionNav active="calendario" />
-      </div>
+      <PageHeader
+        nav={<MacroDeskTabs active="calendario" />}
+        title="Calendario"
+        badge={<Badge variant="outline">eventi · in tempo reale</Badge>}
+        description={
+          <>
+                Cosa esce e a che ora, con il valore precedente, il consenso degli
+                analisti quando è stato pubblicato e l&apos;effettivo appena esce.
+                Fatti con la loro fonte — nessuna previsione di reazione.
+          </>
+        }
+      />
 
       {/* `.md-calendario`: la FORMA di Driver e Stagionalità — card
           arrotondate, ombre, righe alte — con i COLORI del listino, cioè
@@ -106,8 +82,6 @@ export default async function MacroCalendarioPage() {
       <div
         className={cn(
           "md-calendario overflow-hidden rounded-[var(--md-r-lg)] border",
-          fontUi.variable,
-          fontMono.variable,
         )}
         style={{ borderColor: "var(--md-border)" }}
       >

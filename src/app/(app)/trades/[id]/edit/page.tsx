@@ -1,3 +1,4 @@
+import { PageHeader } from "@/components/layout/page-header";
 import type { Metadata } from "next";
 import { notFound, redirect } from "next/navigation";
 import { auth } from "@/lib/auth";
@@ -67,9 +68,11 @@ export default async function EditTradePage({
 
   return (
     <div className="mx-auto w-full max-w-4xl">
-      <h1 className="page-title mb-6">
-        Modifica trade {trade.symbol}
-      </h1>
+      <PageHeader
+        className="mb-6"
+        back={{ href: `/trades/${trade.id}`, label: trade.symbol }}
+        title={`Modifica trade ${trade.symbol}`}
+      />
       <TradeForm
         mode="edit"
         tradeId={trade.id}

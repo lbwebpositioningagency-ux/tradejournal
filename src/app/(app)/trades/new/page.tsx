@@ -1,3 +1,4 @@
+import { PageHeader } from "@/components/layout/page-header";
 import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import { auth } from "@/lib/auth";
@@ -63,7 +64,7 @@ export default async function NewTradePage() {
 
   return (
     <div className="mx-auto w-full max-w-4xl">
-      <h1 className="page-title mb-6">Nuovo trade</h1>
+      <PageHeader className="mb-6" back={{ href: "/trades", label: "Trade View" }} title="Nuovo trade" />
       <TradeForm
         mode="create"
         accounts={accounts}

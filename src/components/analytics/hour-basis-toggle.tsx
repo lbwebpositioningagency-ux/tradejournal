@@ -1,5 +1,4 @@
-import Link from "next/link";
-import { cn } from "@/lib/utils";
+import { SegmentedNav } from "@/components/ui/segmented";
 import type { HourBasis } from "@/lib/queries/analytics";
 
 /**
@@ -21,30 +20,15 @@ export function HourBasisToggle({
     { value: "close", label: "Chiusura" },
   ];
   return (
-    <div
-      className="inline-flex items-center gap-1 rounded-md border p-0.5"
-      role="group"
-      aria-label="Base oraria: apertura o chiusura del trade"
-    >
-      {options.map((option) => {
-        const active = option.value === basis;
-        return (
-          <Link
-            key={option.value}
-            href={hrefFor(option.value)}
-            aria-current={active ? "true" : undefined}
-            scroll={false}
-            className={cn(
-              "rounded px-2.5 py-1 text-xs font-medium transition-colors",
-              active
-                ? "bg-primary/15 text-primary"
-                : "text-muted-foreground hover:bg-accent hover:text-foreground",
-            )}
-          >
-            {option.label}
-          </Link>
-        );
-      })}
-    </div>
+    <SegmentedNav
+      label="Base oraria: apertura o chiusura del trade"
+      scroll={false}
+      items={options.map((option) => ({
+        key: option.value,
+        href: hrefFor(option.value),
+        label: option.label,
+        active: option.value === basis,
+      }))}
+    />
   );
 }

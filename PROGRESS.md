@@ -2722,3 +2722,64 @@ Calendario del desk, dettaglio report e Radar (stesso token e stessi CSS, copert
 dal test); larghezza a 390 delle pagine del desk diverse dalla Volatilità.
 
 **Verificato:** typecheck ✅ · eslint ✅ · **2137/2137 test** ✅ · build ✅.
+
+## Sistema visivo unico — v2 (14/09/2026)
+
+Dal referto design 360. Decisioni prese in Claude Design (progetto del referto,
+tavole «Sistema visivo v2 - applicato» e «Sistema visivo v2 - testata compatta»,
+derivate dalla tavola di sistema dell'audit) e poi applicate al codice. Nessuna
+migrazione, nessun contenuto aggiunto o tolto.
+
+**Caratteri.** Geist (Geist Mono solo per codici) in tutta l'app: Inter e
+JetBrains Mono tolti dalle 6 pagine del desk che li caricavano. Misurato nel DOM
+a 1440: Volatilità da Geist 11 · Inter 110 · JetBrains 219 testi a Geist 342;
+Driver, Calendario, dettaglio report, Scorecard, Radar idem. Scala ancorata al
+corpo reale 14px: 11 · 12 · 14 · 16 · 20 (titolo, prima 24) · 24→30; 33
+`text-[Npx]` riportati sulla scala (0 fuori Stagionalità). Taglie distinte in
+Volatilità da 8 a 4.
+
+**Palette.** Una sola: i 17 esadecimali per tema di `.md-listino`/`.md-calendario`
+e i loro 4 override daltonici sono diventati alias dei token oklch dell'app;
+nuovi token `--foreground-2`, `--rule`, `--track`, `--data-*` (asset e finestre,
+tutti ≥ 4,5:1 su background e card). Semantica dichiarata: su/giù, attenzione,
+azione, dati categorici; testo colorato solo su background e card. Bande d'avviso
+da `amber-*` a `--warning`. Raggi del Calendario da 18/13/9px al token unico.
+
+**Tema.** Driver fuori da `.macro-report`: isole scure in tema chiaro da 2
+(Driver, Stagionalità) a 1 (Stagionalità, congelata).
+
+**Componenti.** Testata `PageHeader` su 23 pagine (prima tre forme: link
+«← Macro Desk», icona-bottone di ritorno, testate a mano; aggiunto il ritorno che
+mancava su Conti). Schede `TabNav`/`MacroDeskTabs` (prima 4 forme: griglia di
+pillole del desk, barra Asset/News, pillole ancore di Analytics, archivio del
+Radar). Segmentato `SegmentedNav`/`SegmentedControl` in 10 file (prima 6 rese:
+pillole `bg-primary/15`, bottoni default/outline, pillole secondary, ToggleGroup
+di Radix, chip tinti del desk, Sì/No colorati del piano); via `ui/toggle-group` e
+`ui/toggle`. Nomi accessibili italiani per «$ / % / R / Privacy».
+
+**Testata del desk.** Schede in cima sopra il titolo, banda su una riga, gutter
+16px su mobile. Fine delle schede: a 1440 da 191–300px a **116**; a 390 da
+267–367 a **108**. Inizio del contenuto a 1440: Volatilità (con banda) 295 → 251,
+Driver 207 → 194, Calendario 296 → 214, Scorecard 384 → 271, Radar 296 → 214; a
+390 Volatilità 436 → 328, Scorecard 456 → 328. Il dettaglio report peggiora
+(173 → 219) perché prima non aveva le schede.
+
+**Tabelle larghe.** Regola del listino per 13+ colonne, riconosciuta dal CSS:
+padding orizzontale 8 → 6px e prima colonna ferma, ombra di scorrimento a destra;
+il minimo di 11px non si tocca. «Escursione vera» a 1440: sbordava di 15px, ora 0.
+
+**Difetti trovati dalla verifica e corretti col sistema, non con eccezioni.**
+Segmentato che andava a capo dentro se stesso a 390 (Report periodico): ora non
+va mai a capo e la riga che lo contiene sì. Etichette colorate dei `Callout` e un link
+color azione sul riempimento muted (4,33 e 4,32:1, nove testi nel dettaglio
+report): ora neutri, il colore resta sul filo. Misurato dopo: 0 testi sotto
+4,5:1 e 0 sotto 11px nel dettaglio report, in Volatilità e nel Driver, nei due
+temi.
+
+**Fuori dal sistema, dichiarato.** Stagionalità congelata: Inter+JetBrains,
+`.macro-report` scuro fisso, vecchia barra delle sezioni, 12 punti di
+formattazione artigianale. Legenda multi-selezione Sharpe/Sortino di Analytics
+(toggle, non segmentato). Report, Analytics e Scorecard non ricostruiti.
+
+**Verificato:** typecheck ✅ · eslint ✅ · **2154/2154 test** ✅ · build ✅ ·
+schermate reali a 1440 e 390 nei due temi su 16 pagine, prima e dopo.

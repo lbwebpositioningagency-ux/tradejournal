@@ -107,7 +107,7 @@ export function ListinoVolatilita({ dati }: { dati: DatiVolatilita }) {
         .map((v) => (
           <p
             key={v.indice}
-            className="mt-2 max-w-[80ch] text-[11px] leading-[1.5] text-[var(--md-muted)]"
+            className="mt-2 max-w-[80ch] text-2xs leading-[1.5] text-[var(--md-muted)]"
           >
             {v.etichetta}: nessun indice di volatilità implicita. {v.motivoIvAssente}
           </p>
@@ -205,10 +205,10 @@ export function ListinoVolatilita({ dati }: { dati: DatiVolatilita }) {
             Commento del report
             {dati.giornoReport ? ` del ${dataBreve(dati.giornoReport)}` : ""}
           </summary>
-          <p className="mt-3 max-w-[80ch] text-[12.5px] leading-[1.6] text-[var(--md-text-2)]">
+          <p className="mt-3 max-w-[80ch] text-sm leading-[1.6] text-[var(--md-text-2)]">
             {dati.commento}
           </p>
-          <p className="mt-2 max-w-[80ch] text-[11px] leading-[1.5] text-[var(--md-muted)]">
+          <p className="mt-2 max-w-[80ch] text-2xs leading-[1.5] text-[var(--md-muted)]">
             Prosa scritta dal report giornaliero: interpreta i valori alla data
             del report e non è ricalcolata da questa pagina. Se il report è
             vecchio, i numeri che cita possono non coincidere con quelli delle
@@ -217,7 +217,7 @@ export function ListinoVolatilita({ dati }: { dati: DatiVolatilita }) {
         </details>
       ) : null}
 
-      <p className="mt-5 border-t border-[var(--md-border)] pt-2.5 text-[11px] leading-[1.5] text-[var(--md-muted)]">
+      <p className="mt-5 border-t border-[var(--md-border)] pt-2.5 text-2xs leading-[1.5] text-[var(--md-muted)]">
         Rango storico calcolato sull&apos;intera serie disponibile, con
         convenzione midrank sui pareggi; minimo e massimo storici sono nel
         titolo di ogni barra. Le età sono in giorni di calendario rispetto a{" "}
@@ -328,7 +328,7 @@ function TabellaListino({ voci }: { voci: VoceStrumento[] }) {
                 {v.indice}
                 <FonteInfo v={v} />
               </td>
-              <td className="text-[15px] font-bold">
+              <td className="text-sm font-bold">
                 {f ? num(f.livello, v.decimaliIv) : <Vuoto />}
               </td>
               <td>
@@ -452,7 +452,7 @@ function TabellaEscursione({ voci }: { voci: VoceStrumento[] }) {
                   contesto={!v.operato}
                 />
               </td>
-              <td className="ml-sep text-[14px] font-bold">
+              <td className="ml-sep text-sm font-bold">
                 {u ? pct(u.relativa, 2) : <Vuoto />}
               </td>
               <td>{u ? num(u.assoluta, 2) : <Vuoto />}</td>
@@ -556,7 +556,7 @@ function TabellaQuadro({ contesto }: { contesto: ContestoVolatilita }) {
         {s?.livelli.map((l) => (
           <tr key={l.sigla}>
             <td className="ml-sx text-[var(--md-text-2)]">{l.sigla}</td>
-            <td className="text-[15px] font-bold">{num(l.valore, 2)}</td>
+            <td className="text-sm font-bold">{num(l.valore, 2)}</td>
             <td />
             <td />
             <td className="ml-sep" />
@@ -574,7 +574,7 @@ function TabellaQuadro({ contesto }: { contesto: ContestoVolatilita }) {
               {r.corta} ÷ {r.lunga}
             </td>
             <td />
-            <td className="text-[15px] font-bold">{num(r.rapporto, 3)}</td>
+            <td className="text-sm font-bold">{num(r.rapporto, 3)}</td>
             <td>
               <Rango r={r.rango} decimali={3} />
             </td>
@@ -596,7 +596,7 @@ function TabellaQuadro({ contesto }: { contesto: ContestoVolatilita }) {
                 <p className="mt-2">Fonte: {c.fonte}.</p>
               </Info>
             </td>
-            <td className="text-[15px] font-bold">{num(c.valore, 2)}</td>
+            <td className="text-sm font-bold">{num(c.valore, 2)}</td>
             <td />
             <td>
               <Rango r={c.rango} />
@@ -640,10 +640,10 @@ function TabellaQuadro({ contesto }: { contesto: ContestoVolatilita }) {
               </p>
             </Info>
           </td>
-          <td colSpan={8} className="ml-sx ml-wrap text-[11px] text-[var(--md-text-2)]">
+          <td colSpan={8} className="ml-sx ml-wrap text-2xs text-[var(--md-text-2)]">
             {w.ok ? (
               <>
-                <span className="text-[13px] font-bold text-[var(--md-text)]">
+                <span className="text-sm font-bold text-[var(--md-text)]">
                   {segnato(w.struttura.spread, 2)} $
                 </span>{" "}
                 {w.struttura.spread > 0 ? "backwardation" : "contango"} ·{" "}
@@ -669,7 +669,7 @@ function TabellaQuadro({ contesto }: { contesto: ContestoVolatilita }) {
 function TabellaEia({ inventari }: { inventari: InventariEia }) {
   if (inventari.voci.length === 0) {
     return (
-      <p className="text-[11px] leading-[1.5] text-[var(--md-muted)]">
+      <p className="text-2xs leading-[1.5] text-[var(--md-muted)]">
         {inventari.motivoAssenza ?? "Scorte non disponibili."}
       </p>
     );
@@ -698,7 +698,7 @@ function TabellaEia({ inventari }: { inventari: InventariEia }) {
                 <p>{v.descrizione}</p>
               </Info>
             </td>
-            <td className="text-[15px] font-bold">
+            <td className="text-sm font-bold">
               {num(v.livello, v.decimali)}
             </td>
             <td className="ml-sx text-2xs text-[var(--md-muted)]">
@@ -762,14 +762,14 @@ function TabellaReport({ dati }: { dati: DatiVolatilita }) {
                 <Info titolo={l.ticker} etichetta={l.ticker}>
                   <p>{voce?.note ?? l.motivo}</p>
                   {voce?.note ? (
-                    <p className="mt-2 text-[11px]">{l.motivo}</p>
+                    <p className="mt-2 text-2xs">{l.motivo}</p>
                   ) : null}
                 </Info>
               </td>
-              <td className="ml-sx text-[11px] text-[var(--md-muted)]">
+              <td className="ml-sx text-2xs text-[var(--md-muted)]">
                 {l.cosa}
               </td>
-              <td className="text-[15px] font-bold">
+              <td className="text-sm font-bold">
                 {voce?.v ?? <span className="text-[var(--md-muted)]">n/d</span>}
               </td>
               <td className="ml-sx text-[var(--md-text-2)]">

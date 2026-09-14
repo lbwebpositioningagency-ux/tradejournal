@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { ArrowLeft, ChevronRight, Globe } from "lucide-react";
+import { ChevronRight, Globe } from "lucide-react";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { getFreschezzaReport } from "@/lib/queries/macro-desk-freschezza";
@@ -16,7 +16,8 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { EmptyState } from "@/components/empty-state";
-import { MacroDeskSectionNav } from "@/components/macro-desk/section-nav";
+import { MacroDeskTabs } from "@/components/macro-desk/section-nav";
+import { PageHeader } from "@/components/layout/page-header";
 import { GuidaReport } from "@/components/macro-desk/guide-sezioni";
 
 export const metadata: Metadata = { title: "Report · Macro Desk" };
@@ -165,22 +166,11 @@ export default async function MacroDeskReportPage() {
 
   return (
     <div className="flex flex-col gap-4">
-      <div className="flex flex-wrap items-start justify-between gap-3">
-        <div className="min-w-0">
-          <Link
-            href="/macro-desk"
-            className="mb-1 inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground"
-          >
-            <ArrowLeft className="size-4" />
-            Macro Desk
-          </Link>
-          <h1 className="page-title">Report</h1>
-          <p className="page-subtitle">
-            Bias macro giornaliero e settimanale su oro, petrolio e indici
-          </p>
-        </div>
-        <MacroDeskSectionNav active="report" />
-      </div>
+      <PageHeader
+        nav={<MacroDeskTabs active="report" />}
+        title="Report"
+        description="Bias macro giornaliero e settimanale su oro, petrolio e indici"
+      />
 
       {/* La data del report era in chiaro, ma non il RITARDO: "21 agosto" non
           dice di per sé che sono passati quattro giorni, e questa è la sezione

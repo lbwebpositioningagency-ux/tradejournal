@@ -1,3 +1,4 @@
+import { PageHeader } from "@/components/layout/page-header";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { redirect } from "next/navigation";
@@ -148,10 +149,11 @@ export default async function DayCalendarPage({
 
   return (
     <div className="flex flex-col gap-4">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div>
-          <h1 className="page-title">Calendario</h1>
-          <p className="page-subtitle flex items-center gap-1">
+      <PageHeader
+        title="Calendario"
+        description={
+          <>
+          <span className="flex flex-wrap items-center gap-1">
             {daily.length === 0 ? (
               "Nessun trade chiuso nel mese"
             ) : (
@@ -163,7 +165,7 @@ export default async function DayCalendarPage({
                 <MetricInfo info={netPnlInfo} />
               </>
             )}
-          </p>
+          </span>
           {scope.multi ? (
             <p className="mt-0.5 text-xs text-muted-foreground">
               Totali del mese per valuta (mai sommati):{" "}
@@ -177,10 +179,10 @@ export default async function DayCalendarPage({
               ))}
             </p>
           ) : null}
-        </div>
-        {/* Valute, frecce, mese e «Oggi» su una sola fila arrivavano a 449px
-            su un telefono da 390: la fila va a capo (tavola «Correzioni P0»). */}
-        <div className="flex flex-wrap items-center gap-2">
+          </>
+        }
+        actions={
+          <>
           {scope.multi ? (
             <CurrencyFilter
               currencies={currencyTotals.map((t) => t.currency)}
@@ -204,8 +206,9 @@ export default async function DayCalendarPage({
               <Link href="/day">Oggi</Link>
             </Button>
           ) : null}
-        </div>
-      </div>
+          </>
+        }
+      />
 
       <Card className="py-4">
         {/* Sotto sm le celle giorno hanno ~34px utili: padding, gap e colonna

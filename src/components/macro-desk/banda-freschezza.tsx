@@ -17,20 +17,22 @@ export function BandaFreschezza({ esito }: { esito: FreschezzaReport }) {
   return (
     <div
       role="status"
-      className="flex items-start gap-3 rounded-xl border border-amber-500/40 bg-amber-500/10 px-4 py-3"
+      className="flex items-start gap-2 rounded-lg border border-warning/40 bg-warning/10 px-3 py-2"
     >
       <TriangleAlert
-        className="mt-0.5 size-4 shrink-0 text-amber-600 dark:text-amber-400"
+        className="mt-0.5 size-4 shrink-0 text-warning"
         aria-hidden
       />
-      <div className="min-w-0 text-sm leading-relaxed">
-        <p className="font-semibold">
+      {/* Una riga sola quando ci sta: titolo e spiegazione di seguito
+          (tavola «Sistema visivo v2 - testata compatta»). */}
+      <p className="min-w-0 text-sm leading-relaxed">
+        <span className="font-semibold">
           {esito.motivo === "nessun_report"
             ? "Nessun report giornaliero"
             : "Report giornaliero in ritardo"}
-        </p>
-        <p className="text-muted-foreground">{esito.testo}</p>
-      </div>
+        </span>{" "}
+        <span className="text-muted-foreground">· {esito.testo}</span>
+      </p>
     </div>
   );
 }

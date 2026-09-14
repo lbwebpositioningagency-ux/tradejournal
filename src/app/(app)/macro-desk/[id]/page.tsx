@@ -1,8 +1,5 @@
 import type { Metadata } from "next";
-import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
-import { Inter, JetBrains_Mono } from "next/font/google";
-import { ArrowLeft } from "lucide-react";
 import { auth } from "@/lib/auth";
 import { formatDateTime } from "@/lib/dates";
 import { prisma } from "@/lib/db";
@@ -13,24 +10,13 @@ import type { Rilievo } from "@/lib/macro-desk-contratto";
 import { getRevisioneReport } from "@/lib/queries/macro-desk-versioni";
 import { cn } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
+import { MacroDeskTabs } from "@/components/macro-desk/section-nav";
+import { PageHeader } from "@/components/layout/page-header";
 import { MacroReportDetail } from "@/components/macro-desk/report-detail";
 import { RigaRevisione } from "@/components/macro-desk/riga-revisione";
 import type { NaturaBias } from "@/components/macro-desk/report-tabs";
 
 export const metadata: Metadata = { title: "Report Macro Desk" };
-
-/* Identità tipografica del terminale: Inter per la UI, JetBrains Mono per
-   TUTTI i dati numerici/ticker/date (variabili consumate dai token in CSS). */
-const fontUi = Inter({
-  subsets: ["latin"],
-  weight: ["400", "500", "600", "700", "800"],
-  variable: "--md-font-ui",
-});
-const fontMono = JetBrains_Mono({
-  subsets: ["latin"],
-  weight: ["500", "600", "700"],
-  variable: "--md-font-mono",
-});
 
 function headerDateLabel(date: Date): string {
   const label = new Intl.DateTimeFormat("it-IT", {
@@ -142,41 +128,35 @@ export default async function MacroReportPage({
 
   return (
     <div className="flex flex-col gap-4">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div>
-          {/* Si arriva qui dallo storico: il ritorno è alla sezione Report. */}
-          <Link
-            href="/macro-desk/report"
-            className="mb-1 inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground"
-          >
-            <ArrowLeft className="size-4" />
-            Report
-          </Link>
-          <h1 className="page-title flex flex-wrap items-center gap-2.5">
-            Report {report.type === "DAILY" ? "giornaliero" : "settimanale"}
-            <Badge variant={report.type === "DAILY" ? "secondary" : "outline"}>
-              {report.type === "DAILY" ? "Daily" : "Weekly"}
-            </Badge>
-          </h1>
-          <p className="page-subtitle">
+      {/* Si arriva qui dallo storico: il ritorno è alla sezione Report. Da
+          qui si vedono anche le altre sezioni del desk, come in ogni pagina. */}
+      <PageHeader
+        nav={<MacroDeskTabs active="report" />}
+        back={{ href: "/macro-desk/report", label: "Report" }}
+        title={`Report ${report.type === "DAILY" ? "giornaliero" : "settimanale"}`}
+        badge={
+          <Badge variant={report.type === "DAILY" ? "secondary" : "outline"}>
+            {report.type === "DAILY" ? "Daily" : "Weekly"}
+          </Badge>
+        }
+        description={
+          <>
             {/* «UTC» è caduto: `formatDateTime` rende nel fuso dell'utente, e
                 l'etichetta diceva il falso da quando quel calcolo è cambiato. */}
             {headerDateLabel(report.reportDate)} · generato {generatedLabel}
-          </p>
           {/* Non conta le rispedizioni: dice che cosa è cambiato, e per questo
               può permettersi di comparire di rado. Rende `null` da sé quando
               non c'è niente da dire. */}
           <RigaRevisione revisione={revisione} timezone={user.timezone} />
-        </div>
-      </div>
+          </>
+        }
+      />
 
       {/* Ambiente del desk: token theme-aware, niente scatole, colore solo sul
           segno. Scoped a .md-listino. */}
       <div
         className={cn(
           "md-listino overflow-hidden border",
-          fontUi.variable,
-          fontMono.variable,
         )}
         style={{ borderColor: "var(--ml-rule)" }}
       >

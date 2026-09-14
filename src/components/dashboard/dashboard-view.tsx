@@ -1,5 +1,9 @@
 "use client";
 
+import { PageHeader } from "@/components/layout/page-header";
+
+import { SegmentedControl } from "@/components/ui/segmented-control";
+
 import { useEffect, useMemo, useRef, useState, useTransition } from "react";
 import Link from "next/link";
 import dynamicImport from "next/dynamic";
@@ -13,6 +17,7 @@ import {
 import { toast } from "sonner";
 import { saveDashboardLayoutAction } from "@/server/settings";
 import {
+  VIEW_MODE_ARIA,
   VIEW_MODE_LABELS,
   VIEW_MODES,
   WIDGET_IDS,
@@ -112,7 +117,6 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Skeleton } from "@/components/ui/skeleton";
-import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import {
   CumulativePnlChart,
   DailyPnlChart,
@@ -633,12 +637,7 @@ export function DashboardView({ data }: { data: DashboardData }) {
   if (data.neverTraded) {
     return (
       <div className="flex flex-col gap-4">
-        <div>
-          <h1 className="page-title">Dashboard</h1>
-          <p className="page-subtitle">
-            Benvenuto in L&amp;B TradingSpace
-          </p>
-        </div>
+        <PageHeader title="Dashboard" description="Benvenuto in L&B TradingSpace" />
         <OnboardingHero
           accountBalanceLabel={formatMoney(data.accountBalance, data.lifetimeCurrency)}
         />
@@ -649,15 +648,14 @@ export function DashboardView({ data }: { data: DashboardData }) {
   return (
     <div className="flex flex-col gap-4">
       {/* Testata: periodo, viste, personalizza */}
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div>
-          <h1 className="page-title">Dashboard</h1>
-          <p className="page-subtitle">
+      <PageHeader
+        title="Dashboard"
+        description={
+          <>
             {data.totalTrades} trade chiusi
             {data.openTrades > 0 ? ` · ${data.openTrades} aperti` : ""} ·{" "}
             {data.period.label}
             {data.multiCurrency ? ` · ${data.currency}` : ""}
-          </p>
           {data.multiCurrency ? (
             <p className="mt-0.5 text-xs text-muted-foreground">
               Totali per valuta (mai sommati):{" "}
@@ -671,8 +669,10 @@ export function DashboardView({ data }: { data: DashboardData }) {
               ))}
             </p>
           ) : null}
-        </div>
-        <div className="flex flex-wrap items-center gap-2">
+          </>
+        }
+        actions={
+          <>
           {data.multiCurrency ? (
             <CurrencyFilter
               currencies={data.currencyTotals.map((t) => t.currency)}
@@ -685,19 +685,18 @@ export function DashboardView({ data }: { data: DashboardData }) {
             toKey={data.period.toKey}
             label={data.period.label}
           />
-          <ToggleGroup
-            type="single"
-            variant="outline"
+          <SegmentedControl
+            label="Modalità di visualizzazione"
             value={view}
-            onValueChange={(v) => v && setView(v as ViewMode)}
-            aria-label="Modalità di visualizzazione"
-          >
-            {VIEW_MODES.map((mode) => (
-              <ToggleGroupItem key={mode} value={mode} aria-label={mode}>
-                {VIEW_MODE_LABELS[mode]}
-              </ToggleGroupItem>
-            ))}
-          </ToggleGroup>
+            onValueChange={(v) => {
+              if (v) setView(v as ViewMode);
+            }}
+            options={VIEW_MODES.map((mode) => ({
+              value: mode,
+              label: VIEW_MODE_LABELS[mode],
+              ariaLabel: VIEW_MODE_ARIA[mode],
+            }))}
+          />
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button variant="outline" size="icon" aria-label="Personalizza widget">
@@ -719,8 +718,9 @@ export function DashboardView({ data }: { data: DashboardData }) {
               ))}
             </DropdownMenuContent>
           </DropdownMenu>
-        </div>
-      </div>
+          </>
+        }
+      />
 
       {view === "percent" && percentBaseMissing ? (
         <p className="rounded-md border border-dashed p-2 text-sm text-muted-foreground">

@@ -1,31 +1,16 @@
 import type { Metadata } from "next";
-import Link from "next/link";
 import { redirect } from "next/navigation";
-import { Inter, JetBrains_Mono } from "next/font/google";
-import { ArrowLeft } from "lucide-react";
 import { auth } from "@/lib/auth";
 import { cn } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
-import { MacroDeskSectionNav } from "@/components/macro-desk/section-nav";
+import { MacroDeskTabs } from "@/components/macro-desk/section-nav";
+import { PageHeader } from "@/components/layout/page-header";
 import { RadarMaiArrivato, RadarView } from "@/components/macro-desk/radar-view";
 import { dataAChiave } from "@/lib/macro-radar-testo";
 import { getRadarReport, getRadarSettimane } from "@/lib/queries/macro-radar";
 import { GuidaRadar } from "@/components/macro-desk/guide-sezioni";
 
 export const metadata: Metadata = { title: "Radar · Macro Desk" };
-
-/* Stessa identità tipografica delle altre sezioni del desk: Inter per la UI,
-   JetBrains Mono per date, sigle e conteggi. */
-const fontUi = Inter({
-  subsets: ["latin"],
-  weight: ["400", "500", "600", "700", "800"],
-  variable: "--md-font-ui",
-});
-const fontMono = JetBrains_Mono({
-  subsets: ["latin"],
-  weight: ["500", "600", "700"],
-  variable: "--md-font-mono",
-});
 
 /**
  * Radar di settore — la nona sezione del Macro Desk, e l'unica che non parla
@@ -63,35 +48,24 @@ export default async function MacroRadarPage({
 
   return (
     <div className="flex flex-col gap-4">
-      <div className="flex flex-wrap items-start justify-between gap-3">
-        <div className="min-w-0">
-          <Link
-            href="/macro-desk"
-            className="mb-1 inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground"
-          >
-            <ArrowLeft className="size-4" />
-            Macro Desk
-          </Link>
-          <h1 className="page-title flex flex-wrap items-center gap-2.5">
-            Radar
-            <Badge variant="outline">settimanale · registro</Badge>
-          </h1>
-          <p className="page-subtitle">
-            Cosa è cambiato nell&apos;ecosistema in cui si opera — borse, prop
-            firm, broker, regolatori, piattaforme, dati. Fatti e fonti: qui non
-            si stima e non si giudica niente.
-          </p>
-        </div>
-        <MacroDeskSectionNav active="radar" />
-      </div>
+      <PageHeader
+        nav={<MacroDeskTabs active="radar" />}
+        title="Radar"
+        badge={<Badge variant="outline">settimanale · registro</Badge>}
+        description={
+          <>
+                Cosa è cambiato nell&apos;ecosistema in cui si opera — borse, prop
+                firm, broker, regolatori, piattaforme, dati. Fatti e fonti: qui non
+                si stima e non si giudica niente.
+          </>
+        }
+      />
 
       {/* Ambiente del desk: token theme-aware, niente scatole, colore solo sul
           segno. Scoped a .md-listino. */}
       <div
         className={cn(
           "md-listino overflow-hidden border",
-          fontUi.variable,
-          fontMono.variable,
         )}
         style={{ borderColor: "var(--ml-rule)" }}
       >

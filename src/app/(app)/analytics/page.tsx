@@ -1,3 +1,5 @@
+import { PageHeader } from "@/components/layout/page-header";
+import { tabClass, tabListClass } from "@/components/layout/tab-nav";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { Suspense } from "react";
@@ -595,15 +597,12 @@ export default async function AnalyticsPage({
   return (
     <div className="flex flex-col gap-6">
       <div className="flex flex-col gap-3">
-        <div className="flex flex-wrap items-end justify-between gap-3">
-          <div>
-            <h1 className="page-title">Analytics</h1>
-            {/* D-03 — il vecchio sottotitolo descriveva solo le prime due card. */}
-            <p className="page-subtitle">
-              Distribuzioni, rolling, rischio e concentrazione · {period.label}
-            </p>
-          </div>
-          <div className="flex flex-wrap items-center gap-2">
+        {/* D-03 — il vecchio sottotitolo descriveva solo le prime due card. */}
+        <PageHeader
+          title="Analytics"
+          description={<>Distribuzioni, rolling, rischio e concentrazione · {period.label}</>}
+          actions={
+            <>
             {currencyScope.multi && (
               <CurrencyFilter
                 currencies={currencyScope.totals.map((t) => t.currency)}
@@ -616,8 +615,9 @@ export default async function AnalyticsPage({
               toKey={period.toKey}
               label={period.label}
             />
-          </div>
-        </div>
+            </>
+          }
+        />
         <Suspense fallback={<div className="h-9" />}>
           <AnalyticsFilters
             symbols={symbols}
@@ -628,10 +628,7 @@ export default async function AnalyticsPage({
         {/* D-03 — ancore di navigazione interna: la pagina è ~10 card
             full-width, senza mappa chi cerca il Kelly scorre tutto. */}
         {coverage.total > 0 ? (
-          <nav
-            aria-label="Sezioni della pagina"
-            className="flex flex-wrap gap-1.5"
-          >
+          <nav aria-label="Sezioni della pagina" className={tabListClass}>
             {(
               [
                 ["Distribuzioni", "#distribuzioni"],
@@ -644,7 +641,7 @@ export default async function AnalyticsPage({
               <a
                 key={anchor}
                 href={anchor}
-                className="rounded-full border px-3 py-1 text-xs font-medium text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+                className={tabClass(false)}
               >
                 {label}
               </a>

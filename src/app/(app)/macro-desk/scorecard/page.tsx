@@ -1,8 +1,5 @@
 import type { Metadata } from "next";
-import Link from "next/link";
 import { redirect } from "next/navigation";
-import { Inter, JetBrains_Mono } from "next/font/google";
-import { ArrowLeft } from "lucide-react";
 import { auth } from "@/lib/auth";
 import { getFreschezzaReport } from "@/lib/queries/macro-desk-freschezza";
 import { getScorecardSource } from "@/lib/queries/macro-scorecard-em";
@@ -11,24 +8,12 @@ import { BandaImpegno } from "@/components/macro-desk/banda-impegno";
 import { resolveWeeks } from "@/lib/macro-desk-scorecard-em";
 import { cn } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
-import { MacroDeskSectionNav } from "@/components/macro-desk/section-nav";
+import { MacroDeskTabs } from "@/components/macro-desk/section-nav";
+import { PageHeader } from "@/components/layout/page-header";
 import { ScorecardEmView } from "@/components/macro-desk/scorecard-em-view";
 import { GuidaScorecard } from "@/components/macro-desk/guide-sezioni";
 
 export const metadata: Metadata = { title: "Scorecard Macro Desk" };
-
-/* Stessa identità tipografica del dettaglio report: Inter per la UI,
-   JetBrains Mono per tutti i numeri (variabili consumate da .md-listino). */
-const fontUi = Inter({
-  subsets: ["latin"],
-  weight: ["400", "500", "600", "700", "800"],
-  variable: "--md-font-ui",
-});
-const fontMono = JetBrains_Mono({
-  subsets: ["latin"],
-  weight: ["500", "600", "700"],
-  variable: "--md-font-mono",
-});
 
 export default async function MacroScorecardPage() {
   const session = await auth();
@@ -42,27 +27,18 @@ export default async function MacroScorecardPage() {
 
   return (
     <div className="flex flex-col gap-4">
-      <div className="flex flex-wrap items-start justify-between gap-3">
-        <div className="min-w-0">
-          <Link
-            href="/macro-desk"
-            className="mb-1 inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground"
-          >
-            <ArrowLeft className="size-4" />
-            Macro Desk
-          </Link>
-          <h1 className="page-title flex flex-wrap items-center gap-2.5">
-            Scorecard
-            <Badge variant="outline">settimanale · Expected Move</Badge>
-          </h1>
-          <p className="page-subtitle">
-            I bias ci prendono? Il desk dichiara un orizzonte settimanale, quindi
-            ogni bias è valutato sulla settimana intera, misurato in Expected
-            Move dell&apos;asset.
-          </p>
-        </div>
-        <MacroDeskSectionNav active="scorecard" />
-      </div>
+      <PageHeader
+        nav={<MacroDeskTabs active="scorecard" />}
+        title="Scorecard"
+        badge={<Badge variant="outline">settimanale · Expected Move</Badge>}
+        description={
+          <>
+                I bias ci prendono? Il desk dichiara un orizzonte settimanale, quindi
+                ogni bias è valutato sulla settimana intera, misurato in Expected
+                Move dell&apos;asset.
+          </>
+        }
+      />
 
       {/* Questa sezione LEGGE dai report: se il report è fermo, i suoi numeri
           sono fermi con lui, e va detto qui e non solo nell'indice. */}
@@ -78,8 +54,6 @@ export default async function MacroScorecardPage() {
       <div
         className={cn(
           "md-listino overflow-hidden border",
-          fontUi.variable,
-          fontMono.variable,
         )}
         style={{ borderColor: "var(--ml-rule)" }}
       >

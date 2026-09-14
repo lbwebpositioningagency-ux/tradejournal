@@ -7,9 +7,11 @@ import { prisma } from "@/lib/db";
 import { getEsitoNotturno } from "@/lib/queries/esito-notturno";
 import { getFreschezzaReport } from "@/lib/queries/macro-desk-freschezza";
 import { Card, CardContent } from "@/components/ui/card";
+import { PageHeader } from "@/components/layout/page-header";
 import { BandaEsitoNotturno } from "@/components/macro-desk/banda-esito-notturno";
 import { BandaFreschezza } from "@/components/macro-desk/banda-freschezza";
 import {
+  MacroDeskTabs,
   SEZIONI_ARCHIVIO,
   SEZIONI_QUOTIDIANE,
   SEZIONI_REGISTRO,
@@ -62,14 +64,19 @@ export default async function MacroDeskPage() {
 
   return (
     <div className="flex flex-col gap-4">
-      <div>
-        <h1 className="page-title">Macro Desk</h1>
-        <p className="page-subtitle">
-          Quattro sezioni da consultare, ognuna con i suoi dati e i suoi
-          aggiornamenti. Poi l&apos;archivio, quello che si legge di rado, e in
-          fondo il registro: l&apos;unica parte che non guarda i prezzi.
-        </p>
-      </div>
+      {/* Le sezioni come schede su una riga, la stessa delle pagine di sezione:
+          la griglia qui sotto resta, con le sue descrizioni. */}
+      <PageHeader
+        nav={<MacroDeskTabs />}
+        title="Macro Desk"
+        description={
+          <>
+            Quattro sezioni da consultare, ognuna con i suoi dati e i suoi
+            aggiornamenti. Poi l&apos;archivio, quello che si legge di rado, e in
+            fondo il registro: l&apos;unica parte che non guarda i prezzi.
+          </>
+        }
+      />
 
       <BandaEsitoNotturno esito={esitoNotturno} timeZone={utente.timezone} />
 

@@ -123,6 +123,28 @@
   --breakeven: oklch(0.44 0.012 264);
   /* Testo di avviso (ambra) AA su bg e card: 4.58 · 4.75 (solver) */
   --warning: oklch(0.565 0.133 60);
+  /* Sistema v2 (14/09/2026, tavola «Sistema visivo v2» in Claude Design):
+     i neutri e i dati categorici che prima esistevano solo nel Macro Desk,
+     come esadecimali suoi, diventano token dell'app. Valori convertiti dai
+     precedenti, contrasti misurati su background e card.
+     Testo secondario forte: 8,42 su background, 8,72 su card. */
+  --foreground-2: oklch(0.413 0.029 256);
+  /* Filo forte (intestazioni di tabella, chiusure di blocco) e traccia delle
+     barre-parola: grafica, non testo. */
+  --rule: oklch(0.837 0.016 257);
+  --track: oklch(0.951 0.006 255);
+  /* DATI CATEGORICI: identificano un asset o una finestra, non giudicano.
+     Mai per stati o segni. Tutti ≥ 4,5 su card anche come testo; il 15 anni
+     è stato scurito di un gradino di luminosità (4,27 → 4,6 su card). */
+  --data-gold: oklch(0.548 0.106 89);
+  --data-oil: oklch(0.535 0.13 50);
+  --data-idx: oklch(0.438 0.142 269);
+  --data-cross: oklch(0.478 0.163 298);
+  --data-w20: oklch(0.553 0.164 259);
+  --data-w15: oklch(0.56 0.127 65);
+  --data-w10: oklch(0.548 0.086 206);
+  --data-w5: oklch(0.545 0.162 331);
+  --data-w2: oklch(0.547 0.11 106);
   --radius: 0.625rem;
   /* Movimento unico per tutta l'app */
   --motion-duration: 150ms;
@@ -177,6 +199,18 @@
   /* Ambra IN GAMUT più vicina all'amber-400 usata prima (che era clampata):
      11.57 su bg · 10.50 su card (solver) */
   --warning: oklch(0.83 0.17 84);
+  --foreground-2: oklch(0.763 0.031 258); /* 9,32 bg · 8,45 card */
+  --rule: oklch(0.328 0.035 262);
+  --track: oklch(0.222 0.025 264);
+  --data-gold: oklch(0.807 0.133 91);
+  --data-oil: oklch(0.71 0.132 55);
+  --data-idx: oklch(0.721 0.131 274);
+  --data-cross: oklch(0.715 0.158 299);
+  --data-w20: oklch(0.697 0.16 258);
+  --data-w15: oklch(0.771 0.147 67);
+  --data-w10: oklch(0.8 0.119 203);
+  --data-w5: oklch(0.722 0.162 333);
+  --data-w2: oklch(0.907 0.156 107);
   --sidebar: oklch(0.175 0.013 264);
   --sidebar-foreground: oklch(0.975 0.004 264);
   --sidebar-primary: oklch(0.635 0.194 262);
@@ -365,8 +399,10 @@
 @layer components {
   /* Gerarchia tipografica delle pagine e delle card — usare SEMPRE queste
      classi, mai ricomporre la gerarchia a mano nei componenti. */
+  /* Titolo di pagina a 20px (scala del sistema v2: 11 · 12 · 14 · 16 · 20 ·
+     24→30). Il 24 resta al solo KPI principale. */
   .page-title {
-    @apply text-2xl font-semibold tracking-tight;
+    @apply text-xl font-semibold tracking-tight;
   }
   .page-subtitle {
     @apply text-sm text-muted-foreground;
@@ -601,6 +637,18 @@
     --loss: oklch(0.565 0.23 26);
     --breakeven: oklch(0.44 0.012 264);
     --warning: oklch(0.565 0.133 60);
+     --foreground-2: oklch(0.413 0.029 256);
+    --rule: oklch(0.837 0.016 257);
+    --track: oklch(0.951 0.006 255);
+    --data-gold: oklch(0.548 0.106 89);
+    --data-oil: oklch(0.535 0.13 50);
+    --data-idx: oklch(0.438 0.142 269);
+    --data-cross: oklch(0.478 0.163 298);
+    --data-w20: oklch(0.553 0.164 259);
+    --data-w15: oklch(0.56 0.127 65);
+    --data-w10: oklch(0.548 0.086 206);
+    --data-w5: oklch(0.545 0.162 331);
+    --data-w2: oklch(0.547 0.11 106);
     --sidebar: oklch(0.975 0.005 264);
     --sidebar-foreground: oklch(0.16 0.014 264);
     --sidebar-primary: oklch(0.54 0.251 262);

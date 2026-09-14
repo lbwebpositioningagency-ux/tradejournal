@@ -1,3 +1,4 @@
+import { PageHeader } from "@/components/layout/page-header";
 import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import { Target } from "lucide-react";
@@ -22,15 +23,11 @@ export default async function StrategiesPage() {
 
   return (
     <div className="mx-auto flex w-full max-w-3xl flex-col gap-6">
-      <div className="flex items-center justify-between gap-4">
-        <div>
-          <h1 className="page-title">Strategie</h1>
-          <p className="text-sm text-muted-foreground">
-            I tuoi setup: collegali ai trade per analizzarne la performance
-          </p>
-        </div>
-        <StrategyFormDialog mode="create" />
-      </div>
+      <PageHeader
+        title="Strategie"
+        description="I tuoi setup: collegali ai trade per analizzarne la performance"
+        actions={<StrategyFormDialog mode="create" />}
+      />
 
       {strategies.length === 0 ? (
         <EmptyState

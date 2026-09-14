@@ -268,7 +268,7 @@ export function Strumento({
  */
 export function Provenienza({ children }: { children: ReactNode }) {
   return (
-    <p className="md-mono text-[11px] leading-[1.5] text-[var(--md-muted)]">
+    <p className="md-mono text-2xs leading-[1.5] text-[var(--md-muted)]">
       {children}
     </p>
   );
@@ -277,7 +277,7 @@ export function Provenienza({ children }: { children: ReactNode }) {
 /** Chiusura di pagina: le convenzioni che valgono per tutte le tabelle. */
 export function NotaChiusura({ children }: { children: ReactNode }) {
   return (
-    <p className="mt-5 border-t border-[var(--md-border)] pt-2.5 text-[11px] leading-[1.5] text-[var(--md-muted)]">
+    <p className="mt-5 border-t border-[var(--md-border)] pt-2.5 text-2xs leading-[1.5] text-[var(--md-muted)]">
       {children}
     </p>
   );

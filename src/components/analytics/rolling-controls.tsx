@@ -1,8 +1,9 @@
 "use client";
 
+import { SegmentedControl } from "@/components/ui/segmented-control";
+
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useTransition } from "react";
-import { Button } from "@/components/ui/button";
 
 /**
  * Selettore della finestra rolling. Come ogni altro filtro del progetto vive
@@ -47,25 +48,24 @@ export function RollingWindowControl({
   return (
     <div className="flex flex-wrap items-center gap-2">
       <span className="text-xs text-muted-foreground">{label}</span>
-      {options.map((option) => {
-        const insufficient = option > maxAvailable;
-        return (
-          <Button
-            key={option}
-            size="sm"
-            variant={value === option ? "default" : "outline"}
-            disabled={pending || insufficient}
-            title={
-              insufficient
-                ? `Servono almeno ${option} ${suffix}: nello scope attuale ce ne sono ${maxAvailable}.`
-                : undefined
-            }
-            onClick={() => select(option)}
-          >
-            {option} {suffix}
-          </Button>
-        );
-      })}
+      <SegmentedControl
+        label={label}
+        value={String(value)}
+        onValueChange={(v) => {
+          if (v) select(Number(v));
+        }}
+        options={options.map((option) => {
+          const insufficient = option > maxAvailable;
+          return {
+            value: String(option),
+            label: `${option} ${suffix}`,
+            disabled: pending || insufficient,
+            title: insufficient
+              ? `Servono almeno ${option} ${suffix}: nello scope attuale ce ne sono ${maxAvailable}.`
+              : undefined,
+          };
+        })}
+      />
     </div>
   );
 }

@@ -1,5 +1,7 @@
 "use client";
 
+import { SegmentedControl } from "@/components/ui/segmented-control";
+
 import { useState } from "react";
 import {
   Bar,
@@ -12,7 +14,6 @@ import {
 } from "recharts";
 import { CHART, pnlChartColor } from "@/components/charts/chart-spec";
 import { useChartAnimation } from "@/components/charts/use-chart-animation";
-import { Button } from "@/components/ui/button";
 import { formatNumber } from "@/lib/format-number";
 
 /**
@@ -96,22 +97,17 @@ export function SegmentPerformanceChart({
   return (
     <div className="flex flex-col gap-2">
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <div className="flex gap-1" role="group" aria-label="Metrica del grafico">
-          <Button
-            size="sm"
-            variant={metric === "avgR" ? "default" : "outline"}
-            onClick={() => setMetric("avgR")}
-          >
-            R medio
-          </Button>
-          <Button
-            size="sm"
-            variant={metric === "expectancy" ? "default" : "outline"}
-            onClick={() => setMetric("expectancy")}
-          >
-            Attesa ({currency})
-          </Button>
-        </div>
+        <SegmentedControl
+          label="Metrica del grafico"
+          value={metric}
+          onValueChange={(v) => {
+            if (v) setMetric(v);
+          }}
+          options={[
+            { value: "avgR", label: "R medio" },
+            { value: "expectancy", label: `Attesa (${currency})` },
+          ]}
+        />
         <p className="text-2xs text-muted-foreground">
           Barre smorzate = campione ridotto, poco affidabile
         </p>

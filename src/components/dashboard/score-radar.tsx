@@ -205,7 +205,7 @@ export function ScoreRadar({ result }: { result: RadarScore | null }) {
             <div
               key={key}
               className={cn(
-                "absolute flex items-center gap-px whitespace-nowrap text-[10px] leading-none text-muted-foreground",
+                "absolute flex items-center gap-px whitespace-nowrap text-2xs leading-none text-muted-foreground",
                 side === "left" && "flex-row-reverse",
               )}
               style={{

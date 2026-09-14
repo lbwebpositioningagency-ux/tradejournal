@@ -55,7 +55,9 @@ export function MonoChip({
       style={{
         color: color ?? "var(--md-text-2)",
         borderColor: "var(--md-border)",
-        backgroundColor: "var(--md-surface-2)",
+        /* Il chip può avere un testo colorato: sta sul fondo della card, non
+           su un riempimento (sistema v2, regola del fondo). */
+        backgroundColor: "var(--md-bg)",
       }}
     >
       {children}
@@ -83,9 +85,12 @@ export function Callout({
         borderLeft: `3px solid ${color}`,
       }}
     >
+      {/* L'etichetta è testo NEUTRO: sul riempimento muted l'ambra e l'azzurro
+          scendevano a 4,33 e 4,32:1. Il colore resta sul filo a sinistra,
+          che è grafica (sistema v2, regola del fondo). */}
       <p
         className="mb-1 text-2xs font-semibold uppercase tracking-[0.12em]"
-        style={{ color }}
+        style={{ color: "var(--md-text)" }}
       >
         {label}
       </p>

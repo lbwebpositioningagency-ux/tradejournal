@@ -1,11 +1,12 @@
 "use client";
 
+import { tabClass, tabListClass } from "@/components/layout/tab-nav";
+
 import { useState } from "react";
 import { isCriticalIssue, type MacroPayload } from "@/lib/macro-desk-payload";
 import type { MonitorConfidenza } from "@/lib/macro-desk-confidenza";
 import type { Rilievo } from "@/lib/macro-desk-contratto";
 import { BandaRilievi } from "./banda-rilievi";
-import { cn } from "@/lib/utils";
 import { AssetsTab, DataIssuesList, NewsTab, type NaturaBias } from "./report-tabs";
 
 /**
@@ -76,13 +77,9 @@ export function MacroReportDetail({
           perché una sezione potrebbe mancare, e vanno letti PRIMA di cercarla. */}
       <BandaRilievi rilievi={rilievi ?? []} />
 
-      {/* Barra schede: scrollabile su mobile, mai wrap */}
-      <div
-        role="tablist"
-        aria-label="Sezioni del report"
-        className="scrollbar-none -mx-1 flex gap-1 overflow-x-auto rounded-[var(--md-r-md)] border p-1"
-        style={{ borderColor: "var(--md-border)", backgroundColor: "var(--md-surface)" }}
-      >
+      {/* Schede: stesso componente delle sezioni del desk (tavola «Sistema
+          visivo v2», riquadro 5), in modalità pulsanti. */}
+      <div role="tablist" aria-label="Sezioni del report" className={tabListClass}>
         {TABS.map((tab) => {
           const isActive = tab.id === active;
           return (
@@ -92,21 +89,7 @@ export function MacroReportDetail({
               type="button"
               aria-selected={isActive}
               onClick={() => setActive(tab.id)}
-              className={cn(
-                "whitespace-nowrap rounded-[var(--md-r-sm)] px-3.5 py-2 text-xs font-semibold transition-colors",
-                isActive
-                  ? "text-[var(--md-text)]"
-                  : "text-[var(--md-muted)] hover:text-[var(--md-text-2)]",
-              )}
-              style={
-                isActive
-                  ? {
-                      backgroundColor: "var(--md-surface-3)",
-                      boxShadow: "0 1px 0 rgba(255,255,255,.04) inset",
-                      outline: "1px solid var(--md-border)",
-                    }
-                  : undefined
-              }
+              className={tabClass(isActive)}
             >
               {tab.label}
             </button>

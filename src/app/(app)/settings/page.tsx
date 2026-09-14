@@ -1,3 +1,4 @@
+import { PageHeader } from "@/components/layout/page-header";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { cookies } from "next/headers";
@@ -79,12 +80,10 @@ export default async function SettingsPage() {
 
   return (
     <div className="mx-auto flex w-full max-w-2xl flex-col gap-6">
-      <div>
-        <h1 className="page-title">Impostazioni</h1>
-        <p className="page-subtitle">
-          Profilo, preferenze e gestione dei conti di trading
-        </p>
-      </div>
+      <PageHeader
+        title="Impostazioni"
+        description="Profilo, preferenze e gestione dei conti di trading"
+      />
 
       <ProfileForm
         name={user.name ?? ""}

@@ -1,5 +1,9 @@
 "use client";
 
+import { SegmentedControl } from "@/components/ui/segmented-control";
+
+import { segmentedGroupClass, segmentedItemClass } from "@/components/ui/segmented";
+
 import { useMemo, useState, type ReactNode } from "react";
 import {
   etichettaGiorno,
@@ -105,15 +109,21 @@ export function CalendarioView({ dati }: { dati: DatiCalendario }) {
       {/* ── Selettori ──────────────────────────────────────────────────── */}
       <div className="md-card flex flex-col gap-3 p-3 sm:p-4">
         <ChipGroup label="Importanza">
-          <Chip attivo={importanza === "alta"} onClick={() => setImportanza("alta")}>
-            Solo alta
-          </Chip>
-          <Chip attivo={importanza === "tutte"} onClick={() => setImportanza("tutte")}>
-            Tutte
-          </Chip>
+          <SegmentedControl
+            label="Importanza"
+            options={[
+              { value: "alta", label: "Solo alta" },
+              { value: "tutte", label: "Tutte" },
+            ]}
+            value={importanza}
+            onValueChange={(v) => {
+              if (v) setImportanza(v);
+            }}
+          />
         </ChipGroup>
 
         <ChipGroup label="Valuta">
+          <div role="group" aria-label="Valuta" className={segmentedGroupClass}>
           {dati.valute.map((v) => (
             <Chip
               key={v}
@@ -129,6 +139,7 @@ export function CalendarioView({ dati }: { dati: DatiCalendario }) {
               {v}
             </Chip>
           ))}
+          </div>
           {valute.size === 0 ? (
             <span className="text-2xs text-[var(--md-muted)]">
               nessuna spuntata: le mostra tutte
@@ -214,28 +225,16 @@ function Chip({
   onClick: () => void;
   children: ReactNode;
 }) {
+  /* Stessa voce del segmentato dell'app (sistema v2): qui le valute si
+     spuntano a più valori, ma si leggono con la stessa forma. Il contrasto
+     della voce spenta non dipende più da un bordo tarato a mano: il
+     contenitore ha il suo filo e la voce scelta il suo fondo. */
   return (
     <button
       type="button"
       onClick={onClick}
       aria-pressed={premuto}
-      className="md-mono inline-flex cursor-pointer items-center gap-1.5 rounded-[var(--md-r-sm)] border px-2 py-1 text-2xs leading-none transition-colors"
-      style={{
-        /* Il bordo del chip SPENTO è `--md-muted`, non `--md-border`.
-           Misurato in tema chiaro: `--md-border` sulla superficie della scheda
-           dà 1,18:1, cioè un contorno che non si vede — e quando il fondo del
-           chip è a sua volta a un passo da quello della scheda, il bottone
-           smette di avere una forma. WCAG 1.4.11 chiede 3:1 per ciò che
-           identifica un controllo; `--md-muted` misura 4,0 sul chiaro e 4,2
-           sullo scuro. Sul fondo scuro il difetto non si vedeva, ed è
-           esattamente il motivo per cui i colori tarati su un tema solo vanno
-           rimisurati sull'altro. */
-        borderColor: attivo ? "var(--md-info)" : "var(--md-muted)",
-        backgroundColor: attivo
-          ? "color-mix(in oklab, var(--md-info) 18%, transparent)"
-          : "var(--md-surface-2)",
-        color: attivo ? "var(--md-text)" : "var(--md-text-2)",
-      }}
+      className={segmentedItemClass(attivo)}
     >
       {children}
     </button>
@@ -245,7 +244,7 @@ function Chip({
 function ChipGroup({ label, children }: { label: string; children: ReactNode }) {
   return (
     <div className="flex flex-wrap items-center gap-1.5">
-      <span className="text-2xs font-semibold uppercase tracking-[0.12em] text-[var(--md-muted)]">
+      <span className="text-2xs font-semibold uppercase tracking-[0.06em] text-[var(--md-muted)]">
         {label}
       </span>
       {children}

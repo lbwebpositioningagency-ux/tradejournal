@@ -1,3 +1,4 @@
+import { PageHeader } from "@/components/layout/page-header";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { redirect } from "next/navigation";
@@ -411,17 +412,16 @@ export default async function ReportsPage({
 
   return (
     <div className="flex flex-col gap-4">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div>
-          <h1 className="page-title">Reports</h1>
-          <p className="page-subtitle">
+      <PageHeader
+        title="Reports"
+        description={
+          <>
             {totalTrades} trade chiusi · {period.label}
             {scope.multi
               ? ` · ${currency}`
               : activeAccountId === ALL_ACCOUNTS
                 ? " · tutti i conti"
                 : ""}
-          </p>
           {scope.multi ? (
             <p className="mt-0.5 text-xs text-muted-foreground">
               Totali per valuta (mai sommati):{" "}
@@ -435,8 +435,10 @@ export default async function ReportsPage({
               ))}
             </p>
           ) : null}
-        </div>
-        <div className="flex flex-wrap items-center gap-2">
+          </>
+        }
+        actions={
+          <>
           {/* W3 — la review generata dai dati. Settimana, mese, trimestre
               o anno: il mese è l'unità dei payout, il trimestre quella con
               cui si giudica un sistema, l'anno quella fiscale. */}
@@ -458,8 +460,9 @@ export default async function ReportsPage({
             toKey={period.toKey}
             label={period.label}
           />
-        </div>
-      </div>
+          </>
+        }
+      />
 
       {totalTrades === 0 ? (
         <EmptyState

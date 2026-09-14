@@ -1,7 +1,8 @@
 "use client";
 
+import { SegmentedControl } from "@/components/ui/segmented-control";
+
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import { Button } from "@/components/ui/button";
 
 /**
  * Selettore valuta (F6): compare solo in vista "Tutti i conti" quando i conti
@@ -29,19 +30,13 @@ export function CurrencyFilter({
   }
 
   return (
-    <div className="flex items-center gap-1" role="group" aria-label="Valuta">
-      {currencies.map((cur) => (
-        <Button
-          key={cur}
-          type="button"
-          size="sm"
-          variant={cur === active ? "default" : "outline"}
-          aria-pressed={cur === active}
-          onClick={() => select(cur)}
-        >
-          {cur}
-        </Button>
-      ))}
-    </div>
+    <SegmentedControl
+      label="Valuta"
+      value={active ?? null}
+      onValueChange={(cur) => {
+        if (cur) select(cur);
+      }}
+      options={currencies.map((cur) => ({ value: cur, label: cur }))}
+    />
   );
 }

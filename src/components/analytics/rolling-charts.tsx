@@ -1,5 +1,7 @@
 "use client";
 
+import { SegmentedControl } from "@/components/ui/segmented-control";
+
 import { useState } from "react";
 import {
   Line,
@@ -238,18 +240,14 @@ export function RollingTradeChart({
   return (
     <div className="flex flex-col gap-2">
       <div className="flex flex-wrap items-center justify-between gap-2">
-      <div className="flex flex-wrap gap-2">
-        {ROLLING_TRADE_METRICS.map((m) => (
-          <Toggle
-            key={m.key}
-            active={metric === m.key}
-            color="var(--chart-1)"
-            onClick={() => setMetric(m.key)}
-          >
-            {m.label}
-          </Toggle>
-        ))}
-      </div>
+      <SegmentedControl
+        label="Metrica rolling per trade"
+        value={metric}
+        onValueChange={(v) => {
+          if (v) setMetric(v);
+        }}
+        options={ROLLING_TRADE_METRICS.map((m) => ({ value: m.key, label: m.label }))}
+      />
         <ChartZoomControls zoom={zoom} />
       </div>
       <ResponsiveContainer width="100%" height={CHART.height + 28}>

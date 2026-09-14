@@ -1,3 +1,4 @@
+import { PageHeader } from "@/components/layout/page-header";
 import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import { auth } from "@/lib/auth";
@@ -36,13 +37,15 @@ export default async function ImportPage() {
 
   return (
     <div className="mx-auto flex w-full max-w-4xl flex-col gap-6">
-      <div>
-        <h1 className="page-title">Import CSV</h1>
-        <p className="text-sm text-muted-foreground">
-          Importa i trade dall&apos;export del tuo broker: mappa le colonne, controlla
-          l&apos;anteprima e conferma.
-        </p>
-      </div>
+      <PageHeader
+        title="Import CSV"
+        description={
+          <>
+            Importa i trade dall&apos;export del tuo broker: mappa le colonne, controlla
+            l&apos;anteprima e conferma.
+          </>
+        }
+      />
       <ImportWizard
         accounts={accounts}
         profiles={profiles}

@@ -1,3 +1,4 @@
+import { PageHeader } from "@/components/layout/page-header";
 import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import { auth } from "@/lib/auth";
@@ -22,15 +23,12 @@ export default async function AccountsPage() {
 
   return (
     <div className="mx-auto flex w-full max-w-3xl flex-col gap-6">
-      <div className="flex items-center justify-between gap-4">
-        <div>
-          <h1 className="page-title">Conti di trading</h1>
-          <p className="text-sm text-muted-foreground">
-            I trade importati o inseriti a mano appartengono sempre a un conto
-          </p>
-        </div>
-        <AccountFormDialog mode="create" />
-      </div>
+      <PageHeader
+        back={{ href: "/settings", label: "Impostazioni" }}
+        title="Conti di trading"
+        description="I trade importati o inseriti a mano appartengono sempre a un conto"
+        actions={<AccountFormDialog mode="create" />}
+      />
 
       <div className="flex flex-col gap-3">
         {accounts.map((account) => (

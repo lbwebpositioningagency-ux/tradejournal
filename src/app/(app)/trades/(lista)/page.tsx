@@ -1,3 +1,4 @@
+import { PageHeader } from "@/components/layout/page-header";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { redirect } from "next/navigation";
@@ -183,15 +184,16 @@ export default async function TradesPage({
 
   return (
     <div className="flex flex-col gap-4">
-      <div className="flex items-center justify-between gap-4">
-        <div>
-          <h1 className="page-title">Trade View</h1>
-          <p className="page-subtitle">
+      <PageHeader
+        title="Trade View"
+        description={
+          <>
             {total} trade{activeAccountId !== "all" ? " nel conto selezionato" : ""}
             {hasAnyFilter ? ` · ${period.label}` : ""}
-          </p>
-        </div>
-        <div className="flex flex-wrap items-center gap-2">
+          </>
+        }
+        actions={
+          <>
           <Button asChild variant="outline">
             {/* Download nativo dalla route protetta: CSV coi filtri correnti */}
             <a href={exportHref} download aria-label="Esporta i trade filtrati in CSV">
@@ -222,8 +224,9 @@ export default async function TradesPage({
               </Button>
             </>
           )}
-        </div>
-      </div>
+          </>
+        }
+      />
 
       <TradeFiltersBar
         filters={filters}

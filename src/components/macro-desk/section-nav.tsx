@@ -10,6 +10,7 @@ import {
   type LucideIcon,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { TabNav } from "@/components/layout/tab-nav";
 
 /**
  * Le sezioni del Macro Desk, in TRE gruppi.
@@ -253,5 +254,34 @@ export function MacroDeskSectionNav({
         </Button>
       </div>
     </nav>
+  );
+}
+
+/**
+ * SCHEDE DEL MACRO DESK — sistema v2 (14/09/2026), tavola «Sistema visivo v2»
+ * riquadro 5 in Claude Design.
+ *
+ * Tutte le sezioni su UNA riga sottolineata, sotto la testata, nei tre gruppi
+ * separati da un filo: quotidiano · archivio · registro. Sostituisce la
+ * griglia 2×2 di pillole affiancata al titolo con il Radar sotto un filo, che
+ * finiva a 280–300px dall'alto e spingeva il primo dato a ~470px. Il gruppo
+ * resta visibile senza bisogno di una seconda riga, e la sezione corrente è
+ * sempre in vista anche quando è d'archivio.
+ *
+ * `MacroDeskSectionNav` qui sopra resta SOLO per la Stagionalità, congelata
+ * dal 29/08/2026: il suo file di pagina non si tocca.
+ */
+export function MacroDeskTabs({ active }: { active?: MacroDeskSectionKey }) {
+  return (
+    <TabNav
+      label="Sezioni del Macro Desk"
+      items={MACRO_DESK_SECTIONS.map((s) => ({
+        key: s.key,
+        href: s.href,
+        label: s.label,
+        active: s.key === active,
+        group: s.gruppo,
+      }))}
+    />
   );
 }

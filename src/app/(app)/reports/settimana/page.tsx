@@ -1,14 +1,10 @@
+import { PageHeader } from "@/components/layout/page-header";
+import { SegmentedNav } from "@/components/ui/segmented";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import Decimal from "decimal.js";
-import {
-  ArrowLeft,
-  ChevronLeft,
-  ChevronRight,
-  Download,
-  FileDown,
-} from "lucide-react";
+import { ChevronLeft, ChevronRight, Download, FileDown } from "lucide-react";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { resolveTradeScope } from "@/lib/demo-account";
@@ -179,21 +175,13 @@ export default async function WeeklyReportPage({
 
   return (
     <div className="mx-auto flex w-full max-w-3xl flex-col gap-4">
-      <div className="flex flex-wrap items-center justify-between gap-3 print:hidden">
-        <div className="flex items-center gap-3">
-          <Button asChild variant="ghost" size="icon" aria-label="Torna ai Reports">
-            <Link href="/reports">
-              <ArrowLeft className="size-4" />
-            </Link>
-          </Button>
-          <div>
-            <h1 className="page-title">Report periodico</h1>
-            <p className="page-subtitle">
-              La review, generata dai tuoi numeri
-              {scope.multi ? ` · ${currency}` : ""}
-            </p>
-          </div>
-        </div>
+      <PageHeader
+        className="print:hidden"
+        back={{ href: "/reports", label: "Reports" }}
+        title="Report periodico"
+        description={<>La review, generata dai tuoi numeri{scope.multi ? ` · ${currency}` : ""}</>}
+        actions={
+          <>
         {/* Due gruppi che vanno a capo fra loro (a 390px la fila unica
             allargava la pagina a 627px): prima ciò che sposta la vista,
             poi le azioni. Regola della tavola «Correzioni P0». */}
@@ -201,27 +189,15 @@ export default async function WeeklyReportPage({
         <div className="flex items-center gap-2">
           {/* Selettore dell'intervallo: link e non bottoni, la scelta vive
               nella query string come ogni altro filtro dell'app. */}
-          <div
-            className="inline-flex items-center gap-1 rounded-md border p-0.5"
-            role="group"
-            aria-label="Intervallo del report"
-          >
-            {REPORT_RANGES.map((option) => (
-              <Link
-                key={option}
-                href={hrefFor(option, startOfRange(start, option))}
-                aria-current={option === range ? "true" : undefined}
-                className={cn(
-                  "rounded px-2.5 py-1 text-xs font-medium transition-colors",
-                  option === range
-                    ? "bg-primary/15 text-primary"
-                    : "text-muted-foreground hover:bg-accent hover:text-foreground",
-                )}
-              >
-                {REPORT_RANGE_LABELS[option]}
-              </Link>
-            ))}
-          </div>
+          <SegmentedNav
+            label="Intervallo del report"
+            items={REPORT_RANGES.map((option) => ({
+              key: option,
+              href: hrefFor(option, startOfRange(start, option)),
+              label: REPORT_RANGE_LABELS[option],
+              active: option === range,
+            }))}
+          />
           <Button asChild variant="outline" size="icon" aria-label={`${REPORT_RANGE_LABELS[range]} precedente`}>
             <Link href={hrefFor(range, prevStart)}>
               <ChevronLeft className="size-4" />
@@ -263,7 +239,9 @@ export default async function WeeklyReportPage({
           <PrintButton />
         </div>
         </div>
-      </div>
+          </>
+        }
+      />
 
       <Card>
         <CardHeader>

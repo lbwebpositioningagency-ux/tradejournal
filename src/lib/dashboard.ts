@@ -16,6 +16,14 @@ export const VIEW_MODE_LABELS: Record<ViewMode, string> = {
   privacy: "Privacy",
 };
 
+/** Nomi accessibili delle modalità: le etichette sono simboli («$», «%»). */
+export const VIEW_MODE_ARIA: Record<ViewMode, string> = {
+  dollars: "Importi in valuta",
+  percent: "Importi in percentuale del saldo",
+  r: "Importi in R",
+  privacy: "Nascondi gli importi",
+};
+
 /** Id dei widget della dashboard, nell'ordine di rendering. */
 export const WIDGET_IDS = [
   "net-pnl",

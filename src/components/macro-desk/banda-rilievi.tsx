@@ -53,7 +53,7 @@ export function BandaRilievi({ rilievi }: { rilievi: Rilievo[] }) {
         {rilievi.map((r, i) => (
           <li
             key={`${r.campo}-${i}`}
-            className="text-[11px] leading-relaxed text-[var(--md-text-2)]"
+            className="text-2xs leading-relaxed text-[var(--md-text-2)]"
           >
             <span className="md-mono text-[var(--md-muted)]">{r.campo}</span>
             {" · "}

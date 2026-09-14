@@ -1,8 +1,5 @@
 import type { Metadata } from "next";
-import Link from "next/link";
 import { redirect } from "next/navigation";
-import { Inter, JetBrains_Mono } from "next/font/google";
-import { ArrowLeft } from "lucide-react";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { getDriverDeskData } from "@/lib/queries/driver-desk";
@@ -12,22 +9,10 @@ import { DriverDeskPanel } from "@/components/macro-desk/driver-desk-panel";
 import { SpreadTassiPanel } from "@/components/macro-desk/spread-tassi-panel";
 import { getSpreadTassi } from "@/lib/queries/spread-tassi";
 import { todayKeyInZone } from "@/lib/dates";
-import { MacroDeskSectionNav } from "@/components/macro-desk/section-nav";
+import { MacroDeskTabs } from "@/components/macro-desk/section-nav";
+import { PageHeader } from "@/components/layout/page-header";
 
 export const metadata: Metadata = { title: "Driver · Macro Desk" };
-
-/* Identità tipografica del terminale: Inter per la UI, JetBrains Mono per
-   TUTTI i dati numerici/ticker/date (variabili consumate dai token in CSS). */
-const fontUi = Inter({
-  subsets: ["latin"],
-  weight: ["400", "500", "600", "700", "800"],
-  variable: "--md-font-ui",
-});
-const fontMono = JetBrains_Mono({
-  subsets: ["latin"],
-  weight: ["500", "600", "700"],
-  variable: "--md-font-mono",
-});
 
 /**
  * Driver Desk — sezione di primo livello.
@@ -52,36 +37,27 @@ export default async function MacroDriverPage() {
 
   return (
     <div className="flex flex-col gap-4">
-      <div className="flex flex-wrap items-start justify-between gap-3">
-        <div className="min-w-0">
-          <Link
-            href="/macro-desk"
-            className="mb-1 inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground"
-          >
-            <ArrowLeft className="size-4" />
-            Macro Desk
-          </Link>
-          <h1 className="page-title flex flex-wrap items-center gap-2.5">
-            Driver
-            <Badge variant="outline">panieri · giornaliero</Badge>
-          </h1>
-          <p className="page-subtitle">
-            Cosa ha spinto gli asset: tassi reali, dollaro, spread di credito ed
-            energia, ciascuno misurato sul proprio paniere invece che a
-            impressione.
-          </p>
-        </div>
-        <MacroDeskSectionNav active="driver" />
-      </div>
+      <PageHeader
+        nav={<MacroDeskTabs active="driver" />}
+        title="Driver"
+        badge={<Badge variant="outline">panieri · giornaliero</Badge>}
+        description={
+          <>
+                Cosa ha spinto gli asset: tassi reali, dollaro, spread di credito ed
+                energia, ciascuno misurato sul proprio paniere invece che a
+                impressione.
+          </>
+        }
+      />
 
-      {/* Terminale: identità visiva propria, scoped a .macro-report */}
+      {/* Ambiente del desk (listino): dal 14/09/2026 segue il tema come le
+          altre sezioni. Prima era `.macro-report`, scuro fisso: in tema chiaro
+          era un rettangolo nero dentro una pagina bianca. */}
       <div
         className={cn(
-          "macro-report overflow-hidden rounded-[var(--md-r-lg)] border p-4 sm:p-6",
-          fontUi.variable,
-          fontMono.variable,
+          "md-listino overflow-hidden border p-4 sm:p-6",
         )}
-        style={{ borderColor: "var(--md-border)" }}
+        style={{ borderColor: "var(--ml-rule)" }}
       >
         {/* Lo spread fra i due decennali sta PRIMA delle schede: è un livello
             con un rango, cioè un fatto che si legge in tre secondi, mentre le

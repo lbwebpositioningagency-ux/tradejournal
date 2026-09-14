@@ -1,4 +1,4 @@
-import Link from "next/link";
+import { SegmentedNav } from "@/components/ui/segmented";
 import { Inbox } from "lucide-react";
 import { giorniFinestra } from "@/lib/macro-radar-testo";
 import { frasiCopertura, listaRadar } from "@/lib/macro-radar-news";
@@ -184,32 +184,23 @@ function StoricoSettimane({
 }) {
   return (
     <Sezione titolo="Settimane a registro">
-      <ul className="flex flex-wrap gap-2">
-        {settimane.map((s) => {
-          const attiva = s.weekOf === weekOfCorrente;
-          const data = new Date(`${s.weekOf}T00:00:00.000Z`);
-          return (
-            <li key={s.weekOf}>
-              <Link
-                href={`/macro-desk/radar?settimana=${s.weekOf}`}
-                aria-current={attiva ? "page" : undefined}
-                title={`${s.voci} voci a registro`}
-                className="md-mono inline-flex items-center gap-2 rounded-[var(--md-r-sm)] border px-2 py-1 text-2xs leading-none transition-colors"
-                style={{
-                  borderColor: attiva ? "var(--md-info)" : "var(--md-border)",
-                  backgroundColor: attiva
-                    ? "var(--md-surface-3)"
-                    : "var(--md-surface-2)",
-                  color: attiva ? "var(--md-text)" : "var(--md-text-2)",
-                }}
-              >
-                {dataSenzaAnno(data)}
-                <span style={{ color: "var(--md-muted)" }}>{s.voci} voci</span>
-              </Link>
-            </li>
-          );
-        })}
-      </ul>
+      {/* Scegliere la settimana è scegliere un modo di vedere il registro:
+          segmentato a link, lo stesso di tutta l'app. */}
+      <SegmentedNav
+        label="Settimana a registro"
+        items={settimane.map((s) => ({
+          key: s.weekOf,
+          href: `/macro-desk/radar?settimana=${s.weekOf}`,
+          active: s.weekOf === weekOfCorrente,
+          title: `${s.voci} voci a registro`,
+          label: (
+            <>
+              {dataSenzaAnno(new Date(`${s.weekOf}T00:00:00.000Z`))}
+              <span className="text-muted-foreground">{s.voci} voci</span>
+            </>
+          ),
+        }))}
+      />
     </Sezione>
   );
 }

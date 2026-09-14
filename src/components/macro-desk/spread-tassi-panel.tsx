@@ -42,7 +42,7 @@ export function SpreadTassiPanel({ spread }: { spread: SpreadTassi | null }) {
         <span className="md-mono text-sm text-[var(--md-muted)]">
           dato non disponibile
         </span>
-        <span className="text-[11px] leading-relaxed text-[var(--md-muted)]">
+        <span className="text-2xs leading-relaxed text-[var(--md-muted)]">
           Serve che l&apos;archivio abbia entrambe le serie sulle stesse date:
           il decennale tedesco dalla Bundesbank e quello americano da FRED.
         </span>
@@ -54,7 +54,7 @@ export function SpreadTassiPanel({ spread }: { spread: SpreadTassi | null }) {
     <div className="md-card flex flex-col gap-2 p-4">
       <div className="flex flex-wrap items-baseline justify-between gap-x-2 gap-y-1">
         <PanelLabel>Spread Bund − Treasury a 10 anni</PanelLabel>
-        <span className="md-mono text-[11px] text-[var(--md-muted)]">
+        <span className="md-mono text-2xs text-[var(--md-muted)]">
           al {dataIt(spread.giorno)} · {eta(spread.etaGiorni)}
         </span>
       </div>
@@ -97,7 +97,7 @@ export function SpreadTassiPanel({ spread }: { spread: SpreadTassi | null }) {
           {spread.variazioni.map((v) => (
             <span
               key={v.sedute}
-              className="md-mono text-[11px] text-[var(--md-muted)]"
+              className="md-mono text-2xs text-[var(--md-muted)]"
             >
               {v.sedute} sedute{" "}
               <span className="text-[var(--md-text-2)]">
@@ -109,7 +109,7 @@ export function SpreadTassiPanel({ spread }: { spread: SpreadTassi | null }) {
         </div>
       ) : null}
 
-      <span className="text-[11px] leading-relaxed text-[var(--md-muted)]">
+      <span className="text-2xs leading-relaxed text-[var(--md-muted)]">
         Differenza fra i due rendimenti decennali, in punti percentuali,
         calcolata sulle sole sedute in cui esistono entrambi: i due mercati
         hanno festività diverse e uno spread fra il Bund di oggi e il Treasury

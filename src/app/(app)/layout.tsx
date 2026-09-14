@@ -85,7 +85,7 @@ export default async function AppLayout({
             />
           </div>
         </header>
-        <main className="flex-1 p-6">{children}</main>
+        <main className="flex-1 p-4 sm:p-6">{children}</main>
         <GlobalShortcuts />
       </div>
     </div>

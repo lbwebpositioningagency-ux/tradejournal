@@ -429,7 +429,7 @@ function NotaUnanimita({ horizon }: { horizon: MacroHorizon }) {
   return (
     <p
       className="rounded-[var(--md-r-sm)] border px-3 py-2 text-xs leading-relaxed text-[var(--md-text-2)]"
-      style={{ borderColor: "var(--md-border)", backgroundColor: "var(--md-surface-2)" }}
+      style={{ borderColor: "var(--md-border)", backgroundColor: "var(--md-bg)" }}
     >
       <span className="md-mono mr-1.5 text-2xs uppercase tracking-wider text-[var(--md-muted)]">
         Da notare
@@ -841,7 +841,7 @@ export function AssetsTab({
                 dall'archivio CBOE: qui c'è solo la prosa del report. */}
             <Link
               href="/macro-desk/volatilita"
-              className="mt-2 inline-flex items-center gap-1 text-xs font-semibold text-[var(--md-info)] underline-offset-2 hover:underline"
+              className="mt-2 inline-flex items-center gap-1 text-xs font-semibold text-[var(--md-text)] underline underline-offset-2"
             >
               Indici e rango storico nella sezione Volatilità
               <ArrowUpRight className="size-3.5" aria-hidden />

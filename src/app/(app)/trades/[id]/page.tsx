@@ -1,7 +1,8 @@
+import { PageHeader } from "@/components/layout/page-header";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
-import { ArrowLeft, ChevronLeft, ChevronRight, Lock, Pencil } from "lucide-react";
+import { ChevronLeft, ChevronRight, Lock, Pencil } from "lucide-react";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { resolveTradeScope } from "@/lib/demo-account";
@@ -287,19 +288,13 @@ export default async function TradeDetailPage({
 
   return (
     <div className="mx-auto flex w-full max-w-4xl flex-col gap-6">
-      {/* A 390px simbolo, badge e comandi non ci stavano su una riga e la
-          pagina si allargava a 466px: titolo e badge vanno a capo fra loro,
-          i comandi sotto il titolo (tavola «Correzioni P0»). */}
-      <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-3">
-        <div className="flex min-w-0 items-center gap-3">
-          <Button asChild variant="ghost" size="icon" aria-label="Torna ai trade">
-            <Link href="/trades">
-              <ArrowLeft className="size-4" />
-            </Link>
-          </Button>
-          <div>
-            <div className="flex flex-wrap items-center gap-2">
-              <h1 className="page-title">{trade.symbol}</h1>
+      {/* Testata comune: titolo e badge vanno a capo fra loro, i comandi sotto
+          il titolo quando non ci stanno (a 390px la pagina era larga 466px). */}
+      <PageHeader
+        back={{ href: "/trades", label: "Trade View" }}
+        title={trade.symbol}
+        badge={
+          <>
               <Badge
                 variant="outline"
                 className={trade.direction === "LONG" ? "text-profit" : "text-loss"}
@@ -318,7 +313,9 @@ export default async function TradeDetailPage({
                   {alignment === "ALIGNED" ? "Col bias macro" : "Contro il bias macro"}
                 </Badge>
               ) : null}
-            </div>
+          </>
+        }
+        description={
             <p
               className={cn(
                 "text-lg font-semibold tabular-nums",
@@ -328,9 +325,9 @@ export default async function TradeDetailPage({
               {formatSignedMoney(trade.netPnl.toString(), currency)}
               <span className="ml-1 text-xs font-normal text-muted-foreground">netto</span>
             </p>
-          </div>
-        </div>
-        <div className="flex flex-wrap items-center gap-2">
+        }
+        actions={
+          <>
           {prevTrade ? (
             <Button
               asChild
@@ -380,8 +377,9 @@ export default async function TradeDetailPage({
               <DeleteTradeButton tradeId={trade.id} symbol={trade.symbol} />
             </>
           )}
-        </div>
-      </div>
+          </>
+        }
+      />
 
       <Card>
         <CardHeader>

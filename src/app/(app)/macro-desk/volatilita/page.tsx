@@ -1,8 +1,5 @@
 import type { Metadata } from "next";
-import Link from "next/link";
 import { redirect } from "next/navigation";
-import { Inter, JetBrains_Mono } from "next/font/google";
-import { ArrowLeft } from "lucide-react";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { todayKeyInZone } from "@/lib/dates";
@@ -14,24 +11,12 @@ import { LACUNE_VOL, vociSenzaFonteLibera } from "@/lib/volatilita-report";
 import { BandaFreschezza } from "@/components/macro-desk/banda-freschezza";
 import { cn } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
-import { MacroDeskSectionNav } from "@/components/macro-desk/section-nav";
+import { MacroDeskTabs } from "@/components/macro-desk/section-nav";
+import { PageHeader } from "@/components/layout/page-header";
 import { GuidaVolatilita } from "@/components/macro-desk/guida-volatilita";
 import { ListinoVolatilita } from "@/components/macro-desk/listino/volatilita";
 
 export const metadata: Metadata = { title: "Volatilità · Macro Desk" };
-
-/* Identità tipografica del terminale: Inter per la UI, JetBrains Mono per
-   TUTTI i dati numerici/ticker/date (variabili consumate dai token in CSS). */
-const fontUi = Inter({
-  subsets: ["latin"],
-  weight: ["400", "500", "600", "700", "800"],
-  variable: "--md-font-ui",
-});
-const fontMono = JetBrains_Mono({
-  subsets: ["latin"],
-  weight: ["500", "600", "700"],
-  variable: "--md-font-mono",
-});
 
 /**
  * Volatilità — sezione di primo livello, e pagina di soli FATTI.
@@ -76,27 +61,18 @@ export default async function MacroVolatilitaPage() {
 
   return (
     <div className="flex flex-col gap-4">
-      <div className="flex flex-wrap items-start justify-between gap-3">
-        <div className="min-w-0">
-          <Link
-            href="/macro-desk"
-            className="mb-1 inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground"
-          >
-            <ArrowLeft className="size-4" />
-            Macro Desk
-          </Link>
-          <h1 className="page-title flex flex-wrap items-center gap-2.5">
-            Volatilità
-            <Badge variant="outline">contesto</Badge>
-          </h1>
-          <p className="page-subtitle">
-            Dove sta la volatilità rispetto alla propria storia e quanto si è
-            mossa davvero la giornata. Misure con fonte, periodo e data — non
-            previsioni.
-          </p>
-        </div>
-        <MacroDeskSectionNav active="volatilita" />
-      </div>
+      <PageHeader
+        nav={<MacroDeskTabs active="volatilita" />}
+        title="Volatilità"
+        badge={<Badge variant="outline">contesto</Badge>}
+        description={
+          <>
+                Dove sta la volatilità rispetto alla propria storia e quanto si è
+                mossa davvero la giornata. Misure con fonte, periodo e data — non
+                previsioni.
+          </>
+        }
+      />
 
       {freschezza ? <BandaFreschezza esito={freschezza} /> : null}
 
@@ -107,8 +83,6 @@ export default async function MacroVolatilitaPage() {
       <div
         className={cn(
           "md-listino overflow-hidden border",
-          fontUi.variable,
-          fontMono.variable,
         )}
         style={{ borderColor: "var(--ml-rule)" }}
       >

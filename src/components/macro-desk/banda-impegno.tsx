@@ -65,7 +65,7 @@ export function BandaImpegno({
               {s.rifiutate.map((r) => (
                 <li
                   key={r.campo}
-                  className="font-mono text-[11px] leading-relaxed text-muted-foreground"
+                  className="font-mono text-2xs leading-relaxed text-muted-foreground"
                 >
                   {r.campo}: tenuto <strong>{r.tenuto}</strong>, rifiutato{" "}
                   <strong>{r.rifiutato}</strong>
