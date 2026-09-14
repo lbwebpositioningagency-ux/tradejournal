@@ -10,6 +10,7 @@ import {
   YAxis,
 } from "recharts";
 import type { BucketPoint } from "@/lib/reports";
+import { formatNumber } from "@/lib/format-number";
 import { CHART, pnlChartColor } from "@/components/charts/chart-spec";
 import { useChartAnimation } from "@/components/charts/use-chart-animation";
 
@@ -58,7 +59,7 @@ export function ReportBarChart({
         />
         <Tooltip
           formatter={(value: number | string | readonly (number | string)[] | undefined) =>
-            `${Number(Array.isArray(value) ? value[0] : (value ?? 0)).toLocaleString("it-IT", { maximumFractionDigits: 2 })}${suffix}`
+            `${formatNumber(Number(Array.isArray(value) ? value[0] : (value ?? 0)), { maxDecimals: 2 })}${suffix}`
           }
           labelFormatter={(label, payload) => {
             const trades = payload?.[0]?.payload?.trades as number | undefined;

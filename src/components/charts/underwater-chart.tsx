@@ -10,6 +10,7 @@ import {
 } from "recharts";
 import type { UnderwaterPoint } from "@/lib/metrics";
 import { formatDayKey } from "@/lib/dates";
+import { formatNumber } from "@/lib/format-number";
 import { CHART } from "@/components/charts/chart-spec";
 import { useChartAnimation } from "@/components/charts/use-chart-animation";
 
@@ -70,7 +71,7 @@ export function UnderwaterChart({
         />
         <Tooltip
           formatter={(value: number | string | readonly (number | string)[] | undefined) =>
-            `${Number(Array.isArray(value) ? value[0] : (value ?? 0)).toLocaleString("it-IT", { maximumFractionDigits: 2 })}% dal picco`
+            `${formatNumber(Number(Array.isArray(value) ? value[0] : (value ?? 0)), { maxDecimals: 2 })}% dal picco`
           }
           labelFormatter={(label) => formatDayKey(String(label))}
           cursor={CHART.cursor}

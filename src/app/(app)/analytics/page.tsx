@@ -9,6 +9,7 @@ import { resolveTradeScope } from "@/lib/demo-account";
 import { resolvePeriod } from "@/lib/period";
 import { periodCookieFallback } from "@/lib/period-cookie";
 import { resolveCurrencyScope } from "@/lib/currency-scope";
+import { formatNumber } from "@/lib/format-number";
 import { getCurrencyBreakdown } from "@/lib/queries/stats";
 import {
   getAnalyticsSymbols,
@@ -270,11 +271,7 @@ function FewWindowsNote({ count, unit }: { count: number; unit: string }) {
 }
 
 /** Rapporti adimensionali (Sharpe, Sortino, profit factor): due decimali. */
-const formatRatio = (value: string) =>
-  Number(value).toLocaleString("it-IT", {
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
-  });
+const formatRatio = (value: string) => formatNumber(value, { decimals: 2 });
 
 export default async function AnalyticsPage({
   searchParams,
@@ -1062,7 +1059,7 @@ export default async function AnalyticsPage({
                     La tua serie di perdite più lunga è di{" "}
                     <strong>{streaks.longestLoss}</strong> trade, contro le{" "}
                     <strong>
-                      {expectedLossRun.replace(".", ",")}
+                      {formatNumber(expectedLossRun, { decimals: 1 })}
                     </strong>{" "}
                     che il puro caso produrrebbe su {proAgg.total} trade con
                     il tuo win rate
@@ -1083,7 +1080,7 @@ export default async function AnalyticsPage({
                     {streaks.winRuns} serie di vincite (la più lunga{" "}
                     {streaks.longestWin}
                     {expectedWinRun !== null &&
-                      `, attesa ${expectedWinRun.replace(".", ",")}`}
+                      `, attesa ${formatNumber(expectedWinRun, { decimals: 1 })}`}
                     ) · {streaks.lossRuns} serie di perdite (la più lunga{" "}
                     {streaks.longestLoss}).
                   </p>

@@ -19,6 +19,7 @@ import { tradeAccountWhere } from "@/lib/active-account";
 import { resolveTradeScope } from "@/lib/demo-account";
 import { formatDateTime } from "@/lib/dates";
 import { formatPrice } from "@/lib/instruments";
+import { formatQuantity } from "@/lib/format-number";
 import { formatRMultiple, formatSignedMoney, pnlColorClass } from "@/lib/money";
 import { resolvePeriod } from "@/lib/period";
 import { periodCookieFallback } from "@/lib/period-cookie";
@@ -339,7 +340,7 @@ export default async function TradesPage({
                     {formatDateTime(trade.openedAt, user.timezone)}
                   </span>
                   <span className="truncate tabular-nums">
-                    {trimZeros(trade.quantity.toString())} ·{" "}
+                    {formatQuantity(trade.quantity.toString())} ·{" "}
                     {formatPrice(
                       trade.avgEntryPrice.toString(),
                       trade.symbol,
@@ -409,7 +410,7 @@ export default async function TradesPage({
                       </Badge>
                     </TableCell>
                     <TableCell className="text-right tabular-nums">
-                      {trimZeros(trade.quantity.toString())}
+                      {formatQuantity(trade.quantity.toString())}
                     </TableCell>
                     <TableCell className="text-right tabular-nums">
                       {formatPrice(trade.avgEntryPrice.toString(), trade.symbol, trade.assetClass)}
@@ -468,11 +469,6 @@ export default async function TradesPage({
       )}
     </div>
   );
-}
-
-/** "2.00000000" → "2" · "0.50000000" → "0.5" (solo display). */
-function trimZeros(value: string): string {
-  return value.includes(".") ? value.replace(/\.?0+$/, "") : value;
 }
 
 /** F38 — header di colonna ordinabile (SSR: solo link, nessun JS client). */

@@ -1,4 +1,5 @@
 import Decimal from "decimal.js";
+import { formatNumber } from "@/lib/format-number";
 import {
   eventoCalendarioSchema,
   type EventoCalendario,
@@ -51,13 +52,10 @@ const FATTORE: Record<ScalaCalendario, Decimal> = {
  */
 const UNITA_ATTACCATE = new Set(["%"]);
 
-const formattatore = new Intl.NumberFormat("it-IT", {
-  minimumFractionDigits: 0,
-  /* Tre e non due: i JOLTs valgono 7 359 000, cioè `7,359M`. Con due decimali
-     diventerebbero `7,36M` e la pagina mostrerebbe un dato arrotondato dove
-     la fonte ne ha uno esatto. */
-  maximumFractionDigits: 3,
-});
+/* Fino a tre decimali e non due: i JOLTs valgono 7 359 000, cioè `7,359M`.
+   Con due diventerebbero `7,36M` e la pagina mostrerebbe un dato arrotondato
+   dove la fonte ne ha uno esatto. */
+const DECIMALI_VALORE = 3;
 
 /**
  * Un valore grezzo reso leggibile: scala applicata, unità attaccata.
@@ -83,7 +81,7 @@ export function formattaValore(
 
   /* `toNumber()` solo per la FORMATTAZIONE, come impone la regola del
      progetto: il calcolo è già finito, qui si stampa. */
-  const cifre = formattatore.format(scalato.toNumber());
+  const cifre = formatNumber(scalato, { maxDecimals: DECIMALI_VALORE });
   const conScala = scala ? `${cifre}${scala}` : cifre;
 
   const u = unita?.trim();

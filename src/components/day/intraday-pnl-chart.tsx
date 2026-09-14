@@ -9,6 +9,7 @@ import {
   YAxis,
 } from "recharts";
 import { CHART, pnlChartColor } from "@/components/charts/chart-spec";
+import { formatNumber } from "@/lib/format-number";
 
 /**
  * P&L cumulativo INTRADAY della Day View: progressione del netto trade dopo
@@ -69,7 +70,7 @@ export function IntradayPnlChart({
         />
         <Tooltip
           formatter={(value: number | string | readonly (number | string)[] | undefined) =>
-            `${Number(Array.isArray(value) ? value[0] : (value ?? 0)).toLocaleString("it-IT", { maximumFractionDigits: 2 })}${suffix}`
+            `${formatNumber(Number(Array.isArray(value) ? value[0] : (value ?? 0)), { maxDecimals: 2 })}${suffix}`
           }
           labelFormatter={(label, payload) => {
             if (label === "") return "Inizio";

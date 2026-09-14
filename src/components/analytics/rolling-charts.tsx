@@ -21,6 +21,7 @@ import {
 } from "@/components/charts/chart-zoom";
 import { useChartAnimation } from "@/components/charts/use-chart-animation";
 import { formatDayKey } from "@/lib/dates";
+import { formatNumber } from "@/lib/format-number";
 import {
   ROLLING_TRADE_METRICS,
   type RollingRatioPoint,
@@ -44,10 +45,7 @@ import { cn } from "@/lib/utils";
  */
 
 const num = (v: number, decimals = 2) =>
-  v.toLocaleString("it-IT", {
-    minimumFractionDigits: decimals,
-    maximumFractionDigits: decimals,
-  });
+  formatNumber(v, { decimals });
 
 /** Pillola di attivazione: stesso ruolo dei filtri, dimensione minima da UI. */
 function Toggle({

@@ -13,6 +13,7 @@ import {
 import { CHART, ClampMark, pnlChartColor } from "@/components/charts/chart-spec";
 import { useChartAnimation } from "@/components/charts/use-chart-animation";
 import { clampLimit, clampValue } from "@/lib/chart-clamp";
+import { formatNumber } from "@/lib/format-number";
 
 /**
  * Sequenza dei trade ("trade candles"): una barra verde/rossa per ogni trade
@@ -75,7 +76,7 @@ export function TradeSequenceChart({
             if (masked) return "•••";
             const p = item?.payload as { real: number; clampSign: number } | undefined;
             const real = p?.real ?? 0;
-            const text = `${real.toLocaleString("it-IT", { maximumFractionDigits: 2 })}${suffix}`;
+            const text = `${formatNumber(real, { maxDecimals: 2 })}${suffix}`;
             return p?.clampSign ? `${text} (barra troncata)` : text;
           }}
           labelFormatter={(_, payload) => {

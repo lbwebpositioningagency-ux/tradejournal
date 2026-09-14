@@ -13,6 +13,7 @@ import {
 import { CHART, pnlChartColor } from "@/components/charts/chart-spec";
 import { useChartAnimation } from "@/components/charts/use-chart-animation";
 import { Button } from "@/components/ui/button";
+import { formatNumber } from "@/lib/format-number";
 
 /**
  * §2/§3 — barre di performance per segmento (fascia oraria o durata).
@@ -58,7 +59,7 @@ function SegmentTooltip({
   const point = active ? payload?.[0]?.payload : undefined;
   if (!point) return null;
   const num = (v: string | null) =>
-    v === null ? "—" : Number(v).toLocaleString("it-IT", { maximumFractionDigits: 2 });
+    v === null ? "—" : formatNumber(v, { maxDecimals: 2 });
   return (
     <div style={CHART.tooltipStyle} className="px-2.5 py-2">
       <div className="text-xs font-medium">{point.label}</div>

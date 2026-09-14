@@ -10,7 +10,7 @@ import { resolveTradeScope } from "@/lib/demo-account";
 import { addDays, isValidDateKey } from "@/lib/calendar";
 import { zonedInputToUtc } from "@/lib/dates";
 import { profitFactor, winRate } from "@/lib/metrics";
-import { formatPercent, formatRMultiple, formatSignedMoney } from "@/lib/money";
+import { formatPercent, formatProfitFactor, formatSignedMoney } from "@/lib/money";
 import { Button } from "@/components/ui/button";
 import { ReviewWizard } from "./review-wizard";
 
@@ -104,7 +104,7 @@ export default async function DayReviewPage({
     trades.length === 0
       ? ""
       : [
-          `Bilancio: ${formatSignedMoney(net.toFixed(2), currency)} · ${trades.length} trade (${wins}W/${losses}L) · Win ${formatPercent(rate)} · PF ${pf !== null ? formatRMultiple(pf).slice(0, -1) : wins > 0 ? "∞" : "—"}`,
+          `Bilancio: ${formatSignedMoney(net.toFixed(2), currency)} · ${trades.length} trade (${wins}W/${losses}L) · Win ${formatPercent(rate)} · PF ${formatProfitFactor(pf, wins)}`,
           "",
           "Cosa ho fatto bene:",
           "",

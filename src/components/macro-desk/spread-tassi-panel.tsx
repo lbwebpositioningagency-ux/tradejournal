@@ -9,17 +9,16 @@
  * Componente PURO: si verifica con `renderToStaticMarkup`.
  */
 
+import { formatNumber } from "@/lib/format-number";
 import type { SpreadTassi } from "@/lib/queries/spread-tassi";
 import { PanelLabel, RangeBar } from "./primitives";
 
-const nf = (d: number) =>
-  new Intl.NumberFormat("it-IT", {
-    minimumFractionDigits: d,
-    maximumFractionDigits: d,
-  });
+const nf = (d: number) => ({
+  format: (v: number) => formatNumber(v, { decimals: d }),
+});
 
 function segnato(v: number, d = 2) {
-  const s = nf(d).format(v);
+  const s = formatNumber(v, { decimals: d });
   return v > 0 ? `+${s}` : s;
 }
 

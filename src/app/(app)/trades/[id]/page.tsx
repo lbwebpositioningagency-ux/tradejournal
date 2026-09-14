@@ -8,6 +8,7 @@ import { resolveTradeScope } from "@/lib/demo-account";
 import { formatDateTime, formatDurationSec, todayKeyInZone } from "@/lib/dates";
 import { biasAlignment, macroAssetForSymbol } from "@/lib/macro-desk";
 import { formatPrice } from "@/lib/instruments";
+import { formatQuantity } from "@/lib/format-number";
 import {
   formatMoney,
   formatPercent,
@@ -50,10 +51,6 @@ export const metadata: Metadata = { title: "Dettaglio trade" };
 
 /** Riga vuota fra due note storiche accorpate nello stesso riquadro. */
 const LEGACY_NOTE_SEPARATOR = "\n\n";
-
-function trimZeros(value: string): string {
-  return value.includes(".") ? value.replace(/\.?0+$/, "") : value;
-}
 
 export default async function TradeDetailPage({
   params,
@@ -196,8 +193,8 @@ export default async function TradeDetailPage({
   const infoRows: { label: string; value: React.ReactNode }[] = [
     { label: "Conto", value: trade.account.name },
     { label: "Asset class", value: trade.assetClass },
-    { label: "Valore punto", value: trimZeros(trade.pointValue.toString()) },
-    { label: "Quantità", value: trimZeros(trade.quantity.toString()) },
+    { label: "Valore punto", value: formatQuantity(trade.pointValue.toString()) },
+    { label: "Quantità", value: formatQuantity(trade.quantity.toString()) },
     {
       label: "Prezzo medio ingresso",
       value: formatPrice(trade.avgEntryPrice.toString(), trade.symbol, trade.assetClass),
@@ -290,15 +287,18 @@ export default async function TradeDetailPage({
 
   return (
     <div className="mx-auto flex w-full max-w-4xl flex-col gap-6">
-      <div className="flex items-center justify-between gap-4">
-        <div className="flex items-center gap-3">
+      {/* A 390px simbolo, badge e comandi non ci stavano su una riga e la
+          pagina si allargava a 466px: titolo e badge vanno a capo fra loro,
+          i comandi sotto il titolo (tavola «Correzioni P0»). */}
+      <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-3">
+        <div className="flex min-w-0 items-center gap-3">
           <Button asChild variant="ghost" size="icon" aria-label="Torna ai trade">
             <Link href="/trades">
               <ArrowLeft className="size-4" />
             </Link>
           </Button>
           <div>
-            <div className="flex items-center gap-2">
+            <div className="flex flex-wrap items-center gap-2">
               <h1 className="page-title">{trade.symbol}</h1>
               <Badge
                 variant="outline"
@@ -330,7 +330,7 @@ export default async function TradeDetailPage({
             </p>
           </div>
         </div>
-        <div className="flex shrink-0 items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
           {prevTrade ? (
             <Button
               asChild
@@ -525,7 +525,7 @@ export default async function TradeDetailPage({
                     </Badge>
                   </TableCell>
                   <TableCell className="text-right tabular-nums">
-                    {trimZeros(execution.quantity.toString())}
+                    {formatQuantity(execution.quantity.toString())}
                   </TableCell>
                   <TableCell className="text-right tabular-nums">
                     {formatPrice(execution.price.toString(), trade.symbol, trade.assetClass)}

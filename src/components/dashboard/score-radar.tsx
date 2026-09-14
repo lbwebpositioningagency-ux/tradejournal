@@ -8,6 +8,7 @@ import {
 import { MetricInfo } from "@/components/metric-info";
 import { ScoreDotTooltip } from "@/components/dashboard/score-dot-tooltip";
 import { cn } from "@/lib/utils";
+import { formatNumber } from "@/lib/format-number";
 
 /**
  * Radar esagonale a 6 assi per lo Score + numero grande e barra a
@@ -249,10 +250,7 @@ export function ScoreRadar({ result }: { result: RadarScore | null }) {
           >
             {score === null
               ? "—"
-              : score.toLocaleString("it-IT", {
-                  minimumFractionDigits: 2,
-                  maximumFractionDigits: 2,
-                })}
+              : formatNumber(score, { decimals: 2 })}
           </span>
         </div>
         <div className="min-w-0 flex-1">

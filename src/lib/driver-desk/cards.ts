@@ -41,6 +41,7 @@ import {
   type SeriesObs,
 } from "@/lib/driver-desk/engine";
 import type { DriverDeskSeries } from "@/generated/prisma/client";
+import { formatNumber } from "@/lib/format-number";
 
 /* ───────────────────────── Tipi del payload ───────────────────────── */
 
@@ -159,9 +160,9 @@ export interface DriverCardPayload {
 
 /* ───────────────────────── Formattazione ───────────────────────── */
 
-/** Numero in notazione italiana, senza gruppi. */
+/** Numero in notazione italiana (formattatore unico), col meno tipografico. */
 export function fmtIt(value: number, decimals: number): string {
-  return value.toFixed(decimals).replace(".", ",").replace("-", "−");
+  return formatNumber(value, { decimals }).replace("-", "−");
 }
 
 /**

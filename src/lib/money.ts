@@ -2,43 +2,33 @@
  * Helper di FORMATTAZIONE del denaro.
  *
  * Regola del progetto: i valori monetari viaggiano come stringhe decimali
- * (Prisma Decimal ⇄ string). La conversione a Number avviene SOLO qui,
- * al momento della visualizzazione — mai per i calcoli.
+ * (Prisma Decimal ⇄ string). La conversione a Number avviene SOLO al momento
+ * della visualizzazione — mai per i calcoli.
+ *
+ * Il motore è uno solo, `formatNumber` di `format-number.ts`: qui restano le
+ * regole di dominio (quanti decimali, quando il segno, come si scrive un R).
  */
 
 import Decimal from "decimal.js";
+import { formatNumber } from "./format-number";
 
-export function formatMoney(
-  value: string,
-  currency: string,
-  locale = "it-IT",
-): string {
-  const num = value.trim() === "" ? NaN : Number(value);
-  if (!Number.isFinite(num)) return "—";
-  return new Intl.NumberFormat(locale, {
-    style: "currency",
-    currency,
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
-  }).format(num);
+export function formatMoney(value: string, currency: string): string {
+  return formatNumber(value, { currency, decimals: 2 });
 }
 
 /** Formatta con segno esplicito (+/−), utile per i P&L. */
-export function formatSignedMoney(
-  value: string,
-  currency: string,
-  locale = "it-IT",
-): string {
-  const num = Number(value);
-  if (!Number.isFinite(num)) return "—";
-  const formatted = new Intl.NumberFormat(locale, {
-    style: "currency",
-    currency,
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
-    signDisplay: "exceptZero",
-  }).format(num);
-  return formatted;
+export function formatSignedMoney(value: string, currency: string): string {
+  return formatNumber(value, { currency, decimals: 2, sign: true });
+}
+
+/** Decimal da stringa, o `null` se la stringa non è un numero finito. */
+function parseDecimal(value: string): Decimal | null {
+  try {
+    const dec = new Decimal(value);
+    return dec.isFinite() ? dec : null;
+  } catch {
+    return null;
+  }
 }
 
 /**
@@ -50,20 +40,11 @@ export function formatSignedMoney(
  * stringa mostrata all'utente, mai un valore usato nei calcoli.
  */
 export function formatRMultiple(value: string): string {
-  let dec: Decimal;
-  try {
-    dec = new Decimal(value);
-  } catch {
-    return "—";
-  }
-  if (!dec.isFinite()) return "—";
+  const dec = parseDecimal(value);
+  if (dec === null) return "—";
   const rounded = dec.toDecimalPlaces(2, Decimal.ROUND_HALF_UP);
   // it-IT: virgola decimale, niente zeri finali superflui ("2R", "1,5R").
-  const formatted = new Intl.NumberFormat("it-IT", {
-    minimumFractionDigits: 0,
-    maximumFractionDigits: 2,
-  }).format(rounded.toNumber());
-  return `${formatted}R`;
+  return `${formatNumber(rounded, { maxDecimals: 2 })}R`;
 }
 
 /**
@@ -75,17 +56,11 @@ export function formatRMultiple(value: string): string {
  */
 export function formatRatio(value: string | null, decimals = 2): string {
   if (value === null) return "—";
-  let dec: Decimal;
-  try {
-    dec = new Decimal(value);
-  } catch {
-    return "—";
-  }
-  if (!dec.isFinite()) return "—";
-  return new Intl.NumberFormat("it-IT", {
-    minimumFractionDigits: decimals,
-    maximumFractionDigits: decimals,
-  }).format(dec.toDecimalPlaces(decimals, Decimal.ROUND_HALF_UP).toNumber());
+  const dec = parseDecimal(value);
+  if (dec === null) return "—";
+  return formatNumber(dec.toDecimalPlaces(decimals, Decimal.ROUND_HALF_UP), {
+    decimals,
+  });
 }
 
 /**
@@ -108,14 +83,8 @@ export function formatProfitFactor(
  * decimali (F43: "+1581" e "+640,86" nella stessa griglia erano precisioni
  * miste; i totali esatti al centesimo stanno in testata). Solo display.
  */
-export function formatSignedCompact(value: string, locale = "it-IT"): string {
-  const num = Number(value);
-  if (!Number.isFinite(num)) return "—";
-  return new Intl.NumberFormat(locale, {
-    minimumFractionDigits: 0,
-    maximumFractionDigits: 0,
-    signDisplay: "exceptZero",
-  }).format(num);
+export function formatSignedCompact(value: string): string {
+  return formatNumber(value, { decimals: 0, sign: true });
 }
 
 /**
@@ -124,7 +93,7 @@ export function formatSignedCompact(value: string, locale = "it-IT"): string {
  * (1 decimale sotto 10k, nessuno sopra), difensivo "M" oltre il milione.
  * Massimo 5 caratteri col segno ("−9,9k", "+788", "+12k"). Solo display.
  */
-export function formatSignedShort(value: string, locale = "it-IT"): string {
+export function formatSignedShort(value: string): string {
   const num = Number(value);
   if (!Number.isFinite(num)) return "—";
   let scaled = num;
@@ -136,12 +105,7 @@ export function formatSignedShort(value: string, locale = "it-IT"): string {
     unit = next;
   }
   const digits = unit !== "" && Math.abs(scaled) < 10 ? 1 : 0;
-  const formatted = new Intl.NumberFormat(locale, {
-    minimumFractionDigits: 0,
-    maximumFractionDigits: digits,
-    signDisplay: "exceptZero",
-  }).format(scaled);
-  return `${formatted}${unit}`;
+  return `${formatNumber(scaled, { maxDecimals: digits, sign: true })}${unit}`;
 }
 
 /** Classe colore semantica coerente in tutta l'app: verde/rosso/grigio. */
@@ -153,23 +117,14 @@ export function pnlColorClass(value: string): string {
 
 /**
  * Formatta una FRAZIONE 0-1 (convenzione di src/lib/metrics) come percentuale:
- * "0.5625" → "56.25%". Solo display.
+ * "0.5625" → "56,25%". Solo display.
  */
 export function formatPercent(fraction: string | null, decimals = 2): string {
   if (fraction === null) return "—";
-  let dec: Decimal;
-  try {
-    dec = new Decimal(fraction);
-  } catch {
-    return "—";
-  }
-  if (!dec.isFinite()) return "—";
+  const dec = parseDecimal(fraction);
+  if (dec === null) return "—";
   const pct = dec.times(100).toDecimalPlaces(decimals, Decimal.ROUND_HALF_UP);
-  const formatted = new Intl.NumberFormat("it-IT", {
-    minimumFractionDigits: decimals,
-    maximumFractionDigits: decimals,
-  }).format(pct.toNumber());
-  return `${formatted}%`;
+  return `${formatNumber(pct, { decimals })}%`;
 }
 
 /**
@@ -182,13 +137,8 @@ export function formatPercentSmall(
   decimals = 2,
 ): string {
   if (fraction === null) return "—";
-  let dec: Decimal;
-  try {
-    dec = new Decimal(fraction);
-  } catch {
-    return "—";
-  }
-  if (!dec.isFinite()) return "—";
+  const dec = parseDecimal(fraction);
+  if (dec === null) return "—";
   const floor = new Decimal(1).div(new Decimal(10).pow(decimals + 2));
   if (dec.gt(0) && dec.lt(floor)) {
     return `< ${formatPercent(floor.toString(), decimals)}`;
@@ -198,30 +148,19 @@ export function formatPercentSmall(
 
 /**
  * Vista %: un importo come percentuale del saldo di riferimento, con segno.
- * "1798.50" su base "35000" → "+5.14%". Base nulla o zero → "—". Solo display.
+ * "1798.50" su base "35000" → "+5,14%". Base nulla o zero → "—". Solo display.
  */
 export function formatPercentOfBase(
   value: string,
   base: string,
   decimals = 2,
 ): string {
-  let amount: Decimal;
-  let baseDec: Decimal;
-  try {
-    amount = new Decimal(value);
-    baseDec = new Decimal(base);
-  } catch {
-    return "—";
-  }
-  if (!amount.isFinite() || !baseDec.isFinite() || baseDec.isZero()) return "—";
+  const amount = parseDecimal(value);
+  const baseDec = parseDecimal(base);
+  if (amount === null || baseDec === null || baseDec.isZero()) return "—";
   const pct = amount
     .div(baseDec)
     .times(100)
     .toDecimalPlaces(decimals, Decimal.ROUND_HALF_UP);
-  const formatted = new Intl.NumberFormat("it-IT", {
-    minimumFractionDigits: decimals,
-    maximumFractionDigits: decimals,
-    signDisplay: "exceptZero",
-  }).format(pct.toNumber());
-  return `${formatted}%`;
+  return `${formatNumber(pct, { decimals, sign: true })}%`;
 }

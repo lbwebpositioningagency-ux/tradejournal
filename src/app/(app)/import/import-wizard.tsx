@@ -1,5 +1,7 @@
 "use client";
 
+import { formatNumber, formatQuantity } from "@/lib/format-number";
+
 import { useEffect, useMemo, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import Papa from "papaparse";
@@ -758,13 +760,13 @@ export function ImportWizard({
                               {entry.side === "BUY" ? "LONG" : "SHORT"}
                             </TableCell>
                             <TableCell className="text-right tabular-nums">
-                              {entry.quantity}
+                              {formatQuantity(entry.quantity)}
                             </TableCell>
                             <TableCell className="text-right tabular-nums">
-                              {entry.price}
+                              {formatQuantity(entry.price)}
                             </TableCell>
                             <TableCell className="text-right tabular-nums">
-                              {exit?.price ?? "—"}
+                              {exit ? formatQuantity(exit.price) : "—"}
                             </TableCell>
                             <TableCell className="whitespace-nowrap">
                               {entry.executedAt.replace("T", " ")}
@@ -773,10 +775,10 @@ export function ImportWizard({
                               {exit?.executedAt.replace("T", " ") ?? "— (aperto)"}
                             </TableCell>
                             <TableCell className="text-right tabular-nums">
-                              {entry.fee}
+                              {formatQuantity(entry.fee)}
                             </TableCell>
                             <TableCell className="text-right tabular-nums">
-                              {trade.pointValue}
+                              {formatQuantity(trade.pointValue)}
                             </TableCell>
                             <TableCell
                               className={cn(
@@ -784,7 +786,7 @@ export function ImportWizard({
                                 netPnl !== null ? pnlColorClass(netPnl) : undefined,
                               )}
                             >
-                              {netPnl ?? "—"}
+                              {netPnl === null ? "—" : formatNumber(netPnl, { decimals: 2, sign: true })}
                             </TableCell>
                           </TableRow>
                         );

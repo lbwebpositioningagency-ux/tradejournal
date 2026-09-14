@@ -11,6 +11,7 @@ import {
   SOGLIA_DISCREPANZA_EM,
 } from "@/lib/percorso-impegno";
 import type { PercorsoRicalcolato } from "@/lib/queries/macro-scorecard-em";
+import { formatNumber } from "@/lib/format-number";
 import { PanelLabel } from "./primitives";
 
 /**
@@ -31,24 +32,19 @@ const OUTCOME_TONE: Record<string, string> = {
 
 function pct(fraction: string | null): string {
   if (fraction === null) return "—";
-  return `${(Number(fraction) * 100).toFixed(1).replace(".", ",")}%`;
+  return `${formatNumber(Number(fraction) * 100, { decimals: 1 })}%`;
 }
 
 /** Prezzo all'italiana, due decimali: le chiusure si leggono a colpo d'occhio. */
 function prezzo(value: number): string {
-  return value.toLocaleString("it-IT", {
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
-    // Il CLDR italiano non raggruppa a quattro cifre (4526, non 4.526): qui
-    // sono prezzi e il separatore serve sempre.
-    useGrouping: "always",
-  });
+  // Il separatore delle migliaia anche a quattro cifre (4.526) è la regola
+  // del formattatore unico, non più un'eccezione di questa pagina.
+  return formatNumber(value, { decimals: 2 });
 }
 
 function em(value: number | null): string {
   if (value === null) return "—";
-  const sign = value > 0 ? "+" : "";
-  return `${sign}${value.toFixed(2).replace(".", ",")} EM`;
+  return `${formatNumber(value, { decimals: 2, sign: true })} EM`;
 }
 
 /**
@@ -135,7 +131,7 @@ function AssetBlock({
           value={
             calibration === null
               ? "—"
-              : Number(calibration).toFixed(2).replace(".", ",")
+              : formatNumber(calibration, { decimals: 2 })
           }
           tone="var(--md-text-2)"
         />
@@ -246,7 +242,7 @@ function ProvenienzaPercorsi({ percorsi }: { percorsi: PercorsoRicalcolato[] }) 
           )}
           <p className="text-2xs" style={{ color: "var(--md-muted)" }}>
             Si mostrano gli scarti oltre{" "}
-            {SOGLIA_DISCREPANZA_EM.toFixed(2).replace(".", ",")} EM, metà della
+            {formatNumber(SOGLIA_DISCREPANZA_EM, { decimals: 2 })} EM, metà della
             soglia con cui una settimana viene giudicata: sotto quella misura
             due fonti che non coincidono al centesimo non cambiano una lettura.
           </p>

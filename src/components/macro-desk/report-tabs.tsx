@@ -406,7 +406,7 @@ function BloccoConfidenza({
             appiccicare l'avvertenza a un campo dichiarato dal desk lo
             sminuirebbe senza motivo. */}
         {stimato ? (
-          <p className="mt-1.5 text-[10px] leading-tight text-[var(--md-muted)]">
+          <p className="mt-1.5 text-2xs leading-tight text-[var(--md-muted)]">
             Frase riconosciuta nella nota del pilastro: questo report non porta
             il campo dedicato, che esiste dal 28 agosto 2026.
           </p>

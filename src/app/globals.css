@@ -342,6 +342,26 @@
   }
 }
 
+/* Tabelle: l'intestazione di una colonna NUMERICA si allinea a destra come le
+   sue celle, senza che ogni tabella lo dichiari. Le celle si marcano da sole
+   (`data-numeric` in components/ui/table.tsx) quando il contenuto è un numero;
+   qui l'intestazione della stessa colonna le segue. Fuori da ogni @layer di
+   proposito: deve vincere sul `text-left` di default di TableHead. */
+[data-slot="table"]:has(td:nth-child(1)[data-numeric]) th:nth-child(1),
+[data-slot="table"]:has(td:nth-child(2)[data-numeric]) th:nth-child(2),
+[data-slot="table"]:has(td:nth-child(3)[data-numeric]) th:nth-child(3),
+[data-slot="table"]:has(td:nth-child(4)[data-numeric]) th:nth-child(4),
+[data-slot="table"]:has(td:nth-child(5)[data-numeric]) th:nth-child(5),
+[data-slot="table"]:has(td:nth-child(6)[data-numeric]) th:nth-child(6),
+[data-slot="table"]:has(td:nth-child(7)[data-numeric]) th:nth-child(7),
+[data-slot="table"]:has(td:nth-child(8)[data-numeric]) th:nth-child(8),
+[data-slot="table"]:has(td:nth-child(9)[data-numeric]) th:nth-child(9),
+[data-slot="table"]:has(td:nth-child(10)[data-numeric]) th:nth-child(10),
+[data-slot="table"]:has(td:nth-child(11)[data-numeric]) th:nth-child(11),
+[data-slot="table"]:has(td:nth-child(12)[data-numeric]) th:nth-child(12) {
+  text-align: right;
+}
+
 @layer components {
   /* Gerarchia tipografica delle pagine e delle card — usare SEMPRE queste
      classi, mai ricomporre la gerarchia a mano nei componenti. */

@@ -178,7 +178,9 @@ export default async function DayCalendarPage({
             </p>
           ) : null}
         </div>
-        <div className="flex items-center gap-2">
+        {/* Valute, frecce, mese e «Oggi» su una sola fila arrivavano a 449px
+            su un telefono da 390: la fila va a capo (tavola «Correzioni P0»). */}
+        <div className="flex flex-wrap items-center gap-2">
           {scope.multi ? (
             <CurrencyFilter
               currencies={currencyTotals.map((t) => t.currency)}

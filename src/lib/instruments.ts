@@ -10,6 +10,8 @@
  * I valori sono stringhe decimali (mai number nei calcoli).
  */
 
+import { formatNumber } from "./format-number";
+
 /**
  * Valore punto per contratto dei simboli noti (futures CME/COMEX/NYMEX/EUREX
  * e metalli spot). P&L = Δprezzo × qty × valore punto.
@@ -108,14 +110,6 @@ export function formatPrice(
   value: string | null | undefined,
   symbol: string,
   assetClass: string,
-  locale = "it-IT",
 ): string {
-  if (value === null || value === undefined || value.trim() === "") return "—";
-  const num = Number(value);
-  if (!Number.isFinite(num)) return "—";
-  const decimals = priceDecimals(symbol, assetClass);
-  return new Intl.NumberFormat(locale, {
-    minimumFractionDigits: decimals,
-    maximumFractionDigits: decimals,
-  }).format(num);
+  return formatNumber(value, { decimals: priceDecimals(symbol, assetClass) });
 }

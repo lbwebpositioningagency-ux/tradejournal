@@ -43,6 +43,7 @@ import {
 } from "@/lib/metrics/equity-simulator";
 import { MetricInfo } from "@/components/metric-info";
 import { parseLocaleNumber } from "@/lib/locale-number";
+import { formatNumber } from "@/lib/format-number";
 import {
   formatMoney,
   formatPercent,
@@ -123,7 +124,7 @@ function lineOpacity(index: number): number {
 }
 
 const fmtEquity = (v: number) =>
-  v.toLocaleString("it-IT", { maximumFractionDigits: 0 });
+  formatNumber(v, { decimals: 0 });
 
 function runSimulation(form: FormState, seed: number): EquitySimulatorResult | null {
   const riskRaw = parseNum(form.riskValue);
@@ -810,10 +811,7 @@ const fmtPct1 = (fraction: number) => formatPercent(fraction.toFixed(4), 1);
 
 /** Rapporto adimensionale (Return on max drawdown): due decimali it-IT. */
 const fmtRatio = (value: number) =>
-  value.toLocaleString("it-IT", {
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
-  });
+  formatNumber(value, { decimals: 2 });
 
 /**
  * Fase 37 — statistiche AGGREGATE su tutte le linee.

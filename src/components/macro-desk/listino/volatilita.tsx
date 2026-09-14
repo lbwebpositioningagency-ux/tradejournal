@@ -701,7 +701,7 @@ function TabellaEia({ inventari }: { inventari: InventariEia }) {
             <td className="text-[15px] font-bold">
               {num(v.livello, v.decimali)}
             </td>
-            <td className="ml-sx text-[10px] text-[var(--md-muted)]">
+            <td className="ml-sx text-2xs text-[var(--md-muted)]">
               {v.unita}
             </td>
             <td>

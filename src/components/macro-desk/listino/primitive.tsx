@@ -1,6 +1,7 @@
 import type { ReactNode } from "react";
 import type { RangoStorico } from "@/lib/volatilita-fatti";
 import { cn } from "@/lib/utils";
+import { formatNumber } from "@/lib/format-number";
 
 /**
  * PRIMITIVE DEL LISTINO — il vocabolario condiviso da tutte le sezioni del
@@ -18,30 +19,24 @@ import { cn } from "@/lib/utils";
 
 /* ── formattatori ────────────────────────────────────────────────────── */
 
-const formattatori = new Map<number, Intl.NumberFormat>();
+/* Tutti sul formattatore unico dell'app (src/lib/format-number.ts): stesso
+   locale e stesso separatore delle migliaia, anche a quattro cifre. `nf`
+   resta per chi chiama `.format()`. */
 
 export function nf(decimali: number) {
-  let f = formattatori.get(decimali);
-  if (!f) {
-    f = new Intl.NumberFormat("it-IT", {
-      minimumFractionDigits: decimali,
-      maximumFractionDigits: decimali,
-    });
-    formattatori.set(decimali, f);
-  }
-  return f;
+  return { format: (valore: number) => formatNumber(valore, { decimals: decimali }) };
 }
 
 export function num(valore: number, decimali = 2) {
-  return nf(decimali).format(valore);
+  return formatNumber(valore, { decimals: decimali });
 }
 
 export function pct(frazione: number, decimali = 1) {
-  return `${nf(decimali).format(frazione * 100)}%`;
+  return `${formatNumber(frazione * 100, { decimals: decimali })}%`;
 }
 
 export function segnato(valore: number, decimali: number) {
-  const s = nf(decimali).format(valore);
+  const s = formatNumber(valore, { decimals: decimali });
   return valore > 0 ? `+${s}` : s;
 }
 
@@ -181,7 +176,7 @@ export function Rango({
         <i style={{ left: `${p}%` }} />
       </span>
       <span className="w-[26px] text-right">{nf(0).format(r.percentile)}</span>
-      <span className="text-[10px] text-[var(--md-muted)]">
+      <span className="text-2xs text-[var(--md-muted)]">
         &apos;{anno(r.primoGiorno).slice(2)}
       </span>
     </span>
@@ -256,10 +251,10 @@ export function Strumento({
       ) : null}
       <span className="font-semibold">{nome}</span>
       {ticker ? (
-        <span className="text-[10px] text-[var(--md-muted)]">{ticker}</span>
+        <span className="text-2xs text-[var(--md-muted)]">{ticker}</span>
       ) : null}
       {contesto ? (
-        <span className="text-[9px] uppercase tracking-[0.1em] text-[var(--md-muted)]">
+        <span className="text-2xs uppercase tracking-[0.06em] text-[var(--md-muted)]">
           contesto
         </span>
       ) : null}

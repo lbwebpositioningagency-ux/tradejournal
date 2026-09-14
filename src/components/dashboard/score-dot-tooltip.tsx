@@ -8,6 +8,7 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
+import { formatNumber } from "@/lib/format-number";
 
 /**
  * Area di hover/tocco invisibile sopra un pallino del radar Score, col
@@ -41,9 +42,7 @@ export function ScoreDotTooltip({
   const text =
     value === null
       ? `${label}: non calcolabile (fuori dalla media)`
-      : `${label}: ${value.toLocaleString("it-IT", {
-          maximumFractionDigits: 0,
-        })}/100`;
+      : `${label}: ${formatNumber(value, { decimals: 0 })}/100`;
 
   return (
     <TooltipProvider>

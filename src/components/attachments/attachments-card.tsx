@@ -4,6 +4,7 @@ import { useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { FileText, ImagePlus, Trash2 } from "lucide-react";
 import { toast } from "sonner";
+import { formatNumber } from "@/lib/format-number";
 import {
   deleteAttachmentAction,
   uploadAttachmentAction,
@@ -46,8 +47,8 @@ export type AttachmentTargetProps =
 
 /** Byte → etichetta leggibile (solo display). */
 function formatBytes(size: number): string {
-  if (size >= 1024 * 1024) return `${(size / (1024 * 1024)).toFixed(1)} MB`;
-  if (size >= 1024) return `${Math.round(size / 1024)} KB`;
+  if (size >= 1024 * 1024) return `${formatNumber(size / (1024 * 1024), { decimals: 1 })} MB`;
+  if (size >= 1024) return `${formatNumber(size / 1024, { decimals: 0 })} KB`;
   return `${size} B`;
 }
 

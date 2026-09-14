@@ -48,6 +48,7 @@ import {
 import { resolveCurrencyScope } from "@/lib/currency-scope";
 import {
   formatPercent,
+  formatProfitFactor,
   formatRMultiple,
   formatSignedMoney,
   pnlColorClass,
@@ -76,12 +77,6 @@ export const metadata: Metadata = { title: "Report periodico" };
  * si giudica un sistema, l'anno quella fiscale. L'URL resta quello e il
  * default resta la settimana, così i segnalibri non si rompono.
  */
-
-/** Delta leggibile fra due importi (stringhe decimali). */
-function deltaLabel(current: string, previous: string): string {
-  const delta = new Decimal(current).minus(previous);
-  return `${delta.gte(0) ? "+" : ""}${delta.toFixed(2)}`;
-}
 
 export default async function WeeklyReportPage({
   searchParams,
@@ -199,6 +194,10 @@ export default async function WeeklyReportPage({
             </p>
           </div>
         </div>
+        {/* Due gruppi che vanno a capo fra loro (a 390px la fila unica
+            allargava la pagina a 627px): prima ciò che sposta la vista,
+            poi le azioni. Regola della tavola «Correzioni P0». */}
+        <div className="flex flex-wrap items-center gap-2">
         <div className="flex items-center gap-2">
           {/* Selettore dell'intervallo: link e non bottoni, la scelta vive
               nella query string come ogni altro filtro dell'app. */}
@@ -233,6 +232,8 @@ export default async function WeeklyReportPage({
               <ChevronRight className="size-4" />
             </Link>
           </Button>
+        </div>
+        <div className="flex items-center gap-2">
           <Button asChild variant="outline" size="sm">
             {/* CSV dei NUMERI del report, non dei trade grezzi: sono due
                 bisogni diversi e due file diversi. */}
@@ -260,6 +261,7 @@ export default async function WeeklyReportPage({
             </a>
           </Button>
           <PrintButton />
+        </div>
         </div>
       </div>
 
@@ -293,7 +295,7 @@ export default async function WeeklyReportPage({
                   </p>
                   <p className="stat-sub mt-0.5">
                     {prevAgg.total > 0
-                      ? `${deltaLabel(agg.netPnl, prevAgg.netPnl)} ${currency} vs ${REPORT_PREVIOUS_LABELS[range]}`
+                      ? `${formatSignedMoney(new Decimal(agg.netPnl).minus(prevAgg.netPnl).toFixed(2), currency)} vs ${REPORT_PREVIOUS_LABELS[range]}`
                       : `${REPORT_PREVIOUS_LABELS[range]} senza trade`}
                   </p>
                 </div>
@@ -315,11 +317,7 @@ export default async function WeeklyReportPage({
                     <MetricInfo info={profitFactorInfo} />
                   </p>
                   <p className="stat-value">
-                    {pf !== null
-                      ? formatRMultiple(pf).slice(0, -1)
-                      : agg.wins > 0
-                        ? "∞"
-                        : "—"}
+                    {formatProfitFactor(pf, agg.wins)}
                   </p>
                   <p className="stat-sub mt-0.5">
                     Attesa/trade{" "}

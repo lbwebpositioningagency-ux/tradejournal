@@ -1,4 +1,5 @@
 import Decimal from "decimal.js";
+import { formatNumber } from "@/lib/format-number";
 
 /**
  * Helper puri per i Reports: riempiono i bucket mancanti delle serie
@@ -58,7 +59,7 @@ export interface RDistPoint {
 
 /** Formatta il bordo di un bin (multipli di 0,5) in stile it-IT. */
 function edge(value: number): string {
-  return value.toLocaleString("it-IT", { maximumFractionDigits: 1 });
+  return formatNumber(value, { maxDecimals: 1 });
 }
 
 /**

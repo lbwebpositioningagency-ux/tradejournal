@@ -15,6 +15,7 @@ import {
 import { CHART, ClampMark, pnlChartColor } from "@/components/charts/chart-spec";
 import { useChartAnimation } from "@/components/charts/use-chart-animation";
 import { clampLimit, clampValue } from "@/lib/chart-clamp";
+import { formatNumber } from "@/lib/format-number";
 
 /**
  * Grafici P&L della dashboard. I punti arrivano già aggregati per giorno dal
@@ -72,7 +73,7 @@ export function withPeakLine(
 }
 
 const itDecimal = (n: number, suffix: string) =>
-  `${n.toLocaleString("it-IT", { maximumFractionDigits: 2 })}${suffix}`;
+  `${formatNumber(n, { maxDecimals: 2 })}${suffix}`;
 
 function tooltipFormatter(masked: boolean, suffix: string) {
   return (

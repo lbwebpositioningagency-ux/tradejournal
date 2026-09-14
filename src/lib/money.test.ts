@@ -13,10 +13,19 @@ import {
 
 describe("formatMoney", () => {
   it("formatta un importo EUR in locale it-IT", () => {
-    // Nota: il CLDR it-IT non raggruppa le migliaia sotto le 5 cifre.
     const result = formatMoney("12345.67", "EUR");
     expect(result).toContain("12.345,67");
     expect(result).toContain("€");
+  });
+
+  it("raggruppa le migliaia anche a quattro cifre", () => {
+    // Il CLDR it-IT scriverebbe «2753,00»: in colonna sopra «20.777,50».
+    expect(formatMoney("2753", "USD")).toContain("2.753,00");
+  });
+
+  it("il delta del Report periodico esce con virgola e simbolo", () => {
+    // Era «-260.24 EUR» (toFixed + codice valuta).
+    expect(formatSignedMoney("-260.24", "EUR")).toBe("-260,24 €");
   });
 
   it("formatta importi negativi", () => {
@@ -160,7 +169,8 @@ describe("pnlColorClass", () => {
 
 describe("formatSignedCompact (F43)", () => {
   it("sempre zero decimali: precisione uniforme nella griglia", () => {
-    expect(formatSignedCompact("1581")).toBe("+1581");
+    // Punto delle migliaia anche a quattro cifre, come ovunque nell'app.
+    expect(formatSignedCompact("1581")).toBe("+1.581");
     expect(formatSignedCompact("640.86")).toBe("+641");
     expect(formatSignedCompact("-594.20")).toBe("-594");
     expect(formatSignedCompact("0")).toBe("0");

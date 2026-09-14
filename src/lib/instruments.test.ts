@@ -38,13 +38,14 @@ describe("formatPrice", () => {
   });
 
   it("oro (XAUUSD) a 2 decimali, virgola it-IT", () => {
-    // it-IT (CLDR) non raggruppa le migliaia sotto le 5 cifre intere.
-    expect(formatPrice("2717.45", "XAUUSD", "FOREX")).toBe("2717,45");
+    // Punto delle migliaia anche a quattro cifre: il CLDR it-IT lo ometterebbe
+    // e in colonna «2717,45» starebbe sopra «12.345,60».
+    expect(formatPrice("2717.45", "XAUUSD", "FOREX")).toBe("2.717,45");
     expect(formatPrice("12345.6", "XAUUSD", "FOREX")).toBe("12.345,60");
   });
 
   it("futures a 2 decimali", () => {
-    expect(formatPrice("5325.25", "ES", "FUTURES")).toBe("5325,25");
+    expect(formatPrice("5325.25", "ES", "FUTURES")).toBe("5.325,25");
   });
 
   it("trattino per valore mancante o non numerico", () => {

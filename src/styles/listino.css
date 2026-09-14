@@ -54,7 +54,10 @@
   /* Testo */
   --md-text: #0e131a;
   --md-text-2: #414c5b;
-  --md-muted: #6f7c8d;
+  /* Il più vicino a #6f7c8d (stessa tinta e croma OKLCH, solo più scuro) che
+     regge 4,5:1 su tutte e quattro le superfici: 5,25 su bg, 4,50 su
+     surface-3. Il valore di prima stava a 4,25 / 3,64 — sotto AA. */
+  --md-muted: #616d7e;
   /* Semantica sul fondo chiaro: verde e rosso scelti per reggere il
      contrasto anche su --md-surface, non solo su bianco. */
   --md-up: #0f7a4e;
@@ -99,7 +102,9 @@
   --ml-track: #151b27;
   --md-text: #e7edf6;
   --md-text-2: #a6b3c6;
-  --md-muted: #67748a;
+  /* Come sul chiaro: stessa tinta, luminosità minima per 4,5:1 ovunque
+     (5,35 su bg, 4,52 su surface-3; prima 4,24 / 3,57). */
+  --md-muted: #77859b;
   --md-up: #2fd67a;
   --md-down: #ff4160;
   --md-warn: #f5a623;
@@ -198,9 +203,11 @@
   display: flex;
   align-items: center;
   gap: 10px;
-  font-size: 10px;
+  /* 11px è il minimo del desk: sotto quella taglia un maiuscolo non si legge
+     alla distanza di lavoro. Spaziatura ridotta per non allungare il titolo. */
+  font-size: 11px;
   font-weight: 600;
-  letter-spacing: 0.14em;
+  letter-spacing: 0.1em;
   text-transform: uppercase;
   color: var(--md-muted);
   white-space: nowrap;
@@ -226,9 +233,11 @@
 }
 .ml-tab th {
   font-family: var(--md-font-ui), var(--font-geist-sans), system-ui, sans-serif;
-  font-size: 9.5px;
+  font-size: 11px;
   font-weight: 600;
-  letter-spacing: 0.08em;
+  /* 0,04em e non 0,06: con le intestazioni portate a 11px la tabella a
+     diciannove colonne dell'escursione sbordava di 20px a 1440. Misurato. */
+  letter-spacing: 0.04em;
   text-transform: uppercase;
   color: var(--md-muted);
   text-align: right;
@@ -240,7 +249,7 @@
 /* Intestazione di GRUPPO: il secondo livello di un listino stampato. */
 .ml-tab th.ml-gruppo {
   text-align: center;
-  font-size: 9px;
+  font-size: 11px;
   color: var(--md-text-2);
   border-bottom: 1px solid var(--md-border);
   padding-bottom: 3px;
@@ -319,15 +328,15 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 13px;
-  height: 13px;
+  width: 15px;
+  height: 15px;
   margin-left: 3px;
   vertical-align: 1px;
   border: 1px solid var(--md-border);
   border-radius: 999px;
   color: var(--md-muted);
   font-family: var(--md-font-ui), var(--font-geist-sans), system-ui, sans-serif;
-  font-size: 8.5px;
+  font-size: 11px;
   font-weight: 700;
   line-height: 1;
   letter-spacing: 0;

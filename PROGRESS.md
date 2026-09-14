@@ -2655,3 +2655,70 @@ con e senza sessione, un report vero → 200, le altre sezioni → 200; indice a
 scorrimento orizzontale; barra 2×2 sulle quotidiane e 3+2 sulla Scorecard;
 Volatilità senza la riga VDAX e con GER40 nell'escursione; Report senza
 percentuali; «Metriche pro» a cinque colonne senza risk of ruin.
+
+## Correzioni visive urgenti P0 dal referto design 360 (14/09/2026)
+
+Quattro difetti del referto `docs/audit/07-design-360.md` (branch
+`audit/design-360`), con le decisioni visive passate da Claude Design: tavole
+«Correzioni P0», «Correzioni P0 - testate v2» e «Correzioni P0 - nota listino»
+nel progetto del referto. Nessuna migrazione.
+
+**1 — 404 in italiano e stato HTTP vero.** Nuova `NotFoundState` (card con
+occhiello, titolo, perché, «Vai alla Dashboard» più un'uscita di contesto) in
+`(app)/not-found.tsx`, `trades/`, `macro-desk/`, `day/` e `app/not-found.tsx`
+per gli indirizzi senza rotta. Causa dello stato 200: `(app)/loading.tsx` (e i
+`loading.tsx` di `trades`, `day`, `macro-desk`) stavano sopra le rotte
+dinamiche, lo scheletro faceva partire lo streaming e il `notFound()` arrivava
+tardi. Soluzione generale: via il loading globale; le liste in gruppi
+`(lista)`/`(mese)`/`(indice)`; il controllo d'esistenza in un `layout.tsx` di
+`trades/[id]`, `macro-desk/[id]`, `day/[date]` (il loading del segmento avvolge
+la pagina, non il layout); scheletri propri dove prima si ereditava quello
+globale (Import, Strategie, Impostazioni, Nuovo trade, dettaglio, e Volatilità e
+Driver che ripetono quello di prima). Tolta la riscrittura `ROTTE_RIMOSSE`.
+Guardia: `src/app/not-found-streaming.test.ts`. Misurato su `next start`: trade,
+modifica, report, giorno e revisione inesistenti **da 200 a 404**;
+`/macro-desk/trends` resta 404 senza riscrittura; le pagine vere 200.
+
+**2 — Un solo formattatore.** `src/lib/format-number.ts` (it-IT, punto delle
+migliaia sempre, anche a quattro cifre); `money.ts` e `instruments.ts` ci stanno
+sopra. **52 punti in 25 file**: 9 formattatori di `money.ts`/`instruments.ts` e
+43 formattazioni artigianali (`trimZeros` ×3 e le sue chiamate, il
+`delta.toFixed(2)` del Report periodico, i `formatRMultiple().slice(0,-1)` usati
+come profit factor, `toFixed().replace(".", ",")` della Scorecard, i
+`toLocaleString` di assi e tooltip, Import, allegati, Listino, spread dei tassi,
+calendario economico, Driver). Esclusi di proposito: Stagionalità (congelata,
+12 punti) e i `trimZeros` del form di modifica (valori di input riletti al
+salvataggio). Tabelle `ui/table`: cifre tabulari su tutta la tabella, una cella
+numerica si allinea a destra da sola e la sua intestazione la segue (regola
+`:has()` in globals.css). Misurato: Trade View 120/120 celle numeriche a destra
+e tabulari, 5/5 intestazioni; Reports 135/135 e 35/35; dettaglio e giorno idem.
+
+**3 — Mobile a 390px.** Report periodico (627px), dettaglio trade (466px) e
+Calendario (449px: la fila valute + frecce + mese + «Oggi», che compare solo su
+un mese passato) ora vanno a capo. Misurati a 390 dopo: tutte a 390 nei due
+temi; al primo giro anche Dashboard, giorno, revisione, Trade View, nuovo e
+modifica, Reports, Analytics, Import, Strategie, Impostazioni a 390.
+
+**4 — Leggibilità del Listino.** Intestazioni 9,5→11px, gruppi 9→11, titoli
+10→11, «i» 8,5→11 (cerchio 15px), quattro `text-[9/10px]` a `text-2xs`.
+`--md-muted` spostato solo in luminosità (stessa tinta e croma OKLCH):
+
+| tema | prima | su bg / surface / surface-2 / surface-3 | dopo | su bg / surface / surface-2 / surface-3 |
+|---|---|---|---|---|
+| chiaro | `#6f7c8d` | 4,25 / 4,03 / 3,85 / 3,64 | `#616d7e` | 5,25 / 4,98 / 4,76 / 4,50 |
+| scuro | `#67748a` | 4,24 / 4,00 / 3,80 / 3,57 | `#77859b` | 5,35 / 5,06 / 4,81 / 4,52 |
+
+Nel DOM della Volatilità: prima 99 testi sotto 11px e 120 a 4,24:1; dopo 0 e 0,
+intestazione a 5,35:1 (scuro) e 5,25:1 (chiaro). Guardia:
+`src/styles/listino-leggibilita.test.ts`.
+
+**Residuo dichiarato.** A 1440px la tabella «La giornata · escursione vera»
+(19 colonne) sborda di 15px dal suo contenitore: prima ci stava. Scorre dentro
+`.ml-scroll`, la pagina non si allarga. La spaziatura del maiuscolo portata a
+0,04em ha recuperato solo 5px.
+
+**Non verificato nel DOM dopo la correzione:** contrasti e taglie di Scorecard,
+Calendario del desk, dettaglio report e Radar (stesso token e stessi CSS, coperti
+dal test); larghezza a 390 delle pagine del desk diverse dalla Volatilità.
+
+**Verificato:** typecheck ✅ · eslint ✅ · **2137/2137 test** ✅ · build ✅.

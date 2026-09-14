@@ -59,7 +59,7 @@ export function Info({
         className="ml-info-corpo w-[min(30rem,calc(100vw-2rem))]"
       >
         {titolo ? (
-          <p className="mb-1.5 text-[10px] font-semibold uppercase tracking-[0.12em] text-muted-foreground">
+          <p className="mb-1.5 text-2xs font-semibold uppercase tracking-[0.08em] text-muted-foreground">
             {titolo}
           </p>
         ) : null}
