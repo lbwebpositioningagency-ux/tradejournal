@@ -11,7 +11,6 @@ con un'ipotesi.
 | `confronta-oro-fonte.ts` | L'archivio combacia con la fonte, seduta per seduta? |
 | `oro-2005-dalla-fonte.ts` | Un periodo mancante in archivio esiste alla fonte, o non è mai esistito? |
 | `gennaio-oro.mjs` | I rendimenti di un mese anno per anno, per capire perché un campione è più corto |
-| `ciclo-retrodatato.ts` | Il trend di Trends cambia se lo si ricalcola su dati troncati indietro nel tempo? |
 | `naviga.mjs` | I link navigano davvero, o React è morto in idratazione? Raccoglie errori di console |
 | `chunk-check.mjs` | I chunk JS referenziati da una pagina esistono tutti, o qualcuno risponde 404? |
 | `sonda-spazi.js` | Spazi mangiati dal montaggio JSX («28/08/2026nel fuso»), invisibili in uno screenshot |

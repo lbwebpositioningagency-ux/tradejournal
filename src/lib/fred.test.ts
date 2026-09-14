@@ -1,6 +1,23 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { fetchFredSeries, revalidateSecondsFor } from "./fred";
-import { RECESSION_SERIES_ID, TRENDS_SERIES } from "./macro-trends-series";
+import {
+  fetchFredSeries,
+  parseFredCsv,
+  parseFredJson,
+  revalidateSecondsFor,
+} from "./fred";
+
+/**
+ * Un campione di ID FRED veri, di cadenze e famiglie diverse. Fino al
+ * 14/09/2026 il test prendeva gli ID dal registro della pagina Trends, rimossa
+ * quel giorno: la funzione non dipende da nessun registro, e un elenco fisso
+ * basta a verificarne banda e distribuzione.
+ */
+const ID_CAMPIONE = [
+  "USREC", "DGS10", "DGS2", "DFII10", "T10YIE", "DTWEXBGS", "DCOILWTICO",
+  "GVZCLS", "OVXCLS", "VIXCLS", "CPIAUCSL", "PCEPILFE", "PAYEMS", "UNRATE",
+  "ICSA", "GDPC1", "INDPRO", "WALCL", "M2SL", "BAMLH0A0HYM2", "T10Y2Y",
+  "T10Y3M", "SOFR", "DFF", "RRPONTSYD", "WTISPLC", "NFCI", "HOUST",
+];
 
 /**
  * P-05 — scadenze di cache scaglionate per serie: il jitter deve essere
@@ -16,12 +33,8 @@ describe("revalidateSecondsFor", () => {
     expect(revalidateSecondsFor("DGS10")).toBe(revalidateSecondsFor("DGS10"));
   });
 
-  it("sempre dentro la banda 24h ± 3h, per TUTTI gli ID del registry", () => {
-    const ids = [
-      RECESSION_SERIES_ID,
-      ...TRENDS_SERIES.flatMap((def) => def.fredIds),
-    ];
-    for (const id of ids) {
+  it("sempre dentro la banda 24h ± 3h", () => {
+    for (const id of ID_CAMPIONE) {
       const seconds = revalidateSecondsFor(id);
       expect(seconds).toBeGreaterThanOrEqual(DAY - JITTER);
       expect(seconds).toBeLessThanOrEqual(DAY + JITTER);
@@ -29,12 +42,48 @@ describe("revalidateSecondsFor", () => {
   });
 
   it("le scadenze sono distribuite, non sincronizzate", () => {
-    const ids = TRENDS_SERIES.map((def) => def.fredIds[0]);
-    const distinct = new Set(ids.map((id) => revalidateSecondsFor(id)));
-    // Con ~50 serie su una banda di 21.601 valori possibili, una manciata
-    // di collisioni è fisiologica: il fallimento da intercettare è la
-    // degenerazione (tutte uguali o quasi).
-    expect(distinct.size).toBeGreaterThan(ids.length / 2);
+    const distinct = new Set(ID_CAMPIONE.map((id) => revalidateSecondsFor(id)));
+    // Su una banda di 21.601 valori possibili, una manciata di collisioni è
+    // fisiologica: il fallimento da intercettare è la degenerazione (tutte
+    // uguali o quasi).
+    expect(distinct.size).toBeGreaterThan(ID_CAMPIONE.length / 2);
+  });
+});
+
+/* I test del parser stavano nel file delle trasformazioni di Trends, rimosso
+   il 14/09/2026. Il parser serve ancora a Driver Desk e archivio giornaliero,
+   quindi i test tornano accanto al modulo che verificano. */
+describe("parser FRED", () => {
+  const obs = (date: string, value: number) => ({ date, value });
+
+  it("JSON: scarta '.' (mancante, mai zero) e valori non numerici", () => {
+    const parsed = parseFredJson({
+      observations: [
+        { date: "2026-01-01", value: "3.5" },
+        { date: "2026-02-01", value: "." },
+        { date: "2026-03-01", value: "abc" },
+        { date: "invalid", value: "1" },
+        { date: "2026-04-01", value: "-0.2" },
+      ],
+    });
+    expect(parsed).toEqual([
+      obs("2026-01-01", 3.5),
+      obs("2026-04-01", -0.2),
+    ]);
+  });
+
+  it("JSON: payload malformato → lista vuota, mai crash", () => {
+    expect(parseFredJson(null)).toEqual([]);
+    expect(parseFredJson({ foo: 1 })).toEqual([]);
+    expect(parseFredJson({ observations: "no" })).toEqual([]);
+  });
+
+  it("CSV: intestazione ignorata, '.' scartato, CRLF tollerato", () => {
+    const csv = "observation_date,CPIAUCSL\r\n2026-01-01,321.5\r\n2026-02-01,.\r\n2026-03-01,323.1\r\n";
+    expect(parseFredCsv(csv)).toEqual([
+      obs("2026-01-01", 321.5),
+      obs("2026-03-01", 323.1),
+    ]);
   });
 });
 

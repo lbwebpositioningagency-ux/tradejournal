@@ -56,6 +56,7 @@ export interface VoceStrumento {
   decimaliIv: number;
   iv: SerieFatti | null;
   motivoIvAssente: string | null;
+  ivSenzaFonte: boolean;
   disallineamento: string | null;
   prezzo: SerieFatti | null;
   ultimaChiusura: number | null;
@@ -83,6 +84,7 @@ function voce(riga: RigaContestoVol): VoceStrumento {
     decimaliIv: riga.decimaliIv,
     iv: riga.iv,
     motivoIvAssente: riga.motivoIvAssente,
+    ivSenzaFonte: riga.ivSenzaFonte,
     disallineamento: riga.disallineamento,
     prezzo: riga.prezzo,
     ultimaChiusura: riga.ultimaChiusura,

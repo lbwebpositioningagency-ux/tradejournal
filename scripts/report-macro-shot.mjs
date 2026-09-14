@@ -3,8 +3,7 @@
  *
  * Perché non `scripts/shot.mjs`: quello fotografa l'app vera dietro login e
  * prima di scattare naviga sull'`origin` per impostare il tema — con un file
- * locale l'origin è `null` e Chrome rifiuta la navigazione. Stessa scelta già
- * fatta per `ai-analyst-shot.mjs`.
+ * locale l'origin è `null` e Chrome rifiuta la navigazione.
  *
  * Una foto per SEZIONE dell'anteprima (una per caso reale), ritagliata sul
  * riquadro della sezione: una pagina unica sarebbe alta diverse migliaia di

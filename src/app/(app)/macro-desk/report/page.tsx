@@ -35,9 +35,6 @@ type ReportRow = {
   biasXau: string;
   biasWti: string;
   biasIdx: string;
-  confidenceXau: number;
-  confidenceWti: number;
-  confidenceIdx: number;
   summary: string | null;
 };
 
@@ -49,13 +46,6 @@ function reportDateLabel(date: Date, long = false): string {
     year: "numeric",
     timeZone: "UTC",
   }).format(date);
-}
-
-function assetFields(report: ReportRow, key: (typeof ASSET_LABELS)[number]["key"]) {
-  return {
-    bias: report[`bias${key}`],
-    confidence: report[`confidence${key}`],
-  };
 }
 
 function LatestReportCard({
@@ -91,28 +81,24 @@ function LatestReportCard({
           <div className="flex flex-col gap-4">
             <div className="grid gap-4 sm:grid-cols-3">
               {ASSET_LABELS.map(({ key, label }) => {
-                const { bias, confidence } = assetFields(report, key);
+                const bias = report[`bias${key}`];
                 return (
                   <div key={key} className="flex flex-col gap-1">
                     <span className="stat-label">{label}</span>
                     <span className={cn("stat-value", biasColorClass(bias))}>
                       {bias}
                     </span>
-                    <span className="stat-sub">Confidenza {confidence}%</span>
                   </div>
                 );
               })}
             </div>
-            {/* LA SCALA VA DICHIARATA. «Confidenza 44%» non dice 44% di cosa:
-                non è una probabilità e non è calibrata su nulla che questa
-                pagina mostri. È un giudizio del sistema che scrive il report,
-                su scala 0-100 — e l'unico luogo dove si vede se quei giudizi
-                hanno poi retto è la Scorecard, che li confronta con l'esito
-                della settimana. */}
+            {/* LA PERCENTUALE DI CONFIDENZA NON C'È PIÙ (14/09/2026). Era un
+                giudizio del report su scala 0-100, dichiarato non calibrato,
+                con dev.std ~5 e correlazione ~0 coi pilastri: un numero che
+                sembrava informazione e non lo era. Le colonne `confidence*`
+                restano in tabella; qui si mostra solo il bias. */}
             <p className="text-xs text-muted-foreground">
-              Bias e confidenza sono dichiarati dal report giornaliero, su scala
-              0-100. La confidenza non è una probabilità e non è calibrata: dice
-              quanto il report si fida della propria lettura. Quanto quelle
+              Il bias è dichiarato dal report giornaliero. Quanto quelle
               letture abbiano poi retto è misurato, settimana per settimana, nella{" "}
               <Link href="/macro-desk/scorecard" className="underline underline-offset-2">
                 Scorecard
@@ -241,14 +227,14 @@ export default async function MacroDeskReportPage() {
                   </span>
                   <span className="flex items-center gap-3 tabular-nums">
                     {ASSET_LABELS.map(({ key, label }) => {
-                      const { bias, confidence } = assetFields(report, key);
+                      const bias = report[`bias${key}`];
                       return (
                         <span key={key} className="flex items-center gap-1 text-xs">
                           <span className="text-muted-foreground">
                             {label.split(" ")[0]}
                           </span>
                           <span className={cn("font-medium", biasColorClass(bias))}>
-                            {BIAS_SHORT_LABELS[bias] ?? bias} {confidence}%
+                            {BIAS_SHORT_LABELS[bias] ?? bias}
                           </span>
                         </span>
                       );

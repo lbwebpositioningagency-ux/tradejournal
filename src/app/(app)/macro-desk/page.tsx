@@ -36,6 +36,10 @@ export const metadata: Metadata = { title: "Macro Desk" };
  * altre. Il 27/08/2026 è uscita Posizionamento e le quotidiane sono passate
  * da sei a cinque: il conteggio a schermo viene dall'elenco, non da un numero
  * scritto a mano, ma la frase di apertura sì ed è stata aggiornata con esso.
+ * Il 14/09/2026 è uscita Trends e le quotidiane sono quattro: la griglia è
+ * passata a quattro colonne larghe, così stanno in una riga piena e
+ * l'archivio e il registro sotto si allineano alle stesse colonne invece di
+ * lasciare una scheda orfana.
  *
  * Qui non si legge nessun dato di mercato: l'unica lettura è la DATA
  * dell'ultimo report giornaliero, che serve alla banda di allarme quando il
@@ -61,7 +65,7 @@ export default async function MacroDeskPage() {
       <div>
         <h1 className="page-title">Macro Desk</h1>
         <p className="page-subtitle">
-          Cinque sezioni da consultare, ognuna con i suoi dati e i suoi
+          Quattro sezioni da consultare, ognuna con i suoi dati e i suoi
           aggiornamenti. Poi l&apos;archivio, quello che si legge di rado, e in
           fondo il registro: l&apos;unica parte che non guarda i prezzi.
         </p>
@@ -99,7 +103,7 @@ export default async function MacroDeskPage() {
 /** Le schede di un gruppo. Stessa resa per entrambi: cambia solo il posto. */
 function Griglia({ sezioni }: { sezioni: readonly MacroDeskSection[] }) {
   return (
-    <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+    <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
       {sezioni.map((section) => {
         const Icon = section.icon;
         return (

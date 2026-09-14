@@ -30,8 +30,7 @@ import type { MetricInfoData } from "./types";
  *
  * I BREAKEVEN RESTANO FUORI dal lancio della moneta: non sono né vincenti né
  * perdenti, e assegnarli a uno dei due gruppi sposterebbe il coefficiente
- * senza che nessun trade sia cambiato. Stessa convenzione di Kelly e del
- * risk of ruin.
+ * senza che nessun trade sia cambiato. Stessa convenzione di Kelly.
  */
 
 /** Trade con rischio noto sotto cui la correlazione non viene calcolata. */

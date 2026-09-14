@@ -154,11 +154,6 @@ export {
   type OptimalF,
 } from "./kelly";
 export {
-  riskOfRuinAnalytic,
-  riskOfRuinAnalyticInfo,
-  type RiskOfRuinInput,
-} from "./risk-of-ruin";
-export {
   concentration,
   concentrationInfo,
   type Concentration,

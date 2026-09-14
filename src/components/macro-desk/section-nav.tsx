@@ -3,7 +3,6 @@ import {
   Activity,
   CalendarClock,
   CalendarRange,
-  ChartSpline,
   FileText,
   Radar,
   Target,
@@ -27,8 +26,12 @@ import { Button } from "@/components/ui/button";
  * La tabella e il cron restano, e di quel dato sopravvive una riga nelle
  * schede della Sintesi.
  *
- * Ora: CINQUE sezioni di consultazione quotidiana, e un ARCHIVIO con le altre
- * due. La barra mostra le cinque; se la sezione corrente è d'archivio compare
+ * Il 14/09/2026 è uscita Trends, per intero: serie FRED senza uso alle 8 del
+ * mattino su oro, WTI o DAX, con verdetti direzionali scritti nel codice e un
+ * secondo rango della volatilità diverso da quello della sezione Volatilità.
+ *
+ * Ora: QUATTRO sezioni di consultazione quotidiana, e un ARCHIVIO con le altre
+ * due. La barra mostra le quattro; se la sezione corrente è d'archivio compare
  * anche quella, così non si resta mai senza sapere dove si è.
  *
  * Il 29/08/2026 è entrato il CALENDARIO, che non è il ritorno di quello tolto
@@ -51,7 +54,7 @@ export interface MacroDeskSection {
   /** Riga singola: descrive la sezione nella griglia dell'indice. */
   description: string;
   /**
-   * `quotidiano` = le cinque di consultazione giornaliera.
+   * `quotidiano` = le quattro di consultazione giornaliera.
    * `archivio`   = si consulta di rado, fuori dalla barra quotidiana.
    * `registro`   = il Radar. Gruppo A SÉ e non una nona voce delle altre:
    *                è l'unica sezione che NON parla di prezzi, e affiancarla
@@ -77,15 +80,6 @@ export const MACRO_DESK_SECTIONS = [
     icon: Waypoints,
     description:
       "Spread Bund-Treasury e i panieri che spingono gli asset: tassi reali, dollaro, energia.",
-    gruppo: "quotidiano",
-  },
-  {
-    key: "trends",
-    href: "/macro-desk/trends",
-    label: "Trends",
-    icon: ChartSpline,
-    description:
-      "Le serie economiche che alimentano il bias: storico pluriennale e recessioni NBER.",
     gruppo: "quotidiano",
   },
   {
@@ -135,7 +129,7 @@ export const MACRO_DESK_SECTIONS = [
   },
 ] as const satisfies readonly MacroDeskSection[];
 
-/** Le cinque di consultazione quotidiana, nell'ordine in cui si usano. */
+/** Le quattro di consultazione quotidiana, nell'ordine in cui si usano. */
 export const SEZIONI_QUOTIDIANE = MACRO_DESK_SECTIONS.filter(
   (s) => s.gruppo === "quotidiano",
 );
@@ -153,18 +147,19 @@ export type MacroDeskSectionKey = (typeof MACRO_DESK_SECTIONS)[number]["key"];
 /**
  * Barra di salto fra sezioni, in alto a destra nelle PAGINE DI SEZIONE.
  *
- * Da 720px in su è una GRIGLIA FISSA a tre colonne, non un wrap naturale: tre
- * pillole per riga sempre, qualunque sia la larghezza. Il wrap naturale mandava
- * a capo un numero variabile di voci e lasciava "Report" orfano in fondo a
- * sinistra. Le colonne sono `1fr` dentro un contenitore `w-fit`, quindi larghe
- * quanto la pillola più larga: il blocco resta uniforme e allineato a destra.
+ * Da 720px in su è una GRIGLIA FISSA, non un wrap naturale. Il wrap naturale
+ * mandava a capo un numero variabile di voci e lasciava "Report" orfano in
+ * fondo a sinistra. Le colonne sono `1fr` dentro un contenitore `w-fit`, quindi
+ * larghe quanto la pillola più larga: il blocco resta uniforme e allineato a
+ * destra.
  *
- * Dal 29/08/2026, con l'ingresso del Calendario, le quotidiane sono CINQUE:
- * tre più due, e su una pagina d'archivio diventano sei, cioè due righe piene.
- * A distinguere la pagina corrente non è più la posizione — con quattro voci
- * quella d'archivio restava da sola in fondo, e si vedeva — ma la pillola
- * piena con `aria-current`, che è il segnale vero e non dipende da quante
- * sezioni ci sono.
+ * Dal 14/09/2026, uscita Trends, le quotidiane sono QUATTRO. Il numero di
+ * colonne segue il numero di voci perché nessuna resti sola in fondo: quattro
+ * voci stanno su DUE colonne (due righe piene), le cinque di una pagina
+ * d'archivio su TRE (tre più due). Con tre colonne fisse le quattro quotidiane
+ * lasciavano Calendario orfano. A distinguere la pagina corrente non è la
+ * posizione ma la pillola piena con `aria-current`, che è il segnale vero e
+ * non dipende da quante sezioni ci sono.
  *
  * Sotto 720px il comportamento resta quello di prima — una riga sola che scorre
  * in orizzontale — perché a quelle larghezze tre colonne non ci starebbero
@@ -183,14 +178,17 @@ export function MacroDeskSectionNav({
   /** Sezione corrente: resa come pillola piena e marcata `aria-current`. */
   active: MacroDeskSectionKey;
 }) {
-  /* Le cinque quotidiane, più quella corrente se è d'archivio: dalla Scorecard
+  /* Le quattro quotidiane, più quella corrente se è d'archivio: dalla Scorecard
      si deve poter tornare indietro, e soprattutto si deve vedere di essere in
-     una pagina che non è fra le cinque. */
+     una pagina che non è fra le quattro. */
   const corrente = MACRO_DESK_SECTIONS.find((s) => s.key === active);
   const voci =
     corrente && corrente.gruppo === "archivio"
       ? [...SEZIONI_QUOTIDIANE, corrente]
       : SEZIONI_QUOTIDIANE;
+  /* Classi scritte per intero: Tailwind non vede quelle composte a runtime. */
+  const colonne =
+    voci.length % 2 === 0 ? "min-[720px]:grid-cols-2" : "min-[720px]:grid-cols-3";
 
   const radar = SEZIONI_REGISTRO[0];
   const radarAttivo = active === radar.key;
@@ -204,7 +202,9 @@ export function MacroDeskSectionNav({
       {/* La utility `scrollbar-none` del progetto è scoped a `.macro-report`, e
           questa barra vive fuori dal terminale: la barra di scorrimento si
           nasconde qui, senza toccare i token globali. */}
-      <ul className="flex flex-nowrap gap-2 overflow-x-auto pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden min-[720px]:grid min-[720px]:grid-cols-3 min-[720px]:overflow-x-visible min-[720px]:pb-0">
+      <ul
+        className={`flex flex-nowrap gap-2 overflow-x-auto pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden min-[720px]:grid ${colonne} min-[720px]:overflow-x-visible min-[720px]:pb-0`}
+      >
         {voci.map((section) => {
           const isActive = section.key === active;
           const Icon = section.icon;

@@ -15,50 +15,13 @@ import { GuidaSezione, RimandoGuida, VoceGuida } from "./guida-sezione";
  * `.macro-report` — là dentro sarebbe una scheda chiara su un pannello scuro.
  */
 
-/** Trends — le serie macro che alimentano il bias. */
-export function GuidaTrends() {
-  return (
-    <GuidaSezione richiamo="è contesto di fondo, non un segnale di giornata">
-      <p>
-        Le serie economiche che stanno <strong>dietro</strong> ai movimenti di
-        oro, petrolio e indici. Si guardano per capire in che regime si sta
-        operando, non per decidere l&apos;operazione di oggi: cambiano una volta
-        al mese, non una volta al giorno.
-      </p>
-
-      <VoceGuida titolo="Il valore di oggi e la sua data">
-        Ogni serie porta la data della propria osservazione, e non è la stessa
-        per tutte: il PCE esce mensile e con settimane di ritardo, i tassi sono
-        giornalieri. Un numero «di oggi» qui può essere di due mesi fa, ed è
-        scritto accanto.
-      </VoceGuida>
-
-      <VoceGuida titolo="Le revisioni">
-        I valori sono quelli che FRED pubblica adesso, revisioni incluse: per
-        payroll, PIL e JOLTS il trend e le etichette possono cambiare{" "}
-        <strong>retroattivamente</strong> senza che esca un dato nuovo. Non è un
-        difetto della pagina, è come funzionano quelle serie.
-      </VoceGuida>
-
-      <VoceGuida titolo="Il chip «ciclo»">
-        Compare solo dove il trend è dimostrato. Con un trend laterale la
-        direzione del quadrante è indistinguibile dal rumore, e mostrarla
-        sarebbe precisione che i dati non hanno.
-      </VoceGuida>
-
-      <RimandoGuida />
-    </GuidaSezione>
-  );
-}
-
 /** Report — l'archivio della research. */
 export function GuidaReport() {
   return (
     <GuidaSezione richiamo="è research scritta a mano, non dati misurati">
       <p>
         Qui non si consulta, si <strong>legge</strong>. Ogni riga è un report
-        ricevuto, con il bias dichiarato per oro, WTI e indici e la confidenza
-        che il report stesso si attribuisce.
+        ricevuto, con il bias dichiarato per oro, WTI e indici.
       </p>
 
       <VoceGuida titolo="Si legge in verticale">
@@ -67,8 +30,8 @@ export function GuidaReport() {
         motivo per cui adesso è una tabella e non un elenco di schede.
       </VoceGuida>
 
-      <VoceGuida titolo="La confidenza non è una misura">
-        È dichiarata da chi scrive il report. Se i bias ci prendano o no lo dice
+      <VoceGuida titolo="Il bias è un'intenzione, non un esito">
+        È dichiarato da chi scrive il report. Se i bias ci prendano o no lo dice
         la <strong>Scorecard</strong>, che è un consuntivo in Expected Move e
         misura gli esiti invece di raccogliere le intenzioni.
       </VoceGuida>

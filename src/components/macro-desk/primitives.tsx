@@ -105,7 +105,7 @@ export function Callout({
  *
  * Primitiva condivisa: la usano il pannello COT (posizione nel range dal
  * 2017, con le tacche ai confini delle bande) e le righe percentile della
- * pagina Trends. Token del desk, nessuna palette nuova: traccia
+ * pagina Driver. Token del desk, nessuna palette nuova: traccia
  * `--md-surface-3` — lo stesso fondo delle altre barre del desk — e
  * indicatore nel colore semantico che il chiamante ha già scelto.
  *

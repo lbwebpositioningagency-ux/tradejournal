@@ -1,7 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { breakEvenWinRate, winRateMargin } from "./break-even";
 import { kellyFraction, optimalF, OPTIMAL_F_MIN_TRADES } from "./kelly";
-import { riskOfRuinAnalytic } from "./risk-of-ruin";
 import { concentration } from "./concentration";
 import { equityLinearFit } from "./equity-fit";
 import { expectedLongestRun, streakDistribution } from "./streak-distribution";
@@ -102,52 +101,6 @@ describe("optimalF", () => {
     // Un −2R nel campione: a f = 0,5 il fattore è 0 → esclusa.
     const result = optimalF(repeat(["3", "-2", "1"], 12))!;
     expect(Number(result.f)).toBeLessThan(0.5);
-  });
-});
-
-describe("riskOfRuinAnalytic", () => {
-  it("payoff 1: coincide con la rovina del giocatore classica (q/p)^U", () => {
-    // p 0,6 · q 0,4 · 10 unità → (2/3)^10 = 0,01734…
-    const ruin = riskOfRuinAnalytic({
-      winRate: "0.6",
-      payoff: "1",
-      units: "10",
-    });
-    expect(Number(ruin)).toBeCloseTo((2 / 3) ** 10, 4);
-  });
-
-  it("senza edge la rovina è certa, e va detto", () => {
-    expect(
-      riskOfRuinAnalytic({ winRate: "0.5", payoff: "1", units: "50" }),
-    ).toBe("1");
-    expect(
-      riskOfRuinAnalytic({ winRate: "0.3", payoff: "2", units: "50" }),
-    ).toBe("1");
-  });
-
-  it("più capitale (in unità di perdita) = meno rischio", () => {
-    const poco = riskOfRuinAnalytic({ winRate: "0.55", payoff: "1.5", units: "5" })!;
-    const tanto = riskOfRuinAnalytic({ winRate: "0.55", payoff: "1.5", units: "40" })!;
-    expect(Number(tanto)).toBeLessThan(Number(poco));
-    expect(Number(poco)).toBeLessThanOrEqual(1);
-  });
-
-  it("una probabilità minuscola sopravvive: non si arrotonda a zero", () => {
-    // Conto grande rispetto al rischio per trade: il risultato è ~1e-33 e
-    // deve restare distinguibile da uno zero esatto.
-    const ruin = riskOfRuinAnalytic({
-      winRate: "0.55",
-      payoff: "1.5",
-      units: "180",
-    })!;
-    expect(Number(ruin)).toBeGreaterThan(0);
-    expect(Number(ruin)).toBeLessThan(0.0001);
-  });
-
-  it("input fuori dominio → non calcolabile", () => {
-    expect(riskOfRuinAnalytic({ winRate: "1", payoff: "2", units: "10" })).toBeNull();
-    expect(riskOfRuinAnalytic({ winRate: "0.5", payoff: "0", units: "10" })).toBeNull();
-    expect(riskOfRuinAnalytic({ winRate: "0.5", payoff: "2", units: "0" })).toBeNull();
   });
 });
 

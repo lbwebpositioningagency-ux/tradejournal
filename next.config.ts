@@ -45,6 +45,19 @@ const SECURITY_HEADERS = [
   },
 ];
 
+/**
+ * Rotte tolte che cadrebbero in un segmento dinamico, e per questo non
+ * darebbero un 404 vero.
+ *
+ * `/macro-desk/trends` (uscita il 14/09/2026) combacia con `/macro-desk/[id]`:
+ * la pagina del report chiama `notFound()`, ma dentro lo streaming aperto da
+ * `(app)/loading.tsx` lo stato 200 è già partito e non si cambia più — chi
+ * aveva il vecchio indirizzo vedeva la pagina 404 con uno stato 200. Riscritte
+ * PRIMA del routing verso un percorso che nessuna rotta serve, rispondono 404
+ * davvero, senza rendere niente.
+ */
+const ROTTE_RIMOSSE = ["/macro-desk/trends"];
+
 const nextConfig: NextConfig = {
   /* dukascopy-node è una libreria Node con accesso al filesystem e
      dipendenze binarie: il bundler non deve provare a impacchettarla dentro
@@ -60,6 +73,15 @@ const nextConfig: NextConfig = {
   },
   async headers() {
     return [{ source: "/:path*", headers: SECURITY_HEADERS }];
+  },
+  async rewrites() {
+    return {
+      beforeFiles: ROTTE_RIMOSSE.map((rotta) => ({
+        source: `${rotta}/:resto*`,
+        // Cartella privata (`_`): nessuna rotta la serve, quindi è un 404.
+        destination: "/_rotta-rimossa",
+      })),
+    };
   },
 };
 

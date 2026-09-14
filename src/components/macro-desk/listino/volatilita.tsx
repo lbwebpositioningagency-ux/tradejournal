@@ -38,7 +38,10 @@ import { esc, inPunti, varia, vociOperative, type VoceStrumento } from "./strume
  *  - la fonte era ripetuta dentro ogni scheda, la data del dato sette volte:
  *    la fonte è una riga in cima, l'età è una colonna;
  *  - il commento del report stava a metà pagina, ed era un muro di prosa in
- *    mezzo a delle tabelle: adesso è in fondo, chiuso.
+ *    mezzo a delle tabelle: adesso è in fondo, chiuso;
+ *  - dal 14/09/2026 il listino dell'implicita non ha più la riga VDAX, vuota
+ *    per sempre perché l'indice non ha una fonte: la lacuna è una nota sotto
+ *    la tabella. Il GER40 resta nell'escursione, dove i dati ci sono.
  *
  * IL CALENDARIO DEGLI EVENTI NON STA PIÙ QUI (28/08/2026, richiesta esplicita).
  * La sezione torna a fare una cosa sola — dove sta la volatilità e quanto si è
@@ -98,7 +101,17 @@ export function ListinoVolatilita({ dati }: { dati: DatiVolatilita }) {
           </p>
         </Info>
       </Titolo>
-      <TabellaListino voci={voci} />
+      <TabellaListino voci={voci.filter((v) => !v.ivSenzaFonte)} />
+      {voci
+        .filter((v) => v.ivSenzaFonte)
+        .map((v) => (
+          <p
+            key={v.indice}
+            className="mt-2 max-w-[80ch] text-[11px] leading-[1.5] text-[var(--md-muted)]"
+          >
+            {v.etichetta}: nessun indice di volatilità implicita. {v.motivoIvAssente}
+          </p>
+        ))}
 
       <Titolo>
         La giornata · escursione vera

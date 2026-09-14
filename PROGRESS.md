@@ -2578,3 +2578,80 @@ stop. Nessun dato perso, nessun trade da migrare.
 verdi dopo · typecheck ✅ · eslint ✅ · **2155 test** ✅ · build ✅ · a mano sulla
 build del worktree: piano scritto dalla scheda, nota libera modificata dal
 form, piano intatto con fase `PLAN` a database.
+
+## Riduzione del perimetro prima del ridisegno (14/09/2026)
+
+Rimozione di **codice**, non di dati: nessuna migrazione, nessuna tabella
+toccata. Riferimenti: `docs/audit/07-design-360.md` (branch `audit/design-360`) e
+`docs/audit/08-contenuti-gap.md` (branch `audit/contenuti-gap`, R-J1, R-M2…R-M6).
+
+**1 — AI Analyst, gli ultimi residui.** La schermata non esisteva più; restavano
+due commenti che la citavano (`validations/macro-desk.ts`, e
+`scripts/report-macro-shot.mjs` che rimandava a un `ai-analyst-shot.mjs` già
+cancellato). Nessun file, modello o script ancora vivo.
+
+**2 — Via Trends, per intero.** Pagina e skeleton, voce di navigazione, guida,
+vista e grafico, orchestratore, registro delle serie, trasformazioni, metriche e
+i loro test, più lo script d'indagine `ciclo-retrodatato.ts` che viveva solo per
+lei. **Non toccato** `lib/fred.ts`, che serve ancora Driver Desk e archivio
+giornaliero: se n'è andata solo `hasFredApiKey`, che aveva Trends come unico
+lettore, e i test del parser FRED — che stavano nel file delle trasformazioni —
+sono tornati in `fred.test.ts`. Indice e barra riequilibrati per quattro sezioni
+quotidiane: griglia dell'indice a quattro colonne (una riga piena, archivio e
+registro sulle stesse colonne), barra a due colonne con quattro voci e a tre con
+cinque (pagina d'archivio), così nessuna pillola resta sola.
+
+**3 — Volatilità: la riga VDAX del listino dell'implicita.** Misurato in
+produzione (sola lettura): `VDAX` ha **0 barre** e il catalogo dichiara che non
+ha fonte; la riga era un trattino in nove celle su dieci, per sempre. Esce dal
+listino, e la lacuna è una nota sotto la tabella. **Il GER40 resta
+nell'escursione**: 9.787 sedute tutte con massimo e minimo, la riga è piena —
+l'audit la dava vuota «in due tabelle», ed era vero per una sola. Il filtro
+scatta solo sulla mancanza dichiarata dal catalogo (`ivSenzaFonte`): un GVZ
+assente per un guasto del job resta visibile col suo trattino. **Lasciati**:
+MOVE e PUT/CALL (dipendono dal report, fermo al 02/09), il commento del report,
+i livelli VIX9D/VIX/VIX3M (pieni).
+
+**4 — Report: via la percentuale di confidenza** dalle due card e dallo
+storico, con la nota che la dichiarava non calibrata. Le colonne
+`confidence*` restano in tabella. Il blocco «Confidenza» del dettaglio —
+scala /100, mostrato solo quando c'è un motivo — **non** è stato toccato.
+
+**5 — Analytics: via il risk of ruin analitico** (modulo, export, test, riquadro,
+calcolo in pagina). Con qualunque expectancy positiva la formula chiusa dava ≈ 0%
+per costruzione. Resta il «Risk of ruin (−50%)» simulato dell'equity simulator,
+che è un'altra misura. Griglia «Metriche pro» a cinque colonne su xl.
+
+**COT, solo censimento, nessuna rimozione.** Lettori di `CotWeek`: il job stesso
+(`lib/cot-sync.ts`, ultima settimana salvata), `scripts/cot-sync-once.ts` e
+`prisma/seed-cot.ts`. Nessuna pagina: Posizionamento è uscita il 27/08
+(`5600c7f`), la riga COT della Sintesi con la Sintesi il 28/08 (`4f2d099`).
+
+**404 vero per l'indirizzo tolto.** `/macro-desk/trends` combacia con la rotta
+dinamica `/macro-desk/[id]`: la pagina del report chiama `notFound()`, ma dentro
+lo streaming di `(app)/loading.tsx` lo stato 200 è già partito — si vedeva la
+pagina 404 con uno stato 200. Un rewrite `beforeFiles` in `next.config.ts`
+(`ROTTE_RIMOSSE`) la manda verso una cartella privata prima del routing, e
+risponde 404 davvero. Lo stesso difetto resta per un id di report inesistente,
+com'era prima.
+
+**Bundle** (build di `origin/main` 417abe7 contro questa, stessa macchina):
+
+| misura | prima | dopo | differenza |
+|---|---|---|---|
+| JS client totale (grezzo) | 5.470.702 B | 5.446.921 B | **−23,8 KB** (−0,43%) |
+| JS client totale (gzip) | 1.616.577 B | 1.608.557 B | **−8,0 KB** (−0,50%) |
+| chunk client | 87 | 86 | −1 |
+| output server | 42,33 MB | 41,79 MB | **−0,54 MB** (−1,27%) |
+| rotta `/macro-desk/trends` | 330,8 KB · 99,5 KB gzip | — | rotta eliminata |
+
+Le altre rotte toccate (indice, Volatilità, Report, Analytics) non cambiano
+peso lato client: le rimozioni lì erano codice server.
+
+**Verificato:** typecheck ✅ · eslint ✅ · **2097/2097 test** ✅ (dopo il rebase su
+`2a4643c`) · build ✅ · `next start` locale: `/macro-desk/trends` e `/macro-desk/trends/abc` → **404**
+con e senza sessione, un report vero → 200, le altre sezioni → 200; indice a
+1440px (quattro schede in riga, archivio sulle stesse colonne) e a 390px senza
+scorrimento orizzontale; barra 2×2 sulle quotidiane e 3+2 sulla Scorecard;
+Volatilità senza la riga VDAX e con GER40 nell'escursione; Report senza
+percentuali; «Metriche pro» a cinque colonne senza risk of ruin.

@@ -123,6 +123,64 @@ describe("Listino Volatilità — la forma", () => {
   });
 });
 
+describe("Listino Volatilità — un indice senza fonte non ha una riga vuota", () => {
+  /* Dal 14/09/2026. VDAX non ha fonte gratuita: la sua riga nel listino era
+     un trattino in nove celle su dieci, per sempre. Il GER40 però ha prezzi
+     con massimo e minimo, e nell'escursione la riga è piena. */
+  const riga = (
+    indice: "GVZ" | "VDAX",
+    etichetta: string,
+    ivSenzaFonte: boolean,
+  ): ContestoVolatilita["righe"][number] => ({
+    indice,
+    etichetta,
+    decimaliIv: 2,
+    disallineamento: null,
+    iv: null,
+    motivoIvAssente: ivSenzaFonte ? "Nessuna fonte gratuita disponibile." : "serie non presente nell'archivio giornaliero",
+    ivSenzaFonte,
+    prezzo: null,
+    realizzata: [],
+    escursione: [],
+    escursioneUltima: { giorno: "2026-09-11", relativa: 0.0123, assoluta: 314.5, rango: null },
+    coperturaOhlc: { conOhlc: 100, totali: 100 },
+    ultimaChiusura: 25568.56,
+  });
+  const out = () => {
+    const markup = html({
+      contesto: {
+        ...contestoVuoto,
+        righe: [riga("GVZ", "Oro", false), riga("VDAX", "GER40 (DAX)", true)],
+      },
+    });
+    /* Ogni pezzo si ferma a `</table>`: la nota sotto il listino non è parte
+       della tabella. */
+    const tabelle = markup
+      .split("<table")
+      .slice(1)
+      .map((t) => t.split("</table>")[0]);
+    return { markup, listino: tabelle[0], escursione: tabelle[1] };
+  };
+
+  it("il listino dell'implicita non ha la riga dell'indice senza fonte", () => {
+    const { listino } = out();
+    expect(listino).not.toContain("GER40 (DAX)");
+  });
+
+  it("un indice assente per un buco dell'archivio resta visibile", () => {
+    const { listino } = out();
+    expect(listino).toContain("Oro");
+  });
+
+  it("il GER40 resta nell'escursione, e la lacuna è dichiarata", () => {
+    const { markup, escursione } = out();
+    expect(escursione).toContain("GER40 (DAX)");
+    expect(markup).toContain(
+      "GER40 (DAX): nessun indice di volatilità implicita. Nessuna fonte gratuita disponibile.",
+    );
+  });
+});
+
 describe("Listino Volatilità — la struttura a termine", () => {
   /* I due rapporti della curva sono numeri DIVERSI che si assomigliano
      (0,871 e 0,848): una resa che ne mostrasse uno solo, ripetuto, sarebbe

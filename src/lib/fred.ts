@@ -320,8 +320,3 @@ export async function fetchFredSeries(
   }
   throw new Error(`Serie FRED non risolta (${ids.join(", ")}): ${errors.join(" · ")}`);
 }
-
-/** La pagina dichiara se sta lavorando keyless (avviso informativo). */
-export function hasFredApiKey(): boolean {
-  return Boolean(process.env.FRED_API_KEY);
-}

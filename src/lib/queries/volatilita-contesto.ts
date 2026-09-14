@@ -62,9 +62,11 @@ interface CoppiaVol {
 
 /**
  * Le tre coppie di cui abbiamo ENTRAMBE le serie, più il DAX che ha solo il
- * prezzo. VDAX resta fuori perché non ha una fonte viva (v.
- * `SEASONALITY_INSTRUMENTS`): un indice senza dati non produce una riga vuota,
- * produce una riga che dichiara perché non c'è.
+ * prezzo. VDAX non ha una fonte viva (v. `SEASONALITY_INSTRUMENTS`): la coppia
+ * resta perché il prezzo del GER40 alimenta escursione e realizzata, ma dal
+ * 14/09/2026 il listino dell'implicita non gli dedica più una riga — era vuota
+ * in nove celle su dieci, per sempre. La lacuna si dichiara in una nota sotto
+ * la tabella (`ivSenzaFonte`).
  */
 export const COPPIE_VOL: CoppiaVol[] = [
   {
@@ -142,6 +144,13 @@ export interface RigaContestoVol {
   iv: SerieFatti | null;
   /** Perché l'indice non c'è, quando non c'è. */
   motivoIvAssente: string | null;
+  /**
+   * L'indice manca perché il CATALOGO dichiara che non ha una fonte, non per
+   * un buco temporaneo dell'archivio. Solo in questo caso il listino non gli
+   * dedica una riga: un GVZ assente per un guasto del job deve restare visibile
+   * col suo trattino, un VDAX che non esiste da nessuna parte no.
+   */
+  ivSenzaFonte: boolean;
   /** Fatti sul prezzo del sottostante; null = serie assente. */
   prezzo: SerieFatti | null;
   /** Volatilità realizzata a 20 e 60 sedute sul prezzo del sottostante. */
@@ -388,6 +397,7 @@ export const getContestoVolatilita = cache(
                 ? null
                 : (def?.unavailable ??
                   "serie non presente nell'archivio giornaliero"),
+            ivSenzaFonte: iv === null && Boolean(def?.unavailable),
             prezzo:
               c.prezzo && seriePrezzo.length > 0
                 ? fatti(seriePrezzo, c.prezzo, oggi, coperture.get(c.prezzo) ?? null)

@@ -44,8 +44,6 @@ import {
   kellyInfo,
   optimalF,
   payoffRatio,
-  riskOfRuinAnalytic,
-  riskOfRuinAnalyticInfo,
   valueAtRisk,
   valueAtRiskInfo,
   VAR_MIN_OBSERVATIONS,
@@ -116,7 +114,6 @@ import { BE_BIN } from "@/lib/queries/stats";
 import {
   formatMoney,
   formatPercent,
-  formatPercentSmall,
   formatRMultiple,
   formatSignedMoney,
 } from "@/lib/money";
@@ -326,7 +323,7 @@ export default async function AnalyticsPage({
     ? (params.hb as HourBasis)
     : "open";
 
-  // Le metriche di CONTO (rolling, R², Kelly, risk of ruin, simulatore)
+  // Le metriche di CONTO (rolling, R², Kelly, simulatore)
   // leggono l'equity intera e non possono rispettare un filtro strumento o
   // direzione. Con un filtro attivo lo dichiarano sulla card.
   const instrumentFilterActive = symbol !== undefined || direction !== undefined;
@@ -338,7 +335,7 @@ export default async function AnalyticsPage({
     direction,
   };
 
-  // Q-13 — Kelly, optimal f, risk of ruin e gli aggregati R dei default del
+  // Q-13 — Kelly, optimal f e gli aggregati R dei default del
   // simulatore (Q-12) sono metriche di CONTO (frazioni dell'equity intera):
   // ignorano simbolo/direzione, come le rolling annualizzate.
   const accountFilter: AnalyticsFilter = {
@@ -508,22 +505,6 @@ export default async function AnalyticsPage({
   const optF = optimalF(mcR);
   const equityFit = equityLinearFit(returnsSeries.map((d) => d.equityStart));
 
-  // Capitale in unità di perdita media: è la grandezza che governa la
-  // rovina, non l'importo assoluto. Un conto da 100.000 che rischia 10.000
-  // a trade è più fragile di uno da 10.000 che ne rischia 100.
-  const ruinUnits =
-    accAvgLoss !== null && new Decimal(accAvgLoss).gt(0)
-      ? new Decimal(startingEquity).div(accAvgLoss).toFixed(4)
-      : null;
-  const ruinAnalytic =
-    accWinRate !== null && accPayoff !== null && ruinUnits !== null
-      ? riskOfRuinAnalytic({
-          winRate: accWinRate,
-          payoff: accPayoff,
-          units: ruinUnits,
-        })
-      : null;
-
   // Q-12 — default del simulatore dal modello binario COERENTE col motore
   // (ogni non-vincita perde l'intero rischio): p e ratio dai soli trade
   // direzionali CON rischio definito, in R — i breakeven non sono simulati.
@@ -648,8 +629,7 @@ export default async function AnalyticsPage({
           />
         </Suspense>
         {/* D-03 — ancore di navigazione interna: la pagina è ~10 card
-            full-width, senza mappa chi cerca "risk of ruin" scorre tutto.
-            Stesso pattern delle pillole di Trends, zero redesign. */}
+            full-width, senza mappa chi cerca il Kelly scorre tutto. */}
         {coverage.total > 0 ? (
           <nav
             aria-label="Sezioni della pagina"
@@ -964,7 +944,9 @@ export default async function AnalyticsPage({
               </CardDescription>
             </CardHeader>
             <CardContent className="flex flex-col gap-4">
-              <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+              {/* Cinque riquadri dal 14/09/2026 (uscito il risk of ruin
+                  analitico): tre più due fino a xl, poi una riga sola. */}
+              <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
                 <StatBox
                   label="Break-even win rate"
                   value={beWinRate === null ? "—" : formatPercent(beWinRate)}
@@ -1041,34 +1023,17 @@ export default async function AnalyticsPage({
                   info={valueAtRiskInfo}
                   accountScoped={instrumentFilterActive}
                 />
-                <StatBox
-                  label="Risk of ruin (analitico)"
-                  value={formatPercentSmall(ruinAnalytic)}
-                  sub="formula chiusa, azzeramento del conto intero"
-                  tone={
-                    ruinAnalytic !== null &&
-                    new Decimal(ruinAnalytic).gt("0.05")
-                      ? "loss"
-                      : undefined
-                  }
-                  info={riskOfRuinAnalyticInfo}
-                  accountScoped={instrumentFilterActive}
-                />
               </div>
 
-              {/* Ipotesi della formula dichiarate accanto al numero. */}
+              {/* Ipotesi di Kelly dichiarate accanto al numero. */}
               <p className="rounded-md border border-dashed p-3 text-xs text-muted-foreground">
                 <strong className="text-foreground">
-                  Il risk of ruin analitico va letto con le sue ipotesi.
+                  Kelly e optimal f non sono size consigliate.
                 </strong>{" "}
-                Assume rischio fisso per trade, trade indipendenti e orizzonte
-                infinito, e misura l&apos;azzeramento del conto: è un limite
-                teorico, non una probabilità osservata. Kelly e optimal f non
-                sono size consigliate: sono il limite oltre il quale nessuna
-                teoria ti dà ragione. Kelly e risk of ruin sono metriche di
-                CONTO: ignorano i filtri simbolo/direzione (come le rolling
-                annualizzate) e i breakeven non entrano nel lancio della
-                moneta (p = vincite / (vincite + perdite)).
+                Sono il limite oltre il quale nessuna teoria ti dà ragione.
+                Kelly è una metrica di CONTO: ignora i filtri simbolo/direzione
+                (come le rolling annualizzate) e i breakeven non entrano nel
+                lancio della moneta (p = vincite / (vincite + perdite)).
               </p>
 
               <p className="text-xs text-muted-foreground">

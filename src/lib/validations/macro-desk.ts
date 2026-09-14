@@ -279,7 +279,7 @@ type EsitoBiasRecord =
 /**
  * Confine d'ingresso del Weekly Bias Record (riparazione del 13/08/2026: un
  * `assets` di forma inattesa è passato da z.unknown() fino alle pagine,
- * spegnendo AI Analyst e Volatilità).
+ * spegnendo la Volatilità).
  *
  * Si valida la STRUTTURA, non il contenuto: forma canonica `assets` come
  * dizionario per chiave asset; la forma ad array di voci `{asset, …}` è
