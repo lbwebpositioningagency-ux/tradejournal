@@ -151,9 +151,10 @@ function toZonedWithSeconds(date: Date, timezone: string): string {
 
 /**
  * Record MT5 → riga per la pipeline condivisa: entry + exit con la fee
- * (|commission| + |swap|) sull'esecuzione di ingresso, come da convenzione
- * dell'import CSV (netto invariato). Gli orari UTC diventano datetime-local
- * nel fuso utente perché è ciò che la pipeline si aspetta (li riconverte lei).
+ * (|commission|) sull'esecuzione di ingresso, come da convenzione dell'import
+ * CSV. Lo swap NON è una fee: è un costo di posizione con segno, e va nel suo
+ * campo. Gli orari UTC diventano datetime-local nel fuso utente perché è ciò
+ * che la pipeline si aspetta (li riconverte lei).
  */
 export function mt5RecordToImportRow(
   record: Mt5Record,
@@ -165,10 +166,14 @@ export function mt5RecordToImportRow(
   const entrySide = record.direction === "buy" ? ("BUY" as const) : ("SELL" as const);
   const exitSide = record.direction === "buy" ? ("SELL" as const) : ("BUY" as const);
 
-  const fee = new Decimal(record.commission)
-    .abs()
-    .plus(new Decimal(record.swap).abs())
-    .toFixed(2);
+  const fee = new Decimal(record.commission).abs().toFixed(2);
+
+  // DEAL_SWAP ha il segno del CONTO: negativo = addebito, positivo =
+  // accredito. `Trade.swap` ha il segno del COSTO (netPnl = lordo − fee −
+  // swap), quindi si inverte. Prima finiva nelle fee come |swap|, e un
+  // accredito diventava un costo.
+  const brokerSwap = new Decimal(record.swap);
+  const swap = brokerSwap.isZero() ? undefined : brokerSwap.negated().toFixed(2);
 
   return {
     brokerTicketId: String(record.ticket),
@@ -178,6 +183,7 @@ export function mt5RecordToImportRow(
       symbol: record.symbol,
       assetClass: options.assetClass,
       pointValue: record.contractSize,
+      swap,
       executions: [
         {
           side: entrySide,

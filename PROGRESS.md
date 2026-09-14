@@ -2547,3 +2547,34 @@ deploy, e per una decina di minuti la pagina Driver in produzione ha risposto
 («prima le migrazioni, poi il push») copre lo **schema** ma non i **dati**: una
 riga con un valore d'enum nuovo rompe il client vecchio esattamente come una
 colonna mancante. Per la prossima serie: prima il deploy, poi il backfill.
+
+## P0 dati dei trade — tre bug dall'audit contenuti (14/09/2026)
+
+Tre difetti di integrità segnalati in `docs/audit/08-contenuti-gap.md` (GJ-2,
+GJ-3, GJ-4), verificati uno per uno prima di correggerli: esistevano tutti e
+tre, come descritti.
+
+- **Modifica dal form → nota «Piano» cancellata.** La pagina di modifica
+  caricava *tutte* le note TRADE (piano, revisione, note libere) fuse nel campo
+  «Note»; `updateTradeAction`, se quel testo cambiava — o veniva svuotato —
+  cancellava *tutte* le note TRADE e ne ricreava una senza fase. Il piano
+  spariva dalla sua sezione, e se l'utente toglieva quel testo dal campo
+  spariva e basta. Colpiva allo stesso modo le note REVIEW (nessuna schermata
+  le scrive oggi). Allegati, revisione strutturata e checklist non erano
+  coinvolti. Correzione: form e azione condividono un solo filtro
+  (`src/lib/trade-form-notes.ts`, solo note **senza fase**) e un confronto che
+  ignora spazi finali e a capo CRLF.
+- **Import CSV: stop e target letti ma non salvati.** `persistTradeInputs`
+  scriveva il `targetR` calcolato da stop e target, ma non i due prezzi.
+- **Swap MT5 nelle fee in valore assoluto.** Ora va in `Trade.swap` col segno
+  del journal (costo positivo): `DEAL_SWAP` negativo → costo, positivo →
+  accredito. Solo in avanti: nessun dato storico riscritto.
+
+Produzione misurata in sola lettura (Prisma, transazione READ ONLY): **0 trade
+sui conti reali**, 0 trade MT5, 0 note con fase, 0 trade con `targetR` senza
+stop. Nessun dato perso, nessun trade da migrare.
+
+**Verificato:** test di regressione rossi sul codice originale (9 falliti) e
+verdi dopo · typecheck ✅ · eslint ✅ · **2155 test** ✅ · build ✅ · a mano sulla
+build del worktree: piano scritto dalla scheda, nota libera modificata dal
+form, piano intatto con fase `PLAN` a database.

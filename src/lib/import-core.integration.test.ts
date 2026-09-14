@@ -1,5 +1,7 @@
 import "dotenv/config";
+import Papa from "papaparse";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import { buildTradeInput } from "@/lib/csv-import";
 import type { TradeInput } from "@/lib/validations/trade";
 
 /**
@@ -179,5 +181,60 @@ describe.skipIf(!hasDb)("import robusto su Postgres (F13/F14)", () => {
       where: { tradingAccountId: accountId, symbol: "ES" },
     });
     expect(count).toBe(2);
+  });
+
+  /* P0 — l'import CSV leggeva stop e target (buildTradeInput li valida e
+     ne ricava perfino il targetR, che si salvava) ma persistTradeInputs non
+     li scriveva: il trade restava con targetR valorizzato e piano nullo. */
+  it("CSV con stop loss e take profit → trade con plannedStop e plannedTarget", async () => {
+    const csv = [
+      "Symbol;Side;Qty;Entry Price;Exit Price;Entry Time;Exit Time;Fee;SL;TP;Risk",
+      "ES;long;1;5100,00;5112,50;22/07/2026 09:30;22/07/2026 10:15;2,10;5090,00;5120,00;500",
+    ].join("\n");
+    const parsed = Papa.parse<Record<string, string>>(csv, {
+      header: true,
+      skipEmptyLines: true,
+    });
+    const built = buildTradeInput(
+      parsed.data[0],
+      {
+        columns: {
+          symbol: "Symbol",
+          direction: "Side",
+          quantity: "Qty",
+          entryPrice: "Entry Price",
+          exitPrice: "Exit Price",
+          entryAt: "Entry Time",
+          exitAt: "Exit Time",
+          fee: "Fee",
+          plannedStop: "SL",
+          plannedTarget: "TP",
+          initialRisk: "Risk",
+        },
+        dateFormat: "eu",
+      },
+      { tradingAccountId: accountId, assetClass: "FUTURES", pointValue: "50" },
+    );
+    if (!built.ok) throw new Error(built.error);
+
+    const result = await persistTradeInputs({
+      userId,
+      tradingAccountId: accountId,
+      timezone: ROME,
+      rows: [{ input: built.input }],
+      skipFingerprintDuplicates: true,
+    });
+    expect(result).toMatchObject({ imported: 1, failed: [] });
+
+    const saved = await prisma.trade.findFirst({
+      where: { tradingAccountId: accountId, avgEntryPrice: "5100" },
+      select: { plannedStop: true, plannedTarget: true, targetR: true, rMultiple: true },
+    });
+    expect(saved.plannedStop?.toString()).toBe("5090");
+    expect(saved.plannedTarget?.toString()).toBe("5120");
+    // target a 20 punti, stop a 10: il piano vale 2R.
+    expect(saved.targetR?.toString()).toBe("2");
+    // 12,5 pt × 50 − 2,10 = 622,90 su 500 di rischio.
+    expect(saved.rMultiple?.toString()).toBe("1.2458");
   });
 });

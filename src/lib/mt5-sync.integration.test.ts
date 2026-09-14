@@ -138,6 +138,36 @@ describe.skipIf(!hasDb)("sync MT5 su Postgres", () => {
     expect(result).toMatchObject({ imported: 1, duplicates: 1 });
   });
 
+  it("swap MT5 col segno: l'accredito alza il netto, l'addebito lo abbassa", async () => {
+    const result = await persistTradeInputs({
+      userId,
+      tradingAccountId: accountA,
+      timezone: "Europe/Rome",
+      rows: toRows([
+        // 500 lordo − 3.50 commissione + 12 di swap accreditato
+        record(5001, { swap: "12.00", profit: "508.50" }),
+        // 500 lordo − 3.50 commissione − 7.25 di swap addebitato
+        record(5002, { swap: "-7.25", profit: "489.25" }),
+      ]),
+    });
+    expect(result).toMatchObject({ imported: 2, duplicates: 0 });
+    expect(result.divergences).toHaveLength(0);
+
+    const saved = await prisma.trade.findMany({
+      where: { tradingAccountId: accountA, brokerTicketId: { in: ["5001", "5002"] } },
+      orderBy: { brokerTicketId: "asc" },
+      select: { fees: true, swap: true, netPnl: true },
+    });
+    expect(saved.map((t: { fees: unknown; swap: unknown; netPnl: unknown }) => ({
+      fees: String(t.fees),
+      swap: String(t.swap),
+      netPnl: String(t.netPnl),
+    }))).toEqual([
+      { fees: "3.5", swap: "-12", netPnl: "508.5" },
+      { fees: "3.5", swap: "7.25", netPnl: "489.25" },
+    ]);
+  });
+
   it("divergenza P&L: profit broker ≠ netto calcolato → segnalata, trade importato", async () => {
     const result = await persistTradeInputs({
       userId,

@@ -3,6 +3,7 @@ import { notFound, redirect } from "next/navigation";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { utcToZonedInput } from "@/lib/dates";
+import { FORM_NOTES_FILTER, mergeFormNotes } from "@/lib/trade-form-notes";
 import { TradeForm, type ExecutionRow } from "@/components/trades/trade-form";
 
 export const metadata: Metadata = { title: "Modifica trade" };
@@ -32,7 +33,8 @@ export default async function EditTradePage({
       include: {
         executions: { orderBy: { executedAt: "asc" } },
         tags: { include: { tag: { select: { name: true, category: true } } } },
-        notes: { where: { type: "TRADE" }, orderBy: { createdAt: "asc" } },
+        // Solo le note SENZA fase: piano e revisione non passano dal form.
+        notes: { where: FORM_NOTES_FILTER, orderBy: { createdAt: "asc" } },
       },
     }),
     prisma.tradingAccount.findMany({
@@ -87,7 +89,7 @@ export default async function EditTradePage({
           strategyId: trade.strategyId ?? "",
           rating: trade.rating ? String(trade.rating) : "",
           swap: trimZeros(trade.swap.toString()),
-          notes: trade.notes.map((note) => note.content).join("\n\n"),
+          notes: mergeFormNotes(trade.notes.map((note) => note.content)),
           tags: trade.tags.map(({ tag }) => ({
             name: tag.name,
             category: tag.category,

@@ -9,6 +9,11 @@ import { computeTrade, TradeComputeError } from "@/lib/trade-compute";
 import { DEMO_READONLY_MESSAGE } from "@/lib/constants";
 import { resolveTagIds } from "@/lib/tags";
 import {
+  FORM_NOTES_FILTER,
+  formNotesUnchanged,
+  mergeFormNotes,
+} from "@/lib/trade-form-notes";
+import {
   tradeInputSchema,
   tradeReviewSchema,
   type TradeInput,
@@ -161,20 +166,24 @@ export async function updateTradeAction(
 
     /* B-06 — il form ha UN campo note ma il modello ne ammette N per trade
        (la revisione guidata ne aggiunge una seconda). Il form mostra il merge
-       "\n\n" delle note esistenti (stesso ordine createdAt di edit/page.tsx):
-       se il valore inviato coincide con quel merge, le note NON vengono
-       toccate — struttura e date sopravvivono a un salvataggio che non le
-       riguardava. Solo un testo davvero modificato le sostituisce (fuse in
-       una, com'è sempre stato per il campo unico). */
+       delle note SENZA fase (stesso filtro e ordine di edit/page.tsx): se il
+       valore inviato coincide, le note NON vengono toccate — struttura e date
+       sopravvivono a un salvataggio che non le riguardava. Solo un testo
+       davvero modificato le sostituisce, fuse in una.
+       Piano e revisione (note con fase) restano FUORI da tutto questo: il
+       form non li mostra, quindi non li può né riscrivere né cancellare. */
+    const formNotes = { tradeId, ...FORM_NOTES_FILTER };
     const currentNotes = await tx.note.findMany({
-      where: { tradeId, type: "TRADE" },
+      where: formNotes,
       orderBy: { createdAt: "asc" },
       select: { content: true },
     });
-    const mergedNotes = currentNotes.map((note) => note.content).join("\n\n");
-    const notesUnchanged = (data.notes ?? "") === mergedNotes;
+    const notesUnchanged = formNotesUnchanged(
+      data.notes,
+      mergeFormNotes(currentNotes.map((note) => note.content)),
+    );
     if (!notesUnchanged) {
-      await tx.note.deleteMany({ where: { tradeId, type: "TRADE" } });
+      await tx.note.deleteMany({ where: formNotes });
     }
 
     await tx.trade.update({

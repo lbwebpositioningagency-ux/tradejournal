@@ -105,7 +105,7 @@ describe("parseMt5File", () => {
 describe("mt5RecordToImportRow", () => {
   const options = { timezone: "Europe/Rome", assetClass: "FOREX" as const };
 
-  it("buy → entry BUY / exit SELL, fee = |commission| + |swap| sull'ingresso", () => {
+  it("buy → entry BUY / exit SELL, fee = |commission| sull'ingresso, swap a parte", () => {
     const row = mt5RecordToImportRow(VALID, options);
     expect(row.brokerTicketId).toBe("123456789");
     expect(row.brokerProfit).toBe("496.38");
@@ -115,10 +115,31 @@ describe("mt5RecordToImportRow", () => {
     const [entry, exit] = row.input.executions;
     expect(entry.side).toBe("BUY");
     expect(entry.price).toBe("1.08500");
-    expect(entry.fee).toBe("3.62"); // 3.50 + 0.12
+    expect(entry.fee).toBe("3.50"); // solo la commissione
     expect(exit.side).toBe("SELL");
     expect(exit.price).toBe("1.09000");
     expect(exit.fee).toBe("0");
+  });
+
+  /* Lo swap MT5 è col segno del conto (DEAL_SWAP: negativo = addebito,
+     positivo = accredito); nel journal `Trade.swap` è positivo quando è un
+     COSTO (netPnl = lordo − fee − swap). Prima finiva nelle fee come |swap|:
+     un accredito diventava un costo. */
+  describe("swap: segno del conto → segno del journal", () => {
+    it("addebito MT5 (−0.12) → costo di 0.12", () => {
+      expect(mt5RecordToImportRow(VALID, options).input.swap).toBe("0.12");
+    });
+
+    it("accredito MT5 (+2.40) → swap −2.40, mai sommato alle fee", () => {
+      const row = mt5RecordToImportRow({ ...VALID, swap: "2.40" }, options);
+      expect(row.input.swap).toBe("-2.40");
+      expect(row.input.executions[0].fee).toBe("3.50");
+    });
+
+    it("swap nullo → nessuno swap sul trade", () => {
+      const row = mt5RecordToImportRow({ ...VALID, swap: "0" }, options);
+      expect(row.input.swap).toBeUndefined();
+    });
   });
 
   it("orari UTC → datetime-local nel fuso utente CON i secondi (Roma estate = +2)", () => {

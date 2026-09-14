@@ -516,6 +516,12 @@ export function TradeForm({
       <Card>
         <CardHeader>
           <CardTitle className="text-base">Note</CardTitle>
+          {mode === "edit" ? (
+            <CardDescription>
+              Piano e revisione si scrivono nella scheda del trade: qui non
+              compaiono e salvare non li tocca.
+            </CardDescription>
+          ) : null}
         </CardHeader>
         <CardContent>
           <Textarea

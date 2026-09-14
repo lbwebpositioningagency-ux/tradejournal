@@ -883,3 +883,20 @@ e' un database separato per Preview — un branch Neon con la sua
 pratica: **non esercitare scritture da un deployment di anteprima**, e
 ricordare che qualunque prova fatta su un URL di preview e' una prova fatta
 sui dati veri.
+## Dati dei trade da MT5 e CSV: cosa NON è stato corretto (14/09/2026)
+
+Emerso correggendo i tre P0 dell'audit contenuti (piano cancellato, stop/target
+CSV, segno dello swap). Fuori perimetro, lasciato com'è di proposito.
+
+- **Il `profit` dell'EA è LORDO, ma viene confrontato col NETTO.**
+  `TradeJournalExporter.mq5` somma `DEAL_PROFIT`, che in MT5 esclude
+  commissioni e swap; `isDivergent` in `import-core.ts` lo confronta con
+  `netPnl`. Su un conto reale ogni trade con commissione oltre l'1% del profit
+  verrà segnalato come divergenza. Lo schema Zod e il test d'integrazione
+  trattano `profit` come netto: va deciso quale dei due lati ha ragione.
+- **Commissione presa in valore assoluto.** Un rebate (commissione positiva)
+  diventa un costo, come succedeva allo swap. Le fee non accettano valori
+  negativi, quindi serve un campo o una convenzione, non un `abs` in meno.
+- **Lo swap non è importabile da CSV.** Il wizard non ha una colonna swap.
+- **L'EA non esporta stop e target** (`v: 1`): sui trade MT5 il piano resta
+  vuoto anche dopo la correzione del CSV. È P-J01 nell'audit.

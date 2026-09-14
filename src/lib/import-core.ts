@@ -275,6 +275,7 @@ export async function persistTradeInputs(params: {
         initialRisk: data.initialRisk ?? null,
         plannedStop: data.plannedStop ?? null,
         plannedTarget: data.plannedTarget ?? null,
+        swap: data.swap ?? null,
       });
 
       // La prima execution del payload è l'ingresso per costruzione
@@ -327,6 +328,10 @@ export async function persistTradeInputs(params: {
         swap: computed.swap,
         netPnl: computed.netPnl,
         initialRisk: data.initialRisk ?? null,
+        // Letti dal CSV e usati per il targetR: vanno salvati anche loro,
+        // altrimenti il trade ha un R del piano senza il piano.
+        plannedStop: data.plannedStop ?? null,
+        plannedTarget: data.plannedTarget ?? null,
         rMultiple: computed.rMultiple,
         targetR: computed.targetR,
         brokerTicketId: raw.brokerTicketId ?? null,
