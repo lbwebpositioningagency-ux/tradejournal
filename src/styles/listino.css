@@ -385,6 +385,123 @@
   background: var(--md-border);
 }
 
+/* ── griglia anni × periodo (Stagionalità) ───────────────────────────────
+   Tavola «Sistema visivo v3 - Stagionalità e grafico con banda», giro 5, via A.
+   Fondo neutro e cifre tabulari; il colore è un ACCENTO sulla cifra, solo
+   sulle caselle notevoli (`accento.ts`: 75° e 90° percentile dello scarto
+   della griglia). Nessun fondo tinto: prima fra il 90 e il 98% delle caselle
+   era un riquadro colorato e il colore non distingueva più niente.
+   Contrasti delle cifre accentate su --md-bg (card): verde 5,07 · rosso 5,12
+   in chiaro, 8,68 · 5,08 in scuro; ordinarie in testo secondario 8,71 · 8,46. */
+.ml-griglia {
+  border-collapse: collapse;
+  font-family: var(--font-geist-sans), system-ui, sans-serif;
+  font-size: 12px;
+  line-height: 16px;
+  font-variant-numeric: tabular-nums lining-nums;
+  font-feature-settings: "tnum" 1, "lnum" 1;
+}
+.ml-griglia th,
+.ml-griglia td {
+  padding: 6px 7px;
+  text-align: right;
+  white-space: nowrap;
+  font-weight: 400;
+  color: var(--md-text-2);
+  border-bottom: 1px solid var(--md-border);
+}
+.ml-griglia thead th {
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--md-muted);
+  border-bottom-color: var(--ml-rule);
+  vertical-align: bottom;
+}
+/* Mese (settimana, giorno…) corrente: lo stesso filetto ambra dell'«adesso»
+   delle righe, qui sotto l'intestazione. Nessun riquadro pieno. */
+.ml-griglia thead th.ml-adesso {
+  color: var(--md-text);
+  box-shadow: inset 0 -2px 0 var(--md-warn);
+}
+/* Colonna degli anni: ferma mentre la griglia scorre, con il peso del testo
+   primario e il filo forte a destra. */
+.ml-griglia :is(thead, tbody, tfoot) th:first-child {
+  position: sticky;
+  left: 0;
+  z-index: 1;
+  min-width: 4.5rem;
+  text-align: left;
+  background-color: var(--md-bg);
+  border-right: 1px solid var(--ml-rule);
+}
+.ml-griglia tbody th {
+  font-weight: 600;
+  color: var(--md-text);
+}
+.ml-griglia tbody tr:last-child > * {
+  border-bottom: 0;
+}
+/* Anno in corso: fondo traccia per tutta la riga e filetto «adesso» a
+   sinistra; nessun accento sulle cifre, perché è fuori da ogni media. */
+.ml-griglia tbody tr.ml-in-corso > * {
+  background-color: var(--ml-track);
+}
+.ml-griglia tbody tr.ml-in-corso > th:first-child {
+  box-shadow: inset 2px 0 0 var(--md-warn);
+}
+.ml-griglia .ml-griglia-nota {
+  display: block;
+  font-size: 11px;
+  line-height: 14px;
+  font-weight: 500;
+  letter-spacing: 0;
+  text-transform: none;
+  color: var(--md-text-2);
+}
+.ml-griglia td.ml-vuota,
+.ml-griglia td.ml-parziale {
+  color: var(--md-muted);
+}
+/* Sul fondo traccia il grigio attenuato scende a 4,51:1 in chiaro (misurato):
+   nella riga dell'anno in corso il periodo incompleto resta in testo
+   secondario e si distingue per il corsivo. */
+.ml-griglia tbody tr.ml-in-corso > td.ml-parziale {
+  color: var(--md-text-2);
+  font-style: italic;
+}
+/* Sintesi: il doppio filetto dei consuntivi (come `ml-totale`) e le etichette
+   in maiuscoletto, così non si leggono come un altro anno. */
+.ml-griglia tfoot tr:first-child > * {
+  border-top: 3px double var(--ml-rule);
+}
+.ml-griglia tfoot th {
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--md-muted);
+}
+.ml-griglia td.ml-media {
+  font-weight: 600;
+  color: var(--md-text);
+}
+/* L'accento: il colore del segno del sistema (compresa la coppia daltonica
+   scelta in Impostazioni) e, per il forte, il peso. Stessa specificità della
+   riga Media e scritto DOPO: una media notevole prende il colore del segno.
+   (Misurato il 15/09/2026: con `tfoot td.ml-media` più specifico la riga
+   Media restava tutta in testo primario.) */
+.ml-griglia td.ml-acc-su {
+  color: var(--md-up);
+}
+.ml-griglia td.ml-acc-giu {
+  color: var(--md-down);
+}
+.ml-griglia td.ml-acc-forte {
+  font-weight: 600;
+}
+
 /* ── icona informativa ───────────────────────────────────────────────────
    La spiegazione non sta più in fondo alla pagina come nota numerata: sta
    qui, accanto alla misura che spiega, e si apre al click. Venticinque note

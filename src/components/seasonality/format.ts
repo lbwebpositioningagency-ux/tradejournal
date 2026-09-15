@@ -163,69 +163,26 @@ export function valueColor(
 }
 
 /**
- * Intensità 0-1 per il riempimento della heatmap, normalizzata su una scala
- * ROBUSTA passata dal chiamante (un quantile alto, non il massimo): con il
- * massimo, un ottobre 2008 schiaccerebbe tutte le altre cinquecento caselle
- * su una tinta indistinguibile.
+ * Cifra di una casella della griglia anni × periodo: il segno deciso sul
+ * valore come in `formatBucketValue`, ma SENZA unità. L'unità sta nel titolo
+ * della griglia: ripetuta in duecentocinquanta caselle era rumore attorno ai
+ * numeri (tavola «Sistema visivo v3 - Stagionalità e grafico con banda», giro 5).
+ *
+ * Il colore della casella non passa più da qui: è un accento deciso da
+ * `accento.ts` e disegnato dal sistema (`listino.css`, `.ml-griglia`). Il fondo
+ * tinto con opacità proporzionale al valore (tetto 52%) è stato tolto il
+ * 15/09/2026.
  */
-export function cellIntensity(value: number, scale: number): number {
-  if (!Number.isFinite(value) || scale <= 0) return 0;
-  return Math.min(1, Math.abs(value) / scale);
-}
-
-/**
- * Opacità minima e MASSIMA del fondo delle celle di heatmap.
- *
- * Il tetto non è una scelta estetica ma un vincolo di contrasto, e il numero
- * è CALCOLATO. Il testo delle celle è `text-2xs` (10-11 px): per WCAG è testo
- * normale, quindi la soglia è 4,5:1 e non 3:1. Componendo i quattro colori
- * semantici sopra `--md-surface` e misurando il contrasto con `--md-text`,
- * l'opacità massima che regge AA vale:
- *
- *   --md-up  standard  (#2fd67a)  →  53,5%   ← il vincolo
- *   --md-down standard (#ff4160)  →  77%
- *   --md-up  daltonica (#4a87ff)  →  75%
- *   --md-down daltonica (#9970ff) →  75,5%
- *
- * Vince il più stretto: **52%**, con un margine di sicurezza sull'1,5% di
- * arrotondamento. Prima il tetto era 70% e il verde più intenso scendeva a
- * **3,08:1** — cioè le celle più positive, quelle che l'occhio cerca per
- * prime, erano le meno leggibili della griglia.
- *
- * Il test `format.test.ts` ricalcola questi contrasti: se qualcuno alza il
- * tetto o cambia un colore della palette, fallisce.
- */
-export const CELL_OPACITY_MIN = 12;
-export const CELL_OPACITY_MAX = 52;
-
-/** Fondo della cella: token semantico + opacità proporzionale all'intensità. */
-export function cellBackground(
+export function formatCasella(
   value: number,
   kind: SeasonalityKind,
-  scale: number,
-  reference = 0,
+  decimals: number,
 ): string {
-  const intensity = cellIntensity(
-    kind === "LEVEL" ? value - reference : value,
-    scale,
-  );
-  if (intensity < 0.02) return "transparent";
-  const color = valueColor(value, kind, reference);
-  const pct = Math.round(
-    CELL_OPACITY_MIN + intensity * (CELL_OPACITY_MAX - CELL_OPACITY_MIN),
-  );
-  return `color-mix(in oklab, ${color} ${pct}%, transparent)`;
-}
-
-/** Scala robusta: quantile 0,9 dei valori assoluti. */
-export function robustScale(values: number[]): number {
-  const abs = values
-    .filter((v) => Number.isFinite(v))
-    .map((v) => Math.abs(v))
-    .sort((a, b) => a - b);
-  if (abs.length === 0) return 1;
-  const idx = Math.min(abs.length - 1, Math.floor(abs.length * 0.9));
-  return abs[idx] || abs[abs.length - 1] || 1;
+  if (!Number.isFinite(value)) return "—";
+  if (kind === "LEVEL") return formatNumber(value, { decimals });
+  const scaled = logToPercent(value);
+  const sign = scaled > 0 ? "+" : "";
+  return `${sign}${formatNumber(scaled, { decimals })}`;
 }
 
 export function formatDateRange(first: string, last: string): string {

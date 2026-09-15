@@ -116,3 +116,48 @@ describe("Listino — minimo 11px e tabelle larghe", () => {
     expect(LISTINO).toMatch(/position: sticky;\s*left: 0;/);
   });
 });
+
+describe("Griglia anni × periodo — il colore è un accento, non un fondo", () => {
+  const regole = [...LISTINO.matchAll(/(\.ml-griglia[^{]*)\{([^}]*)\}/g)].map((m) => ({
+    selettore: m[1].trim(),
+    corpo: m[2],
+  }));
+  const TEMI = {
+    chiaro: tokens(block(GLOBALS, ":root")),
+    scuro: tokens(block(GLOBALS, ".dark")),
+  };
+
+  it("nessuna tinta del segno come fondo e nessun colore scritto a mano", () => {
+    expect(regole.length).toBeGreaterThanOrEqual(10);
+    for (const { selettore, corpo } of regole) {
+      expect(corpo, selettore).not.toMatch(/#[0-9a-f]{3,8}\b|oklch\(|rgb\(/i);
+      expect(corpo, selettore).not.toMatch(/background[^;]*--md-(up|down)/);
+    }
+  });
+
+  it("l'accento usa i token del segno, che portano la coppia daltonica", () => {
+    const acc = (s: string) => regole.find((r) => r.selettore === s)?.corpo ?? "";
+    expect(acc(".ml-griglia td.ml-acc-su")).toMatch(/color:\s*var\(--md-up\)/);
+    expect(acc(".ml-griglia td.ml-acc-giu")).toMatch(/color:\s*var\(--md-down\)/);
+  });
+
+  it("l'accento vince sulla riga Media: stessa specificità, scritto dopo", () => {
+    const pos = (s: string) => regole.findIndex((r) => r.selettore === s);
+    expect(pos(".ml-griglia td.ml-media")).toBeGreaterThanOrEqual(0);
+    expect(pos(".ml-griglia td.ml-acc-su")).toBeGreaterThan(pos(".ml-griglia td.ml-media"));
+    expect(regole.some((r) => /tfoot td\.ml-media/.test(r.selettore))).toBe(false);
+  });
+
+  for (const [tema, t] of Object.entries(TEMI)) {
+    it(`cifre accentate e cifre dell'anno in corso ≥ 4,5:1 in tema ${tema}`, () => {
+      for (const segno of ["profit", "loss"]) {
+        const ratio = contrast(t.get(segno)!, t.get("card")!);
+        expect(ratio, `--${segno} su --card = ${ratio.toFixed(2)}:1`).toBeGreaterThanOrEqual(4.5);
+      }
+      for (const testo of ["foreground-2", "muted-foreground"]) {
+        const ratio = contrast(t.get(testo)!, t.get("track")!);
+        expect(ratio, `--${testo} su --track = ${ratio.toFixed(2)}:1`).toBeGreaterThanOrEqual(4.5);
+      }
+    });
+  }
+});

@@ -6,38 +6,42 @@ import {
 import type { BucketView, HeatmapData } from "@/lib/seasonality/query";
 import {
   UNIT_LABEL,
-  cellBackground,
   decimalsFor,
-  formatBucketValue,
+  formatCasella,
   formatStdev,
   meanLabel,
   positiveLabel,
-  robustScale,
   unitFor,
 } from "@/components/seasonality/format";
+import {
+  classeAccento,
+  soglieAccento,
+  type SoglieAccento,
+} from "@/components/seasonality/accento";
 import { Titolo } from "@/components/macro-desk/listino/primitive";
 import { LowSampleMark } from "@/components/seasonality/low-sample";
 import { Frequenza } from "@/components/seasonality/frequenza";
 import { sampleQuality } from "@/lib/seasonality/stats";
+import { logToPercent } from "@/lib/seasonality/series";
 import { cn } from "@/lib/utils";
 
 /**
- * HEATMAP anni × bucket — righe = anni (dal più recente), colonne = mesi,
- * settimane ISO o giorni della settimana, e in fondo le righe di sintesi:
- * Media, StDev, Pos%, n.
+ * GRIGLIA anni × periodo — righe = anni (dal più recente), colonne = mesi,
+ * settimane ISO, giorni, sessioni o ore, e in fondo le righe di sintesi:
+ * media, StDev, frequenza in rialzo, n.
  *
  * Le righe di sintesi NON sono ricalcolate qui: arrivano dalle stesse
  * statistiche precalcolate del resto della pagina, sulla stessa finestra.
  * Ricalcolarle a schermo su ciò che si vede sarebbe più facile ma
  * produrrebbe due verità diverse per lo stesso numero.
  *
- * L'anno IN CORSO compare in griglia, marcato: è utile vederlo, ma è escluso
- * da tutte le medie perché le finestre sono anni solari completi.
- *
- * Il colore usa i token `--md-up`/`--md-down`, che portano già la variante
- * daltonica; l'intensità è normalizzata su un quantile alto e non sul
- * massimo, altrimenti un singolo mese estremo (ottobre 2008) appiattirebbe
- * tutte le altre caselle.
+ * Resa del giro 5 della tavola «Sistema visivo v3 - Stagionalità e grafico con
+ * banda» (15/09/2026, via A): fondo neutro, cifre tabulari, e il colore come
+ * ACCENTO sulla cifra solo per le caselle notevoli (`accento.ts`, soglie dalla
+ * distribuzione della griglia stessa). Prima ogni casella era un riquadro tinto
+ * e fra il 90 e il 98% risultava colorato. L'anno in corso sta su fondo traccia
+ * con il filetto «adesso» ed è escluso da ogni media; le sintesi stanno sotto il
+ * doppio filetto dei consuntivi; la colonna degli anni resta ferma.
  */
 export function SeasonalityHeatmap({
   data,
@@ -54,7 +58,7 @@ export function SeasonalityHeatmap({
   granularity: SeasonalityGranularityUi;
   /** Statistiche della stessa finestra e granularità: le righe in fondo. */
   summary: BucketView[];
-  /** Riferimento per il colore dei LIVELLI (mediana della finestra). */
+  /** Riferimento degli scarti per i LIVELLI (mediana della finestra). */
   windowMedian: number;
   lookbackYears: number;
   /** Il bucket in cui ci si trova ADESSO (mese/settimana/…): evidenziato in
@@ -73,26 +77,24 @@ export function SeasonalityHeatmap({
   const byYearBucket = new Map<string, (typeof data.cells)[number]>();
   for (const c of data.cells) byYearBucket.set(`${c.year}-${c.bucket}`, c);
 
+  /* Lo scarto che decide l'accento è quello che la casella MOSTRA: il
+     rendimento in percentuale per i prezzi, la distanza dalla mediana della
+     finestra per i livelli (un VIX a 20 non è «positivo»). */
   const reference = kind === "LEVEL" ? windowMedian : 0;
-  const scale = robustScale(
-    data.cells.map((c) => (kind === "LEVEL" ? c.value - reference : c.value)),
+  const scarto = (v: number) => (kind === "LEVEL" ? v - reference : logToPercent(v));
+
+  /* Soglie sulle sole caselle piene degli anni completi: l'anno in corso e i
+     periodi con pochi giorni non devono spostare il confine del notevole. */
+  const soglie = soglieAccento(
+    data.cells
+      .filter((c) => c.year !== data.currentYear && !c.partial)
+      .map((c) => scarto(c.value)),
   );
+  /* La riga della media ha la sua distribuzione: dodici medie non si
+     confrontano con duecento mesi singoli. */
+  const soglieMedia = soglieAccento(summary.map((s) => scarto(s.mean)));
 
   const summaryByBucket = new Map(summary.map((s) => [s.bucket, s]));
-
-  /* Scala robusta delle MEDIE di sintesi: la riga Media si colora rispetto
-     agli altri bucket, con la stessa semantica daltonica delle celle. */
-  const summaryScale = robustScale(
-    summary.map((s) => (kind === "LEVEL" ? s.mean - reference : s.mean)),
-  );
-  const mediaBg = (s: BucketView) =>
-    cellBackground(s.mean, kind, summaryScale, reference);
-  /* La riga Pos% si colora attorno al 50%: piu della meta degli anni
-     positivi → verso l'alto, meno → verso il basso. Stessi tetti di opacita
-     AA (CELL_OPACITY_MIN/MAX) delle celle. */
-  /* La riga delle frequenze NON si tinge (15/09/2026): una frequenza colorata
-     come una casella di rendimento si legge come un «caldo» probabilistico, e
-     la quota in secondo piano sul fondo tinto scendeva a 2,9-4,4:1. */
 
   if (data.cells.length === 0) {
     return (
@@ -116,21 +118,18 @@ export function SeasonalityHeatmap({
             ? " del mese"
             : granularity === "WEEK"
               ? " della settimana"
-              : ", media delle osservazioni di quell\u2019anno"}
+              : ", media delle osservazioni di quell’anno"}
         </span>
       </div>
 
       {/* La griglia è larga per costruzione: scorre DENTRO il suo contenitore,
           il documento non scorre mai in orizzontale (regola F27). */}
-      <div className="-mx-1 overflow-x-auto px-1">
+      <div className="ml-scroll">
         {/* `w-full` solo quando le colonne sono tante: con i cinque giorni
             della settimana stirare la griglia a tutta larghezza produce
             caselle enormi e vuote. */}
         <table
-          className={cn(
-            "md-mono border-separate border-spacing-0.5 text-right text-xs tabular-nums",
-            axis.stretch ? "w-full" : "w-auto",
-          )}
+          className={cn("ml-griglia", axis.stretch ? "w-full" : "w-auto")}
           style={{ minWidth: `${axis.minWidthRem}rem` }}
         >
           <caption className="sr-only">
@@ -139,39 +138,18 @@ export function SeasonalityHeatmap({
           </caption>
           <thead>
             <tr>
-              <th
-                scope="col"
-                className="sticky left-0 z-10 bg-[var(--md-surface)] px-2 py-1.5 text-left font-semibold text-[var(--md-muted)]"
-              >
-                Anno
-              </th>
+              <th scope="col">Anno</th>
               {axis.buckets.map((b) => {
                 const adesso = b === currentBucket;
                 return (
                   <th
                     key={b}
                     scope="col"
-                    className="px-2 py-1.5 font-semibold"
-                    style={{
-                      color: adesso ? "var(--md-text)" : "var(--md-muted)",
-                    }}
+                    className={adesso ? "ml-adesso" : undefined}
                     title={adesso ? "Ci troviamo qui adesso" : undefined}
                     aria-current={adesso ? "date" : undefined}
                   >
-                    {adesso ? (
-                      <span
-                        className="rounded-[var(--md-r-sm)] px-1 py-0.5"
-                        style={{
-                          backgroundColor:
-                            "color-mix(in oklab, var(--md-warn) 24%, transparent)",
-                          boxShadow: "inset 0 -2px 0 var(--md-warn)",
-                        }}
-                      >
-                        {axis.short(b)}
-                      </span>
-                    ) : (
-                      axis.short(b)
-                    )}
+                    {axis.short(b)}
                   </th>
                 );
               })}
@@ -179,55 +157,50 @@ export function SeasonalityHeatmap({
           </thead>
           <tbody>
             {data.years.map((year) => {
-              const parziale = year === data.currentYear;
+              const inCorso = year === data.currentYear;
               return (
-                <tr key={year}>
+                <tr key={year} className={inCorso ? "ml-in-corso" : undefined}>
                   <th
                     scope="row"
-                    className="sticky left-0 z-10 bg-[var(--md-surface)] px-2 py-1.5 text-left font-semibold text-[var(--md-text-2)]"
+                    title={
+                      inCorso
+                        ? "Anno in corso: mostrato in griglia ma escluso da tutte le medie, che usano solo anni solari completi."
+                        : undefined
+                    }
                   >
                     {year}
-                    {parziale ? (
-                      <span
-                        className="ml-1 text-[var(--md-warn)]"
-                        title="Anno in corso: mostrato in griglia ma escluso da tutte le medie, che usano solo anni solari completi."
-                      >
-                        *
-                      </span>
-                    ) : null}
+                    {inCorso ? <span className="ml-griglia-nota">in corso</span> : null}
                   </th>
                   {axis.buckets.map((b) => {
                     const cell = byYearBucket.get(`${year}-${b}`);
                     if (!cell) {
                       return (
-                        <td
-                          key={b}
-                          className="px-2 py-1.5 text-[var(--md-muted)]"
-                        >
-                          —
+                        <td key={b} className="ml-vuota">
+                          {/* Nell'anno in corso un periodo non ancora arrivato è
+                              vuoto, non «non disponibile». */}
+                          {inCorso ? "" : "—"}
                         </td>
                       );
                     }
+                    /* Un periodo con pochi giorni resta in grigio e senza
+                       accento: colorarlo come gli altri mentirebbe. L'anno in
+                       corso non ha accenti: è fuori da ogni media. */
+                    const classe = cell.partial
+                      ? "ml-parziale"
+                      : inCorso
+                        ? undefined
+                        : classeAccento(scarto(cell.value), soglie);
                     return (
                       <td
                         key={b}
-                        className="rounded-[var(--md-r-sm)] px-2 py-1.5 text-[var(--md-text)]"
-                        style={{
-                          backgroundColor: cellBackground(
-                            cell.value,
-                            kind,
-                            scale,
-                            reference,
-                          ),
-                          opacity: cell.partial ? 0.45 : 1,
-                        }}
+                        className={classe}
                         title={
                           cell.partial
                             ? `${cell.days} giorni di quotazione: periodo incompleto`
                             : `${cell.days} giorni di quotazione`
                         }
                       >
-                        {formatBucketValue(cell.value, kind, cellDecimals, unit)}
+                        {formatCasella(cell.value, kind, cellDecimals)}
                       </td>
                     );
                   })}
@@ -236,18 +209,14 @@ export function SeasonalityHeatmap({
             })}
           </tbody>
           <tfoot>
-            {/* Staccho pieno fra gli anni e le sintesi: senza, l'ultima riga
-                di dati e la Media si leggevano come un blocco solo. */}
-            <tr aria-hidden>
-              <td colSpan={axis.buckets.length + 1} className="h-3" />
-            </tr>
+            {/* Il doppio filetto dei consuntivi apre le sintesi: si leggono come
+                sintesi e non come un altro anno. */}
             <SummaryRow
               label={meanLabel(kind)}
               buckets={axis.buckets}
               values={summaryByBucket}
-              render={(s) => formatBucketValue(s.mean, kind, sintesiDecimals, unit)}
-              cellBg={mediaBg}
-              emphasis
+              render={(s) => formatCasella(s.mean, kind, sintesiDecimals)}
+              className={(s) => cn("ml-media", classeAccento(scarto(s.mean), soglieMedia))}
             />
             <SummaryRow
               label="StDev"
@@ -262,7 +231,7 @@ export function SeasonalityHeatmap({
               label={
                 <>
                   {positiveLabel(kind)}
-                  <span className="block text-2xs font-normal text-[var(--md-muted)]">{axis.rawUnit}</span>
+                  <span className="ml-griglia-nota">{axis.rawUnit}</span>
                 </>
               }
               buckets={axis.buckets}
@@ -294,15 +263,17 @@ export function SeasonalityHeatmap({
       </div>
 
       <p className="text-2xs leading-relaxed text-[var(--md-muted)]">
-        <span className="text-[var(--md-warn)]">*</span> anno in corso: in
-        griglia ma fuori da ogni media — le finestre usano solo anni solari
-        completi. Le celle sbiadite hanno troppo pochi giorni di quotazione
-        per essere un periodo pieno.
+        Valori in {UNIT_LABEL[unit]}{kind === "LEVEL" ? "" : " (senza il simbolo nelle caselle)"}.
+        Colore solo sulle caselle notevoli di questa griglia: dal 75° percentile
+        dello scarto{kind === "LEVEL" ? " dalla mediana della finestra" : ""}, e in
+        grassetto dal 90°. L&apos;anno in corso, su fondo grigio, è in griglia ma fuori
+        da ogni media — le finestre usano solo anni solari completi. Le caselle in
+        grigio hanno troppo pochi giorni di quotazione per essere un periodo pieno.
         {granularity === "WEEK"
           ? " Le settimane sono ISO: quella a cavallo di capodanno appartiene per intero a uno solo dei due anni."
           : ""}
         {granularity === "WEEKDAY"
-          ? " Ogni casella è la media dei giorni di quel tipo in quell\u2019anno."
+          ? " Ogni casella è la media dei giorni di quel tipo in quell’anno."
           : ""}
       </p>
     </div>
@@ -315,40 +286,22 @@ function SummaryRow({
   values,
   render,
   mark,
-  cellBg,
-  emphasis,
+  className,
 }: {
   label: React.ReactNode;
   buckets: number[];
   values: Map<number, BucketView>;
   render: (s: BucketView) => React.ReactNode;
   mark?: (s: BucketView) => React.ReactNode;
-  /** Sfondo heatmap della cella (solo Media e Pos%: StDev e n restano nude). */
-  cellBg?: (s: BucketView) => string | undefined;
-  emphasis?: boolean;
+  className?: (s: BucketView) => string | undefined;
 }) {
   return (
     <tr>
-      <th
-        scope="row"
-        className="sticky left-0 z-10 whitespace-nowrap border-t bg-[var(--md-surface)] px-2 py-1.5 text-left font-semibold text-[var(--md-text-2)]"
-        style={{ borderColor: "var(--md-border)" }}
-      >
-        {label}
-      </th>
+      <th scope="row">{label}</th>
       {buckets.map((b) => {
         const s = values.get(b);
         return (
-          <td
-            key={b}
-            className="rounded-[var(--md-r-sm)] border-t px-2 py-1.5"
-            style={{
-              borderColor: "var(--md-border)",
-              color: emphasis ? "var(--md-text)" : "var(--md-text-2)",
-              fontWeight: emphasis ? 700 : 500,
-              backgroundColor: s ? cellBg?.(s) : undefined,
-            }}
-          >
+          <td key={b} className={s ? className?.(s) : "ml-vuota"}>
             {s ? (
               <span className="inline-flex items-center justify-end gap-0.5">
                 {render(s)}
@@ -363,3 +316,5 @@ function SummaryRow({
     </tr>
   );
 }
+
+export type { SoglieAccento };
