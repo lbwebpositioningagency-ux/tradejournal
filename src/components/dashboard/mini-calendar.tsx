@@ -5,6 +5,7 @@ import { withCurrencyParam } from "@/lib/currency-nav";
 import Decimal from "decimal.js";
 import { ArrowRight } from "lucide-react";
 import { buildMonthWeeks } from "@/lib/calendar";
+import { HEAT_TEXT, heatTone } from "@/lib/heat-scale";
 import { cn } from "@/lib/utils";
 import {
   Card,
@@ -89,19 +90,22 @@ export function MiniCalendar({
             if (!inMonth) {
               return <div key={date} className="aspect-square" aria-hidden />;
             }
+            // Solo il SEGNO (qui non c'è l'equity per un'intensità): gradino
+            // intermedio della scala condivisa, lo stesso verde/rosso del
+            // calendario di Day View a cui porta il link.
             const tone = data
               ? new Decimal(data.netPnl).gt(0)
-                ? "bg-profit/15"
+                ? heatTone("profit", 2)
                 : new Decimal(data.netPnl).lt(0)
-                  ? "bg-loss/15"
+                  ? heatTone("loss", 2)
                   : "bg-breakeven/15"
               : "";
             const cellClass = cn(
               "flex aspect-square items-center justify-center rounded-md text-xs tabular-nums",
               tone,
-              // F4 — su cella tinta il testo resta foreground: il token P&L
-              // su una velatura di se stesso non regge AA.
-              data ? "font-semibold" : "text-muted-foreground",
+              // F4 — su cella tinta il testo è neutro (token heat-*): il
+              // token P&L su una tinta di se stesso non regge AA.
+              data ? cn("font-semibold", HEAT_TEXT) : "text-muted-foreground",
               isToday && "ring-1 ring-primary",
             );
             return data ? (

@@ -348,6 +348,104 @@ describe("E-1 — blocco @media print: il tema scuro non finisce sulla carta", (
 });
 
 /**
+ * MAPPE A INTENSITÀ (calendario /day, griglia mensile e mini-calendario della
+ * Dashboard): le tinte non sono più una velatura del token P&L ma sei colori
+ * PIENI per tema (`--heat-{profit,loss}-{1,2,3}`), più i due token di testo
+ * che ci stanno sopra. È l'unico posto dell'app dove il testo sta su un fondo
+ * scelto per essere saturo: se domani si alza la croma di un gradino senza
+ * guardare il testo, la cifra scende sotto AA senza che si veda in una PR.
+ *
+ * Qui si verifica, leggendo i valori scritti in globals.css:
+ *   ① ogni tinta sta nel gamut sRGB (una tinta clampata dichiara una
+ *      saturazione e ne rende un'altra — è il difetto storico della palette);
+ *   ② `heat-foreground` e `heat-muted` reggono 4,5:1 su OGNI gradino, per
+ *      tutte e tre le coppie P&L di Impostazioni e nei due temi;
+ *   ③ i gradini sono davvero tre tinte diverse e ordinate: senza, la
+ *      «gradazione per intensità» sarebbe un colore solo ripetuto.
+ */
+
+/** Tinte effettive di una coppia P&L: override del blocco, altrimenti base. */
+function heatTokens(
+  base: Map<string, Color>,
+  override: Map<string, Color>,
+): Array<[string, Color]> {
+  const nomi = [
+    "heat-profit-1",
+    "heat-profit-2",
+    "heat-profit-3",
+    "heat-loss-1",
+    "heat-loss-2",
+    "heat-loss-3",
+  ];
+  return nomi.map((n) => [n, override.get(n) ?? base.get(n)!]);
+}
+
+describe("mappe a intensità — tinte in gamut, testo AA su ogni gradino", () => {
+  const temi = [
+    ["light", light, (p: string) => `[data-pnl="${p}"]`] as const,
+    [
+      "dark",
+      dark,
+      (p: string) => `:where(.dark, .dark *)[data-pnl="${p}"]`,
+    ] as const,
+  ];
+
+  for (const [mode, base, selettore] of temi) {
+    for (const palette of PNL_PAIRS) {
+      const tinte = heatTokens(base, block(selettore(palette)));
+
+      it(`${mode} ${palette}: sei tinte dichiarate`, () => {
+        for (const [nome, colore] of tinte) {
+          expect(colore, `--${nome} in ${mode}/${palette}`).toBeDefined();
+        }
+      });
+
+      it.each(tinte)(`${mode} ${palette}: %s sta nel gamut sRGB`, (nome, colore) => {
+        expect(
+          outOfGamut(...colore),
+          `${nome} ${hex(...colore)} verrebbe clampato dal browser`,
+        ).toBe(false);
+      });
+
+      it.each(tinte)(
+        `${mode} ${palette}: la cifra e il testo secondario reggono AA su %s`,
+        (nome, colore) => {
+          for (const testo of ["heat-foreground", "heat-muted"]) {
+            const ratio = contrast(base.get(testo)!, colore);
+            expect(
+              ratio,
+              `--${testo} su ${nome} ${hex(...colore)} = ${ratio.toFixed(2)}:1`,
+            ).toBeGreaterThanOrEqual(4.5);
+          }
+        },
+      );
+
+      it(`${mode} ${palette}: i tre gradini sono distinti e ordinati`, () => {
+        for (const segno of ["profit", "loss"]) {
+          const scala = tinte
+            .filter(([n]) => n.startsWith(`heat-${segno}`))
+            .map(([, c]) => c);
+          // In chiaro la tinta si scurisce col crescere dell'intensità, in
+          // scuro si schiarisce: in entrambi i casi si ALLONTANA dalla card.
+          const distanze = scala.map((c) =>
+            Math.abs(c[0] - base.get("card")![0]),
+          );
+          expect(distanze[1], `${segno} 2 vs 1 in ${mode}`).toBeGreaterThan(
+            distanze[0],
+          );
+          expect(distanze[2], `${segno} 3 vs 2 in ${mode}`).toBeGreaterThan(
+            distanze[1],
+          );
+          // E la croma non scende mai salendo di gradino.
+          expect(scala[1][1]).toBeGreaterThanOrEqual(scala[0][1]);
+          expect(scala[2][1]).toBeGreaterThanOrEqual(scala[1][1]);
+        }
+      });
+    }
+  }
+});
+
+/**
  * F4 — SUPERFICI TINTE: il contrasto va ricontrollato dove il fondo NON è
  * la card ma la card più una velatura del colore stesso.
  *

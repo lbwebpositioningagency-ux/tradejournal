@@ -5,6 +5,7 @@ import { ChevronLeft, ChevronRight } from "lucide-react";
 import Decimal from "decimal.js";
 import { returnIntensity, type YearGrid } from "@/lib/metrics";
 import { formatPercent, formatSignedMoney } from "@/lib/money";
+import { HEAT_TEXT, HEAT_TEXT_MUTED, heatTone } from "@/lib/heat-scale";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 
@@ -13,10 +14,10 @@ import { Button } from "@/components/ui/button";
  * col ritorno percentuale del mese (P&L ÷ equity a inizio mese, la
  * convenzione del rolling).
  *
- * Colore: i token bg-profit/bg-loss a opacità crescente con la magnitudine
- * — le stesse gradazioni del calendario di Day View, già validate per
- * contrasto (il testo resta sul foreground del tema, mai su un colore
- * pieno). Un mese senza attività è NEUTRO col trattino: non è uno 0%.
+ * Colore: la scala condivisa delle mappe a intensità (`heatTone`), la stessa
+ * del calendario di Day View — cambia solo la tabella delle soglie (mese e
+ * non giorno). Testo sui token heat-*, validati sulla tinta più forte. Un
+ * mese senza attività è NEUTRO col trattino: non è uno 0%.
  *
  * La navigazione fra anni è stato client (come le sezioni dei Trends):
  * i dati di tutti gli anni arrivano già dal server in una passata.
@@ -26,12 +27,6 @@ const MONTH_LABELS = [
   "Gen", "Feb", "Mar", "Apr", "Mag", "Giu",
   "Lug", "Ago", "Set", "Ott", "Nov", "Dic",
 ] as const;
-
-/** Intensità 1..3 → token di sfondo (0 = neutro, gestito a parte). */
-const TONE: Record<"profit" | "loss", string[]> = {
-  profit: ["bg-profit/10", "bg-profit/20", "bg-profit/30"],
-  loss: ["bg-loss/10", "bg-loss/20", "bg-loss/30"],
-};
 
 export function MonthlyCalendar({
   grids,
@@ -88,9 +83,9 @@ export function MonthlyCalendar({
           const positive = ret !== null && new Decimal(ret).gt(0);
           const negative = ret !== null && new Decimal(ret).lt(0);
           const tone = positive
-            ? TONE.profit[intensity - 1]
+            ? heatTone("profit", intensity)
             : negative
-              ? TONE.loss[intensity - 1]
+              ? heatTone("loss", intensity)
               : null;
 
           return (
@@ -106,14 +101,20 @@ export function MonthlyCalendar({
                   : `${MONTH_LABELS[cell.monthIndex - 1]} ${grid.year}: nessun trade chiuso`
               }
             >
-              <span className="text-2xs font-medium uppercase text-muted-foreground">
+              <span
+                className={cn(
+                  "text-2xs font-medium uppercase",
+                  tone ? HEAT_TEXT_MUTED : "text-muted-foreground",
+                )}
+              >
                 {MONTH_LABELS[cell.monthIndex - 1]}
               </span>
               <span
                 className={cn(
-                  // F4 — testo foreground sulla cella tinta (v. day/page):
+                  // F4 — testo neutro sulla cella tinta (v. day/page):
                   // il colore lo porta il fondo, il segno il numero.
                   "text-sm font-semibold tabular-nums",
+                  tone && HEAT_TEXT,
                   ret === null && "text-muted-foreground",
                 )}
               >

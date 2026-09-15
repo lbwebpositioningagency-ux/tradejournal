@@ -71,6 +71,15 @@
   --color-profit: var(--profit);
   --color-loss: var(--loss);
   --color-breakeven: var(--breakeven);
+  /* Mappe a intensità (calendari, griglia mensile): scala condivisa, v. :root */
+  --color-heat-profit-1: var(--heat-profit-1);
+  --color-heat-profit-2: var(--heat-profit-2);
+  --color-heat-profit-3: var(--heat-profit-3);
+  --color-heat-loss-1: var(--heat-loss-1);
+  --color-heat-loss-2: var(--heat-loss-2);
+  --color-heat-loss-3: var(--heat-loss-3);
+  --color-heat-foreground: var(--heat-foreground);
+  --color-heat-muted: var(--heat-muted);
   /* Avvisi non-P&L (es. divergenze sync): ambra AA come testo in entrambi i modi */
   --color-warning: var(--warning);
   /* Micro-testo a scala (11px): unico taglio sotto text-xs */
@@ -121,6 +130,27 @@
   --profit: oklch(0.525 0.123 158);
   --loss: oklch(0.565 0.23 26);
   --breakeven: oklch(0.44 0.012 264);
+  /* MAPPE A INTENSITÀ (calendario /day, griglia mensile e mini-calendario
+     della Dashboard — tavola «Sistema visivo v3 - mappe a intensità del
+     journal», 16/09/2026). Tinte PIENE, non più il token P&L velato al
+     10/20/30%: quella velatura ereditava croma e luminosità di un colore
+     scelto per essere TESTO, e le mappe risultavano spente.
+     Luminosità fissa per gradino (0.92 · 0.84 · 0.74), croma vicina al tetto
+     del gamut sRGB per la tinta — dove il gamut non concede (rosso al primo
+     gradino) il valore è il massimo disponibile. Le soglie di intensità non
+     cambiano: stanno in metrics/monthly-returns.ts.
+     Il testo NON è il token P&L: sono i due token qui sotto, misurati su ogni
+     gradino di ogni coppia (theme-contrast.test.ts). */
+  --heat-profit-1: oklch(0.92 0.075 158);
+  --heat-profit-2: oklch(0.84 0.13 158);
+  --heat-profit-3: oklch(0.74 0.173 158); /* cifra 9.05 · secondario 5.01 */
+  --heat-loss-1: oklch(0.92 0.04 26);
+  --heat-loss-2: oklch(0.84 0.088 26);
+  --heat-loss-3: oklch(0.74 0.158 26); /* cifra 7.87 · secondario 4.68 */
+  --heat-foreground: oklch(0.16 0.014 264); /* = foreground */
+  /* Numero del giorno, etichetta del mese, conteggio trade: il muted del tema
+     sulla tinta più forte valeva 2.99 (misurato), questo vale 4.68. */
+  --heat-muted: oklch(0.345 0.02 264);
   /* Testo di avviso (ambra) AA su bg e card: 4.58 · 4.75 (solver) */
   --warning: oklch(0.565 0.133 60);
   /* Sistema v2 (14/09/2026, tavola «Sistema visivo v2» in Claude Design):
@@ -209,6 +239,18 @@
   --profit: oklch(0.75 0.175 158);
   --loss: oklch(0.655 0.228 26);
   --breakeven: oklch(0.714 0.015 264);
+  /* Mappe a intensità in scuro: stessa logica, luminosità 0.31 · 0.40 · 0.49
+     (la tinta si ALLONTANA dalla card salendo di gradino, qui schiarendo).
+     Il verde è il limitato: a queste luminosità il gamut si ferma a C~0.115,
+     ed è già il massimo — non un ripiego di saturazione. */
+  --heat-profit-1: oklch(0.31 0.073 158);
+  --heat-profit-2: oklch(0.4 0.094 158);
+  --heat-profit-3: oklch(0.49 0.115 158); /* cifra 5.50 · secondario 4.63 */
+  --heat-loss-1: oklch(0.31 0.085 26);
+  --heat-loss-2: oklch(0.4 0.13 26);
+  --heat-loss-3: oklch(0.49 0.175 26); /* cifra 6.38 · secondario 5.36 */
+  --heat-foreground: oklch(0.975 0.004 264); /* = foreground */
+  --heat-muted: oklch(0.918 0.02 264); /* il muted del tema valeva 3.81 */
   /* Ambra IN GAMUT più vicina all'amber-400 usata prima (che era clampata):
      11.57 su bg · 10.50 su card (solver) */
   --warning: oklch(0.83 0.17 84);
@@ -356,19 +398,34 @@
 [data-pnl="blue-red"] {
   --profit: oklch(0.452 0.313 264); /* blu profondo · 8.59 AA */
   --loss: oklch(0.565 0.23 26); /* 5.12 AA */
+  /* Le mappe a intensità seguono la coppia: stessa scala di luminosità, la
+     croma è quella che il gamut concede alla tinta BLU (più stretta del
+     verde). Il rosso resta quello del blocco base. */
+  --heat-profit-1: oklch(0.92 0.038 264);
+  --heat-profit-2: oklch(0.84 0.079 264);
+  --heat-profit-3: oklch(0.74 0.133 264); /* cifra 8.33 */
 }
 :where(.dark, .dark *)[data-pnl="blue-red"] {
   --profit: oklch(0.635 0.194 262); /* 5.09 AA su card */
   --loss: oklch(0.655 0.228 26); /* 5.08 AA su card */
+  --heat-profit-1: oklch(0.31 0.085 264);
+  --heat-profit-2: oklch(0.4 0.13 264);
+  --heat-profit-3: oklch(0.49 0.175 264); /* cifra 6.04 */
 }
 
 [data-pnl="green-violet"] {
   --profit: oklch(0.525 0.123 158); /* 5.07 AA */
   --loss: oklch(0.526 0.292 293); /* viola pieno · 6.36 AA */
+  --heat-loss-1: oklch(0.92 0.042 293);
+  --heat-loss-2: oklch(0.84 0.087 293);
+  --heat-loss-3: oklch(0.74 0.148 293); /* cifra 8.05 */
 }
 :where(.dark, .dark *)[data-pnl="green-violet"] {
   --profit: oklch(0.75 0.175 158); /* 8.68 AA su card */
   --loss: oklch(0.622 0.225 293); /* 4.51 AA su card */
+  --heat-loss-1: oklch(0.31 0.085 293);
+  --heat-loss-2: oklch(0.4 0.13 293);
+  --heat-loss-3: oklch(0.49 0.175 293); /* cifra 6.30 */
 }
 
 @layer base {
@@ -656,6 +713,14 @@
     --profit: oklch(0.525 0.123 158);
     --loss: oklch(0.565 0.23 26);
     --breakeven: oklch(0.44 0.012 264);
+    --heat-profit-1: oklch(0.92 0.075 158);
+    --heat-profit-2: oklch(0.84 0.13 158);
+    --heat-profit-3: oklch(0.74 0.173 158);
+    --heat-loss-1: oklch(0.92 0.04 26);
+    --heat-loss-2: oklch(0.84 0.088 26);
+    --heat-loss-3: oklch(0.74 0.158 26);
+    --heat-foreground: oklch(0.16 0.014 264);
+    --heat-muted: oklch(0.345 0.02 264);
     --warning: oklch(0.565 0.133 60);
      --foreground-2: oklch(0.413 0.029 256);
     --rule: oklch(0.837 0.016 257);
@@ -695,10 +760,16 @@
   :where(.dark, .dark *)[data-pnl="blue-red"] {
     --profit: oklch(0.452 0.313 264);
     --loss: oklch(0.565 0.23 26);
+    --heat-profit-1: oklch(0.92 0.038 264);
+    --heat-profit-2: oklch(0.84 0.079 264);
+    --heat-profit-3: oklch(0.74 0.133 264);
   }
   :where(.dark, .dark *)[data-pnl="green-violet"] {
     --profit: oklch(0.525 0.123 158);
     --loss: oklch(0.526 0.292 293);
+    --heat-loss-1: oklch(0.92 0.042 293);
+    --heat-loss-2: oklch(0.84 0.087 293);
+    --heat-loss-3: oklch(0.74 0.148 293);
   }
 
   /* Il foglio è bianco: si dichiara, invece di dipendere dal fatto che il

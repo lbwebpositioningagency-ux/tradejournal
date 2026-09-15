@@ -29,6 +29,7 @@ import {
   getStartingBalance,
 } from "@/lib/queries/stats";
 import { returnIntensity } from "@/lib/metrics";
+import { HEAT_TEXT, HEAT_TEXT_MUTED, heatTone } from "@/lib/heat-scale";
 import { resolveCurrencyScope } from "@/lib/currency-scope";
 import { withCurrencyParam } from "@/lib/currency-nav";
 import { cn } from "@/lib/utils";
@@ -141,14 +142,12 @@ export default async function DayCalendarPage({
   const monthEquity = new Decimal(monthBaseBalance).plus(pnlBeforeMonth);
   function dayTone(netPnl: string): string {
     const value = new Decimal(netPnl);
-    if (value.isZero()) return "bg-breakeven/10 hover:bg-breakeven/20";
+    if (value.isZero()) return "bg-breakeven/10 hover:border-foreground/40";
     const ret = monthEquity.gt(0) ? value.div(monthEquity).toFixed(8) : null;
     const tier = ret === null ? 1 : returnIntensity(ret, "day");
-    const palette =
-      value.gt(0)
-        ? ["bg-profit/10 hover:bg-profit/20", "bg-profit/20 hover:bg-profit/30", "bg-profit/30 hover:bg-profit/40"]
-        : ["bg-loss/10 hover:bg-loss/20", "bg-loss/20 hover:bg-loss/30", "bg-loss/30 hover:bg-loss/40"];
-    return palette[Math.max(1, tier) - 1];
+    // Scala condivisa delle mappe a intensità (globals.css, --heat-*): tinte
+    // piene e opache, quindi l'hover passa dal filo e non dalla velatura.
+    return cn(heatTone(value.gt(0) ? "profit" : "loss", tier), "hover:border-foreground/40");
   }
 
   return (
@@ -270,7 +269,12 @@ export default async function DayCalendarPage({
                           isToday ? "ring-1 ring-primary" : "border-border/60",
                         )}
                       >
-                        <span className="flex items-center justify-between text-xs text-muted-foreground">
+                        <span
+                          className={cn(
+                            "flex items-center justify-between text-xs",
+                            data ? HEAT_TEXT_MUTED : "text-muted-foreground",
+                          )}
+                        >
                           <span>{dayNumber}</span>
                           {noteDays.has(date) ? (
                             <NotebookPen className="size-3" aria-label="Nota di giornata" />
@@ -279,12 +283,11 @@ export default async function DayCalendarPage({
                         {data ? (
                           <>
                             {/* F4 — testo NON colorato sulla cella tinta: il
-                                token P&L sopra una velatura di se stesso non
-                                arriva a 4,5:1 (misurato: 3,51 in dark al 30%).
-                                Il segno resta leggibile — lo porta il + o il
-                                − del numero — e la tinta della cella resta a
-                                dire l'intensità. */}
-                            <span className="text-2xs font-semibold tabular-nums sm:text-sm">
+                                colore lo porta il fondo, il segno il + o il −
+                                del numero. I due token heat-* reggono 4,5:1
+                                sulla tinta più forte in entrambi i temi
+                                (theme-contrast.test.ts). */}
+                            <span className={cn("text-2xs font-semibold tabular-nums sm:text-sm", HEAT_TEXT)}>
                               <span className="sm:hidden">
                                 {formatSignedShort(data.netPnl)}
                               </span>
@@ -292,7 +295,7 @@ export default async function DayCalendarPage({
                                 {formatSignedCompact(data.netPnl)}
                               </span>
                             </span>
-                            <span className="text-2xs text-muted-foreground">
+                            <span className={cn("text-2xs", HEAT_TEXT_MUTED)}>
                               <span className="sm:hidden">{data.trades}</span>
                               <span className="hidden sm:inline">
                                 {data.trades} trade
