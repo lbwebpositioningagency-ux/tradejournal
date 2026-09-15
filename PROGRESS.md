@@ -2926,3 +2926,19 @@ geometria nuova. 4 test nuovi sulla forma.
 
 **Verificato:** typecheck ✅ · eslint ✅ · 2170/2170 test ✅ · build ✅ · schermate reali
 a 1440 e 390 nei due temi.
+
+## Ricostruzione, fase 5 — verifica finale e referto (15/09/2026)
+
+Rimisurate a 1440 e 390 nei due temi, su build locale di `288d432`, le pagine toccate:
+Report (ultimo e archivio), Analytics, Scorecard, Volatilità, Calendario del desk,
+Radar. **0 testi sotto 11px** ovunque; **0 testi sotto 4,5:1 nel contenuto**; nessuna
+pagina più larga del viewport; 0 errori di console. Due residui preesistenti fuori
+dalle sezioni ricostruite: la voce attiva della barra laterale a 4,06:1 in chiaro
+(`components/layout/sidebar.tsx:71`, testo primario su fondo primario tinto) e un «·»
+della testata di Volatilità a 4,41:1.
+
+Voti rivalutati con la rubrica del referto (§9 di `docs/audit/07-design-360.md`, sul
+branch `audit/design-360`, NON pubblicato come il resto di quel referto): Report 41,8
+→ **69,8** · Analytics 48,2 → **61,8** · Scorecard 51,6 → **73,9** · Volatilità 62,3 →
+**70,0** (quest'ultimo comprende P0 e sistema v2). Globale con i soli quattro voti
+aggiornati: 57,1 → 60,8, stima parziale.
