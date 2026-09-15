@@ -101,6 +101,17 @@ export const BUCKET_AXIS: Record<
 };
 
 export type SeasonalityGranularityUi = keyof typeof BUCKET_AXIS;
+
+/**
+ * L'unità con cui si scrive una FREQUENZA in una riga: «553 martedì su
+ * 1.044», «2.610 ore su 5.135», «8 mesi su 20». È la stessa unità del
+ * campione (`rawUnit`), ma per il giorno della settimana è il giorno stesso —
+ * «martedì» è invariabile, e dice cosa è stato contato meglio di «giorni».
+ */
+export function unitaFrequenza(granularity: SeasonalityGranularityUi, bucket: number): string {
+  if (granularity === "WEEKDAY") return BUCKET_AXIS.WEEKDAY.label(bucket).toLowerCase();
+  return BUCKET_AXIS[granularity].rawUnit;
+}
 /** Granularità ricavabili dalle sole chiusure giornaliere. */
 export type CalendarGranularity = "MONTH" | "WEEK" | "WEEKDAY";
 /** Granularità che richiedono le barre orarie. */

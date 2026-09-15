@@ -900,3 +900,20 @@ CSV, segno dello swap). Fuori perimetro, lasciato com'è di proposito.
 - **Lo swap non è importabile da CSV.** Il wizard non ha una colonna swap.
 - **L'EA non esporta stop e target** (`v: 1`): sui trade MT5 il piano resta
   vuoto anche dopo la correzione del CSV. È P-J01 nell'audit.
+
+## Stagionalità: cosa resta dopo le correzioni del 15/09/2026 (sera)
+
+- **Colonne morte in `SeasonalityPathPoint`.** `p25Cum` e `p75Cum` erano i quartili della banda
+  del grafico, tolta. Sono NOT NULL: il precalcolo ci scrive `meanCum` e nessuno le legge.
+  Toglierle chiede una migrazione (e l'ordine migrazione → push di AGENTS.md).
+- **`SeasonalityQuarterYear` ferma.** La fase M15 del job è stata tolta insieme al grafico
+  dell'indice intraday; la tabella e i campi `quarter*` di `SeasonalityJobState` restano in archivio,
+  non più aggiornati. Da togliere con la stessa migrazione.
+- **Sostituzione del WTI con Dukascopy: decisione pendente all'utente.** Numeri in
+  `docs/stagionalita-correzioni-2026-09-15.md`: storia dal 2007 con 2008, 2010 e mar-apr 2013
+  assenti (solo finestre da 10, 5, 2 anni), mesi quasi identici a FRED, giorno della settimana no.
+  Se si procede: svuotare la serie WTI prima del primo giro, perché il job UNISCE archivio e fonte e
+  la guardia sull'accorciamento rifiuterebbe la scrittura.
+- **Frequenze nella notte di transizione.** `FREQUENZE_PER_OCCORRENZA_DAL` (precompute.ts) serve
+  solo finché il primo giro notturno non riscrive le righe; dopo, il confronto è sempre vero e la
+  costante si può togliere.

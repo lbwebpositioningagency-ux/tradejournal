@@ -194,15 +194,24 @@ interface YearBucketAgg {
   raw: number;
   minTs: number;
   maxTs: number;
+  /**
+   * Le OCCORRENZE dietro la casella, nell'unità del bucket: per l'ora un
+   * elemento per rendimento orario, per la sessione uno per giorno (la somma
+   * dei rendimenti di quella sessione in quel giorno, con le ore che la
+   * compongono). Servono a contare «in rialzo» su sessioni e ore, cioè sulla
+   * stessa base del campione, e non sugli anni. `somme.length === raw`.
+   */
+  somme: number[];
+  ore: number[];
 }
 
 /**
  * Media dei rendimenti orari per (anno, bucket): una casella di heatmap.
  *
- * `dayKeyOf` cambia SOLO il campione dichiarato (`raw`), mai la media: quando
- * è passato, `raw` conta i giorni DISTINTI invece delle osservazioni. Serve
- * alla sessione, la cui unità naturale è «una sessione» (un giorno) e non le
- * sue sei-otto ore.
+ * `dayKeyOf` cambia SOLO il campione dichiarato (`raw`) e le occorrenze, mai
+ * la media: quando è passato, le occorrenze sono i giorni DISTINTI invece
+ * delle osservazioni. Serve alla sessione, la cui unità naturale è «una
+ * sessione» (un giorno) e non le sue sei-otto ore.
  */
 function aggregateByYear(
   observations: IntradayObservation[],
@@ -216,7 +225,9 @@ function aggregateByYear(
       bucket: number;
       sum: number;
       days: number;
-      dayKeys: Set<string> | null;
+      perGiorno: Map<string, number> | null;
+      somme: number[];
+      ore: number[];
       minTs: number;
       maxTs: number;
     }
@@ -225,23 +236,39 @@ function aggregateByYear(
     const bucket = bucketOf(o);
     const key = `${o.year}-${bucket}`;
     const t = o.ts.getTime();
-    const cur = acc.get(key);
-    if (cur) {
-      cur.sum += o.value;
-      cur.days += 1;
-      cur.dayKeys?.add(dayKeyOf!(o));
-      if (t < cur.minTs) cur.minTs = t;
-      if (t > cur.maxTs) cur.maxTs = t;
-    } else {
-      acc.set(key, {
+    let cur = acc.get(key);
+    if (!cur) {
+      cur = {
         year: o.year,
         bucket,
-        sum: o.value,
-        days: 1,
-        dayKeys: dayKeyOf ? new Set([dayKeyOf(o)]) : null,
+        sum: 0,
+        days: 0,
+        perGiorno: dayKeyOf ? new Map() : null,
+        somme: [],
+        ore: [],
         minTs: t,
         maxTs: t,
-      });
+      };
+      acc.set(key, cur);
+    }
+    cur.sum += o.value;
+    cur.days += 1;
+    if (t < cur.minTs) cur.minTs = t;
+    if (t > cur.maxTs) cur.maxTs = t;
+    if (cur.perGiorno) {
+      const giorno = dayKeyOf!(o);
+      const i = cur.perGiorno.get(giorno);
+      if (i === undefined) {
+        cur.perGiorno.set(giorno, cur.somme.length);
+        cur.somme.push(o.value);
+        cur.ore.push(1);
+      } else {
+        cur.somme[i] += o.value;
+        cur.ore[i] += 1;
+      }
+    } else {
+      cur.somme.push(o.value);
+      cur.ore.push(1);
     }
   }
   return [...acc.values()].map((a) => ({
@@ -249,9 +276,11 @@ function aggregateByYear(
     bucket: a.bucket,
     value: a.sum / a.days,
     days: a.days,
-    raw: a.dayKeys ? a.dayKeys.size : a.days,
+    raw: a.somme.length,
     minTs: a.minTs,
     maxTs: a.maxTs,
+    somme: a.somme,
+    ore: a.ore,
   }));
 }
 
@@ -282,15 +311,24 @@ function buildStats(opts: {
      che la tabella mostra accanto a `n`. `n` resta il numero di anni — il
      denominatore vero di media, StDev e Pos% — e le due cose non vanno
      confuse. */
+  /* «In rialzo» si conta sulle OCCORRENZE (ore, sessioni), non sugli anni:
+     fino al 15/09/2026 era la quota di anni con media positiva, accanto a un
+     campione di migliaia di ore. Con il detrend a un'occorrenza si toglie il
+     drift di tutte le ore che la compongono. */
   const grouped = new Map<
     number,
-    { values: number[]; minTs: number; maxTs: number; raw: number }
+    { values: number[]; minTs: number; maxTs: number; raw: number; inRialzo: number }
   >();
   for (const a of aggs) {
+    let su = 0;
+    for (let i = 0; i < a.somme.length; i += 1) {
+      if (a.somme[i] - a.ore[i] * shift > 0) su += 1;
+    }
     const entry = grouped.get(a.bucket);
     if (entry) {
       entry.values.push(a.value - shift);
       entry.raw += a.raw;
+      entry.inRialzo += su;
       if (a.minTs < entry.minTs) entry.minTs = a.minTs;
       if (a.maxTs > entry.maxTs) entry.maxTs = a.maxTs;
     } else {
@@ -299,6 +337,7 @@ function buildStats(opts: {
         minTs: a.minTs,
         maxTs: a.maxTs,
         raw: a.raw,
+        inRialzo: su,
       });
     }
   }
@@ -309,6 +348,7 @@ function buildStats(opts: {
     if (!entry) continue; // nessuna riga finta a zero
     const described = describeSample(entry.values);
     if (!described) continue;
+    described.positiveShare = entry.raw > 0 ? entry.inRialzo / entry.raw : 0;
     const withinSigma =
       described.stdev === null
         ? null

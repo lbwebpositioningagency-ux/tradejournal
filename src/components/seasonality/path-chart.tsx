@@ -2,7 +2,6 @@
 
 import { useMemo, useState } from "react";
 import {
-  Area,
   CartesianGrid,
   ComposedChart,
   Line,
@@ -31,18 +30,14 @@ import { formatNumber } from "@/lib/format-number";
  *
  * Mostra un INDICE a base 100 (`lib/seasonality/indice.ts`), non percentuali:
  * serve a leggere la forma del percorso medio, e l'asse riporta valori
- * d'indice. Tre strati, dal fondo:
- *
- * 1. la FASCIA fra primo e terzo quartile degli anni della finestra
- *    selezionata: dove è stretta la forma si ripete, dove è larga è tirata da
- *    pochi anni. Una sola fascia, quella della finestra scelta: cinque fasce
- *    sovrapposte non si leggono;
- * 2. la curva GREZZA della finestra selezionata, in trasparenza;
- * 3. le LINEE lisciate (media mobile centrata a 5 giorni) di ogni finestra
- *    accesa, la selezionata più spessa.
+ * d'indice. Una linea per finestra accesa, GIORNO PER GIORNO: il valore di
+ * ogni giorno così com'è, senza media mobile, senza fascia di dispersione e
+ * senza traccia grezza sotto (tolte il 15/09/2026, tavola «Sistema visivo v3 -
+ * Stagionalità e grafico con banda», giro 3e). La finestra selezionata è più
+ * spessa.
  *
  * Più l'anno in corso tratteggiato, la linea «oggi» e la fascia del mese
- * corrente. L'asse Y si adatta a ciò che è acceso, fascia compresa.
+ * corrente. L'asse Y si adatta a ciò che è acceso.
  *
  * Asse X: il giorno del calendario non bisestile, 0 = partenza (100).
  */
@@ -62,20 +57,15 @@ function giornoLabel(g: number): string {
 
 const fmtIndice = (v: number) => formatNumber(v, { decimals: 1 });
 
-/** Una finestra: array indicizzati sul giorno 0..365, valori d'indice. */
+/** Una finestra: valori d'indice indicizzati sul giorno 0..365. */
 export interface SerieIndice {
   lookbackYears: number;
-  liscia: (number | null)[];
-  grezza: (number | null)[];
-  q1: (number | null)[];
-  q3: (number | null)[];
+  valori: (number | null)[];
 }
 
 interface Row {
   g: number;
   [key: `w${number}`]: number | undefined;
-  grezza?: number;
-  banda?: [number, number];
   cur?: number;
 }
 
@@ -99,32 +89,23 @@ export function SeasonalPathChart({
     () => series.map((s) => s.lookbackYears).sort((a, b) => b - a),
     [series],
   );
-  const selezionata = series.find((s) => s.lookbackYears === selectedWindow) ?? null;
 
   const data = useMemo(() => {
     const rows: Row[] = [];
     for (let g = 0; g <= 365; g += 1) {
       const row: Row = { g };
       for (const s of series) {
-        const v = s.liscia[g];
+        const v = s.valori[g];
         if (v !== null && v !== undefined) row[`w${s.lookbackYears}`] = v;
-      }
-      if (selezionata) {
-        const gr = selezionata.grezza[g];
-        const lo = selezionata.q1[g];
-        const hi = selezionata.q3[g];
-        if (gr !== null && gr !== undefined) row.grezza = gr;
-        if (lo !== null && hi !== null && lo !== undefined && hi !== undefined) row.banda = [lo, hi];
       }
       const cv = currentYear?.[g];
       if (cv !== null && cv !== undefined) row.cur = cv;
       rows.push(row);
     }
     return rows;
-  }, [series, selezionata, currentYear]);
+  }, [series, currentYear]);
 
   const visibili = windows.filter((w) => !spente.has(w));
-  const selezionataAccesa = selezionata !== null && visibili.includes(selectedWindow);
   const overlayAccesa = currentYear !== null && !spente.has(0);
 
   const [yMin, yMax] = useMemo(() => {
@@ -137,17 +118,12 @@ export function SeasonalPathChart({
     };
     for (const row of data) {
       for (const w of visibili) tieni(row[`w${w}`]);
-      if (selezionataAccesa) {
-        tieni(row.grezza);
-        tieni(row.banda?.[0]);
-        tieni(row.banda?.[1]);
-      }
       if (overlayAccesa) tieni(row.cur);
     }
     if (!Number.isFinite(min) || !Number.isFinite(max)) return [99, 101];
     const pad = Math.max((max - min) * 0.05, 0.2);
     return [min - pad, max + pad];
-  }, [data, visibili, selezionataAccesa, overlayAccesa]);
+  }, [data, visibili, overlayAccesa]);
 
   const zoom = useChartZoom({ dataLength: data.length, base: [yMin, yMax] });
   const xDomain: [number, number] = zoom.range
@@ -167,8 +143,6 @@ export function SeasonalPathChart({
     ...windows.map((w) => ({ key: w, label: `${w} anni`, selected: w === selectedWindow })),
     ...(currentYear ? [{ key: 0, label: "anno in corso", color: "var(--md-text)" }] : []),
   ];
-
-  const coloreSel = windowColor(selectedWindow);
 
   return (
     <div className="flex h-full flex-col gap-2">
@@ -211,58 +185,20 @@ export function SeasonalPathChart({
               stroke="none"
             />
 
-            {selezionataAccesa ? (
-              <Area
-                dataKey="banda"
-                stroke="none"
-                fill={coloreSel}
-                fillOpacity={0.16}
-                connectNulls
-                isAnimationActive={false}
-                activeDot={false}
-              />
-            ) : null}
-
             <ReferenceLine y={100} stroke="var(--md-muted)" strokeDasharray="4 3" />
 
-            {selezionataAccesa ? (
+            {visibili.map((w) => (
               <Line
-                dataKey="grezza"
-                stroke={coloreSel}
-                strokeWidth={1}
-                strokeOpacity={0.35}
-                dot={false}
-                activeDot={false}
-                connectNulls
-                isAnimationActive={false}
-              />
-            ) : null}
-
-            {visibili
-              .filter((w) => w !== selectedWindow)
-              .map((w) => (
-                <Line
-                  key={w}
-                  dataKey={`w${w}`}
-                  stroke={windowColor(w)}
-                  strokeWidth={1.5}
-                  strokeOpacity={0.85}
-                  dot={false}
-                  connectNulls
-                  isAnimationActive={false}
-                />
-              ))}
-
-            {selezionataAccesa ? (
-              <Line
-                dataKey={`w${selectedWindow}`}
-                stroke={coloreSel}
-                strokeWidth={2.5}
+                key={w}
+                dataKey={`w${w}`}
+                stroke={windowColor(w)}
+                strokeWidth={w === selectedWindow ? 2.5 : 1.5}
+                strokeOpacity={w === selectedWindow ? 1 : 0.85}
                 dot={false}
                 connectNulls
                 isAnimationActive={false}
               />
-            ) : null}
+            ))}
 
             {overlayAccesa ? (
               <Line
@@ -293,16 +229,9 @@ export function SeasonalPathChart({
               labelFormatter={(label) => giornoLabel(Number(label))}
               formatter={(value, name) => {
                 const key = String(name);
-                if (Array.isArray(value)) {
-                  return [
-                    `${fmtIndice(Number(value[0]))} – ${fmtIndice(Number(value[1]))}`,
-                    `${selectedWindow} anni, 1°–3° quartile`,
-                  ];
-                }
                 const num = Number(value);
                 const fmt = Number.isFinite(num) ? fmtIndice(num) : "—";
                 if (key === "cur") return [fmt, "anno in corso"];
-                if (key === "grezza") return [fmt, `${selectedWindow} anni, grezza`];
                 return [fmt, `${key.replace("w", "")} anni`];
               }}
             />

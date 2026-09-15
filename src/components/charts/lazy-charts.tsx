@@ -115,12 +115,3 @@ export const SeasonalPathChart = dynamic(
     loading: () => <Skeleton className="size-full" />,
   },
 );
-
-export const HourPathChart = dynamic(
-  () =>
-    import("../seasonality/hour-path-chart").then((m) => m.HourPathChart),
-  {
-    ssr: false,
-    loading: () => <Skeleton className="size-full" />,
-  },
-);

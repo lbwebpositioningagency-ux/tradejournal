@@ -323,3 +323,25 @@ describe("campione della sessione in GIORNI, non in ore", () => {
     expect(sessStat?.rawCount).toBe(5);
   });
 });
+
+describe("«in rialzo» dell'ORA conta le ore, non gli anni", () => {
+  it("quattro ore salite su cinque: 80%, anche se l'anno medio è positivo", () => {
+    const bars: HourBar[] = [];
+    let close = 100;
+    for (let d = 0; d < 5; d += 1) {
+      for (let h = 0; h < 24; h += 1) {
+        if (h === 13) close *= d < 4 ? 1.001 : 0.999;
+        bars.push({ ts: new Date(Date.UTC(2025, 2, 3 + d, h)), close });
+      }
+    }
+    const out = precomputeIntraday({ instrument: "XAUUSD", bars, now: new Date("2026-08-05T00:00:00Z") });
+    const ora13 = out.stats.find(
+      (s) => s.granularity === "HOUR" && s.clock === "UTC" && s.bucket === 13 && s.lookbackYears === 20 && !s.detrended,
+    )!;
+    expect(ora13.n).toBe(1);
+    expect(ora13.mean).toBeGreaterThan(0);
+    expect(ora13.rawCount).toBe(5);
+    // Prima: 1 anno su 1. Ora: 4 ore su 5.
+    expect(ora13.positiveShare).toBeCloseTo(0.8, 12);
+  });
+});

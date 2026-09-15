@@ -1,19 +1,19 @@
 import type { SeasonalityKind } from "@/generated/prisma/client";
 import {
   BUCKET_AXIS,
+  unitaFrequenza,
   type SeasonalityGranularityUi,
 } from "@/components/seasonality/bucket-labels";
 import {
   spiegaCopertura,
   type BucketView,
-  type EscursioniBucket,
   type WindowCoverage,
 } from "@/lib/seasonality/query";
 import type { EstremiBucket } from "@/lib/seasonality/estremi";
 import { MetricInfo } from "@/components/metric-info";
 import {
+  ampiezzaInfo,
   campioneInfo,
-  escursioneInfo,
   estremiInfo,
   numerositaInfo,
   medianaInfo,
@@ -24,6 +24,7 @@ import {
 import {
   UNIT_LABEL,
   decimalsFor,
+  formatAmpiezza,
   formatBucketValue,
   formatStdev,
   meanHelp,
@@ -47,11 +48,13 @@ import { formatInteger } from "@/lib/format-number";
  * la tabella l'ampiezza reale.
  *
  * Una resa sola a ogni larghezza: tabella del listino, prima colonna ferma,
- * scorrimento nel suo riquadro (regola v3 delle tabelle larghe). Via le card
- * impilate sotto 768px — dodici card da 130px contro dodici righe da 40 — e
- * via la colonna «Posizione», che ripeteva il rango già detto dal colore della
- * colonna della finestra selezionata (tavola «Sistema visivo v3 - Stagionalità
- * e grafico con banda», 1a).
+ * scorrimento nel suo riquadro (regola v3 delle tabelle larghe).
+ *
+ * Giro 3 della tavola «Sistema visivo v3 - Stagionalità e grafico con banda»
+ * (15/09/2026 sera): via MAE e MFE; l'AMPIEZZA massimo-minimo subito dopo le
+ * finestre, accanto ai rendimenti (3a), e dove non si calcola una cella sola
+ * alta quanto la tabella dice perché (3c-i); «in rialzo» contato nell'unità
+ * della riga, sulla stessa base del campione.
  */
 export function BucketWindowTable({
   kind,
@@ -64,9 +67,10 @@ export function BucketWindowTable({
   currentBucket,
   estremi,
   notaEstremi,
-  escursioni,
-  mostraEscursioni = false,
-  notaEscursioni,
+  mostraAmpiezza = false,
+  ampiezza,
+  motivoAmpiezza = null,
+  frequenzeInRicalcolo = false,
 }: {
   kind: SeasonalityKind;
   granularity: SeasonalityGranularityUi;
@@ -81,11 +85,14 @@ export function BucketWindowTable({
   /** Migliore e peggiore anno della finestra selezionata, per bucket. */
   estremi?: Map<number, EstremiBucket>;
   notaEstremi?: string | null;
-  /** MAE/MFE della finestra selezionata, per bucket. */
-  escursioni?: Map<number, EscursioniBucket>;
-  /** Vero sulle viste di calendario dei prezzi: le colonne ci sono, anche vuote. */
-  mostraEscursioni?: boolean;
-  notaEscursioni?: string | null;
+  /** Vero per gli strumenti di prezzo: la colonna c'è anche dove non si calcola. */
+  mostraAmpiezza?: boolean;
+  /** Ampiezza media della finestra selezionata, per bucket (frazione). */
+  ampiezza?: Map<number, BucketView>;
+  /** Perché l'ampiezza non si calcola in questa vista; `null` = si calcola. */
+  motivoAmpiezza?: string | null;
+  /** Le righe in archivio vengono dal calcolo che contava la quota sugli anni. */
+  frequenzeInRicalcolo?: boolean;
 }) {
   const axis = BUCKET_AXIS[granularity];
   const unit = unitFor(kind);
@@ -97,15 +104,21 @@ export function BucketWindowTable({
   const mostraEstremi = estremi !== undefined || Boolean(notaEstremi);
   const [etMigliore, etPeggiore] = kind === "LEVEL" ? ["Massimo", "Minimo"] : ["Migliore", "Peggiore"];
   const ferma = "sticky left-0 z-[1] bg-[var(--md-bg)]";
+  const cellaMotivo = mostraAmpiezza && motivoAmpiezza !== null;
 
   if (windows.length === 0) {
     return <p className="text-sm text-[var(--md-muted)]">Nessuna statistica disponibile per questa granularità.</p>;
   }
 
+  // Nessuna riga inventata: la settimana 53 non esiste in tutti gli anni.
+  const righe = axis.buckets.filter(
+    (bucket) => selectedByBucket.has(bucket) || windows.some((w) => byWindow.get(w)?.some((r) => r.bucket === bucket)),
+  );
+
   const conSotto = (sopra: React.ReactNode, sotto: React.ReactNode) => (
     <span className="inline-flex flex-col items-end gap-0.5">
       <span>{sopra}</span>
-      <span className="text-2xs text-[var(--md-muted)]">{sotto}</span>
+      {sotto ? <span className="text-2xs text-[var(--md-muted)]">{sotto}</span> : null}
     </span>
   );
 
@@ -145,7 +158,14 @@ export function BucketWindowTable({
                 </th>
               );
             })}
-            <th scope="col" className="ml-sep">
+            {mostraAmpiezza ? (
+              <th scope="col" className="ml-sep">
+                <span className="inline-flex items-center gap-1">
+                  Ampiezza <MetricInfo info={ampiezzaInfo} size="sm" />
+                </span>
+              </th>
+            ) : null}
+            <th scope="col" className={mostraAmpiezza ? undefined : "ml-sep"}>
               <span className="inline-flex items-center gap-1">
                 Mediana <MetricInfo info={medianaInfo(kind)} size="sm" />
               </span>
@@ -170,22 +190,6 @@ export function BucketWindowTable({
                 {positiveLabel(kind)} <MetricInfo info={posInfo(kind)} size="sm" />
               </span>
             </th>
-            {mostraEscursioni ? (
-              <>
-                <th scope="col">
-                  <span className="inline-flex items-center gap-1">
-                    MAE <MetricInfo info={escursioneInfo("MAE")} size="sm" />
-                  </span>
-                </th>
-                <th scope="col">
-                  <span className="inline-flex items-center gap-1">
-                    MFE <MetricInfo info={escursioneInfo("MFE")} size="sm" />
-                  </span>
-                </th>
-              </>
-            ) : null}
-            {/* La banda dopo MAE/MFE: a 1440 le misure chieste per prime
-                restano dentro il riquadro, la banda e il campione scorrono. */}
             <th scope="col">
               <span className="inline-flex items-center gap-1">
                 Media ± 1σ <MetricInfo info={sigmaInfo(kind)} size="sm" />
@@ -201,14 +205,13 @@ export function BucketWindowTable({
           </tr>
         </thead>
         <tbody>
-          {axis.buckets.map((bucket) => {
+          {righe.map((bucket, indice) => {
             const sel = selectedByBucket.get(bucket);
-            const presente = sel !== undefined || windows.some((w) => byWindow.get(w)?.some((r) => r.bucket === bucket));
-            // Nessuna riga inventata: la settimana 53 non esiste in tutti gli anni.
-            if (!presente) return null;
             const adesso = bucket === currentBucket;
             const est = estremi?.get(bucket);
-            const esc = escursioni?.get(bucket);
+            const amp = ampiezza?.get(bucket);
+            const occorrenze = sel ? (sel.rawCount ?? sel.n) : 0;
+            const unita = unitaFrequenza(granularity, bucket);
             return (
               <tr key={bucket} className={adesso ? "ml-ora" : undefined} aria-current={adesso ? "date" : undefined}>
                 <td className={`ml-sx ${ferma} font-medium`}>
@@ -237,7 +240,27 @@ export function BucketWindowTable({
                     </td>
                   );
                 })}
-                <td className="ml-sep">{sel ? formatBucketValue(sel.median, kind, dec, unit) : "—"}</td>
+                {cellaMotivo && indice === 0 ? (
+                  <td
+                    rowSpan={righe.length}
+                    className="ml-sep ml-wrap min-w-[11rem] max-w-[14rem] text-left align-top text-[var(--md-text-2)]"
+                  >
+                    {motivoAmpiezza}
+                  </td>
+                ) : null}
+                {mostraAmpiezza && !cellaMotivo ? (
+                  <td className="ml-sep">
+                    {amp
+                      ? conSotto(
+                          formatAmpiezza(amp.mean),
+                          sel && amp.n < occorrenze ? `su ${formatInteger(amp.n)} ${unita}` : null,
+                        )
+                      : "—"}
+                  </td>
+                ) : null}
+                <td className={mostraAmpiezza ? undefined : "ml-sep"}>
+                  {sel ? formatBucketValue(sel.median, kind, dec, unit) : "—"}
+                </td>
                 <td>{sel ? formatStdev(sel.stdev, kind, unit, dec) : "—"}</td>
                 {mostraEstremi ? (
                   <>
@@ -263,27 +286,19 @@ export function BucketWindowTable({
                     </td>
                   </>
                 ) : null}
-                <td>{sel ? <Frequenza quota={sel.positiveShare} n={sel.n} aCapo /> : "—"}</td>
-                {mostraEscursioni ? (
-                  <>
-                    <td>
-                      {esc
-                        ? conSotto(
-                            formatBucketValue(esc.mae.mean, "RETURN", dec, "percent"),
-                            sel && esc.mae.n < sel.n ? `su ${esc.mae.n} anni` : null,
-                          )
-                        : "—"}
-                    </td>
-                    <td>
-                      {esc
-                        ? conSotto(
-                            formatBucketValue(esc.mfe.mean, "RETURN", dec, "percent"),
-                            sel && esc.mfe.n < sel.n ? `su ${esc.mfe.n} anni` : null,
-                          )
-                        : "—"}
-                    </td>
-                  </>
-                ) : null}
+                <td>
+                  {sel ? (
+                    <Frequenza
+                      quota={sel.positiveShare}
+                      n={occorrenze}
+                      unita={unita}
+                      aCapo
+                      inRicalcolo={frequenzeInRicalcolo}
+                    />
+                  ) : (
+                    "—"
+                  )}
+                </td>
                 <td>
                   {sel && sel.stdev !== null
                     ? conSotto(
@@ -293,7 +308,7 @@ export function BucketWindowTable({
                         </>,
                         sel.withinSigma !== null ? (
                           <>
-                            dentro <Frequenza quota={sel.withinSigma} n={sel.n} compatta />
+                            dentro <Frequenza quota={sel.withinSigma} n={sel.n} unita="anni" />
                           </>
                         ) : null,
                       )
@@ -321,14 +336,15 @@ export function BucketWindowTable({
       </Tab>
 
       <p className="mt-2 text-2xs leading-[1.5] text-[var(--md-muted)]">
-        Valori in {UNIT_LABEL[unit]}, non riscalati: l&apos;indice a base 100 è solo del grafico.
-        Mediana, StDev, {kind === "LEVEL" ? "massimo e minimo" : "migliore e peggiore anno"},{" "}
-        {positiveLabel(kind).toLowerCase()}
-        {mostraEscursioni ? ", MAE, MFE" : ""} e campione si riferiscono alla finestra selezionata (
-        {selectedWindow} anni). Le frequenze sono conteggi storici, non probabilità. {meanHelp(kind)} Ogni
-        colonna «{meanLabel(kind)}» porta il suo n nel tooltip.
+        Valori in {UNIT_LABEL[unit]}, non riscalati: l&apos;indice a base 100 è solo del grafico.{" "}
+        {mostraAmpiezza ? "Ampiezza, m" : "M"}ediana, StDev,{" "}
+        {mostraEstremi ? `${kind === "LEVEL" ? "massimo e minimo" : "migliore e peggiore anno"}, ` : ""}
+        {positiveLabel(kind).toLowerCase()} e campione si riferiscono alla finestra selezionata (
+        {selectedWindow} anni). «{positiveLabel(kind)}» e ampiezza si contano sulle occorrenze della riga
+        ({axis.rawUnit}), come il campione; media, mediana, StDev e banda sugli anni. Le frequenze sono
+        conteggi storici, non probabilità. {meanHelp(kind)} Ogni colonna «{meanLabel(kind)}» porta il suo n
+        nel tooltip.
         {notaEstremi ? ` ${notaEstremi}` : ""}
-        {notaEscursioni ? ` ${notaEscursioni}` : ""}
       </p>
     </div>
   );

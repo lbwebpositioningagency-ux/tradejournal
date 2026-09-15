@@ -90,6 +90,16 @@ export function formatStdev(
   return formatNumber(unit === "level" ? value : value * 100, { decimals });
 }
 
+/**
+ * Ampiezza massimo-minimo (`ampiezza.ts`): una FRAZIONE, non un log, e senza
+ * segno — un range non sale e non scende. Due decimali come le altre
+ * percentuali del calendario.
+ */
+export function formatAmpiezza(value: number | null | undefined, decimals = 2): string {
+  if (value === null || value === undefined || !Number.isFinite(value)) return "—";
+  return `${formatNumber(value * 100, { decimals })}%`;
+}
+
 /** Quota 0-1 → percentuale intera. Da mostrare solo accanto a un conteggio. */
 export function formatShare(value: number): string {
   if (!Number.isFinite(value)) return "—";

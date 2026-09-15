@@ -28,11 +28,9 @@
  *    loro curva era la media dei livelli per giorno dell'anno; le tabelle
  *    restano in livelli, perché lì il livello è l'informazione.
  *
- * La banda è il primo e il terzo quartile dei percorsi dei singoli anni,
- * nella stessa scala: dove è stretta la forma è ricorrente, dove è larga la
- * media è tirata da pochi anni. I quantili commutano con l'esponenziale,
- * quindi calcolarli in log e convertire dopo dà esattamente i quartili
- * dell'indice.
+ * Il grafico disegna la curva GIORNO PER GIORNO: la media mobile e la banda
+ * fra primo e terzo quartile dei singoli anni, aggiunte nel rifacimento, sono
+ * state tolte il 15/09/2026. Il motore dell'indice non è cambiato.
  *
  * I valori viaggiano in LOG (additivi) fino al display: `aIndice` è l'unica
  * conversione.
@@ -50,8 +48,6 @@ import { quantileSorted } from "@/lib/seasonality/stats";
 export const GIORNI_INDICE = 365;
 /** Valore dell'indice al punto di partenza (giorno 0, chiusura dell'anno prima). */
 export const BASE_INDICE = 100;
-/** Semiampiezza della media mobile centrata: 2 → cinque giorni. */
-export const RAGGIO_LISCIATURA = 2;
 
 const GIORNO_MS = 86_400_000;
 
@@ -194,10 +190,8 @@ export interface PuntoIndice {
   giorno: number;
   /** Cumulata della media dei rendimenti: log dell'indice / 100. */
   mediaCum: number;
-  /** Mediana, primo e terzo quartile dei percorsi dei singoli anni, in log. */
+  /** Mediana dei percorsi dei singoli anni, in log. */
   medianaCum: number;
-  q1Cum: number;
-  q3Cum: number;
   /** Quota di anni col percorso sopra la partenza (indice > 100) a quel giorno. */
   quotaSopra: number;
   /** Anni che compongono il punto: sempre tutti quelli della finestra. */
@@ -236,7 +230,7 @@ export function percorsoIndice(opts: {
   }
   const deriva = opts.detrend ? cum[GIORNI_INDICE] / GIORNI_INDICE : 0;
 
-  // Percorso di ogni anno, per la banda.
+  // Percorso di ogni anno, per mediana e quota sopra la partenza.
   const percorsiAnni = serie.map((giorni) => {
     const p = new Array<number>(GIORNI_INDICE + 1).fill(0);
     for (let g = 1; g <= GIORNI_INDICE; g += 1) p[g] = p[g - 1] + giorni[g];
@@ -251,8 +245,6 @@ export function percorsoIndice(opts: {
       giorno: g,
       mediaCum: cum[g] - tolta,
       medianaCum: quantileSorted(valori, 0.5),
-      q1Cum: quantileSorted(valori, 0.25),
-      q3Cum: quantileSorted(valori, 0.75),
       quotaSopra: valori.filter((v) => v > 0).length / n,
       n,
     });
@@ -278,29 +270,4 @@ export function percorsoAnno(
 /** Log cumulato → valore dell'indice. L'unica conversione verso il display. */
 export function aIndice(logCum: number): number {
   return BASE_INDICE * Math.exp(logCum);
-}
-
-/**
- * Media mobile CENTRATA: il valore del giorno g è la media da g−r a g+r. Ai
- * bordi il raggio si accorcia allo stesso modo da tutti e due i lati, così la
- * media resta centrata e il punto di partenza (100) non viene toccato.
- * I `null` (giorni fuori dati) restano `null` e non entrano nelle medie.
- */
-export function mediaMobileCentrata(
-  valori: readonly (number | null)[],
-  raggio: number = RAGGIO_LISCIATURA,
-): (number | null)[] {
-  return valori.map((v, i) => {
-    if (v === null) return null;
-    const r = Math.min(raggio, i, valori.length - 1 - i);
-    let somma = 0;
-    let conta = 0;
-    for (let k = i - r; k <= i + r; k += 1) {
-      const x = valori[k];
-      if (x === null) continue;
-      somma += x;
-      conta += 1;
-    }
-    return somma / conta;
-  });
 }

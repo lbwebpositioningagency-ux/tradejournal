@@ -239,15 +239,17 @@ export function monthScope(month: number): string {
 }
 
 /**
- * Righe di MAE/MFE di periodo (`escursioni.ts`) nella stessa tabella delle
- * statistiche: `MAE`/`MFE` su tutto l'anno, `MAE:M09` dentro settembre. Stanno
- * in uno `scope` proprio perché sono un'altra misura dello stesso bucket, non
- * un'altra fetta: le letture esistenti chiedono `ALL` o `Mxx` e non le vedono.
+ * Righe dell'ampiezza massimo-minimo di periodo (`ampiezza.ts`) nella stessa
+ * tabella delle statistiche: `AMPIEZZA` su tutto l'anno, `AMPIEZZA:M09` dentro
+ * settembre. Stanno in uno `scope` proprio perché sono un'altra misura dello
+ * stesso bucket, non un'altra fetta: le letture esistenti chiedono `ALL` o
+ * `Mxx` e non le vedono. (Fino al 15/09/2026 lo stesso posto lo occupavano
+ * MAE e MFE, tolte.)
  */
-export type TipoEscursione = "MAE" | "MFE";
+export const SCOPE_AMPIEZZA = "AMPIEZZA";
 
-export function scopeEscursione(tipo: TipoEscursione, month?: number): string {
-  return month === undefined ? tipo : `${tipo}:${monthScope(month)}`;
+export function scopeAmpiezza(month?: number): string {
+  return month === undefined ? SCOPE_AMPIEZZA : `${SCOPE_AMPIEZZA}:${monthScope(month)}`;
 }
 
 /** Inverso di `monthScope`; `null` per "ALL" o per una stringa non valida. */

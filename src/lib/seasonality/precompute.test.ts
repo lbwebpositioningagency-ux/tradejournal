@@ -178,7 +178,7 @@ describe("precomputeDaily — prezzi", () => {
     expect(settembre.every((s) => s.firstDate.slice(5, 7) === "09")).toBe(true);
   });
 
-  it("il percorso stagionale ha 366 punti (0-365), bande e numerosità", () => {
+  it("il percorso stagionale ha 366 punti (0-365) e numerosità, senza quartili", () => {
     const bars = dailySeries(2010, 2026, (d) => (d.getUTCMonth() === 2 ? 1.002 : 1.0001));
     const out = precomputeDaily({
       instrument: "XAUUSD",
@@ -194,8 +194,9 @@ describe("precomputeDaily — prezzi", () => {
     );
     expect(punti[0].meanCum).toBe(0);
     for (const p of punti) {
-      expect(p.p25Cum).toBeLessThanOrEqual(p.medianCum + 1e-12);
-      expect(p.p75Cum).toBeGreaterThanOrEqual(p.medianCum - 1e-12);
+      // Le colonne della banda tolta ripetono la media: nessun quartile calcolato.
+      expect(p.p25Cum).toBe(p.meanCum);
+      expect(p.p75Cum).toBe(p.meanCum);
       expect(p.n).toBe(10);
     }
   });
@@ -243,7 +244,7 @@ describe("precomputeDaily — prezzi", () => {
     expect(lunedi.mean).toBeCloseTo(Math.log(1.001), 10);
   });
 
-  it("MAE e MFE di periodo solo dove esistono massimo e minimo", () => {
+  it("ampiezza massimo-minimo solo dove esistono massimo e minimo, niente MAE/MFE", () => {
     const conOhlc = dailySeries(2014, 2026, () => 1.0003).map((b) => ({
       ...b,
       open: b.close,
@@ -251,25 +252,30 @@ describe("precomputeDaily — prezzi", () => {
       low: b.close * 0.99,
     }));
     const out = precomputeDaily({ instrument: "SPX", kind: "RETURN", bars: conOhlc, now: NOW });
-    const mfeMarzo = out.stats.find(
-      (s) => s.granularity === "MONTH" && s.scope === "MFE" && s.lookbackYears === 10 && s.bucket === 3,
+    const marzo = out.stats.find(
+      (s) => s.granularity === "MONTH" && s.scope === "AMPIEZZA" && s.lookbackYears === 10 && s.bucket === 3,
     )!;
-    const maeMarzo = out.stats.find(
-      (s) => s.granularity === "MONTH" && s.scope === "MAE" && s.lookbackYears === 10 && s.bucket === 3,
+    expect(marzo.n).toBe(10);
+    // Un mese che sale dello 0,03% al giorno ha un range più largo di una seduta.
+    expect(marzo.mean).toBeGreaterThan(0.02);
+    const martedi = out.stats.find(
+      (s) => s.granularity === "WEEKDAY" && s.scope === "AMPIEZZA" && s.lookbackYears === 10 && s.bucket === 2,
     )!;
-    expect(mfeMarzo.n).toBe(10);
-    expect(mfeMarzo.mean).toBeGreaterThan(0.01);
-    expect(maeMarzo.mean).toBeLessThanOrEqual(0);
-    expect(out.stats.some((s) => s.scope === "MAE:M09" && s.granularity === "WEEKDAY")).toBe(true);
+    // (1,01 − 0,99) · chiusura / apertura = 2% esatto per ogni seduta.
+    expect(martedi.mean).toBeCloseTo(0.02, 12);
+    // Media sulle OCCORRENZE: n conta i martedì, non gli anni.
+    expect(martedi.n).toBeGreaterThan(500);
+    expect(out.stats.some((s) => s.scope === "AMPIEZZA:M09" && s.granularity === "WEEKDAY")).toBe(true);
+    expect(out.stats.some((s) => s.scope.startsWith("MAE") || s.scope.startsWith("MFE"))).toBe(false);
 
-    // Solo chiusure (il WTI spot): nessuna riga di escursione.
+    // Solo chiusure (il WTI spot): nessuna riga di ampiezza.
     const soloChiusure = precomputeDaily({
       instrument: "WTI",
       kind: "RETURN",
       bars: dailySeries(2014, 2026, () => 1.0003),
       now: NOW,
     });
-    expect(soloChiusure.stats.some((s) => s.scope.startsWith("MAE") || s.scope.startsWith("MFE"))).toBe(false);
+    expect(soloChiusure.stats.some((s) => s.scope.startsWith("AMPIEZZA"))).toBe(false);
   });
 
   it("il percorso detrendizzato finisce vicino allo zero (tolta la pendenza)", () => {
@@ -404,7 +410,7 @@ describe("precomputeDaily — indici di volatilità", () => {
     expect(punto(293).meanCum).toBeCloseTo(Math.log(2), 10);
     // Fine anno: di nuovo a 15, come l'anno prima → la forma torna alla partenza.
     expect(punto(365).meanCum).toBeCloseTo(0, 10);
-    // Nessun MAE/MFE su un livello di volatilità.
+    // Nessuna ampiezza su un livello di volatilità.
     expect(out.stats.some((s) => s.scope !== "ALL" && !s.scope.startsWith("M0") && !s.scope.startsWith("M1"))).toBe(false);
   });
 });
@@ -682,5 +688,38 @@ describe("campione grezzo e livello di aggregazione", () => {
     );
     expect(w10?.n).toBe(10);
     expect(w10?.rawCount).toBe(10);
+  });
+
+  it("«in rialzo» del GIORNO conta i lunedì saliti, non gli anni col lunedì medio positivo", () => {
+    // Il primo lunedì di ogni mese +3%, gli altri −0,5%: il lunedì MEDIO di
+    // ogni anno è positivo (12 · 3 − 40 · 0,5 > 0), ma i lunedì saliti sono
+    // solo dodici l'anno. Il calcolo precedente diceva «10 anni su 10».
+    const bars: DailyBar[] = [];
+    let close = 100;
+    const cur = new Date(Date.UTC(2015, 0, 1));
+    while (cur.getTime() <= Date.UTC(2026, 6, 31)) {
+      const dow = cur.getUTCDay();
+      if (dow >= 1 && dow <= 5) {
+        if (dow === 1) close *= cur.getUTCDate() <= 7 ? 1.03 : 0.995;
+        bars.push({ date: cur.toISOString().slice(0, 10), close });
+      }
+      cur.setUTCDate(cur.getUTCDate() + 1);
+    }
+    const out = precomputeDaily({ instrument: "XAUUSD", kind: "RETURN", bars, now: NOW });
+    const lun = out.stats.find(
+      (s) => s.granularity === "WEEKDAY" && s.scope === "ALL" && s.lookbackYears === 10 && s.bucket === 1 && !s.detrended,
+    )!;
+    expect(lun.n).toBe(10);
+    expect(lun.mean).toBeGreaterThan(0);
+    // 2016-2025: esattamente un lunedì fra l'1 e il 7 di ogni mese.
+    expect(Math.round(lun.positiveShare * lun.rawCount)).toBe(120);
+    expect(lun.positiveShare).toBeLessThan(0.3);
+
+    // Il mese resta contato in mesi: unità e occorrenza coincidono.
+    const gen = out.stats.find(
+      (s) => s.granularity === "MONTH" && s.scope === "ALL" && s.lookbackYears === 10 && s.bucket === 1 && !s.detrended,
+    )!;
+    expect(gen.rawCount).toBe(10);
+    expect(Number.isInteger(gen.positiveShare * gen.rawCount)).toBe(true);
   });
 });

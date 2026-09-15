@@ -47,6 +47,7 @@ export function SeasonalityHeatmap({
   windowMedian,
   lookbackYears,
   currentBucket,
+  frequenzeInRicalcolo = false,
 }: {
   data: HeatmapData;
   kind: SeasonalityKind;
@@ -59,6 +60,8 @@ export function SeasonalityHeatmap({
   /** Il bucket in cui ci si trova ADESSO (mese/settimana/…): evidenziato in
    * intestazione. `null` = nessun marcatore (es. weekend sui giorni lun-ven). */
   currentBucket?: number | null;
+  /** Le righe in archivio vengono dal calcolo che contava la quota sugli anni. */
+  frequenzeInRicalcolo?: boolean;
 }) {
   const axis = BUCKET_AXIS[granularity];
   const unit = unitFor(kind);
@@ -105,7 +108,9 @@ export function SeasonalityHeatmap({
         <Titolo className="mb-0 min-w-0 flex-1">
           Anni × {axis.columnName.toLowerCase()} — ultimi {lookbackYears} anni
         </Titolo>
-        <span className="text-2xs text-[var(--md-muted)]">
+        {/* A tutta riga sotto 640px: accanto al titolo, a 390 le due righe si
+            sovrapponevano («Anni × sessione» sotto «variazione %, media…»). */}
+        <span className="basis-full text-2xs text-[var(--md-muted)] sm:basis-auto">
           {UNIT_LABEL[unit]}
           {granularity === "MONTH"
             ? " del mese"
@@ -250,11 +255,27 @@ export function SeasonalityHeatmap({
               values={summaryByBucket}
               render={(s) => formatStdev(s.stdev, kind, unit, sintesiDecimals)}
             />
+            {/* «In rialzo» si conta sulle occorrenze (giorni, sessioni, ore),
+                non sugli anni della riga `n` sotto: l'unità sta nell'etichetta
+                (tavola, giro 3d). */}
             <SummaryRow
-              label={positiveLabel(kind)}
+              label={
+                <>
+                  {positiveLabel(kind)}
+                  <span className="block text-2xs font-normal text-[var(--md-muted)]">{axis.rawUnit}</span>
+                </>
+              }
               buckets={axis.buckets}
               values={summaryByBucket}
-              render={(s) => <Frequenza quota={s.positiveShare} n={s.n} compatta aCapo />}
+              render={(s) => (
+                <Frequenza
+                  quota={s.positiveShare}
+                  n={s.rawCount ?? s.n}
+                  compatta
+                  aCapo
+                  inRicalcolo={frequenzeInRicalcolo}
+                />
+              )}
             />
             {/* La riga `n` porta il marcatore di campione basso come la
                 tabella sotto: due viste dello stesso numero non possono
@@ -297,7 +318,7 @@ function SummaryRow({
   cellBg,
   emphasis,
 }: {
-  label: string;
+  label: React.ReactNode;
   buckets: number[];
   values: Map<number, BucketView>;
   render: (s: BucketView) => React.ReactNode;
@@ -310,7 +331,7 @@ function SummaryRow({
     <tr>
       <th
         scope="row"
-        className="sticky left-0 z-10 border-t bg-[var(--md-surface)] px-2 py-1.5 text-left font-semibold text-[var(--md-text-2)]"
+        className="sticky left-0 z-10 whitespace-nowrap border-t bg-[var(--md-surface)] px-2 py-1.5 text-left font-semibold text-[var(--md-text-2)]"
         style={{ borderColor: "var(--md-border)" }}
       >
         {label}

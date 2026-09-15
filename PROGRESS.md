@@ -3110,3 +3110,13 @@ due temi, anche nei testi SVG; la sonda dei grafici ha trovato e fatto corregger
 orarie dell'intraday a 8-9px. Voto rubrica design 360: 62,7 → **78,2**. Residui dichiarati nel
 referto (settimana a 390 = 5.042px, tabella per mese che scorre di 138px a 1440, produzione in
 transizione fino al job notturno). Gate: typecheck, lint, 2.144 test, build verdi.
+
+## 15/09/2026 · Stagionalità, correzioni dopo la revisione
+
+Referto in `docs/stagionalita-correzioni-2026-09-15.md`, tavola Claude Design giro 3. Frequenze
+«in rialzo» contate sulle occorrenze della riga: era un errore di CALCOLO per giorno, sessione e ora
+(quota di anni col periodo medio positivo); oro martedì 12 anni su 20 → 559 martedì su 1.044.
+Ampiezza massimo-minimo accanto ai rendimenti (oro, DAX, S&P su mese, settimana, giorno; WTI,
+sessione e ora dichiarano perché no). Via banda, lisciatura, MAE/MFE, grafico intraday e fase M15
+del job. WTI da Dukascopy verificato e NON sostituito: storia dal 2007 con due anni mancanti e
+lunedì di segno opposto, decisione all'utente.

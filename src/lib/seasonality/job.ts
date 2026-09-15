@@ -49,10 +49,6 @@ import {
 import { precomputeDaily } from "@/lib/seasonality/precompute";
 import { precomputeIntraday } from "@/lib/seasonality/intraday";
 import { ingestHourlyStep, readHourBars } from "@/lib/seasonality/hour-ingest";
-import {
-  QUARTER_START,
-  ingestQuartersStep,
-} from "@/lib/seasonality/quarter-ingest";
 import { resolveDailySeries } from "@/lib/seasonality/sources";
 import type { ContinuitaSerie, ContoOhlc } from "@/lib/job-esito";
 import { hasOhlc, mesiPopolati, unisciBarre, type DailyBar } from "@/lib/seasonality/series";
@@ -83,11 +79,6 @@ export const BUDGET_DEFAULT_MS = 150_000;
 const MARGINE_DAILY_MS = 8_000;
 const MARGINE_BLOCCO_ORARIO_MS = 12_000;
 const MARGINE_PRECALCOLO_MS = 15_000;
-/* Un anno di M15 costa ~40 s di scarico misurati sull'archivio pubblico:
-   il margine deve rifletterlo, altrimenti il job comincia un anno che non
-   riesce a finire. Il tetto sul margine (vedi `scaduto`) resta la rete di
-   sicurezza contro il livelock quando il budget è più stretto del margine. */
-const MARGINE_ANNO_M15_MS = 45_000;
 
 /** Sotto le 20 ore il giornaliero non si rifà: le fonti pubblicano una volta al giorno. */
 const FRESCHEZZA_DAILY_MS = 20 * 3_600_000;
@@ -157,7 +148,7 @@ export interface EsitoJob {
   ok: boolean;
   /** Tutto ciò che c'era da fare è stato fatto. */
   completo: boolean;
-  fase: "giornaliero" | "intraday" | "quarti" | "completo";
+  fase: "giornaliero" | "intraday" | "completo";
   /** Cosa farà la prossima invocazione; `null` se non serve richiamarlo. */
   prossimo: string | null;
   runId: string;
@@ -769,66 +760,10 @@ export async function runSeasonalityDailyJob(
     }
   }
 
-  /* ── FASE 3 · QUARTI D'ORA (M15) ────────────────────────────────────────
-     Alimenta il solo grafico del ritorno intraday. Viene per ultima di
-     proposito: è la parte più lenta e la meno essenziale — se il budget
-     finisce qui, la pagina resta completa in tutto il resto e il cursore
-     riprende la notte dopo. */
-  if (opts.intraday !== false) {
-    fase = "quarti";
-    for (const def of targets) {
-      if (!def.hourly) continue;
-
-      if (opts.fullRescan) {
-        await statoDi(prisma, def.code);
-        await prisma.seasonalityJobState.update({
-          where: { instrument: def.code },
-          data: { quarterNextYear: null, quarterIngestComplete: false },
-        });
-      }
-      const stato = await statoDi(prisma, def.code);
-
-      if (scaduto(MARGINE_ANNO_M15_MS)) {
-        prossimo ??= `quarti d'ora di ${def.code}`;
-        continue;
-      }
-
-      try {
-        const q = await ingestQuartersStep(
-          prisma,
-          def.code,
-          def.hourly,
-          QUARTER_START[def.hourly] ?? "2010-01-01",
-          {
-            now,
-            deadline,
-            marginePerAnnoMs: MARGINE_ANNO_M15_MS,
-            nextYear: stato.quarterNextYear,
-            ingestComplete: stato.quarterIngestComplete,
-            onProgress: opts.onProgress,
-            onChunkDone: async (nextYear, complete) => {
-              await prisma.seasonalityJobState.update({
-                where: { instrument: def.code },
-                data: {
-                  quarterNextYear: nextYear,
-                  quarterIngestComplete: complete,
-                  quarterDoneAt: complete ? now : null,
-                },
-              });
-            },
-          },
-        );
-        if (!q.complete) prossimo ??= `quarti d'ora di ${def.code}`;
-        opts.onProgress?.(
-          `M15 ${def.code}: ${q.written} aggregati, anni ${q.years.join(", ") || "—"}`,
-        );
-      } catch (error) {
-        const messaggio = String(error);
-        console.error(`[stagionalita] ${def.code} M15: ${messaggio}`);
-        prossimo ??= `quarti d'ora di ${def.code}`;
-      }
-    }
-  }
+  /* La fase 3 (quarti d'ora M15) è stata tolta il 15/09/2026 insieme al
+     grafico dell'indice intraday, che era il suo unico lettore. La tabella
+     `SeasonalityQuarterYear` resta in archivio, non più aggiornata
+     (docs/DEBITO-TECNICO.md). */
 
   const completo = prossimo === null;
   if (completo) fase = "completo";

@@ -18,10 +18,9 @@ import type {
   SeasonalityKind,
 } from "@/generated/prisma/client";
 import { SEASONALITY_BY_CODE } from "@/lib/seasonality/instruments";
-import { aIndice } from "@/lib/seasonality/indice";
 import { sampleQuality, type SampleQuality } from "@/lib/seasonality/stats";
 import { windowYears } from "@/lib/seasonality/precompute";
-import { scopeEscursione } from "@/lib/seasonality/buckets";
+import { scopeAmpiezza } from "@/lib/seasonality/buckets";
 import { estremiPerBucket, type EstremiBucket } from "@/lib/seasonality/estremi";
 
 export interface BucketView {
@@ -210,51 +209,31 @@ export async function getStatsByWindow(opts: {
   return out;
 }
 
-export interface EscursioniBucket {
-  mae: BucketView;
-  mfe: BucketView;
-}
-
 /**
- * MAE e MFE di periodo per finestra e bucket (righe `scope` MAE/MFE del
- * precalcolo, v. `escursioni.ts`). Mappa vuota = lo strumento non ha massimo
- * e minimo in archivio, oppure il precalcolo non le ha ancora prodotte: la
- * pagina distingue i due casi dal catalogo, non da qui.
+ * Ampiezza massimo-minimo media per bucket, su UNA finestra (righe `scope`
+ * AMPIEZZA del precalcolo, v. `ampiezza.ts`). Valori in FRAZIONE, non in log.
+ * Mappa vuota = lo strumento non ha massimo e minimo in archivio, oppure il
+ * precalcolo non le ha ancora prodotte: la pagina distingue i due casi dalla
+ * fonte, non da qui.
  */
-export async function getEscursioniByWindow(opts: {
+export async function getAmpiezzaByWindow(opts: {
   instrument: SeasonalityInstrument;
   granularity: "MONTH" | "WEEK" | "WEEKDAY";
   /** Mese del drill sulle sedute; assente = tutto l'anno. */
   mese?: number;
-  lookbacks: readonly number[];
-}): Promise<Map<number, Map<number, EscursioniBucket>>> {
-  const scopeMae = scopeEscursione("MAE", opts.mese);
-  const scopeMfe = scopeEscursione("MFE", opts.mese);
+  lookbackYears: number;
+}): Promise<Map<number, BucketView>> {
   const rows = await prisma.seasonalityStat.findMany({
     where: {
       instrument: opts.instrument,
       granularity: opts.granularity,
-      scope: { in: [scopeMae, scopeMfe] },
-      lookbackYears: { in: [...opts.lookbacks] },
+      scope: scopeAmpiezza(opts.mese),
+      lookbackYears: opts.lookbackYears,
       detrended: false,
       clock: "ROME",
     },
   });
-  const out = new Map<number, Map<number, EscursioniBucket>>();
-  const parziali = new Map<string, Partial<EscursioniBucket>>();
-  for (const row of rows) {
-    const key = `${row.lookbackYears}-${row.bucket}`;
-    const p = parziali.get(key) ?? {};
-    if (row.scope === scopeMae) p.mae = toView(row);
-    else p.mfe = toView(row);
-    parziali.set(key, p);
-    if (p.mae && p.mfe) {
-      const perBucket = out.get(row.lookbackYears) ?? new Map<number, EscursioniBucket>();
-      perBucket.set(row.bucket, { mae: p.mae, mfe: p.mfe });
-      out.set(row.lookbackYears, perBucket);
-    }
-  }
-  return out;
+  return new Map(rows.map((r) => [r.bucket, toView(r)]));
 }
 
 /**
@@ -365,8 +344,6 @@ export interface PathPointView {
   dayOfYear: number;
   mean: number;
   median: number;
-  p25: number;
-  p75: number;
   positiveShare: number;
   n: number;
 }
@@ -390,8 +367,6 @@ export async function getPaths(opts: {
       dayOfYear: row.dayOfYear,
       mean: Number(row.meanCum),
       median: Number(row.medianCum),
-      p25: Number(row.p25Cum),
-      p75: Number(row.p75Cum),
       positiveShare: Number(row.positiveShare),
       n: row.n,
     };
@@ -437,97 +412,17 @@ export function intradayLookbacks(
 }
 
 /**
- * Percorso intraday a 96 punti (quarti d'ora) per finestra di lookback.
- *
- * Alimenta SOLO il grafico del ritorno intraday. Le tabelle e la heatmap
- * della vista Ora restano sulle barre H1 con le loro statistiche complete:
- * qui non c'è StDev né Pos%, c'è una media, perché è l'unica cosa che il
- * grafico disegna.
- *
- * L'aggregazione è la stessa di sempre — livello ANNO: si legge la media
- * annua di ogni quarto d'ora e si fa la media fra gli anni della finestra.
- * Una finestra da 10 anni con solo 6 anni in archivio produce 6 anni, non un
- * errore: `years` lo dichiara e la pagina lo mostra.
+ * Quando il precalcolo INTRADAY (sessione e ora) di uno strumento è stato
+ * scritto l'ultima volta. La pagina lo confronta con
+ * `FREQUENZE_PER_OCCORRENZA_DAL` per non mostrare come conteggio una quota
+ * calcolata col metodo precedente.
  */
-export async function getQuarterPaths(opts: {
-  instrument: SeasonalityInstrument;
-  clock: SeasonalityClock;
-  lookbacks: number[];
-  detrended: boolean;
-  now?: Date;
-}): Promise<
-  Map<number, { values: number[]; years: number; emptyBuckets: number }>
-> {
-  const out = new Map<
-    number,
-    { values: number[]; years: number; emptyBuckets: number }
-  >();
-  if (opts.lookbacks.length === 0) return out;
-
-  const lcy = lastCompleteYear(opts.now ?? new Date());
-  const maxLookback = Math.max(...opts.lookbacks);
-  const rows = await prisma.seasonalityQuarterYear.findMany({
-    where: {
-      instrument: opts.instrument,
-      clock: opts.clock,
-      year: { gte: lcy - maxLookback + 1, lte: lcy },
-    },
-    select: { year: true, bucket: true, mean: true },
+export async function getHourComputedAt(
+  instrument: SeasonalityInstrument,
+): Promise<Date | null> {
+  const stato = await prisma.seasonalityJobState.findUnique({
+    where: { instrument },
+    select: { hourComputedAt: true },
   });
-  if (rows.length === 0) return out;
-
-  for (const lookback of opts.lookbacks) {
-    const from = lcy - lookback + 1;
-    const perBucket = new Map<number, { sum: number; n: number }>();
-    const anni = new Set<number>();
-    for (const r of rows) {
-      if (r.year < from) continue;
-      anni.add(r.year);
-      const cur = perBucket.get(r.bucket);
-      const v = Number(r.mean);
-      if (cur) {
-        cur.sum += v;
-        cur.n += 1;
-      } else {
-        perBucket.set(r.bucket, { sum: v, n: 1 });
-      }
-    }
-    if (anni.size === 0) continue;
-
-    /* Un quarto d'ora senza NESSUNA quotazione in tutta la finestra non è un
-       buco d'archivio ma un mercato chiuso: la pausa di manutenzione serale
-       di CME ed Eurex, che sul DAX e sull'S&P vale otto e quattro quarti
-       d'ora. Il cumulato ci passa sopra piatto — che è quanto è successo:
-       niente. Non è un valore stimato, e la pagina lo dichiara invece di
-       lasciarlo interpretare a chi guarda. */
-    let emptyBuckets = 0;
-    const medie: number[] = [];
-    for (let b = 0; b < 96; b += 1) {
-      const e = perBucket.get(b);
-      if (!e) emptyBuckets += 1;
-      medie.push(e ? e.sum / e.n : 0);
-    }
-
-    /* Detrend: si toglie il drift MEDIO del quarto d'ora, cioè la media dei
-       96 bucket. Sul cumulato significa che la giornata parte e finisce a
-       zero, e resta solo la FORMA — quali momenti spingono rispetto alla
-       media della giornata, che è la domanda della vista «solo stagionalità». */
-    const drift = opts.detrended
-      ? medie.reduce((a, v) => a + v, 0) / medie.length
-      : 0;
-
-    /* Cumulato in log (additivo), convertito in INDICE a base 100 solo alla
-       fine, come il percorso annuale: il grafico confronta forme, non
-       rendimenti. Cinque decimali perché un quarto d'ora sposta l'indice di
-       millesimi, e arrotondare qui appiattirebbe la curva prima ancora di
-       disegnarla. */
-    const values: number[] = [];
-    let cum = 0;
-    for (const m of medie) {
-      cum += m - drift;
-      values.push(Number(aIndice(cum).toFixed(5)));
-    }
-    out.set(lookback, { values, years: anni.size, emptyBuckets });
-  }
-  return out;
+  return stato?.hourComputedAt ?? null;
 }

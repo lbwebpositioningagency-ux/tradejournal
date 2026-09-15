@@ -3,6 +3,7 @@ import type { RigaRiepilogo } from "@/lib/seasonality/riepilogo-adesso";
 import type { WindowCoverage } from "@/lib/seasonality/query";
 import { MetricInfo } from "@/components/metric-info";
 import {
+  ampiezzaInfo,
   campioneInfo,
   medianaInfo,
   numerositaInfo,
@@ -13,6 +14,7 @@ import {
 import {
   UNIT_LABEL,
   decimalsFor,
+  formatAmpiezza,
   formatBucketValue,
   formatStdev,
   meanLabel,
@@ -33,8 +35,8 @@ import { formatInteger } from "@/lib/format-number";
  *
  * Una resa sola a ogni larghezza (tavola «Sistema visivo v3 - Stagionalità e
  * grafico con banda», 2b): tabella del listino con la prima colonna ferma.
- * Prima sotto 768px diventava tre card: una tabella di tre righe si scorre in
- * orizzontale meglio di quanto si leggano tre riquadri impilati.
+ * Dal giro 3 (15/09/2026 sera): l'ampiezza massimo-minimo subito dopo le
+ * finestre, e «in rialzo» contato nell'unità della riga.
  *
  * Componente PURO: nessuno stato, nessun hook, nessuna data di sistema.
  */
@@ -46,6 +48,9 @@ export function RiepilogoAdesso({
   copertura,
   reference = 0,
   motivoVuota,
+  mostraAmpiezza = false,
+  motivoAmpiezza = null,
+  frequenzeInRicalcolo = false,
 }: {
   kind: SeasonalityKind;
   righe: RigaRiepilogo[];
@@ -56,10 +61,18 @@ export function RiepilogoAdesso({
   /** Riferimento del colore per i LIVELLI: la mediana dei dodici mesi. */
   reference?: number;
   motivoVuota: (riga: RigaRiepilogo) => string;
+  /** Vero per gli strumenti di prezzo: la colonna c'è, anche quando non si calcola. */
+  mostraAmpiezza?: boolean;
+  /** Perché l'ampiezza non si calcola per questo strumento; `null` = si calcola. */
+  motivoAmpiezza?: string | null;
+  frequenzeInRicalcolo?: boolean;
 }) {
   const unit = unitFor(kind);
   const dec = decimalsFor(kind, "MONTH");
   const ferma = "sticky left-0 z-[1] bg-[var(--md-bg)]";
+  /* Una cella sola, alta quanto la tabella, dice perché l'ampiezza non c'è
+     (giro 3c-i). Sta nella prima riga; le righe vuote non la coprono. */
+  const cellaMotivo = mostraAmpiezza && motivoAmpiezza !== null;
 
   return (
     <section aria-labelledby="riepilogo-adesso">
@@ -73,8 +86,8 @@ export function RiepilogoAdesso({
       </Titolo>
       <Tab>
         <caption className="sr-only">
-          Mese, settimana e giorno correnti: statistica per finestra, con mediana,
-          dispersione, anni in rialzo e campione.
+          Mese, settimana e giorno correnti: statistica per finestra, con ampiezza, mediana,
+          dispersione, occorrenze in rialzo e campione.
         </caption>
         <thead>
           <tr>
@@ -90,7 +103,14 @@ export function RiepilogoAdesso({
                 {w} anni
               </th>
             ))}
-            <th scope="col">
+            {mostraAmpiezza ? (
+              <th scope="col" className="ml-sep">
+                <span className="inline-flex items-center gap-1">
+                  Ampiezza <MetricInfo info={ampiezzaInfo} size="sm" />
+                </span>
+              </th>
+            ) : null}
+            <th scope="col" className={mostraAmpiezza ? undefined : "ml-sep"}>
               <span className="inline-flex items-center gap-1">
                 Mediana <MetricInfo info={medianaInfo(kind)} size="sm" />
               </span>
@@ -120,8 +140,14 @@ export function RiepilogoAdesso({
           </tr>
         </thead>
         <tbody>
-          {righe.map((r) => {
+          {righe.map((r, indice) => {
             const sel = r.selezionata;
+            const motivoQui =
+              cellaMotivo && indice === 0 ? (
+                <td rowSpan={righe.length} className="ml-sep ml-wrap min-w-[11rem] max-w-[14rem] text-left align-middle text-[var(--md-text-2)]">
+                  {motivoAmpiezza}
+                </td>
+              ) : null;
             return (
               <tr key={r.orizzonte} className={r.orizzonte === "MONTH" ? "ml-ora" : undefined}>
                 <td className={`ml-sx ${ferma}`}>
@@ -129,9 +155,13 @@ export function RiepilogoAdesso({
                   <span className="font-medium">{r.bucket}</span>
                 </td>
                 {sel === null ? (
-                  <td colSpan={finestre.length + 5} className="ml-sx ml-wrap text-[var(--md-muted)]">
-                    {motivoVuota(r)}
-                  </td>
+                  <>
+                    <td colSpan={finestre.length} className="ml-sx ml-wrap text-[var(--md-muted)]">
+                      {motivoVuota(r)}
+                    </td>
+                    {motivoQui}
+                    <td colSpan={mostraAmpiezza && !cellaMotivo ? 6 : 5} />
+                  </>
                 ) : (
                   <>
                     {finestre.map((w) => {
@@ -150,7 +180,19 @@ export function RiepilogoAdesso({
                         </td>
                       );
                     })}
-                    <td>{formatBucketValue(sel.median, kind, dec, unit)}</td>
+                    {motivoQui}
+                    {mostraAmpiezza && !cellaMotivo ? (
+                      <td className="ml-sep">
+                        {r.ampiezza ? (
+                          formatAmpiezza(r.ampiezza.mean)
+                        ) : (
+                          <span className="text-[var(--md-text-2)]">in ricalcolo</span>
+                        )}
+                      </td>
+                    ) : null}
+                    <td className={mostraAmpiezza ? undefined : "ml-sep"}>
+                      {formatBucketValue(sel.median, kind, dec, unit)}
+                    </td>
                     <td>{formatStdev(sel.stdev, kind, unit, dec)}</td>
                     <td>
                       {sel.stdev !== null ? (
@@ -161,7 +203,7 @@ export function RiepilogoAdesso({
                           </span>
                           {sel.withinSigma !== null ? (
                             <span className="text-2xs text-[var(--md-muted)]">
-                              dentro <Frequenza quota={sel.withinSigma} n={sel.n} compatta />
+                              dentro <Frequenza quota={sel.withinSigma} n={sel.n} unita="anni" />
                             </span>
                           ) : null}
                         </span>
@@ -170,7 +212,13 @@ export function RiepilogoAdesso({
                       )}
                     </td>
                     <td>
-                      <Frequenza quota={sel.positiveShare} n={sel.n} aCapo />
+                      <Frequenza
+                        quota={sel.positiveShare}
+                        n={sel.rawCount ?? sel.n}
+                        unita={r.unitaFrequenza}
+                        aCapo
+                        inRicalcolo={frequenzeInRicalcolo}
+                      />
                     </td>
                     <td>
                       <span className="inline-flex flex-col items-end gap-0.5">
@@ -195,10 +243,11 @@ export function RiepilogoAdesso({
         </tbody>
       </Tab>
       <p className="mt-2 text-2xs leading-[1.5] text-[var(--md-muted)]">
-        Valori in {UNIT_LABEL[unit]}. Mediana, StDev, banda, {positiveLabel(kind).toLowerCase()} e
-        campione vengono dalla finestra selezionata; le colonne «{meanLabel(kind)}» delle altre
-        finestre portano il proprio n nel tooltip. A parità di anni un mese poggia su una ventina
-        di sedute l&apos;anno, un giorno della settimana su una cinquantina.
+        Valori in {UNIT_LABEL[unit]}. {mostraAmpiezza ? "Ampiezza, " : ""}mediana, StDev, banda,{" "}
+        {positiveLabel(kind).toLowerCase()} e campione vengono dalla finestra selezionata; le colonne «
+        {meanLabel(kind)}» delle altre finestre portano il proprio n nel tooltip. «
+        {positiveLabel(kind)}» si conta nell&apos;unità della riga, come il campione: un mese poggia su
+        una ventina di sedute l&apos;anno, un giorno della settimana su una cinquantina.
       </p>
     </section>
   );

@@ -5,7 +5,6 @@ import {
   aIndice,
   anniCompleti,
   giornoStagionale,
-  mediaMobileCentrata,
   percorsoAnno,
   percorsoIndice,
   rendimentiPerGiorno,
@@ -156,15 +155,8 @@ describe("percorsoIndice — la pipeline", () => {
     expect(punti[giornoStagionale("2025-09-30")].mediaCum).toBeGreaterThan(fine);
   });
 
-  it("la banda contiene la mediana e allarga dove gli anni divergono", () => {
-    for (const p of punti) {
-      expect(p.q1Cum).toBeLessThanOrEqual(p.medianaCum + 1e-12);
-      expect(p.q3Cum).toBeGreaterThanOrEqual(p.medianaCum - 1e-12);
-    }
-    const gennaio = punti[giornoStagionale("2025-01-31")];
-    const aprile = punti[giornoStagionale("2025-04-15")];
-    expect(gennaio.q3Cum - gennaio.q1Cum).toBeCloseTo(0, 12);
-    expect(aprile.q3Cum - aprile.q1Cum).toBeGreaterThan(0.01);
+  it("nessun quartile: il punto porta media, mediana, quota sopra e n", () => {
+    expect(Object.keys(punti[100]).sort()).toEqual(["giorno", "mediaCum", "medianaCum", "n", "quotaSopra"]);
   });
 
   it("una finestra con un anno mancante non produce punti (non si approssima)", () => {
@@ -172,13 +164,13 @@ describe("percorsoIndice — la pipeline", () => {
     expect(percorsoIndice({ perAnno, anni: [] })).toEqual([]);
   });
 
-  it("il detrend parte e finisce a 100 e toglie la stessa retta alla banda", () => {
+  it("il detrend parte e finisce a 100 e toglie la stessa retta alla mediana", () => {
     const d = percorsoIndice({ perAnno, anni, detrend: true });
     expect(d[0].mediaCum).toBe(0);
     expect(d[GIORNI_INDICE].mediaCum).toBeCloseTo(0, 12);
     const g = 200;
     const deriva = (punti[GIORNI_INDICE].mediaCum / GIORNI_INDICE) * g;
-    expect(d[g].q1Cum).toBeCloseTo(punti[g].q1Cum - deriva, 12);
+    expect(d[g].medianaCum).toBeCloseTo(punti[g].medianaCum - deriva, 12);
   });
 
   it("tutti in perdita: indice sotto 100, quota sopra la partenza zero", () => {
@@ -197,22 +189,5 @@ describe("percorsoAnno", () => {
     expect(p[0]).toBe(0);
     expect(p[p.length - 1]).toBeGreaterThan(0);
     expect(percorsoAnno(undefined, 10)).toEqual([]);
-  });
-});
-
-describe("mediaMobileCentrata", () => {
-  it("media su cinque giorni centrata, raggio accorciato ai bordi da entrambi i lati", () => {
-    const v = [100, 102, 104, 106, 108, 110, 112];
-    const m = mediaMobileCentrata(v);
-    expect(m[0]).toBe(100); // raggio 0: la partenza resta 100
-    expect(m[1]).toBeCloseTo((100 + 102 + 104) / 3, 12);
-    expect(m[3]).toBeCloseTo((102 + 104 + 106 + 108 + 110) / 5, 12);
-    expect(m[6]).toBe(112);
-  });
-
-  it("i null restano null e non entrano nelle medie", () => {
-    // Indice 2: raggio 2, finestra 0-4 senza il null → (1+3+5+7)/4.
-    // Indice 3: raggio 1 (bordo destro), finestra 2-4 → (3+5+7)/3.
-    expect(mediaMobileCentrata([1, null, 3, 5, 7])).toEqual([1, null, 4, 5, 7]);
   });
 });

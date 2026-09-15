@@ -11,7 +11,6 @@
  */
 
 import type { DailyBar } from "@/lib/seasonality/series";
-import type { QuarterBar } from "@/lib/seasonality/quarter";
 
 /**
  * Candele GIORNALIERE. `priceType: "bid"` per coerenza con l'intraday: quale
@@ -74,6 +73,9 @@ export interface HourBar {
  * La finestra viene spezzata in blocchi ANNUALI dal chiamante: un blocco che
  * fallisce non porta con sé i vent'anni già scaricati, e l'avanzamento è
  * visibile durante un backfill che dura minuti.
+ *
+ * (Le candele a 15 minuti, che alimentavano il grafico dell'indice intraday,
+ * non si scaricano più dal 15/09/2026: il grafico è stato tolto.)
  */
 export async function fetchDukascopyHourly(
   symbol: string,
@@ -91,41 +93,6 @@ export async function fetchDukascopyHourly(
   });
 
   const out: HourBar[] = [];
-  for (const bar of rates) {
-    const close = bar.close;
-    if (typeof close !== "number" || !Number.isFinite(close) || close <= 0) {
-      continue;
-    }
-    out.push({ ts: new Date(bar.timestamp), close });
-  }
-  return out;
-}
-
-/**
- * Candele a 15 MINUTI (timeframe M15) — alimentano il solo grafico del
- * ritorno intraday, che disegna 96 punti invece di 24.
- *
- * Le barre NON vengono conservate: il chiamante le aggrega ai 96 bucket
- * dell'anno e le butta nella stessa invocazione. Un anno di M15 sull'oro sono
- * ~24.000 barre e ~40 secondi di scarico, quindi la finestra si spezza per
- * anno esattamente come per le orarie.
- */
-export async function fetchDukascopyQuarterly(
-  symbol: string,
-  from: Date,
-  to: Date,
-): Promise<QuarterBar[]> {
-  const { getHistoricRates } = await import("dukascopy-node");
-  const rates = await getHistoricRates({
-    instrument: symbol as Parameters<typeof getHistoricRates>[0]["instrument"],
-    dates: { from, to },
-    timeframe: "m15",
-    priceType: "bid",
-    format: "json",
-    useCache: false,
-  });
-
-  const out: QuarterBar[] = [];
   for (const bar of rates) {
     const close = bar.close;
     if (typeof close !== "number" || !Number.isFinite(close) || close <= 0) {

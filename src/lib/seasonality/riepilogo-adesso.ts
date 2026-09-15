@@ -24,7 +24,8 @@
  *
  * Il campione va letto: a parità di `n` (gli anni), un mese poggia su ~21
  * giorni l'anno e un giorno della settimana su ~52. È la ragione per cui la
- * colonna «Campione» c'è anche qui.
+ * colonna «Campione» c'è anche qui, e per cui «in rialzo» si conta nella
+ * stessa unità: mesi, settimane, martedì.
  */
 
 import type { SeasonalityGranularity } from "@/generated/prisma/client";
@@ -50,6 +51,8 @@ export interface RigaRiepilogo {
   bucket: string;
   /** Unità del campione grezzo: mesi, settimane, giorni. */
   unitaCampione: string;
+  /** Unità con cui si scrive la frequenza: mesi, settimane, «martedì». */
+  unitaFrequenza: string;
   /** La statistica per finestra di lookback; assente = non calcolata. */
   perFinestra: Map<number, BucketView>;
   /**
@@ -59,6 +62,8 @@ export interface RigaRiepilogo {
    * motivo, invece di sparire: un orizzonte che manca è un'informazione.
    */
   selezionata: BucketView | null;
+  /** Ampiezza massimo-minimo media sulla finestra selezionata; `null` se non c'è. */
+  ampiezza: BucketView | null;
 }
 
 /** Il bucket in cui ci si trova adesso, per ciascuna delle tre profondità. */
@@ -130,6 +135,8 @@ export interface StatistichePerOrizzonte {
   /** La finestra di lookback da cui prendere mediana, StDev, banda, campione. */
   finestraSelezionata: number;
   adesso: ZonedParts;
+  /** Per orizzonte, l'ampiezza della finestra selezionata per bucket. */
+  ampiezzaPerOrizzonte?: Map<OrizzonteRiepilogo, Map<number, BucketView>>;
 }
 
 /**
@@ -154,8 +161,13 @@ export function righeRiepilogo(input: StatistichePerOrizzonte): RigaRiepilogo[] 
       livello: LIVELLO[orizzonte],
       bucket: etichettaBucket(orizzonte, bucket),
       unitaCampione: UNITA_CAMPIONE[orizzonte],
+      unitaFrequenza:
+        orizzonte === "WEEKDAY"
+          ? (WEEKDAY_LABELS[bucket]?.toLowerCase() ?? UNITA_CAMPIONE.WEEKDAY)
+          : UNITA_CAMPIONE[orizzonte],
       perFinestra,
       selezionata: perFinestra.get(input.finestraSelezionata) ?? null,
+      ampiezza: input.ampiezzaPerOrizzonte?.get(orizzonte)?.get(bucket) ?? null,
     };
   });
 }

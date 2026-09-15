@@ -1,0 +1,938 @@
+[
+  {
+    "pagina": "/macro-desk/stagionalita",
+    "larghezza": 1440,
+    "tema": "dark",
+    "file": "macro-desk_stagionalita__1440__dark.png",
+    "h1": "Stagionalitàmercato, non i tuoi trade",
+    "altezza": 3009,
+    "innerWidth": 1440,
+    "scrollWidth": 1440,
+    "sbordi": [
+      {
+        "d": 134,
+        "w": 1118,
+        "t": "",
+        "cols": 14
+      }
+    ],
+    "sotto12": 122,
+    "piccoli": 0,
+    "esempiPiccoli": [],
+    "bassoContrasto": 0,
+    "esempiBassi": [],
+    "famiglie": [
+      "Geist"
+    ],
+    "erroriConsole": []
+  },
+  {
+    "pagina": "/macro-desk/stagionalita?t=giorno",
+    "larghezza": 1440,
+    "tema": "dark",
+    "file": "macro-desk_stagionalita_t_giorno__1440__dark.png",
+    "h1": "Stagionalitàmercato, non i tuoi trade",
+    "altezza": 2770,
+    "innerWidth": 1440,
+    "scrollWidth": 1440,
+    "sbordi": [
+      {
+        "d": 118,
+        "w": 1118,
+        "t": "",
+        "cols": 14
+      }
+    ],
+    "sotto12": 93,
+    "piccoli": 0,
+    "esempiPiccoli": [],
+    "bassoContrasto": 0,
+    "esempiBassi": [],
+    "famiglie": [
+      "Geist"
+    ],
+    "erroriConsole": []
+  },
+  {
+    "pagina": "/macro-desk/stagionalita?t=sessione",
+    "larghezza": 1440,
+    "tema": "dark",
+    "file": "macro-desk_stagionalita_t_sessione__1440__dark.png",
+    "h1": "Stagionalitàmercato, non i tuoi trade",
+    "altezza": 2787,
+    "innerWidth": 1440,
+    "scrollWidth": 1440,
+    "sbordi": [
+      {
+        "d": 91,
+        "w": 1118,
+        "t": "",
+        "cols": 12
+      }
+    ],
+    "sotto12": 76,
+    "piccoli": 0,
+    "esempiPiccoli": [],
+    "bassoContrasto": 0,
+    "esempiBassi": [],
+    "famiglie": [
+      "Geist"
+    ],
+    "erroriConsole": []
+  },
+  {
+    "pagina": "/macro-desk/stagionalita?t=ora",
+    "larghezza": 1440,
+    "tema": "dark",
+    "file": "macro-desk_stagionalita_t_ora__1440__dark.png",
+    "h1": "Stagionalitàmercato, non i tuoi trade",
+    "altezza": 3647,
+    "innerWidth": 1440,
+    "scrollWidth": 1440,
+    "sbordi": [
+      {
+        "d": 800,
+        "w": 1126,
+        "t": "Anni × ora — ultimi 20 annivar",
+        "cols": 25
+      },
+      {
+        "d": 70,
+        "w": 1118,
+        "t": "",
+        "cols": 12
+      }
+    ],
+    "sotto12": 157,
+    "piccoli": 0,
+    "esempiPiccoli": [],
+    "bassoContrasto": 0,
+    "esempiBassi": [],
+    "famiglie": [
+      "Geist"
+    ],
+    "erroriConsole": []
+  },
+  {
+    "pagina": "/macro-desk/stagionalita?s=WTI",
+    "larghezza": 1440,
+    "tema": "dark",
+    "file": "macro-desk_stagionalita_s_WTI__1440__dark.png",
+    "h1": "Stagionalitàmercato, non i tuoi trade",
+    "altezza": 3034,
+    "innerWidth": 1440,
+    "scrollWidth": 1440,
+    "sbordi": [
+      {
+        "d": 9,
+        "w": 1118,
+        "t": "Dove siamo adessofinestra 20 a",
+        "cols": 12
+      },
+      {
+        "d": 216,
+        "w": 1118,
+        "t": "",
+        "cols": 14
+      }
+    ],
+    "sotto12": 122,
+    "piccoli": 0,
+    "esempiPiccoli": [],
+    "bassoContrasto": 0,
+    "esempiBassi": [],
+    "famiglie": [
+      "Geist"
+    ],
+    "erroriConsole": []
+  },
+  {
+    "pagina": "/macro-desk/stagionalita",
+    "larghezza": 390,
+    "tema": "dark",
+    "file": "macro-desk_stagionalita__390__dark.png",
+    "h1": "Stagionalitàmercato, non i tuoi trade",
+    "altezza": 3342,
+    "innerWidth": 390,
+    "scrollWidth": 390,
+    "sbordi": [
+      {
+        "d": 257,
+        "w": 358,
+        "t": "",
+        "cols": null
+      },
+      {
+        "d": 269,
+        "w": 241,
+        "t": "Strumento",
+        "cols": null
+      },
+      {
+        "d": 48,
+        "w": 256,
+        "t": "Finestra",
+        "cols": null
+      },
+      {
+        "d": 727,
+        "w": 324,
+        "t": "Dove siamo adessofinestra 20 a",
+        "cols": 12
+      },
+      {
+        "d": 71,
+        "w": 237,
+        "t": "Profondità",
+        "cols": null
+      },
+      {
+        "d": 664,
+        "w": 332,
+        "t": "Anni × mese — ultimi 20 anniva",
+        "cols": 13
+      },
+      {
+        "d": 928,
+        "w": 324,
+        "t": "",
+        "cols": 14
+      }
+    ],
+    "sotto12": 121,
+    "piccoli": 0,
+    "esempiPiccoli": [],
+    "bassoContrasto": 0,
+    "esempiBassi": [],
+    "famiglie": [
+      "Geist"
+    ],
+    "erroriConsole": []
+  },
+  {
+    "pagina": "/macro-desk/stagionalita?t=giorno",
+    "larghezza": 390,
+    "tema": "dark",
+    "file": "macro-desk_stagionalita_t_giorno__390__dark.png",
+    "h1": "Stagionalitàmercato, non i tuoi trade",
+    "altezza": 3055,
+    "innerWidth": 390,
+    "scrollWidth": 390,
+    "sbordi": [
+      {
+        "d": 257,
+        "w": 358,
+        "t": "",
+        "cols": null
+      },
+      {
+        "d": 269,
+        "w": 241,
+        "t": "Strumento",
+        "cols": null
+      },
+      {
+        "d": 48,
+        "w": 256,
+        "t": "Finestra",
+        "cols": null
+      },
+      {
+        "d": 727,
+        "w": 324,
+        "t": "Dove siamo adessofinestra 20 a",
+        "cols": 12
+      },
+      {
+        "d": 71,
+        "w": 237,
+        "t": "Profondità",
+        "cols": null
+      },
+      {
+        "d": 387,
+        "w": 215,
+        "t": "Dentro il mese",
+        "cols": null
+      },
+      {
+        "d": 252,
+        "w": 332,
+        "t": "Anni × giorno — ultimi 20 anni",
+        "cols": 6
+      },
+      {
+        "d": 912,
+        "w": 324,
+        "t": "",
+        "cols": 14
+      }
+    ],
+    "sotto12": 92,
+    "piccoli": 0,
+    "esempiPiccoli": [],
+    "bassoContrasto": 0,
+    "esempiBassi": [],
+    "famiglie": [
+      "Geist"
+    ],
+    "erroriConsole": []
+  },
+  {
+    "pagina": "/macro-desk/stagionalita?t=sessione",
+    "larghezza": 390,
+    "tema": "dark",
+    "file": "macro-desk_stagionalita_t_sessione__390__dark.png",
+    "h1": "Stagionalitàmercato, non i tuoi trade",
+    "altezza": 3251,
+    "innerWidth": 390,
+    "scrollWidth": 390,
+    "sbordi": [
+      {
+        "d": 257,
+        "w": 358,
+        "t": "",
+        "cols": null
+      },
+      {
+        "d": 269,
+        "w": 241,
+        "t": "Strumento",
+        "cols": null
+      },
+      {
+        "d": 48,
+        "w": 256,
+        "t": "Finestra",
+        "cols": null
+      },
+      {
+        "d": 727,
+        "w": 324,
+        "t": "Dove siamo adessofinestra 20 a",
+        "cols": 12
+      },
+      {
+        "d": 71,
+        "w": 237,
+        "t": "Profondità",
+        "cols": null
+      },
+      {
+        "d": 252,
+        "w": 332,
+        "t": "Anni × sessione — ultimi 20 an",
+        "cols": 5
+      },
+      {
+        "d": 885,
+        "w": 324,
+        "t": "",
+        "cols": 12
+      }
+    ],
+    "sotto12": 75,
+    "piccoli": 0,
+    "esempiPiccoli": [],
+    "bassoContrasto": 0,
+    "esempiBassi": [],
+    "famiglie": [
+      "Geist"
+    ],
+    "erroriConsole": []
+  },
+  {
+    "pagina": "/macro-desk/stagionalita?t=ora",
+    "larghezza": 390,
+    "tema": "dark",
+    "file": "macro-desk_stagionalita_t_ora__390__dark.png",
+    "h1": "Stagionalitàmercato, non i tuoi trade",
+    "altezza": 4065,
+    "innerWidth": 390,
+    "scrollWidth": 390,
+    "sbordi": [
+      {
+        "d": 257,
+        "w": 358,
+        "t": "",
+        "cols": null
+      },
+      {
+        "d": 269,
+        "w": 241,
+        "t": "Strumento",
+        "cols": null
+      },
+      {
+        "d": 48,
+        "w": 256,
+        "t": "Finestra",
+        "cols": null
+      },
+      {
+        "d": 727,
+        "w": 324,
+        "t": "Dove siamo adessofinestra 20 a",
+        "cols": 12
+      },
+      {
+        "d": 71,
+        "w": 237,
+        "t": "Profondità",
+        "cols": null
+      },
+      {
+        "d": 1594,
+        "w": 332,
+        "t": "Anni × ora — ultimi 20 annivar",
+        "cols": 25
+      },
+      {
+        "d": 864,
+        "w": 324,
+        "t": "",
+        "cols": 12
+      }
+    ],
+    "sotto12": 156,
+    "piccoli": 0,
+    "esempiPiccoli": [],
+    "bassoContrasto": 0,
+    "esempiBassi": [],
+    "famiglie": [
+      "Geist"
+    ],
+    "erroriConsole": []
+  },
+  {
+    "pagina": "/macro-desk/stagionalita?s=WTI",
+    "larghezza": 390,
+    "tema": "dark",
+    "file": "macro-desk_stagionalita_s_WTI__390__dark.png",
+    "h1": "Stagionalitàmercato, non i tuoi trade",
+    "altezza": 3420,
+    "innerWidth": 390,
+    "scrollWidth": 390,
+    "sbordi": [
+      {
+        "d": 257,
+        "w": 358,
+        "t": "",
+        "cols": null
+      },
+      {
+        "d": 269,
+        "w": 241,
+        "t": "Strumento",
+        "cols": null
+      },
+      {
+        "d": 48,
+        "w": 256,
+        "t": "Finestra",
+        "cols": null
+      },
+      {
+        "d": 803,
+        "w": 324,
+        "t": "Dove siamo adessofinestra 20 a",
+        "cols": 12
+      },
+      {
+        "d": 71,
+        "w": 237,
+        "t": "Profondità",
+        "cols": null
+      },
+      {
+        "d": 664,
+        "w": 332,
+        "t": "Anni × mese — ultimi 20 anniva",
+        "cols": 13
+      },
+      {
+        "d": 1010,
+        "w": 324,
+        "t": "",
+        "cols": 14
+      }
+    ],
+    "sotto12": 121,
+    "piccoli": 0,
+    "esempiPiccoli": [],
+    "bassoContrasto": 0,
+    "esempiBassi": [],
+    "famiglie": [
+      "Geist"
+    ],
+    "erroriConsole": []
+  },
+  {
+    "pagina": "/macro-desk/stagionalita",
+    "larghezza": 1440,
+    "tema": "light",
+    "file": "macro-desk_stagionalita__1440__light.png",
+    "h1": "Stagionalitàmercato, non i tuoi trade",
+    "altezza": 3009,
+    "innerWidth": 1440,
+    "scrollWidth": 1440,
+    "sbordi": [
+      {
+        "d": 134,
+        "w": 1118,
+        "t": "",
+        "cols": 14
+      }
+    ],
+    "sotto12": 122,
+    "piccoli": 0,
+    "esempiPiccoli": [],
+    "bassoContrasto": 0,
+    "esempiBassi": [],
+    "famiglie": [
+      "Geist"
+    ],
+    "erroriConsole": []
+  },
+  {
+    "pagina": "/macro-desk/stagionalita?t=giorno",
+    "larghezza": 1440,
+    "tema": "light",
+    "file": "macro-desk_stagionalita_t_giorno__1440__light.png",
+    "h1": "Stagionalitàmercato, non i tuoi trade",
+    "altezza": 2770,
+    "innerWidth": 1440,
+    "scrollWidth": 1440,
+    "sbordi": [
+      {
+        "d": 118,
+        "w": 1118,
+        "t": "",
+        "cols": 14
+      }
+    ],
+    "sotto12": 93,
+    "piccoli": 0,
+    "esempiPiccoli": [],
+    "bassoContrasto": 0,
+    "esempiBassi": [],
+    "famiglie": [
+      "Geist"
+    ],
+    "erroriConsole": []
+  },
+  {
+    "pagina": "/macro-desk/stagionalita?t=sessione",
+    "larghezza": 1440,
+    "tema": "light",
+    "file": "macro-desk_stagionalita_t_sessione__1440__light.png",
+    "h1": "Stagionalitàmercato, non i tuoi trade",
+    "altezza": 2787,
+    "innerWidth": 1440,
+    "scrollWidth": 1440,
+    "sbordi": [
+      {
+        "d": 91,
+        "w": 1118,
+        "t": "",
+        "cols": 12
+      }
+    ],
+    "sotto12": 76,
+    "piccoli": 0,
+    "esempiPiccoli": [],
+    "bassoContrasto": 0,
+    "esempiBassi": [],
+    "famiglie": [
+      "Geist"
+    ],
+    "erroriConsole": []
+  },
+  {
+    "pagina": "/macro-desk/stagionalita?t=ora",
+    "larghezza": 1440,
+    "tema": "light",
+    "file": "macro-desk_stagionalita_t_ora__1440__light.png",
+    "h1": "Stagionalitàmercato, non i tuoi trade",
+    "altezza": 3647,
+    "innerWidth": 1440,
+    "scrollWidth": 1440,
+    "sbordi": [
+      {
+        "d": 800,
+        "w": 1126,
+        "t": "Anni × ora — ultimi 20 annivar",
+        "cols": 25
+      },
+      {
+        "d": 70,
+        "w": 1118,
+        "t": "",
+        "cols": 12
+      }
+    ],
+    "sotto12": 157,
+    "piccoli": 0,
+    "esempiPiccoli": [],
+    "bassoContrasto": 0,
+    "esempiBassi": [],
+    "famiglie": [
+      "Geist"
+    ],
+    "erroriConsole": []
+  },
+  {
+    "pagina": "/macro-desk/stagionalita?s=WTI",
+    "larghezza": 1440,
+    "tema": "light",
+    "file": "macro-desk_stagionalita_s_WTI__1440__light.png",
+    "h1": "Stagionalitàmercato, non i tuoi trade",
+    "altezza": 3034,
+    "innerWidth": 1440,
+    "scrollWidth": 1440,
+    "sbordi": [
+      {
+        "d": 9,
+        "w": 1118,
+        "t": "Dove siamo adessofinestra 20 a",
+        "cols": 12
+      },
+      {
+        "d": 216,
+        "w": 1118,
+        "t": "",
+        "cols": 14
+      }
+    ],
+    "sotto12": 122,
+    "piccoli": 0,
+    "esempiPiccoli": [],
+    "bassoContrasto": 0,
+    "esempiBassi": [],
+    "famiglie": [
+      "Geist"
+    ],
+    "erroriConsole": []
+  },
+  {
+    "pagina": "/macro-desk/stagionalita",
+    "larghezza": 390,
+    "tema": "light",
+    "file": "macro-desk_stagionalita__390__light.png",
+    "h1": "Stagionalitàmercato, non i tuoi trade",
+    "altezza": 3342,
+    "innerWidth": 390,
+    "scrollWidth": 390,
+    "sbordi": [
+      {
+        "d": 257,
+        "w": 358,
+        "t": "",
+        "cols": null
+      },
+      {
+        "d": 269,
+        "w": 241,
+        "t": "Strumento",
+        "cols": null
+      },
+      {
+        "d": 48,
+        "w": 256,
+        "t": "Finestra",
+        "cols": null
+      },
+      {
+        "d": 727,
+        "w": 324,
+        "t": "Dove siamo adessofinestra 20 a",
+        "cols": 12
+      },
+      {
+        "d": 71,
+        "w": 237,
+        "t": "Profondità",
+        "cols": null
+      },
+      {
+        "d": 664,
+        "w": 332,
+        "t": "Anni × mese — ultimi 20 anniva",
+        "cols": 13
+      },
+      {
+        "d": 928,
+        "w": 324,
+        "t": "",
+        "cols": 14
+      }
+    ],
+    "sotto12": 121,
+    "piccoli": 0,
+    "esempiPiccoli": [],
+    "bassoContrasto": 0,
+    "esempiBassi": [],
+    "famiglie": [
+      "Geist"
+    ],
+    "erroriConsole": []
+  },
+  {
+    "pagina": "/macro-desk/stagionalita?t=giorno",
+    "larghezza": 390,
+    "tema": "light",
+    "file": "macro-desk_stagionalita_t_giorno__390__light.png",
+    "h1": "Stagionalitàmercato, non i tuoi trade",
+    "altezza": 3055,
+    "innerWidth": 390,
+    "scrollWidth": 390,
+    "sbordi": [
+      {
+        "d": 257,
+        "w": 358,
+        "t": "",
+        "cols": null
+      },
+      {
+        "d": 269,
+        "w": 241,
+        "t": "Strumento",
+        "cols": null
+      },
+      {
+        "d": 48,
+        "w": 256,
+        "t": "Finestra",
+        "cols": null
+      },
+      {
+        "d": 727,
+        "w": 324,
+        "t": "Dove siamo adessofinestra 20 a",
+        "cols": 12
+      },
+      {
+        "d": 71,
+        "w": 237,
+        "t": "Profondità",
+        "cols": null
+      },
+      {
+        "d": 387,
+        "w": 215,
+        "t": "Dentro il mese",
+        "cols": null
+      },
+      {
+        "d": 252,
+        "w": 332,
+        "t": "Anni × giorno — ultimi 20 anni",
+        "cols": 6
+      },
+      {
+        "d": 912,
+        "w": 324,
+        "t": "",
+        "cols": 14
+      }
+    ],
+    "sotto12": 92,
+    "piccoli": 0,
+    "esempiPiccoli": [],
+    "bassoContrasto": 0,
+    "esempiBassi": [],
+    "famiglie": [
+      "Geist"
+    ],
+    "erroriConsole": []
+  },
+  {
+    "pagina": "/macro-desk/stagionalita?t=sessione",
+    "larghezza": 390,
+    "tema": "light",
+    "file": "macro-desk_stagionalita_t_sessione__390__light.png",
+    "h1": "Stagionalitàmercato, non i tuoi trade",
+    "altezza": 3251,
+    "innerWidth": 390,
+    "scrollWidth": 390,
+    "sbordi": [
+      {
+        "d": 257,
+        "w": 358,
+        "t": "",
+        "cols": null
+      },
+      {
+        "d": 269,
+        "w": 241,
+        "t": "Strumento",
+        "cols": null
+      },
+      {
+        "d": 48,
+        "w": 256,
+        "t": "Finestra",
+        "cols": null
+      },
+      {
+        "d": 727,
+        "w": 324,
+        "t": "Dove siamo adessofinestra 20 a",
+        "cols": 12
+      },
+      {
+        "d": 71,
+        "w": 237,
+        "t": "Profondità",
+        "cols": null
+      },
+      {
+        "d": 252,
+        "w": 332,
+        "t": "Anni × sessione — ultimi 20 an",
+        "cols": 5
+      },
+      {
+        "d": 885,
+        "w": 324,
+        "t": "",
+        "cols": 12
+      }
+    ],
+    "sotto12": 75,
+    "piccoli": 0,
+    "esempiPiccoli": [],
+    "bassoContrasto": 0,
+    "esempiBassi": [],
+    "famiglie": [
+      "Geist"
+    ],
+    "erroriConsole": []
+  },
+  {
+    "pagina": "/macro-desk/stagionalita?t=ora",
+    "larghezza": 390,
+    "tema": "light",
+    "file": "macro-desk_stagionalita_t_ora__390__light.png",
+    "h1": "Stagionalitàmercato, non i tuoi trade",
+    "altezza": 4065,
+    "innerWidth": 390,
+    "scrollWidth": 390,
+    "sbordi": [
+      {
+        "d": 257,
+        "w": 358,
+        "t": "",
+        "cols": null
+      },
+      {
+        "d": 269,
+        "w": 241,
+        "t": "Strumento",
+        "cols": null
+      },
+      {
+        "d": 48,
+        "w": 256,
+        "t": "Finestra",
+        "cols": null
+      },
+      {
+        "d": 727,
+        "w": 324,
+        "t": "Dove siamo adessofinestra 20 a",
+        "cols": 12
+      },
+      {
+        "d": 71,
+        "w": 237,
+        "t": "Profondità",
+        "cols": null
+      },
+      {
+        "d": 1594,
+        "w": 332,
+        "t": "Anni × ora — ultimi 20 annivar",
+        "cols": 25
+      },
+      {
+        "d": 864,
+        "w": 324,
+        "t": "",
+        "cols": 12
+      }
+    ],
+    "sotto12": 156,
+    "piccoli": 0,
+    "esempiPiccoli": [],
+    "bassoContrasto": 0,
+    "esempiBassi": [],
+    "famiglie": [
+      "Geist"
+    ],
+    "erroriConsole": []
+  },
+  {
+    "pagina": "/macro-desk/stagionalita?s=WTI",
+    "larghezza": 390,
+    "tema": "light",
+    "file": "macro-desk_stagionalita_s_WTI__390__light.png",
+    "h1": "Stagionalitàmercato, non i tuoi trade",
+    "altezza": 3420,
+    "innerWidth": 390,
+    "scrollWidth": 390,
+    "sbordi": [
+      {
+        "d": 257,
+        "w": 358,
+        "t": "",
+        "cols": null
+      },
+      {
+        "d": 269,
+        "w": 241,
+        "t": "Strumento",
+        "cols": null
+      },
+      {
+        "d": 48,
+        "w": 256,
+        "t": "Finestra",
+        "cols": null
+      },
+      {
+        "d": 803,
+        "w": 324,
+        "t": "Dove siamo adessofinestra 20 a",
+        "cols": 12
+      },
+      {
+        "d": 71,
+        "w": 237,
+        "t": "Profondità",
+        "cols": null
+      },
+      {
+        "d": 664,
+        "w": 332,
+        "t": "Anni × mese — ultimi 20 anniva",
+        "cols": 13
+      },
+      {
+        "d": 1010,
+        "w": 324,
+        "t": "",
+        "cols": 14
+      }
+    ],
+    "sotto12": 121,
+    "piccoli": 0,
+    "esempiPiccoli": [],
+    "bassoContrasto": 0,
+    "esempiBassi": [],
+    "famiglie": [
+      "Geist"
+    ],
+    "erroriConsole": []
+  }
+]

@@ -53,44 +53,61 @@ export function stdevInfo(kind: SeasonalityKind): MetricInfoData {
   };
 }
 
+/**
+ * «In rialzo» / «Sopra mediana». Dal 15/09/2026 si conta sulle OCCORRENZE
+ * dell'unità della riga — martedì, sessioni, ore, mesi, settimane — cioè
+ * sulla stessa base del campione mostrato accanto, non sugli anni.
+ */
 export function posInfo(kind: SeasonalityKind): MetricInfoData {
   if (kind === "LEVEL") {
     return {
       label: "Sopra mediana",
       description:
-        "Quota di osservazioni con livello superiore alla mediana dell'intera finestra. Sostituisce l'hit rate, che su un livello non avrebbe significato: la domanda giusta è «in questo periodo l'indice sta storicamente in alto o in basso?».",
-      formula: "conteggio degli anni sopra la mediana della finestra, su n",
+        "Quante osservazioni del periodo hanno un livello superiore alla mediana di tutte le osservazioni della finestra, su quante ce ne sono. Sostituisce l'hit rate, che su un livello non avrebbe significato: la domanda giusta è «in questo periodo l'indice sta storicamente in alto o in basso?».",
+      formula: "osservazioni sopra la mediana della finestra, su tutte le osservazioni del periodo",
     };
   }
   return {
-    label: "In rialzo — anni in positivo",
+    label: "In rialzo — quante volte è salito",
     description:
-      "Quanti ANNI hanno chiuso il periodo in rialzo, su quanti ce ne sono: «12 anni su 20». Distingue «sale spesso di poco» da «sale di rado ma tanto», due profili che la sola media confonde. Un rendimento nullo NON conta come positivo. È un conteggio storico, non una probabilità per il prossimo anno: la quota fra parentesi è la stessa informazione, non una previsione.",
-    formula: "conteggio degli anni con rendimento > 0, su n",
+      "Quante volte il periodo ha chiuso in rialzo, contate nella sua unità: «553 martedì su 1.044» per il giorno, le sessioni per la sessione, le ore per l'ora, i mesi per il mese (per un mese preciso coincidono con gli anni). È la stessa base del campione accanto. Distingue «sale spesso di poco» da «sale di rado ma tanto», due profili che la sola media confonde. Un rendimento nullo NON conta come rialzo. È un conteggio storico, non una probabilità: la quota fra parentesi è la stessa informazione, non una previsione.",
+    formula: "occorrenze con rendimento > 0, su tutte le occorrenze del periodo nella finestra",
   };
 }
 
 export function sigmaInfo(kind: SeasonalityKind): MetricInfoData {
   return {
-    label: "Media \u00b1 1\u03c3 e copertura reale",
+    label: "Media ± 1σ e copertura reale",
     description:
       kind === "LEVEL"
-        ? "La banda fra media meno una deviazione standard e media pi\u00f9 una. Accanto, la quota di anni che ci sono caduti DAVVERO dentro: si mostra quella, mai il 68% teorico \u2014 vale solo per una distribuzione normale, e i mercati non lo sono."
-        : "La banda fra media meno una deviazione standard e media pi\u00f9 una, al livello degli anni. Accanto, la quota di anni che ci sono caduti DAVVERO dentro: si mostra quella, mai il 68% teorico \u2014 vale solo per una distribuzione normale, e i rendimenti non lo sono.",
-    formula: "[media \u2212 \u03c3, media + \u03c3] \u00b7 copertura = anni dentro la banda / n",
+        ? "La banda fra media meno una deviazione standard e media più una, al livello degli anni. Accanto, quanti ANNI ci sono caduti davvero dentro: si mostra quella quota, mai il 68% teorico — vale solo per una distribuzione normale, e i mercati non lo sono."
+        : "La banda fra media meno una deviazione standard e media più una, al livello degli anni. Accanto, quanti ANNI ci sono caduti davvero dentro: si mostra quella quota, mai il 68% teorico — vale solo per una distribuzione normale, e i rendimenti non lo sono. Qui si contano anni e non giorni perché la banda è la dispersione fra gli anni.",
+    formula: "[media − σ, media + σ] · copertura = anni dentro la banda / n",
   };
 }
 
+/**
+ * Ampiezza massimo-minimo: la volatilità media del periodo, dal suo range.
+ * Formula e scelta della base in `ampiezza.ts`.
+ */
+export const ampiezzaInfo: MetricInfoData = {
+  label: "Ampiezza massimo-minimo",
+  description:
+    "Quanto spazio ha fatto in media il periodo: la distanza fra il punto più alto e il più basso, in percentuale del prezzo a cui il periodo si è aperto. Si misura sui massimi e minimi delle barre giornaliere, mai ricostruita dalle chiusure; la media è sulla finestra selezionata, sulle stesse occorrenze del campione (per il giorno, i singoli martedì). Non ha segno e non dipende dalla vista: il range di un periodo non ha una deriva da togliere.",
+  formula: "media di (massimo del periodo − minimo del periodo) / apertura del periodo",
+  note: "Solo dove l'archivio ha massimo e minimo: non per il WTI (lo spot di FRED ha solo la chiusura), né per sessione e ora (le barre orarie in archivio hanno solo la chiusura).",
+};
+
 export const numerositaInfo: MetricInfoData = {
   label: "n — su quanti ANNI",
-  description: `Quanti anni compongono il valore: l'unità statistica è la casella della griglia qui sopra, cioè la media di quell'anno, non la singola osservazione. È il metro dell'affidabilità e non viene mai nascosto: sotto ${LOW_SAMPLE_WARN} anni la riga è marcata, sotto ${LOW_SAMPLE_CRITICAL} in modo evidente. Un mese su una finestra di 2 anni vale 2 osservazioni: non è una stagionalità, sono due osservazioni.`,
+  description: `Quanti anni compongono media, mediana, StDev e banda: l'unità statistica è la casella della griglia qui sopra, cioè la media di quell'anno, non la singola osservazione. È il metro dell'affidabilità e non viene mai nascosto: sotto ${LOW_SAMPLE_WARN} anni la riga è marcata, sotto ${LOW_SAMPLE_CRITICAL} in modo evidente. Un mese su una finestra di 2 anni vale 2 osservazioni: non è una stagionalità, sono due osservazioni.`,
   formula: "conteggio degli anni con almeno un'osservazione nel bucket",
 };
 
 export function campioneInfo(rawUnit: string): MetricInfoData {
   return {
     label: "Campione — quante volte è stato osservato",
-    description: `Il numero di occorrenze REALI di questo periodo nella finestra, contate dai dati (buchi d'archivio esclusi) nella sua stessa unità: ${rawUnit}. Media, StDev e Pos% restano calcolate sugli N anni della colonna accanto — l'unità statistica è la casella della griglia — ma questo numero dice quanta storia c'è davvero dietro: venti gennai sono venti occorrenze, i lunedì di vent'anni un migliaio.`,
+    description: `Il numero di occorrenze REALI di questo periodo nella finestra, contate dai dati (buchi d'archivio esclusi) nella sua stessa unità: ${rawUnit}. «In rialzo» e l'ampiezza si contano su queste occorrenze; media, mediana, StDev e banda restano sugli N anni della colonna accanto — l'unità statistica è la casella della griglia. Venti gennai sono venti occorrenze, i lunedì di vent'anni un migliaio.`,
     formula: `conteggio delle occorrenze del periodo nella finestra (${rawUnit})`,
   };
 }
@@ -112,7 +129,7 @@ export const detrendInfo: MetricInfoData = {
 export const percorsoInfo: MetricInfoData = {
   label: "Indice stagionale",
   description:
-    "Un indice a base 100, non un rendimento: mostra la FORMA del percorso medio nell'anno — dove sale, dove scende, dov'è il minimo. Si calcola dai rendimenti giornalieri: per ogni giorno dell'anno la media dei rendimenti degli anni della finestra, poi la cumulata dal 1° gennaio. La linea è lisciata con una media mobile centrata a 5 giorni; la traccia chiara sotto è la curva grezza; la fascia sta fra il primo e il terzo quartile dei percorsi dei singoli anni. Dove la fascia è larga la forma è tirata da pochi anni. L'ampiezza reale sta nelle tabelle: in percentuale per i prezzi, in livelli per gli indici di volatilità.",
+    "Un indice a base 100, non un rendimento: mostra la FORMA del percorso medio nell'anno — dove sale, dove scende, dov'è il minimo. Si calcola dai rendimenti giornalieri: per ogni giorno dell'anno la media dei rendimenti degli anni della finestra, poi la cumulata dal 1° gennaio. Un punto per giorno, senza lisciatura: una linea per finestra. L'ampiezza reale sta nelle tabelle: in percentuale per i prezzi, in livelli per gli indici di volatilità.",
   formula:
     "I(g) = 100 · e^(Σ_{k≤g} r̄_k), r̄_k = media fra gli anni di ln(P_k / P_{k−1}) · calendario di 365 giorni (29/2 nel 28/2)",
   note: "L'anno in corso è escluso dalle medie e disegnato a parte, tratteggiato. Una finestra si mostra solo se tutti i suoi anni sono completi.",
@@ -131,23 +148,5 @@ export function estremiInfo(kind: SeasonalityKind): MetricInfoData {
         description:
           "Il rendimento del periodo nell'anno migliore e in quello peggiore della finestra, con l'anno. Sono le stesse caselle della griglia qui sopra: dicono quanto lontano può andare un singolo anno dalla media.",
         formula: "max e min fra gli anni di e^(ln(P_fine / P_fine precedente)) − 1",
-      };
-}
-
-export function escursioneInfo(tipo: "MAE" | "MFE"): MetricInfoData {
-  return tipo === "MAE"
-    ? {
-        label: "MAE media — escursione avversa",
-        description:
-          "Per chi entra lungo alla chiusura del periodo precedente: quanto il prezzo è sceso al minimo dentro il periodo, in media fra gli anni. Misurata sul minimo delle barre giornaliere, mai ricostruita dalle chiusure. Zero quando il periodo non è mai sceso sotto il riferimento.",
-        formula: "media fra gli anni di min(0, ln(minimo del periodo / chiusura precedente)), in %",
-        note: "Solo dove l'archivio ha massimo e minimo della seduta: non per il WTI spot.",
-      }
-    : {
-        label: "MFE media — escursione favorevole",
-        description:
-          "Per chi entra lungo alla chiusura del periodo precedente: quanto il prezzo è salito al massimo dentro il periodo, in media fra gli anni. Misurata sul massimo delle barre giornaliere, mai ricostruita dalle chiusure.",
-        formula: "media fra gli anni di max(0, ln(massimo del periodo / chiusura precedente)), in %",
-        note: "Solo dove l'archivio ha massimo e minimo della seduta: non per il WTI spot.",
       };
 }

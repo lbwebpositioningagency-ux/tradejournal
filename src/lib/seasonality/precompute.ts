@@ -42,8 +42,7 @@ import {
   WEEKDAY_BUCKETS,
   isoWeekday,
   monthScope,
-  scopeEscursione,
-  type TipoEscursione,
+  scopeAmpiezza,
 } from "@/lib/seasonality/buckets";
 import {
   anniCompleti,
@@ -54,11 +53,11 @@ import {
   soloSeduteFeriali,
 } from "@/lib/seasonality/indice";
 import {
-  escursioniGiornaliere,
-  escursioniMensili,
-  escursioniSettimanali,
-  type EscursionePeriodo,
-} from "@/lib/seasonality/escursioni";
+  ampiezzeGiornaliere,
+  ampiezzeMensili,
+  ampiezzeSettimanali,
+  type AmpiezzaPeriodo,
+} from "@/lib/seasonality/ampiezza";
 import {
   dailyLogReturns,
   detrend,
@@ -110,15 +109,33 @@ export interface StatRow {
  * `indice-365-feriali` (15/09/2026): percorso come indice stagionale su
  * calendario non bisestile, barre del weekend fuse nel lunedì, percorso degli
  * indici di volatilità dalle variazioni log, righe MAE/MFE.
+ *
+ * `frequenze-per-occorrenza` (15/09/2026, sera): «in rialzo» contato sulle
+ * occorrenze dell'unità della riga (martedì, sessioni, ore) invece che sugli
+ * anni; righe AMPIEZZA al posto di MAE/MFE; niente quartili del percorso.
  */
-export const VERSIONE_CALCOLO = "indice-365-feriali";
+export const VERSIONE_CALCOLO = "frequenze-per-occorrenza";
+
+/**
+ * Da quando le righe scritte hanno le frequenze contate sulle occorrenze.
+ *
+ * Serve UNA notte: dopo il push, fino al primo giro del job, l'archivio ha
+ * ancora la quota calcolata sugli anni, e mostrarla come «626 martedì su
+ * 1.044» sarebbe un conteggio falso. La pagina confronta con questo istante
+ * `SeasonalityCoverage.computedAt` (calendario) e
+ * `SeasonalityJobState.hourComputedAt` (sessione e ora): prima, la frequenza
+ * si dichiara «in ricalcolo». È successivo all'ultimo giro notturno col
+ * calcolo vecchio (15/09/2026 04:21 UTC) e precedente al push.
+ */
+export const FREQUENZE_PER_OCCORRENZA_DAL = new Date("2026-09-15T14:00:00Z");
 
 /**
  * Un punto del percorso dell'indice stagionale (`indice.ts`), in LOG:
  * l'indice è `100 · e^meanCum`. `dayOfYear` è il giorno del calendario non
  * bisestile, 0 = partenza. I nomi delle colonne sono quelli storici della
- * tabella: `p25Cum`/`p75Cum` sono il primo e il terzo quartile dei percorsi
- * dei singoli anni.
+ * tabella. `p25Cum`/`p75Cum` erano i quartili della banda del grafico, tolta
+ * il 15/09/2026: le colonne sono NOT NULL e toglierle chiede una migrazione,
+ * quindi ripetono `meanCum` e nessuno le legge (docs/DEBITO-TECNICO.md).
  */
 export interface PathRow {
   instrument: SeasonalityInstrument;
@@ -262,6 +279,24 @@ function statsForBuckets(opts: {
         : values.map((v) => v - opts.detrendMean!);
   }
 
+  /* ── LA FREQUENZA SI CONTA SULLE OCCORRENZE, non sulle unità statistiche ──
+     Fino al 15/09/2026 la quota «in rialzo» era calcolata sulle unità: per il
+     giorno della settimana, la quota di ANNI in cui il martedì MEDIO era
+     salito («12 anni su 20»), accanto a un campione di 1.044 martedì. Due
+     numeri della stessa riga che contavano cose diverse, e il primo non era
+     la domanda: quanti MARTEDÌ sono saliti. Ora la quota si conta sulle
+     osservazioni grezze della finestra — martedì per il giorno, mesi per il
+     mese, settimane per la settimana — cioè sulla stessa base del campione.
+     Per mese e settimana osservazione e unità coincidono: nulla cambia.
+
+     Per i LIVELLI la soglia è la mediana delle stesse osservazioni grezze,
+     su tutta la finestra (non per bucket: serve un riferimento comune). */
+  const inBucket = observations.map((o) => opts.buckets.includes(opts.bucketOf(o)));
+  const sortedRaw = values.filter((_, i) => inBucket[i]).sort((a, b) => a - b);
+  const rawMedian = quantileSorted(sortedRaw, 0.5);
+  const inRialzo =
+    kind === "LEVEL" ? (v: number) => v > rawMedian : (v: number) => v > 0;
+
   /* Le UNITÀ statistiche: o le osservazioni così come sono, o la loro media
      per (anno, bucket). `raw` porta avanti il conteggio dei dati grezzi, che
      l'aggregazione non deve perdere — è il numero che la tabella mostra come
@@ -273,28 +308,34 @@ function statsForBuckets(opts: {
     date: string;
     bucket: number;
     raw: number;
+    /** Osservazioni grezze dietro l'unità, e quante sono in rialzo. */
+    osservazioni: number;
+    inRialzo: number;
   }
   let units: Unit[];
   if (opts.aggregateByYear) {
     const acc = new Map<
       string,
-      { sum: number; count: number; bucket: number; dates: string[] }
+      { sum: number; count: number; bucket: number; dates: string[]; su: number }
     >();
     observations.forEach((o, i) => {
+      if (!inBucket[i]) return;
       const bucket = opts.bucketOf(o);
-      if (!opts.buckets.includes(bucket)) return;
       const key = `${o.year}-${bucket}`;
+      const su = inRialzo(values[i]) ? 1 : 0;
       const cur = acc.get(key);
       if (cur) {
         cur.sum += values[i];
         cur.count += o.days ?? 1;
         cur.dates.push(o.date);
+        cur.su += su;
       } else {
         acc.set(key, {
           sum: values[i],
           count: o.days ?? 1,
           bucket,
           dates: [o.date],
+          su,
         });
       }
     });
@@ -305,6 +346,8 @@ function statsForBuckets(opts: {
       date: a.dates.sort()[0],
       bucket: a.bucket,
       raw: a.count,
+      osservazioni: a.dates.length,
+      inRialzo: a.su,
     }));
   } else {
     units = observations.map((o, i) => ({
@@ -312,22 +355,14 @@ function statsForBuckets(opts: {
       date: o.date,
       bucket: opts.bucketOf(o),
       raw: o.days ?? 1,
+      osservazioni: 1,
+      inRialzo: inRialzo(values[i]) ? 1 : 0,
     }));
   }
 
-  // Soglia per la quota "sopra la mediana" dei livelli, calcolata una volta
-  // sull'intera finestra (non per bucket: serve un riferimento comune) e
-  // sulle stesse unità che poi si confrontano con lei.
-  const sortedAll = units.map((u) => u.value).sort((a, b) => a - b);
-  const windowMedian = quantileSorted(sortedAll, 0.5);
-  const isPositive =
-    kind === "LEVEL"
-      ? (v: number) => v > windowMedian
-      : (v: number) => v > 0;
-
   const grouped = new Map<
     number,
-    { values: number[]; dates: string[]; raw: number }
+    { values: number[]; dates: string[]; raw: number; osservazioni: number; inRialzo: number }
   >();
   for (const u of units) {
     if (!opts.buckets.includes(u.bucket)) continue;
@@ -336,11 +371,15 @@ function statsForBuckets(opts: {
       entry.values.push(u.value);
       entry.dates.push(u.date);
       entry.raw += u.raw;
+      entry.osservazioni += u.osservazioni;
+      entry.inRialzo += u.inRialzo;
     } else {
       grouped.set(u.bucket, {
         values: [u.value],
         dates: [u.date],
         raw: u.raw,
+        osservazioni: u.osservazioni,
+        inRialzo: u.inRialzo,
       });
     }
   }
@@ -349,8 +388,9 @@ function statsForBuckets(opts: {
   for (const bucket of opts.buckets) {
     const entry = grouped.get(bucket);
     if (!entry) continue; // bucket senza osservazioni: nessuna riga finta a zero
-    const described = describeSample(entry.values, isPositive);
+    const described = describeSample(entry.values);
     if (!described) continue;
+    described.positiveShare = entry.inRialzo / entry.osservazioni;
     const withinSigma =
       described.stdev === null
         ? null
@@ -550,11 +590,11 @@ export function precomputeDaily(opts: {
   const perGiorno = rendimentiPerGiorno(bars);
   const completi = anniCompleti(bars);
 
-  // ── MAE/MFE di periodo: solo prezzi, solo dove ci sono massimo e minimo ──
-  const escursioni = {
-    MONTH: isReturn ? escursioniMensili(bars) : [],
-    WEEK: isReturn ? escursioniSettimanali(bars) : [],
-    WEEKDAY: isReturn ? escursioniGiornaliere(bars) : [],
+  // ── Ampiezza massimo-minimo: solo prezzi, solo dove ci sono massimo e minimo ──
+  const ampiezze = {
+    MONTH: isReturn ? ampiezzeMensili(bars) : [],
+    WEEK: isReturn ? ampiezzeSettimanali(bars) : [],
+    WEEKDAY: isReturn ? ampiezzeGiornaliere(bars) : [],
   };
 
   const stats: StatRow[] = [];
@@ -666,8 +706,9 @@ export function precomputeDaily(opts: {
             dayOfYear: p.giorno,
             meanCum: p.mediaCum,
             medianCum: p.medianaCum,
-            p25Cum: p.q1Cum,
-            p75Cum: p.q3Cum,
+            // Colonne della banda tolta il 15/09/2026: v. `PathRow`.
+            p25Cum: p.mediaCum,
+            p75Cum: p.mediaCum,
             positiveShare: p.quotaSopra,
             n: p.n,
           });
@@ -675,21 +716,19 @@ export function precomputeDaily(opts: {
       }
     }
 
-    /* MAE/MFE: righe con `scope` MAE/MFE (e MAE:Mxx dentro il mese sulle
-       sedute). Solo vista grezza: un'escursione detrendizzata non è
-       un'escursione che qualcuno abbia subito. */
-    for (const tipo of ["MAE", "MFE"] as const) {
-      stats.push(
-        ...statsEscursione({
-          instrument,
-          tipo,
-          lookbackYears: lookback,
-          from,
-          to,
-          escursioni,
-        }),
-      );
-    }
+    /* AMPIEZZA massimo-minimo: righe con `scope` AMPIEZZA (e AMPIEZZA:Mxx
+       dentro il mese sulle sedute). Una sola variante: il range di un periodo
+       non ha una deriva da togliere, e la pagina lo mostra uguale nelle due
+       viste. */
+    stats.push(
+      ...statsAmpiezza({
+        instrument,
+        lookbackYears: lookback,
+        from,
+        to,
+        ampiezze,
+      }),
+    );
   }
 
   /* ── Percorso dell'ANNO IN CORSO (lookbackYears = 0) ────────────────────
@@ -736,27 +775,28 @@ export function todayDayOfYear(now: Date = new Date()): number {
 }
 
 /**
- * Le righe MAE o MFE di una finestra, per mese, settimana e seduta (tutto
+ * Le righe AMPIEZZA di una finestra, per mese, settimana e seduta (tutto
  * l'anno e dentro ogni mese). Stesso nucleo `statsForBuckets` delle altre
- * statistiche, così `n`, mediana e quartili hanno la stessa definizione; per
- * la seduta l'unità è la media dell'anno, come per i rendimenti.
+ * statistiche. La media è sulle OCCORRENZE — i singoli martedì, non la media
+ * annua dei martedì — perché è la stessa base del campione e della frequenza
+ * mostrati accanto; con giorni quasi uguali per anno le due medie coincidono
+ * a meno di arrotondamenti.
  */
-function statsEscursione(opts: {
+function statsAmpiezza(opts: {
   instrument: SeasonalityInstrument;
-  tipo: TipoEscursione;
   lookbackYears: number;
   from: number;
   to: number;
-  escursioni: Record<"MONTH" | "WEEK" | "WEEKDAY", EscursionePeriodo[]>;
+  ampiezze: Record<"MONTH" | "WEEK" | "WEEKDAY", AmpiezzaPeriodo[]>;
 }): StatRow[] {
-  const { tipo, from, to } = opts;
+  const { from, to } = opts;
   /* `weekday` porta il bucket della granularità (mese, settimana o giorno),
      `month` il mese civile: serve al drill delle sedute dentro il mese. */
-  const osserva = (list: EscursionePeriodo[]): Observation[] =>
+  const osserva = (list: AmpiezzaPeriodo[]): Observation[] =>
     list
       .filter((e) => e.year >= from && e.year <= to)
       .map((e) => ({
-        value: tipo === "MAE" ? e.mae : e.mfe,
+        value: e.ampiezza,
         date: e.date,
         year: e.year,
         month: e.month,
@@ -767,43 +807,38 @@ function statsEscursione(opts: {
     kind: "RETURN" as const,
     lookbackYears: opts.lookbackYears,
     detrended: false,
+    bucketOf: (o: Observation) => o.weekday ?? 0,
   };
-  const giorni = osserva(opts.escursioni.WEEKDAY);
+  const giorni = osserva(opts.ampiezze.WEEKDAY);
   return [
     ...statsForBuckets({
       ...comune,
       granularity: "MONTH",
-      scope: scopeEscursione(tipo),
-      observations: osserva(opts.escursioni.MONTH),
+      scope: scopeAmpiezza(),
+      observations: osserva(opts.ampiezze.MONTH),
       buckets: MONTH_BUCKETS,
-      bucketOf: (o) => o.weekday ?? 0,
     }),
     ...statsForBuckets({
       ...comune,
       granularity: "WEEK",
-      scope: scopeEscursione(tipo),
-      observations: osserva(opts.escursioni.WEEK),
+      scope: scopeAmpiezza(),
+      observations: osserva(opts.ampiezze.WEEK),
       buckets: WEEK_BUCKETS,
-      bucketOf: (o) => o.weekday ?? 0,
     }),
     ...statsForBuckets({
       ...comune,
       granularity: "WEEKDAY",
-      scope: scopeEscursione(tipo),
+      scope: scopeAmpiezza(),
       observations: giorni,
       buckets: [...WEEKDAY_BUCKETS],
-      bucketOf: (o) => o.weekday ?? 0,
-      aggregateByYear: true,
     }),
     ...Array.from({ length: 12 }, (_, i) =>
       statsForBuckets({
         ...comune,
         granularity: "WEEKDAY",
-        scope: scopeEscursione(tipo, i + 1),
+        scope: scopeAmpiezza(i + 1),
         observations: giorni.filter((o) => o.month === i + 1),
         buckets: [...WEEKDAY_BUCKETS],
-        bucketOf: (o) => o.weekday ?? 0,
-        aggregateByYear: true,
       }),
     ).flat(),
   ];
