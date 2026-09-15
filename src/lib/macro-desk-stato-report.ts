@@ -47,6 +47,12 @@ export type StatoReport =
 
 const MS_GIORNO = 86_400_000;
 
+/** Il tipo del report in parola, per testata e archivio. */
+export const TIPO_REPORT: Record<RiferimentoReport["type"], string> = {
+  DAILY: "giornaliero",
+  WEEKLY: "settimanale",
+};
+
 /** «22/08» da una chiave-giorno UTC: niente fuso, la data è già un giorno. */
 export function giornoBreve(d: Date): string {
   return new Intl.DateTimeFormat("it-IT", {

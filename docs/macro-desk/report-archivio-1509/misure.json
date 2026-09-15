@@ -1,0 +1,602 @@
+[
+  {
+    "pagina": "/macro-desk/report",
+    "larghezza": 1440,
+    "tema": "dark",
+    "file": "macro-desk_report__1440__dark.png",
+    "h1": "Reportgiornaliero",
+    "altezza": 3000,
+    "innerWidth": 1440,
+    "scrollWidth": 1440,
+    "sbordi": [
+      {
+        "d": 156,
+        "w": 1040,
+        "t": "",
+        "cols": null
+      }
+    ],
+    "sotto12": 26,
+    "piccoli": 0,
+    "esempiPiccoli": [],
+    "bassoContrasto": 0,
+    "esempiBassi": [],
+    "famiglie": [
+      "Geist",
+      "\"Geist Mono\""
+    ],
+    "corpo": 1118,
+    "verdetto": 1061,
+    "tabellaBias": 1118,
+    "archivio": {
+      "w": 1118,
+      "h": 127,
+      "top": 387
+    },
+    "scorre": {
+      "sw": 1196,
+      "cw": 1040,
+      "sl": 0
+    },
+    "buco": "22/08 → oggi",
+    "linkArchivio": 21,
+    "primoLink": "/macro-desk/cmszqadhu000004l8dajyovz2",
+    "erroriConsole": []
+  },
+  {
+    "pagina": "/macro-desk/cmszqadhu000004l8dajyovz2",
+    "larghezza": 1440,
+    "tema": "dark",
+    "file": "macro-desk_cmszqadhu000004l8dajyovz2__1440__dark.png",
+    "h1": "Reportgiornaliero",
+    "altezza": 2630,
+    "innerWidth": 1440,
+    "scrollWidth": 1440,
+    "sbordi": [
+      {
+        "d": 156,
+        "w": 1040,
+        "t": "",
+        "cols": null
+      }
+    ],
+    "sotto12": 26,
+    "piccoli": 0,
+    "esempiPiccoli": [],
+    "bassoContrasto": 0,
+    "esempiBassi": [],
+    "famiglie": [
+      "Geist",
+      "\"Geist Mono\""
+    ],
+    "corpo": 1118,
+    "verdetto": 1061,
+    "tabellaBias": 1118,
+    "archivio": {
+      "w": 1118,
+      "h": 127,
+      "top": 387
+    },
+    "scorre": {
+      "sw": 1196,
+      "cw": 1040,
+      "sl": 0
+    },
+    "buco": "22/08 → oggi",
+    "linkArchivio": 21,
+    "primoLink": "/macro-desk/cmt2xn58k000004jv6a5o6ryi",
+    "erroriConsole": []
+  },
+  {
+    "pagina": "/macro-desk/report",
+    "larghezza": 1280,
+    "tema": "dark",
+    "file": "macro-desk_report__1280__dark.png",
+    "h1": "Reportgiornaliero",
+    "altezza": 3243,
+    "innerWidth": 1280,
+    "scrollWidth": 1280,
+    "sbordi": [
+      {
+        "d": 316,
+        "w": 880,
+        "t": "",
+        "cols": null
+      }
+    ],
+    "sotto12": 26,
+    "piccoli": 0,
+    "esempiPiccoli": [],
+    "bassoContrasto": 0,
+    "esempiBassi": [],
+    "famiglie": [
+      "Geist",
+      "\"Geist Mono\""
+    ],
+    "corpo": 958,
+    "verdetto": 958,
+    "tabellaBias": 958,
+    "archivio": {
+      "w": 958,
+      "h": 127,
+      "top": 406
+    },
+    "scorre": {
+      "sw": 1196,
+      "cw": 880,
+      "sl": 0
+    },
+    "buco": "22/08 → oggi",
+    "linkArchivio": 21,
+    "primoLink": "/macro-desk/cmszqadhu000004l8dajyovz2",
+    "erroriConsole": []
+  },
+  {
+    "pagina": "/macro-desk/cmszqadhu000004l8dajyovz2",
+    "larghezza": 1280,
+    "tema": "dark",
+    "file": "macro-desk_cmszqadhu000004l8dajyovz2__1280__dark.png",
+    "h1": "Reportgiornaliero",
+    "altezza": 2967,
+    "innerWidth": 1280,
+    "scrollWidth": 1280,
+    "sbordi": [
+      {
+        "d": 316,
+        "w": 880,
+        "t": "",
+        "cols": null
+      }
+    ],
+    "sotto12": 26,
+    "piccoli": 0,
+    "esempiPiccoli": [],
+    "bassoContrasto": 0,
+    "esempiBassi": [],
+    "famiglie": [
+      "Geist",
+      "\"Geist Mono\""
+    ],
+    "corpo": 958,
+    "verdetto": 958,
+    "tabellaBias": 958,
+    "archivio": {
+      "w": 958,
+      "h": 127,
+      "top": 387
+    },
+    "scorre": {
+      "sw": 1196,
+      "cw": 880,
+      "sl": 0
+    },
+    "buco": "22/08 → oggi",
+    "linkArchivio": 21,
+    "primoLink": "/macro-desk/cmt2xn58k000004jv6a5o6ryi",
+    "erroriConsole": []
+  },
+  {
+    "pagina": "/macro-desk/report",
+    "larghezza": 390,
+    "tema": "dark",
+    "file": "macro-desk_report__390__dark.png",
+    "h1": "Reportgiornaliero",
+    "altezza": 6092,
+    "innerWidth": 390,
+    "scrollWidth": 390,
+    "sbordi": [
+      {
+        "d": 257,
+        "w": 358,
+        "t": "",
+        "cols": null
+      },
+      {
+        "d": 950,
+        "w": 246,
+        "t": "",
+        "cols": null
+      },
+      {
+        "d": 396,
+        "w": 324,
+        "t": "Il bias è dichiarato dal repor",
+        "cols": 9
+      },
+      {
+        "d": 18,
+        "w": 324,
+        "t": "OggistressMFE +1,02 EM oltre k",
+        "cols": 3
+      }
+    ],
+    "sotto12": 37,
+    "piccoli": 0,
+    "esempiPiccoli": [],
+    "bassoContrasto": 0,
+    "esempiBassi": [],
+    "famiglie": [
+      "Geist",
+      "\"Geist Mono\""
+    ],
+    "corpo": 324,
+    "verdetto": 324,
+    "tabellaBias": 720,
+    "archivio": {
+      "w": 324,
+      "h": 146,
+      "top": 571
+    },
+    "scorre": {
+      "sw": 1196,
+      "cw": 246,
+      "sl": 0
+    },
+    "buco": "22/08 → oggi",
+    "linkArchivio": 21,
+    "primoLink": "/macro-desk/cmszqadhu000004l8dajyovz2",
+    "erroriConsole": []
+  },
+  {
+    "pagina": "/macro-desk/cmszqadhu000004l8dajyovz2",
+    "larghezza": 390,
+    "tema": "dark",
+    "file": "macro-desk_cmszqadhu000004l8dajyovz2__390__dark.png",
+    "h1": "Reportgiornaliero",
+    "altezza": 5424,
+    "innerWidth": 390,
+    "scrollWidth": 390,
+    "sbordi": [
+      {
+        "d": 257,
+        "w": 358,
+        "t": "",
+        "cols": null
+      },
+      {
+        "d": 950,
+        "w": 246,
+        "t": "",
+        "cols": null
+      },
+      {
+        "d": 414,
+        "w": 324,
+        "t": "Il bias è dichiarato dal repor",
+        "cols": 9
+      },
+      {
+        "d": 28,
+        "w": 324,
+        "t": "OggiconfermaNeutrale a +0,17 E",
+        "cols": 3
+      }
+    ],
+    "sotto12": 37,
+    "piccoli": 0,
+    "esempiPiccoli": [],
+    "bassoContrasto": 0,
+    "esempiBassi": [],
+    "famiglie": [
+      "Geist",
+      "\"Geist Mono\""
+    ],
+    "corpo": 324,
+    "verdetto": 324,
+    "tabellaBias": 738,
+    "archivio": {
+      "w": 324,
+      "h": 146,
+      "top": 551
+    },
+    "scorre": {
+      "sw": 1196,
+      "cw": 246,
+      "sl": -38
+    },
+    "buco": "22/08 → oggi",
+    "linkArchivio": 21,
+    "primoLink": "/macro-desk/cmt2xn58k000004jv6a5o6ryi",
+    "erroriConsole": []
+  },
+  {
+    "pagina": "/macro-desk/report",
+    "larghezza": 1440,
+    "tema": "light",
+    "file": "macro-desk_report__1440__light.png",
+    "h1": "Reportgiornaliero",
+    "altezza": 3000,
+    "innerWidth": 1440,
+    "scrollWidth": 1440,
+    "sbordi": [
+      {
+        "d": 156,
+        "w": 1040,
+        "t": "",
+        "cols": null
+      }
+    ],
+    "sotto12": 26,
+    "piccoli": 0,
+    "esempiPiccoli": [],
+    "bassoContrasto": 0,
+    "esempiBassi": [],
+    "famiglie": [
+      "Geist",
+      "\"Geist Mono\""
+    ],
+    "corpo": 1118,
+    "verdetto": 1061,
+    "tabellaBias": 1118,
+    "archivio": {
+      "w": 1118,
+      "h": 127,
+      "top": 387
+    },
+    "scorre": {
+      "sw": 1196,
+      "cw": 1040,
+      "sl": 0
+    },
+    "buco": "22/08 → oggi",
+    "linkArchivio": 21,
+    "primoLink": "/macro-desk/cmszqadhu000004l8dajyovz2",
+    "erroriConsole": []
+  },
+  {
+    "pagina": "/macro-desk/cmszqadhu000004l8dajyovz2",
+    "larghezza": 1440,
+    "tema": "light",
+    "file": "macro-desk_cmszqadhu000004l8dajyovz2__1440__light.png",
+    "h1": "Reportgiornaliero",
+    "altezza": 2630,
+    "innerWidth": 1440,
+    "scrollWidth": 1440,
+    "sbordi": [
+      {
+        "d": 156,
+        "w": 1040,
+        "t": "",
+        "cols": null
+      }
+    ],
+    "sotto12": 26,
+    "piccoli": 0,
+    "esempiPiccoli": [],
+    "bassoContrasto": 0,
+    "esempiBassi": [],
+    "famiglie": [
+      "Geist",
+      "\"Geist Mono\""
+    ],
+    "corpo": 1118,
+    "verdetto": 1061,
+    "tabellaBias": 1118,
+    "archivio": {
+      "w": 1118,
+      "h": 127,
+      "top": 387
+    },
+    "scorre": {
+      "sw": 1196,
+      "cw": 1040,
+      "sl": 0
+    },
+    "buco": "22/08 → oggi",
+    "linkArchivio": 21,
+    "primoLink": "/macro-desk/cmt2xn58k000004jv6a5o6ryi",
+    "erroriConsole": []
+  },
+  {
+    "pagina": "/macro-desk/report",
+    "larghezza": 1280,
+    "tema": "light",
+    "file": "macro-desk_report__1280__light.png",
+    "h1": "Reportgiornaliero",
+    "altezza": 3243,
+    "innerWidth": 1280,
+    "scrollWidth": 1280,
+    "sbordi": [
+      {
+        "d": 316,
+        "w": 880,
+        "t": "",
+        "cols": null
+      }
+    ],
+    "sotto12": 26,
+    "piccoli": 0,
+    "esempiPiccoli": [],
+    "bassoContrasto": 0,
+    "esempiBassi": [],
+    "famiglie": [
+      "Geist",
+      "\"Geist Mono\""
+    ],
+    "corpo": 958,
+    "verdetto": 958,
+    "tabellaBias": 958,
+    "archivio": {
+      "w": 958,
+      "h": 127,
+      "top": 406
+    },
+    "scorre": {
+      "sw": 1196,
+      "cw": 880,
+      "sl": 0
+    },
+    "buco": "22/08 → oggi",
+    "linkArchivio": 21,
+    "primoLink": "/macro-desk/cmszqadhu000004l8dajyovz2",
+    "erroriConsole": []
+  },
+  {
+    "pagina": "/macro-desk/cmszqadhu000004l8dajyovz2",
+    "larghezza": 1280,
+    "tema": "light",
+    "file": "macro-desk_cmszqadhu000004l8dajyovz2__1280__light.png",
+    "h1": "Reportgiornaliero",
+    "altezza": 2967,
+    "innerWidth": 1280,
+    "scrollWidth": 1280,
+    "sbordi": [
+      {
+        "d": 316,
+        "w": 880,
+        "t": "",
+        "cols": null
+      }
+    ],
+    "sotto12": 26,
+    "piccoli": 0,
+    "esempiPiccoli": [],
+    "bassoContrasto": 0,
+    "esempiBassi": [],
+    "famiglie": [
+      "Geist",
+      "\"Geist Mono\""
+    ],
+    "corpo": 958,
+    "verdetto": 958,
+    "tabellaBias": 958,
+    "archivio": {
+      "w": 958,
+      "h": 127,
+      "top": 387
+    },
+    "scorre": {
+      "sw": 1196,
+      "cw": 880,
+      "sl": 0
+    },
+    "buco": "22/08 → oggi",
+    "linkArchivio": 21,
+    "primoLink": "/macro-desk/cmt2xn58k000004jv6a5o6ryi",
+    "erroriConsole": []
+  },
+  {
+    "pagina": "/macro-desk/report",
+    "larghezza": 390,
+    "tema": "light",
+    "file": "macro-desk_report__390__light.png",
+    "h1": "Reportgiornaliero",
+    "altezza": 6092,
+    "innerWidth": 390,
+    "scrollWidth": 390,
+    "sbordi": [
+      {
+        "d": 257,
+        "w": 358,
+        "t": "",
+        "cols": null
+      },
+      {
+        "d": 950,
+        "w": 246,
+        "t": "",
+        "cols": null
+      },
+      {
+        "d": 396,
+        "w": 324,
+        "t": "Il bias è dichiarato dal repor",
+        "cols": 9
+      },
+      {
+        "d": 18,
+        "w": 324,
+        "t": "OggistressMFE +1,02 EM oltre k",
+        "cols": 3
+      }
+    ],
+    "sotto12": 37,
+    "piccoli": 0,
+    "esempiPiccoli": [],
+    "bassoContrasto": 0,
+    "esempiBassi": [],
+    "famiglie": [
+      "Geist",
+      "\"Geist Mono\""
+    ],
+    "corpo": 324,
+    "verdetto": 324,
+    "tabellaBias": 720,
+    "archivio": {
+      "w": 324,
+      "h": 146,
+      "top": 571
+    },
+    "scorre": {
+      "sw": 1196,
+      "cw": 246,
+      "sl": 0
+    },
+    "buco": "22/08 → oggi",
+    "linkArchivio": 21,
+    "primoLink": "/macro-desk/cmszqadhu000004l8dajyovz2",
+    "erroriConsole": []
+  },
+  {
+    "pagina": "/macro-desk/cmszqadhu000004l8dajyovz2",
+    "larghezza": 390,
+    "tema": "light",
+    "file": "macro-desk_cmszqadhu000004l8dajyovz2__390__light.png",
+    "h1": "Reportgiornaliero",
+    "altezza": 5424,
+    "innerWidth": 390,
+    "scrollWidth": 390,
+    "sbordi": [
+      {
+        "d": 257,
+        "w": 358,
+        "t": "",
+        "cols": null
+      },
+      {
+        "d": 950,
+        "w": 246,
+        "t": "",
+        "cols": null
+      },
+      {
+        "d": 414,
+        "w": 324,
+        "t": "Il bias è dichiarato dal repor",
+        "cols": 9
+      },
+      {
+        "d": 28,
+        "w": 324,
+        "t": "OggiconfermaNeutrale a +0,17 E",
+        "cols": 3
+      }
+    ],
+    "sotto12": 37,
+    "piccoli": 0,
+    "esempiPiccoli": [],
+    "bassoContrasto": 0,
+    "esempiBassi": [],
+    "famiglie": [
+      "Geist",
+      "\"Geist Mono\""
+    ],
+    "corpo": 324,
+    "verdetto": 324,
+    "tabellaBias": 738,
+    "archivio": {
+      "w": 324,
+      "h": 146,
+      "top": 551
+    },
+    "scorre": {
+      "sw": 1196,
+      "cw": 246,
+      "sl": -38
+    },
+    "buco": "22/08 → oggi",
+    "linkArchivio": 21,
+    "primoLink": "/macro-desk/cmt2xn58k000004jv6a5o6ryi",
+    "erroriConsole": []
+  }
+]

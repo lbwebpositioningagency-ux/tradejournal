@@ -268,6 +268,43 @@
   color: var(--md-text);
   white-space: normal;
 }
+/* ARCHIVIO IN RIGA della pagina Report (15/09/2026): le colonne dei giorni
+   sono le righe dello storico messe in orizzontale, con gli stessi due fondi.
+   La colonna scelta ha il filo IN ALTO invece che a sinistra, perché si legge
+   in verticale; il buco ha la tinta ambra della riga del buco. */
+.ml-archivio .ml-scelta {
+  background-color: color-mix(in oklab, var(--md-info) 9%, var(--md-bg));
+  box-shadow: inset 0 2px 0 var(--md-info);
+}
+.ml-archivio .ml-buco {
+  background-color: color-mix(in oklab, var(--md-warn) 10%, var(--md-bg));
+  color: var(--md-text);
+}
+/* Il binario è in `row-reverse`: l'eccedenza sta a SINISTRA, il lato che
+   scorre, e la riga parte sull'ultimo report. Con pochi report lo spazio
+   libero va a destra del primo figlio (il più recente, o il buco), così le
+   colonne restano accanto alle etichette. Con l'eccedenza il margine `auto`
+   vale zero e non cambia nulla. NON usare `justify-content: *-end` qui:
+   impacchetta dall'altro lato e l'eccedenza finisce a destra, dove non si
+   scorre — misurato il 15/09/2026, a 390 spariva proprio l'ultimo report. */
+.ml-archivio [data-archivio-scorre] > :first-child {
+  margin-right: auto;
+}
+/* CORPO DEL REPORT A PIENA LARGHEZZA (15/09/2026): tolta la colonna dello
+   storico, le tabelle del report (bias, pilastri, driver) salgono di un gradino
+   della scala, 12 → 14px, e le intestazioni 11 → 12. Solo dentro il report:
+   `.ml-tab` resta a 12px nel listino di Volatilità e Driver, dove le tabelle
+   hanno fino a diciannove colonne. Da 640px in su: a 390 la larghezza non è
+   cresciuta, e a 14px la colonna della nota dei pilastri andava a capo a ogni
+   parola (43px nascosti contro 18). */
+@media (min-width: 40rem) {
+  .ml-leggibile .ml-tab {
+    font-size: 14px;
+  }
+  .ml-leggibile .ml-tab th {
+    font-size: 12px;
+  }
+}
 /* Una cella che deve andare a capo (prosa breve dentro una tabella). */
 .ml-tab td.ml-wrap {
   white-space: normal;

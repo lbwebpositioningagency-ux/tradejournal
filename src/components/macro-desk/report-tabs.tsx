@@ -89,14 +89,14 @@ export function issueColor(sev?: string): string {
 export function DataIssuesList({ issues }: { issues: MacroDataIssue[] }) {
   if (issues.length === 0) return null;
   return (
-    <div className="flex flex-col gap-2">
+    <div className="flex max-w-[80ch] flex-col gap-2">
       {issues.map((issue, i) => (
         /* Una NOTA (fondo muted, niente bordo): il colore della gravità sta
            sull'icona, che è grafica; l'etichetta resta testo neutro, perché
            sul riempimento ambra e rosso scendono sotto 4,5:1. */
         <div
           key={i}
-          className="flex items-start gap-2.5 rounded-md bg-[var(--md-surface-2)] px-3 py-2 text-xs leading-relaxed"
+          className="flex items-start gap-2.5 rounded-md bg-[var(--md-surface-2)] px-3 py-2 text-sm leading-relaxed"
         >
           <AlertTriangle
             className="mt-0.5 size-3.5 shrink-0"
@@ -204,7 +204,7 @@ function NotaUnanimita({ horizon }: { horizon: MacroHorizon }) {
     (x): x is string => x !== null,
   );
   return (
-    <p className="rounded-md bg-[var(--md-surface-2)] px-3 py-2 text-xs leading-relaxed text-[var(--md-text-2)]">
+    <p className="max-w-[80ch] rounded-md bg-[var(--md-surface-2)] px-3 py-2 text-sm leading-relaxed text-[var(--md-text-2)]">
       <span className="mr-1.5 font-semibold text-[var(--md-text)]">
         Da notare
       </span>
@@ -239,12 +239,12 @@ function NotaDelGiorno({ monitor }: { monitor?: MonitorAsset }) {
      perdita e «conferma» non è un guadagno, quindi niente verde e rosso (e
      niente striscia colorata a sinistra, sistema v2). */
   return (
-    <p className="flex flex-wrap items-baseline gap-x-2 gap-y-1 text-sm leading-relaxed text-[var(--md-text-2)]">
-      <span className="text-2xs font-semibold uppercase tracking-[0.06em] text-[var(--md-muted)]">
+    <p className="flex max-w-[80ch] flex-wrap items-baseline gap-x-2 gap-y-1 text-base leading-relaxed text-[var(--md-text-2)]">
+      <span className="text-xs font-semibold uppercase tracking-[0.06em] text-[var(--md-muted)]">
         Oggi
       </span>
       {stato ? (
-        <span className="text-2xs font-semibold uppercase tracking-[0.06em] text-[var(--md-text)]">
+        <span className="text-xs font-semibold uppercase tracking-[0.06em] text-[var(--md-text)]">
           {stato}
         </span>
       ) : null}
@@ -263,7 +263,7 @@ function Voce({ etichetta, children }: { etichetta: string; children: React.Reac
   return (
     <div>
       <PanelLabel>{etichetta}</PanelLabel>
-      <div className="mt-1 max-w-[80ch] text-sm leading-relaxed text-[var(--md-text-2)]">
+      <div className="mt-1 max-w-[80ch] text-base leading-relaxed text-[var(--md-text-2)]">
         {children}
       </div>
     </div>
@@ -285,15 +285,15 @@ function LetturaTrimestrale({ horizon }: { horizon: MacroHorizon }) {
       </div>
       <p className="flex flex-wrap items-baseline gap-x-2 gap-y-1">
         <Glifo tone={tone} />
-        <span className="text-sm font-semibold text-[var(--md-text)]">
+        <span className="text-base font-semibold text-[var(--md-text)]">
           {horizon.biasLabel ?? "non dichiarato"}
         </span>
       </p>
       {horizon.narrative ? (
-        <p className="text-xs leading-relaxed text-[var(--md-text-2)]">{horizon.narrative}</p>
+        <p className="text-sm leading-relaxed text-[var(--md-text-2)]">{horizon.narrative}</p>
       ) : null}
       {horizon.invalid ? (
-        <p className="text-xs leading-relaxed text-[var(--md-text-2)]">
+        <p className="text-sm leading-relaxed text-[var(--md-text-2)]">
           <span className="font-semibold text-[var(--md-text)]">Invalidazione · </span>
           {horizon.invalid}
         </p>
@@ -363,15 +363,15 @@ function LetturaAsset({
   return (
     <div className="flex flex-col gap-3">
       <div className="flex flex-wrap items-baseline gap-x-2 gap-y-1">
-        <h3 className="text-base font-semibold text-[var(--md-text)]">
+        <h3 className="text-xl font-semibold text-[var(--md-text)]">
           {asset.name ?? "Asset"}
         </h3>
         {asset.ticker ? (
-          <span className="text-xs text-[var(--md-muted)]">{asset.ticker}</span>
+          <span className="text-sm text-[var(--md-muted)]">{asset.ticker}</span>
         ) : null}
       </div>
 
-      <div className="grid gap-x-8 gap-y-5 lg:grid-cols-[minmax(0,1fr)_260px]">
+      <div className="grid gap-x-8 gap-y-5 lg:grid-cols-[minmax(0,1fr)_320px]">
         {/* `order-last` sempre, non solo a colonne affiancate: su mobile la
             settimana viene prima del trimestrale e dei driver. */}
         <div className="order-last flex min-w-0 flex-col gap-5">
@@ -386,16 +386,16 @@ function LetturaAsset({
                 <div className="flex items-baseline gap-2">
                   <PanelLabel>Settimanale</PanelLabel>
                   {weekly.biasLabel ? (
-                    <span className="text-sm font-semibold text-[var(--md-text)]">
+                    <span className="text-base font-semibold text-[var(--md-text)]">
                       <Glifo tone={tone} /> {weekly.biasLabel}
                     </span>
                   ) : (
-                    <span className="text-sm text-[var(--md-muted)]">
+                    <span className="text-base text-[var(--md-muted)]">
                       Bias settimanale non dichiarato.
                     </span>
                   )}
                 </div>
-                <span className="text-2xs text-[var(--md-muted)]">{NATURA_TESTO[natura]}</span>
+                <span className="text-xs text-[var(--md-muted)]">{NATURA_TESTO[natura]}</span>
               </div>
               <NotaDelGiorno monitor={monitor} />
               <TabellaPilastri horizon={weekly} />
@@ -405,14 +405,14 @@ function LetturaAsset({
                   alle altre due: qui non si ripete. */}
               {weekly.narrative ? (
                 <details className="group/narrativa">
-                  <summary className="flex cursor-pointer list-none items-center gap-1.5 text-2xs font-semibold uppercase tracking-[0.06em] text-[var(--md-muted)] hover:text-[var(--md-text)]">
+                  <summary className="flex cursor-pointer list-none items-center gap-1.5 text-xs font-semibold uppercase tracking-[0.06em] text-[var(--md-muted)] hover:text-[var(--md-text)]">
                     <ChevronRight
                       className="size-3 transition-transform group-open/narrativa:rotate-90"
                       aria-hidden
                     />
                     Narrativa
                   </summary>
-                  <p className="mt-1.5 max-w-[80ch] text-sm leading-relaxed text-[var(--md-text-2)]">
+                  <p className="mt-1.5 max-w-[80ch] text-base leading-relaxed text-[var(--md-text-2)]">
                     {weekly.narrative}
                   </p>
                 </details>
@@ -420,7 +420,7 @@ function LetturaAsset({
             </>
           ) : null}
           {!weekly && !asset.quarterly ? (
-            <p className="text-sm text-[var(--md-muted)]">
+            <p className="text-base text-[var(--md-muted)]">
               Nessuna lettura dichiarata per questo asset.
             </p>
           ) : null}
@@ -464,7 +464,7 @@ function TabellaBias({
     <div>
       <div className="mb-1 flex flex-wrap items-baseline justify-between gap-2">
         <PanelLabel>Bias per asset · settimana, pilastri, regime</PanelLabel>
-        <span className="text-2xs text-[var(--md-muted)]">
+        <span className="text-xs text-[var(--md-muted)]">
           ▲ rialzista · ● neutrale · ▼ ribassista · clic su una riga per la lettura
         </span>
       </div>
@@ -472,7 +472,7 @@ function TabellaBias({
           mostra accanto ai pilastri: chi vede tre frecce giù e un bias
           neutrale deve sapere che non c'è un conto che la pagina ha
           sbagliato. */}
-      <p className="mb-2 max-w-[80ch] text-2xs leading-relaxed text-[var(--md-muted)]">
+      <p className="mb-2 max-w-[80ch] text-xs leading-relaxed text-[var(--md-muted)]">
         Il bias è dichiarato dal report, non calcolato dall&apos;app: i pilastri
         sono una lettura separata dello stesso report, e bias e pilastri possono
         non coincidere.
@@ -600,7 +600,7 @@ export function AssetsTab({
             {pills.map((pill) => (
               <div key={pill.k} className="min-w-0">
                 <PanelLabel>{pill.k}</PanelLabel>
-                <p className="mt-0.5 text-sm font-semibold text-[var(--md-text)]">
+                <p className="mt-0.5 text-base font-semibold text-[var(--md-text)]">
                   {pill.v ?? "—"}
                 </p>
               </div>
@@ -612,7 +612,7 @@ export function AssetsTab({
       {synthesis?.conclusion ? (
         <div className={BLOCCO} style={FILETTO}>
           <PanelLabel>Verdetto</PanelLabel>
-          <p className="mt-1.5 max-w-[80ch] text-base leading-relaxed text-[var(--md-text)] text-pretty">
+          <p className="mt-1.5 max-w-[80ch] text-xl leading-relaxed text-[var(--md-text)] text-pretty">
             {synthesis.conclusion}
           </p>
         </div>
@@ -677,13 +677,13 @@ export function AssetsTab({
           <Voce etichetta="Lettura della struttura vol">
             {volPanel.reading}
             {volPanel.asOf ? (
-              <span className="mt-2 block text-xs text-[var(--md-muted)]">{volPanel.asOf}</span>
+              <span className="mt-2 block text-sm text-[var(--md-muted)]">{volPanel.asOf}</span>
             ) : null}
             {/* I NUMERI stanno nella sezione Volatilità, con il rango storico
                 dall'archivio CBOE: qui c'è solo la prosa del report. */}
             <Link
               href="/macro-desk/volatilita"
-              className="mt-2 inline-flex items-center gap-1 text-xs font-semibold text-[var(--md-text)] underline underline-offset-2"
+              className="mt-2 inline-flex items-center gap-1 text-sm font-semibold text-[var(--md-text)] underline underline-offset-2"
             >
               Indici e rango storico nella sezione Volatilità
               <ArrowUpRight className="size-3.5" aria-hidden />
@@ -694,7 +694,7 @@ export function AssetsTab({
 
       {riserve.length > 0 ? (
         <details className={BLOCCO} style={FILETTO}>
-          <summary className="cursor-pointer text-xs font-semibold text-[var(--md-text-2)]">
+          <summary className="cursor-pointer text-sm font-semibold text-[var(--md-text-2)]">
             {riserve.length} riserve dichiarate dal report
           </summary>
           <div className="mt-3">
@@ -847,7 +847,7 @@ export function NewsTab({
             style={{ color: "var(--md-info)" }}
             aria-hidden
           />
-          <p className="text-xs leading-relaxed text-[var(--md-text-2)]">{newsTriage}</p>
+          <p className="max-w-[80ch] text-sm leading-relaxed text-[var(--md-text-2)]">{newsTriage}</p>
         </div>
       ) : null}
       {groups.map(({ category, items }, gi) => {

@@ -3,39 +3,39 @@ import { PageHeaderSkeleton } from "@/components/page-skeleton";
 
 /**
  * Caricamento della pagina Report con la GEOMETRIA della pagina vera: striscia
- * dello stato in tre celle, schede, quadro, tabella dei bias a righe da 28px e
- * la colonna dello storico. Prima erano due card generiche e una tabella.
+ * dello stato in tre celle, l'archivio in riga (etichette e colonne dei
+ * giorni), schede, quadro e tabella dei bias a righe da 28px, tutto a piena
+ * larghezza. Dal 15/09/2026 non c'è più la colonna dello storico a destra.
  */
 export function ReportSkeleton() {
   return (
     <div className="flex flex-col gap-4">
       <PageHeaderSkeleton />
       <div className="border border-border p-4 sm:p-6">
-        <div className="grid gap-x-8 gap-y-8 xl:grid-cols-[minmax(0,1fr)_320px]">
-          <div className="flex min-w-0 flex-col gap-5">
-            <div className="grid gap-4 border-y border-border py-3 sm:grid-cols-3">
-              {[0, 1, 2].map((i) => (
-                <div key={i} className="flex flex-col gap-2">
-                  <Skeleton className="h-3 w-20" />
-                  <Skeleton className="h-5 w-44" />
-                </div>
-              ))}
-            </div>
-            <Skeleton className="h-9 w-40" />
-            <div className="grid grid-cols-2 gap-4 xl:grid-cols-4">
-              {[0, 1, 2, 3].map((i) => (
-                <Skeleton key={i} className="h-10 w-full" />
-              ))}
-            </div>
-            <Skeleton className="h-16 w-full" />
-            <div className="flex flex-col gap-1">
-              {[0, 1, 2, 3].map((i) => (
-                <Skeleton key={i} className="h-7 w-full" />
-              ))}
-            </div>
+        <div className="flex min-w-0 flex-col gap-5">
+          <div className="grid gap-4 border-y border-border py-3 sm:grid-cols-3">
+            {[0, 1, 2].map((i) => (
+              <div key={i} className="flex flex-col gap-2">
+                <Skeleton className="h-3 w-20" />
+                <Skeleton className="h-5 w-44" />
+              </div>
+            ))}
           </div>
+          <div className="flex gap-1.5 overflow-hidden border-b border-border pb-1">
+            <Skeleton className="h-[5.75rem] w-16 shrink-0" />
+            {Array.from({ length: 16 }, (_, i) => (
+              <Skeleton key={i} className="h-[5.75rem] w-11 shrink-0" />
+            ))}
+          </div>
+          <Skeleton className="h-9 w-40" />
+          <div className="grid grid-cols-2 gap-4 xl:grid-cols-4">
+            {[0, 1, 2, 3].map((i) => (
+              <Skeleton key={i} className="h-10 w-full" />
+            ))}
+          </div>
+          <Skeleton className="h-16 w-full max-w-[80ch]" />
           <div className="flex flex-col gap-1">
-            {Array.from({ length: 12 }, (_, i) => (
+            {[0, 1, 2, 3].map((i) => (
               <Skeleton key={i} className="h-7 w-full" />
             ))}
           </div>

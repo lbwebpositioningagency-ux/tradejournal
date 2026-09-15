@@ -3,7 +3,7 @@ import { ChevronLeft, ChevronRight } from "lucide-react";
 import type { MacroDeskReport } from "@/generated/prisma/client";
 import { formatDateTime } from "@/lib/dates";
 import { prisma } from "@/lib/db";
-import { biasTone, parseMacroPayload } from "@/lib/macro-desk-payload";
+import { parseMacroPayload } from "@/lib/macro-desk-payload";
 import { ASSET_PAYLOAD_A_RECORD, parseMonitor } from "@/lib/macro-desk-bias-record";
 import type { MonitorAsset } from "@/lib/macro-desk-pilastri";
 import type { Rilievo } from "@/lib/macro-desk-contratto";
@@ -11,6 +11,7 @@ import {
   giornoBreve,
   righeStorico,
   statoDelReport,
+  TIPO_REPORT,
   ultimoGiornaliero,
   vicini,
   type StatoReport,
@@ -26,8 +27,8 @@ import { MacroReportDetail } from "./report-detail";
 import { RigaRevisione } from "./riga-revisione";
 import type { NaturaBias } from "./report-tabs";
 import { GuidaReport } from "./guide-sezioni";
-import { Tab } from "./listino/primitive";
-import { Glifo, PanelLabel } from "./primitives";
+import { ArchivioReport, PuntoAttenzione } from "./archivio-report";
+import { PanelLabel } from "./primitives";
 
 /**
  * LA PAGINA REPORT — indice e dettaglio sono la stessa pagina (ricostruzione
@@ -38,7 +39,20 @@ import { Glifo, PanelLabel } from "./primitives";
  * settimanale) più un elenco, perché «qui si viene per aprire UN report».
  * Questa forma tiene quel motivo e toglie il clic: `/macro-desk/report` APRE
  * l'ultimo giornaliero, e ogni altro report — settimanale compreso — è una
- * riga dello storico a destra.
+ * colonna dell'archivio.
+ *
+ * Il corpo del report prende TUTTA la larghezza della scatola (15/09/2026
+ * pomeriggio, riquadri 5–9 della tavola): la colonna «Storico» a destra ne
+ * toglieva 352px e stringeva tabelle e lettura. L'archivio è ora una riga
+ * sotto la striscia dello stato (`archivio-report.tsx`). Solo la prosa
+ * continua ha una misura di lettura (80ch); tabelle, quadro e lettura per
+ * asset usano tutto lo spazio.
+ *
+ * Con la larghezza è salita anche la taglia, di un gradino della scala del
+ * sistema: prosa 12 → 14 e 14 → 16, verdetto 16 → 20, nome dell'asset 16 →
+ * 20, tabelle del report 12 → 14 da 640px in su (`.ml-leggibile` in
+ * `listino.css`, solo qui: a 390 la larghezza non cresce e le tabelle restano
+ * a 12). La scheda di una notizia no: è condivisa con il Radar.
  *
  * Il ritardo del report è uno STATO della pagina, non una banda sopra: la
  * striscia in cima dice di che giorno è il report, da quanto, e se è l'ultimo
@@ -48,14 +62,6 @@ import { Glifo, PanelLabel } from "./primitives";
 
 const DESCRIZIONE =
   "Bias macro dichiarato su oro, petrolio e indici · research scritta a mano, non dati misurati";
-
-const TIPO: Record<VoceArchivio["type"], string> = {
-  DAILY: "giornaliero",
-  WEEKLY: "settimanale",
-};
-
-/** Parole brevi dello storico: una colonna stretta, tre per riga. */
-const PAROLA_BREVE = { up: "Rialzo", down: "Ribasso", flat: "Neutro" } as const;
 
 /** Fondo dello stato che chiede attenzione: tinta al 10% e filo ambra in alto. */
 const ATTENZIONE = "bg-warning/10 shadow-[inset_0_2px_0_var(--warning)]";
@@ -112,10 +118,6 @@ function rilieviDelReport(colonna: unknown): Rilievo[] {
   });
 }
 
-function Punto() {
-  return <span aria-hidden className="inline-block size-2 shrink-0 rounded-full bg-warning" />;
-}
-
 /* ── striscia dello stato ───────────────────────────────────────────────── */
 
 function CellaStato({ stato }: { stato: StatoReport }) {
@@ -125,7 +127,7 @@ function CellaStato({ stato }: { stato: StatoReport }) {
       <div role="status" className={cn(base, ATTENZIONE, "px-3 sm:pr-4")} style={{ borderColor: "var(--md-border)" }}>
         <PanelLabel>Stato · in ritardo</PanelLabel>
         <p className="mt-0.5 flex flex-wrap items-center gap-x-2 text-base font-semibold text-[var(--md-text)]">
-          <Punto />
+          <PuntoAttenzione />
           {stato.eta} · nessun report dal {stato.mancaDal}
         </p>
         <p className="mt-0.5 text-xs leading-relaxed text-[var(--md-text-2)]">
@@ -193,117 +195,10 @@ function StrisciaStato({
         <PanelLabel>Report del</PanelLabel>
         <p className="mt-0.5 text-base font-semibold text-[var(--md-text)]">{dataLunga(reportDate)}</p>
         <p className="mt-0.5 text-xs text-[var(--md-muted)]">
-          {TIPO[type]} · generato {generato}
+          {TIPO_REPORT[type]} · generato {generato}
         </p>
       </div>
       <CellaStato stato={stato} />
-    </div>
-  );
-}
-
-/* ── storico ────────────────────────────────────────────────────────────── */
-
-function BiasBreve({ bias }: { bias: string }) {
-  const tono = biasTone(bias);
-  return (
-    <span className="whitespace-nowrap">
-      <Glifo tone={tono} /> <span className="text-[var(--md-text-2)]">{PAROLA_BREVE[tono]}</span>
-    </span>
-  );
-}
-
-function RigaStorico({ voce, scelta }: { voce: VoceArchivio; scelta: boolean }) {
-  const settimanale = voce.type === "WEEKLY";
-  return (
-    <tr className={cn(scelta && "ml-scelta")}>
-      <td className="ml-sx">
-        <Link
-          href={`/macro-desk/${voce.id}`}
-          aria-current={scelta ? "page" : undefined}
-          aria-label={`Report ${TIPO[voce.type]} del ${giornoBreve(voce.reportDate)}`}
-          className={cn("underline-offset-2 hover:underline", settimanale && "font-semibold")}
-        >
-          {giornoBreve(voce.reportDate)}
-          {settimanale ? (
-            <span className="ml-1 text-2xs font-normal text-[var(--md-muted)]">sett.</span>
-          ) : null}
-        </Link>
-      </td>
-      <td className="ml-sx">
-        <BiasBreve bias={voce.biasXau} />
-      </td>
-      <td className="ml-sx">
-        <BiasBreve bias={voce.biasWti} />
-      </td>
-      <td className="ml-sx">
-        <BiasBreve bias={voce.biasIdx} />
-      </td>
-    </tr>
-  );
-}
-
-function StoricoReport({
-  righe,
-  fuoriFinestra,
-  sceltoId,
-  buco,
-}: {
-  righe: VoceArchivio[];
-  fuoriFinestra: VoceArchivio | null;
-  sceltoId: string;
-  /** Lo stato dell'ULTIMO giornaliero: se è in ritardo, il buco apre lo storico. */
-  buco: StatoReport | null;
-}) {
-  return (
-    <div>
-      <div className="mb-1 flex items-baseline justify-between gap-2">
-        <PanelLabel>Storico</PanelLabel>
-        <span className="text-2xs text-[var(--md-muted)]">
-          {righe.length} report · sett. = settimanale
-        </span>
-      </div>
-      <Tab>
-        <thead>
-          <tr>
-            <th className="ml-sx">Data</th>
-            <th className="ml-sx">Oro</th>
-            <th className="ml-sx">Petrolio</th>
-            <th className="ml-sx">Indici</th>
-          </tr>
-        </thead>
-        <tbody>
-          {buco?.tipo === "in_ritardo" ? (
-            <tr className="ml-buco">
-              <td className="ml-sx" colSpan={4}>
-                <span className="inline-flex items-center gap-2">
-                  <Punto />
-                  {buco.mancaDal} → oggi · nessun report · {buco.giorni} giorni
-                </span>
-              </td>
-            </tr>
-          ) : null}
-          {righe.map((voce) => (
-            <RigaStorico key={voce.id} voce={voce} scelta={voce.id === sceltoId} />
-          ))}
-          {fuoriFinestra ? (
-            <>
-              <tr>
-                <td className="ml-sx text-[var(--md-muted)]" colSpan={4}>
-                  …
-                </td>
-              </tr>
-              <RigaStorico voce={fuoriFinestra} scelta />
-            </>
-          ) : null}
-        </tbody>
-      </Tab>
-      <p className="mt-2 text-xs leading-relaxed text-[var(--md-muted)]">
-        Solo il bias dichiarato. Quanto abbia retto lo misura la{" "}
-        <Link href="/macro-desk/scorecard" className="text-[var(--md-text)] underline underline-offset-2">
-          Scorecard
-        </Link>
-        .
-      </p>
     </div>
   );
 }
@@ -395,7 +290,7 @@ export async function PaginaReport({
       <PageHeader
         nav={<MacroDeskTabs active="report" />}
         title="Report"
-        badge={<Badge variant="outline">{TIPO[report.type]}</Badge>}
+        badge={<Badge variant="outline">{TIPO_REPORT[report.type]}</Badge>}
         description={DESCRIZIONE}
         actions={<NavigazioneReport precedente={precedente} successivo={successivo} />}
       >
@@ -403,27 +298,23 @@ export async function PaginaReport({
       </PageHeader>
 
       <div className={SCATOLA_DESK} style={{ borderColor: "var(--ml-rule)" }}>
-        <div className="grid gap-x-8 gap-y-8 xl:grid-cols-[minmax(0,1fr)_320px]">
-          <div className="flex min-w-0 flex-col gap-4">
-            {/* `generatedAt` è un ISTANTE: si legge nel fuso dell'utente. */}
-            <StrisciaStato
-              type={report.type}
-              reportDate={report.reportDate}
-              generato={formatDateTime(report.generatedAt, user.timezone)}
-              stato={stato}
-            />
-            <RigaRevisione revisione={revisione} timezone={user.timezone} />
-            <MacroReportDetail
-              payload={payload}
-              natura={naturaDelBias(report.type, report.schemaVersion)}
-              monitor={monitorPerAsset(report.monitor)}
-              reportDate={report.reportDate}
-              rilievi={rilieviDelReport(report.rilieviContratto)}
-            />
-          </div>
-          <aside aria-label="Storico dei report" className="min-w-0">
-            <StoricoReport righe={righe} fuoriFinestra={fuoriFinestra} sceltoId={id} buco={buco} />
-          </aside>
+        <div className="flex min-w-0 flex-col gap-4">
+          {/* `generatedAt` è un ISTANTE: si legge nel fuso dell'utente. */}
+          <StrisciaStato
+            type={report.type}
+            reportDate={report.reportDate}
+            generato={formatDateTime(report.generatedAt, user.timezone)}
+            stato={stato}
+          />
+          <ArchivioReport righe={righe} fuoriFinestra={fuoriFinestra} sceltoId={id} buco={buco} />
+          <RigaRevisione revisione={revisione} timezone={user.timezone} />
+          <MacroReportDetail
+            payload={payload}
+            natura={naturaDelBias(report.type, report.schemaVersion)}
+            monitor={monitorPerAsset(report.monitor)}
+            reportDate={report.reportDate}
+            rilievi={rilieviDelReport(report.rilieviContratto)}
+          />
         </div>
       </div>
     </div>
@@ -432,7 +323,9 @@ export async function PaginaReport({
 
 /**
  * NESSUN REPORT RICEVUTO — stato di prima classe con la stessa geometria della
- * pagina: dice che cosa manca, da dove arriverebbe e che cosa comparirà.
+ * pagina: dice che cosa manca, da dove arriverebbe e che cosa comparirà. Senza
+ * archivio da mostrare, niente riga dell'archivio: la striscia dello stato e
+ * la spiegazione, alla stessa misura di lettura della prosa del report.
  */
 export function PaginaReportVuota() {
   return (
@@ -449,7 +342,7 @@ export function PaginaReportVuota() {
           >
             <PanelLabel>Stato · nessun report</PanelLabel>
             <p className="mt-0.5 flex items-center gap-2 text-base font-semibold text-[var(--md-text)]">
-              <Punto />
+              <PuntoAttenzione />
               Nessun report è mai arrivato su questo ambiente
             </p>
             <p className="mt-0.5 text-xs leading-relaxed text-[var(--md-text-2)]">

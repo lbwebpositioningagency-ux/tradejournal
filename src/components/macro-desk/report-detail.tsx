@@ -58,12 +58,14 @@ export function MacroReportDetail({
   const critici = payload.dataIssues.filter((issue) => isCriticalIssue(issue.sev));
 
   return (
-    <div className="flex flex-col gap-4">
+    <div className="ml-leggibile flex flex-col gap-4">
       {/* Il disclaimer è una riga di testo neutro, non un riquadro: qualifica
           tutto il report e si legge una volta (tavola «Report MD -
-          ricostruzione»). */}
+          ricostruzione»). Da quando il corpo è a piena larghezza ha la misura
+          di lettura della prosa (80ch): senza, a 1440 correva oltre i 180
+          caratteri per riga. */}
       {payload.disclaimer ? (
-        <p className="text-xs leading-relaxed text-[var(--md-muted)]">
+        <p className="max-w-[80ch] text-sm leading-relaxed text-[var(--md-muted)]">
           <span className="mr-1.5 font-semibold text-[var(--md-text-2)]">
             Disclaimer ·
           </span>

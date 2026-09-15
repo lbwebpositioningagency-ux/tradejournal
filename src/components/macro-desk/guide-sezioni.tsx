@@ -20,14 +20,15 @@ export function GuidaReport() {
   return (
     <GuidaSezione richiamo="è research scritta a mano, non dati misurati">
       <p>
-        Qui non si consulta, si <strong>legge</strong>. Ogni riga è un report
-        ricevuto, con il bias dichiarato per oro, WTI e indici.
+        Qui non si consulta, si <strong>legge</strong>. Ogni colonna
+        dell&apos;archivio è un report ricevuto, con il bias dichiarato per oro,
+        WTI e indici.
       </p>
 
-      <VoceGuida titolo="Si legge in verticale">
-        La stessa colonna, giorno dopo giorno, dice se un bias è stabile o se
+      <VoceGuida titolo="L'archivio si legge in orizzontale">
+        La stessa riga, giorno dopo giorno, dice se un bias è stabile o se
         cambia a ogni report. È la sola cosa che uno storico può dire, ed è il
-        motivo per cui adesso è una tabella e non un elenco di schede.
+        motivo per cui è una griglia e non un elenco di schede.
       </VoceGuida>
 
       <VoceGuida titolo="Il bias è un'intenzione, non un esito">

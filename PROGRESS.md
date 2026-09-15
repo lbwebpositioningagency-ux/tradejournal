@@ -3149,3 +3149,36 @@ Misure (DOM, build locale, capitolo Rischio a 1440/390 nei due temi, tabelle chi
 sonda): 0 testi < 11px, 0 < 4,5:1, pagina mai più larga del viewport, 0 errori in console; a 390
 la heatmap non scorre più (prima 124px). Gate (dopo il rebase su 4cd57d6): typecheck, lint, 2.169 test, build verdi.
 Schermate in `docs/analytics/metriche-1509/`. Nessuna migrazione.
+
+## 15/09/2026 · Report MD, l'archivio esce dal fianco e il corpo prende tutta la larghezza
+
+La colonna «Storico» fissa a destra (320px + 32 di spazio) stringeva il report. Era però l'unica
+strada verso i report vecchi: spostata, non tolta. Scelta in Claude Design (tavola «Report MD -
+ricostruzione», riquadri 5–9) fra riga sotto la testata e pannello su richiesta: **riga**, perché
+mostra la sequenza dei bias e il buco senza un clic; il pannello nasconde entrambi finché è chiuso.
+
+- `components/macro-desk/archivio-report.tsx`: una colonna per report (data + tre glifi, parole
+  nell'etichetta), asset fermi a sinistra, tempo verso destra fino al buco «22/08 → oggi», tinta
+  ambra. Stessa finestra di 20, stesso «…» per il report aperto più vecchio. Sta subito dopo la
+  striscia di stato, che resta la prima cosa sotto la testata.
+- `archivio-scorre.tsx`: binario in `row-reverse` (parte sull'ultimo report senza script); lo
+  script porta in vista solo una colonna scelta fuori vista. Trappola: `justify-content: *-end`
+  impacchetta dal lato che non scorre (a 390 sparivano l'ultimo report e il buco) → margine `auto`
+  sul primo figlio, regola in `listino.css`.
+- Misura di lettura 80ch aggiunta a disclaimer e avvisi `[CRITICAL]`; tabelle, quadro e lettura
+  per asset a piena larghezza. Guida: «Si legge in verticale» → «L'archivio si legge in orizzontale».
+- Scheletro di caricamento senza colonna e con la riga; stato vuoto ed errore invariati.
+- La larghezza guadagnata va anche alla taglia, un gradino della scala del sistema: prosa 12 → 14
+  e 14 → 16, verdetto e nome dell'asset 16 → 20, legende 11 → 12, colonna del trimestrale 260 →
+  320px. Le tabelle del report salgono 12 → 14 (intestazioni 11 → 12) solo da 640px, con
+  `.ml-leggibile` in `listino.css`: a 390 la larghezza non cresce e a 14px la nota dei pilastri
+  andava a capo a ogni parola. Non toccate la scheda della notizia (condivisa con il Radar) né le
+  tabelle del listino di Volatilità e Driver.
+
+Misure (DOM, build locale, due temi): corpo 766 → 1.118px a 1440 (+46%), 606 → 958 a 1280 (la
+tabella dei bias smette di scorrere, prima 114px nascosti), 324 invariato a 390. Pagina 2.972 →
+3.000px a 1440 (2.646 con la sola riga d'archivio: la differenza è la taglia), 5.797 → 6.092 a 390.
+Archivio 127px (146 a 390). 0 testi < 11px e < 4,5:1, pagina mai più larga del viewport (anche a
+1280). Prova a clic: dall'ultimo report la colonna 19/08 apre il report d'archivio, buco ancora
+visibile. Gate (dopo il riallineamento su 997e76b): typecheck, lint, 2.174 test, build verdi.
+Schermate in `docs/macro-desk/report-archivio-1509/`. Nessuna migrazione.
