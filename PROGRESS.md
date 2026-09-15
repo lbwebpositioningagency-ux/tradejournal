@@ -3182,3 +3182,25 @@ Archivio 127px (146 a 390). 0 testi < 11px e < 4,5:1, pagina mai più larga del 
 1280). Prova a clic: dall'ultimo report la colonna 19/08 apre il report d'archivio, buco ancora
 visibile. Gate (dopo il riallineamento su 997e76b): typecheck, lint, 2.174 test, build verdi.
 Schermate in `docs/macro-desk/report-archivio-1509/`. Nessuna migrazione.
+## 15/09/2026 · Journal fase 1 — valute sommate
+
+Censimento di ogni punto che aggrega P&L o saldi, o che porta a una vista che li aggrega. Dieci
+punti corretti: quattro sommavano davvero valute diverse, sei perdevano la valuta nella navigazione.
+- **Somme:** (1) giornata aperta senza `?cur` — Net P&L, fee, PF, cumulato e sequenza sommavano
+  euro e dollari: ora la valuta si risolve sui trade del giorno, col selettore e la riga «solo USD:
+  2 in EUR non sommati»; (2) bilancio del Post-Market della revisione guidata: una riga per valuta
+  (`reviewBalanceLines`); (3) sequenza della Trade View: una valuta sola, col selettore; (4) Saldo
+  conto della dashboard senza nessun trade chiuso: sommava i saldi iniziali dei conti di valute
+  diverse, ora ricade sulle valute dei conti (`getAccountCurrencyTotals`).
+- **Navigazione** (`withCurrencyParam`): frecce della giornata (restano nei giorni operati in quella
+  valuta), link alla revisione e ritorno al calendario, ritorno dalla revisione, mini calendario
+  della dashboard, frecce e «Oggi» del calendario, frecce e periodo del report periodico, drill-down
+  da Reports e da Analytics alla Trade View.
+- Test: `currency-nav.test.ts`, guardia `src/app/currency-links.test.ts` (nessun link verso
+  giornata, calendario o report periodico scritto a mano), `currency-fallback.integration.test.ts`
+  (EUR 10.000 + USD 5.000 senza trade: saldo 5.000, non 15.000).
+
+Verificato sull'utente demo in «Tutti i conti», 09/07/2026 (3 trade USD, 2 EUR): intestazione, link
+con `cur=USD`, bilancio «EUR −137,37 € · USD +54,00 USD». Misure a 1440/390 nei due temi su giornata,
+revisione, Trade View, dashboard: 0 testi < 11px, 0 < 4,5:1, 0 errori. Gate: typecheck, lint,
+2.184 test, build verdi. Schermate in `docs/journal/fase1-valute/`.

@@ -30,6 +30,7 @@ import {
 } from "@/lib/queries/stats";
 import { returnIntensity } from "@/lib/metrics";
 import { resolveCurrencyScope } from "@/lib/currency-scope";
+import { withCurrencyParam } from "@/lib/currency-nav";
 import { cn } from "@/lib/utils";
 import { CurrencyFilter } from "@/components/filters/currency-filter";
 import { MonthPicker } from "./month-picker";
@@ -87,6 +88,9 @@ export default async function DayCalendarPage({
         }),
   ]);
   const scope = resolveCurrencyScope(currencyTotals, params.cur);
+  // Valuta da portare nei link (giorni, frecce, «Oggi»): quella attiva quando
+  // il mese ne ha più d'una. Senza, il mese accanto tornava alla prevalente.
+  const keptCurrency = scope.multi ? scope.active : undefined;
   const currency = scope.active ?? activeAccount?.currency ?? user.baseCurrency;
 
   const [daily, noteRows, monthBaseBalance, pnlBeforeMonth] = await Promise.all([
@@ -189,21 +193,23 @@ export default async function DayCalendarPage({
               active={currency}
             />
           ) : null}
+          {/* La valuta scelta viaggia coi link: senza, il mese dopo tornava
+              alla valuta prevalente e la scelta si perdeva. */}
           <Button asChild variant="outline" size="icon" aria-label="Mese precedente">
-            <Link href={`/day?month=${addMonths(month, -1)}`}>
+            <Link href={withCurrencyParam(`/day?month=${addMonths(month, -1)}`, keptCurrency)}>
               <ChevronLeft className="size-4" />
             </Link>
           </Button>
           {/* F42 — month-picker: salto diretto senza frecce ±1 in serie */}
           <MonthPicker month={month} />
           <Button asChild variant="outline" size="icon" aria-label="Mese successivo">
-            <Link href={`/day?month=${addMonths(month, 1)}`}>
+            <Link href={withCurrencyParam(`/day?month=${addMonths(month, 1)}`, keptCurrency)}>
               <ChevronRight className="size-4" />
             </Link>
           </Button>
           {month !== currentMonth ? (
             <Button asChild variant="outline">
-              <Link href="/day">Oggi</Link>
+              <Link href={withCurrencyParam("/day", keptCurrency)}>Oggi</Link>
             </Button>
           ) : null}
           </>
@@ -257,11 +263,7 @@ export default async function DayCalendarPage({
                     return (
                       <Link
                         key={date}
-                        href={
-                          scope.multi
-                            ? `/day/${date}?cur=${currency}`
-                            : `/day/${date}`
-                        }
+                        href={withCurrencyParam(`/day/${date}`, keptCurrency)}
                         className={cn(
                           "flex min-h-20 flex-col gap-0.5 overflow-hidden rounded-md border px-0.5 py-1 transition-colors sm:p-1.5",
                           tone,

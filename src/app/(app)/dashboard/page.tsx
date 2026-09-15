@@ -43,6 +43,7 @@ import {
 } from "@/lib/metrics";
 import {
   BE_BIN,
+  getAccountCurrencyTotals,
   getCurrencyBreakdown,
   getDailyPnl,
   getLifetimeNetPnl,
@@ -137,7 +138,14 @@ export default async function DashboardPage({
     // invece che nel successivo (query invariata, cambia solo quando parte).
     prisma.trade.count({ where: { account: { userId } } }),
   ]);
-  const lifetimeTotals = lifetimeTotalsRaw ?? currencyTotals;
+  const tradeCurrencyTotals = lifetimeTotalsRaw ?? currencyTotals;
+  // Senza nessun trade chiuso lo scope restava senza valuta, e il Saldo conto
+  // (getStartingBalance) sommava i saldi iniziali di conti in euro e in
+  // dollari: si ricade sulle valute dei CONTI, così una valuta c'è sempre.
+  const lifetimeTotals =
+    tradeCurrencyTotals.length > 0
+      ? tradeCurrencyTotals
+      : await getAccountCurrencyTotals({ userId, accountId: activeAccountId });
   // B-02 — periodo senza trade: lo scope di periodo ricade sulle valute
   // lifetime invece che su `undefined` — MAI una query di denaro senza
   // vincolo di valuta (sommerebbe valute diverse, il caso eliminato da F6).

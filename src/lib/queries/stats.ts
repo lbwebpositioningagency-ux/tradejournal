@@ -1,6 +1,7 @@
 import { Prisma } from "@/generated/prisma/client";
 import { prisma } from "@/lib/db";
 import { ALL_ACCOUNTS } from "@/lib/constants";
+import { accountCurrencyTotals } from "@/lib/currency-nav";
 import type { DailyPnl, TradeAggregates, TradeOutcome } from "@/lib/metrics";
 
 /**
@@ -382,8 +383,27 @@ export async function getNetPnlBefore(
 }
 
 /**
+ * Valute dei CONTI dello scope (non dei trade), per lo scope di riserva quando
+ * non esiste ancora nessun trade chiuso: senza, lo scope resta senza valuta e
+ * `getStartingBalance` somma saldi iniziali in euro e in dollari.
+ */
+export async function getAccountCurrencyTotals(
+  filter: Pick<StatsFilter, "userId" | "accountId">,
+): Promise<CurrencyTotal[]> {
+  const accounts = await prisma.tradingAccount.findMany({
+    where:
+      filter.accountId !== ALL_ACCOUNTS
+        ? { id: filter.accountId, userId: filter.userId }
+        : { userId: filter.userId, isArchived: false },
+    select: { currency: true },
+  });
+  return accountCurrencyTotals(accounts);
+}
+
+/**
  * Somma dei saldi iniziali dei conti considerati: base della curva di equity
- * per il calcolo del drawdown percentuale.
+ * per il calcolo del drawdown percentuale. Con «Tutti i conti» va SEMPRE
+ * chiamata con una valuta: senza, somma conti di valute diverse.
  */
 export async function getStartingBalance(filter: StatsFilter): Promise<string> {
   const rows = await prisma.$queryRaw<{ balance: string }[]>(Prisma.sql`

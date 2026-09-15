@@ -1,0 +1,560 @@
+[
+  {
+    "pagina": "/login",
+    "larghezza": 1440,
+    "tema": "light",
+    "file": "login__1440__light.png",
+    "h1": "Dashboard",
+    "altezza": 3470,
+    "innerWidth": 1440,
+    "scrollWidth": 1440,
+    "sbordi": [],
+    "sotto12": 28,
+    "piccoli": 0,
+    "esempiPiccoli": [],
+    "bassoContrasto": 11,
+    "esempiBassi": [
+      "2.41 14px «Asia (Tokyo)»",
+      "2.41 14px «—»",
+      "2.41 14px «—»",
+      "2.41 14px «—»",
+      "2.41 14px «—»",
+      "2.41 14px «—»",
+      "2.41 14px «—»",
+      "3.92 11px «Apr»",
+      "3.36 11px «Mag»",
+      "3.36 11px «Giu»",
+      "4.33 11px «Lug»"
+    ],
+    "famiglie": [
+      "Geist"
+    ],
+    "erroriConsole": []
+  },
+  {
+    "pagina": "/day/2026-07-09",
+    "larghezza": 1440,
+    "tema": "light",
+    "file": "day_2026-07-09__1440__light.png",
+    "h1": "Giovedì 9 luglio 2026",
+    "altezza": 1325,
+    "innerWidth": 1440,
+    "scrollWidth": 1440,
+    "sbordi": [],
+    "sotto12": 1,
+    "piccoli": 0,
+    "esempiPiccoli": [],
+    "bassoContrasto": 0,
+    "esempiBassi": [],
+    "famiglie": [
+      "Geist"
+    ],
+    "erroriConsole": []
+  },
+  {
+    "pagina": "/day/2026-07-09/review",
+    "larghezza": 1440,
+    "tema": "light",
+    "file": "day_2026-07-09_review__1440__light.png",
+    "h1": "Revisione guidata",
+    "altezza": 900,
+    "innerWidth": 1440,
+    "scrollWidth": 1440,
+    "sbordi": [],
+    "sotto12": 2,
+    "piccoli": 0,
+    "esempiPiccoli": [],
+    "bassoContrasto": 0,
+    "esempiBassi": [],
+    "famiglie": [
+      "Geist"
+    ],
+    "erroriConsole": []
+  },
+  {
+    "pagina": "/trades",
+    "larghezza": 1440,
+    "tema": "light",
+    "file": "trades__1440__light.png",
+    "h1": "Trade View",
+    "altezza": 1616,
+    "innerWidth": 1440,
+    "scrollWidth": 1440,
+    "sbordi": [],
+    "sotto12": 1,
+    "piccoli": 0,
+    "esempiPiccoli": [],
+    "bassoContrasto": 0,
+    "esempiBassi": [],
+    "famiglie": [
+      "Geist"
+    ],
+    "erroriConsole": []
+  },
+  {
+    "pagina": "/dashboard",
+    "larghezza": 1440,
+    "tema": "light",
+    "file": "dashboard__1440__light.png",
+    "h1": "Dashboard",
+    "altezza": 3470,
+    "innerWidth": 1440,
+    "scrollWidth": 1440,
+    "sbordi": [],
+    "sotto12": 28,
+    "piccoli": 0,
+    "esempiPiccoli": [],
+    "bassoContrasto": 11,
+    "esempiBassi": [
+      "2.41 14px «Asia (Tokyo)»",
+      "2.41 14px «—»",
+      "2.41 14px «—»",
+      "2.41 14px «—»",
+      "2.41 14px «—»",
+      "2.41 14px «—»",
+      "2.41 14px «—»",
+      "3.92 11px «Apr»",
+      "3.36 11px «Mag»",
+      "3.36 11px «Giu»",
+      "4.33 11px «Lug»"
+    ],
+    "famiglie": [
+      "Geist"
+    ],
+    "erroriConsole": []
+  },
+  {
+    "pagina": "/login",
+    "larghezza": 390,
+    "tema": "light",
+    "file": "login__390__light.png",
+    "h1": "Dashboard",
+    "altezza": 5783,
+    "innerWidth": 390,
+    "scrollWidth": 390,
+    "sbordi": [
+      {
+        "d": 430,
+        "w": 326,
+        "t": "",
+        "cols": 8
+      },
+      {
+        "d": 410,
+        "w": 326,
+        "t": "",
+        "cols": 8
+      }
+    ],
+    "sotto12": 27,
+    "piccoli": 0,
+    "esempiPiccoli": [],
+    "bassoContrasto": 11,
+    "esempiBassi": [
+      "2.41 14px «Asia (Tokyo)»",
+      "2.41 14px «—»",
+      "2.41 14px «—»",
+      "2.41 14px «—»",
+      "2.41 14px «—»",
+      "2.41 14px «—»",
+      "2.41 14px «—»",
+      "3.92 11px «Apr»",
+      "3.36 11px «Mag»",
+      "3.36 11px «Giu»",
+      "4.33 11px «Lug»"
+    ],
+    "famiglie": [
+      "Geist"
+    ],
+    "erroriConsole": []
+  },
+  {
+    "pagina": "/day/2026-07-09",
+    "larghezza": 390,
+    "tema": "light",
+    "file": "day_2026-07-09__390__light.png",
+    "h1": "Giovedì 9 luglio 2026",
+    "altezza": 2465,
+    "innerWidth": 390,
+    "scrollWidth": 390,
+    "sbordi": [
+      {
+        "d": 318,
+        "w": 326,
+        "t": "",
+        "cols": 7
+      }
+    ],
+    "sotto12": 0,
+    "piccoli": 0,
+    "esempiPiccoli": [],
+    "bassoContrasto": 0,
+    "esempiBassi": [],
+    "famiglie": [
+      "Geist"
+    ],
+    "erroriConsole": []
+  },
+  {
+    "pagina": "/day/2026-07-09/review",
+    "larghezza": 390,
+    "tema": "light",
+    "file": "day_2026-07-09_review__390__light.png",
+    "h1": "Revisione guidata",
+    "altezza": 900,
+    "innerWidth": 390,
+    "scrollWidth": 390,
+    "sbordi": [],
+    "sotto12": 1,
+    "piccoli": 0,
+    "esempiPiccoli": [],
+    "bassoContrasto": 0,
+    "esempiBassi": [],
+    "famiglie": [
+      "Geist"
+    ],
+    "erroriConsole": []
+  },
+  {
+    "pagina": "/trades",
+    "larghezza": 390,
+    "tema": "light",
+    "file": "trades__390__light.png",
+    "h1": "Trade View",
+    "altezza": 3072,
+    "innerWidth": 390,
+    "scrollWidth": 390,
+    "sbordi": [],
+    "sotto12": 50,
+    "piccoli": 0,
+    "esempiPiccoli": [],
+    "bassoContrasto": 0,
+    "esempiBassi": [],
+    "famiglie": [
+      "Geist"
+    ],
+    "erroriConsole": []
+  },
+  {
+    "pagina": "/dashboard",
+    "larghezza": 390,
+    "tema": "light",
+    "file": "dashboard__390__light.png",
+    "h1": "Dashboard",
+    "altezza": 5783,
+    "innerWidth": 390,
+    "scrollWidth": 390,
+    "sbordi": [
+      {
+        "d": 430,
+        "w": 326,
+        "t": "",
+        "cols": 8
+      },
+      {
+        "d": 410,
+        "w": 326,
+        "t": "",
+        "cols": 8
+      }
+    ],
+    "sotto12": 27,
+    "piccoli": 0,
+    "esempiPiccoli": [],
+    "bassoContrasto": 11,
+    "esempiBassi": [
+      "2.41 14px «Asia (Tokyo)»",
+      "2.41 14px «—»",
+      "2.41 14px «—»",
+      "2.41 14px «—»",
+      "2.41 14px «—»",
+      "2.41 14px «—»",
+      "2.41 14px «—»",
+      "3.92 11px «Apr»",
+      "3.36 11px «Mag»",
+      "3.36 11px «Giu»",
+      "4.33 11px «Lug»"
+    ],
+    "famiglie": [
+      "Geist"
+    ],
+    "erroriConsole": []
+  },
+  {
+    "pagina": "/login",
+    "larghezza": 1440,
+    "tema": "dark",
+    "file": "login__1440__dark.png",
+    "h1": "Dashboard",
+    "altezza": 3470,
+    "innerWidth": 1440,
+    "scrollWidth": 1440,
+    "sbordi": [],
+    "sotto12": 28,
+    "piccoli": 0,
+    "esempiPiccoli": [],
+    "bassoContrasto": 9,
+    "esempiBassi": [
+      "3.36 14px «Asia (Tokyo)»",
+      "3.36 14px «—»",
+      "3.36 14px «—»",
+      "3.36 14px «—»",
+      "3.36 14px «—»",
+      "3.36 14px «—»",
+      "3.36 14px «—»",
+      "3.81 11px «Mag»",
+      "3.81 11px «Giu»"
+    ],
+    "famiglie": [
+      "Geist"
+    ],
+    "erroriConsole": []
+  },
+  {
+    "pagina": "/day/2026-07-09",
+    "larghezza": 1440,
+    "tema": "dark",
+    "file": "day_2026-07-09__1440__dark.png",
+    "h1": "Giovedì 9 luglio 2026",
+    "altezza": 1325,
+    "innerWidth": 1440,
+    "scrollWidth": 1440,
+    "sbordi": [],
+    "sotto12": 1,
+    "piccoli": 0,
+    "esempiPiccoli": [],
+    "bassoContrasto": 0,
+    "esempiBassi": [],
+    "famiglie": [
+      "Geist"
+    ],
+    "erroriConsole": []
+  },
+  {
+    "pagina": "/day/2026-07-09/review",
+    "larghezza": 1440,
+    "tema": "dark",
+    "file": "day_2026-07-09_review__1440__dark.png",
+    "h1": "Revisione guidata",
+    "altezza": 900,
+    "innerWidth": 1440,
+    "scrollWidth": 1440,
+    "sbordi": [],
+    "sotto12": 2,
+    "piccoli": 0,
+    "esempiPiccoli": [],
+    "bassoContrasto": 1,
+    "esempiBassi": [
+      "4.32 11px «setup»"
+    ],
+    "famiglie": [
+      "Geist"
+    ],
+    "erroriConsole": []
+  },
+  {
+    "pagina": "/trades",
+    "larghezza": 1440,
+    "tema": "dark",
+    "file": "trades__1440__dark.png",
+    "h1": "Trade View",
+    "altezza": 1616,
+    "innerWidth": 1440,
+    "scrollWidth": 1440,
+    "sbordi": [],
+    "sotto12": 1,
+    "piccoli": 0,
+    "esempiPiccoli": [],
+    "bassoContrasto": 0,
+    "esempiBassi": [],
+    "famiglie": [
+      "Geist"
+    ],
+    "erroriConsole": []
+  },
+  {
+    "pagina": "/dashboard",
+    "larghezza": 1440,
+    "tema": "dark",
+    "file": "dashboard__1440__dark.png",
+    "h1": "Dashboard",
+    "altezza": 3470,
+    "innerWidth": 1440,
+    "scrollWidth": 1440,
+    "sbordi": [],
+    "sotto12": 28,
+    "piccoli": 0,
+    "esempiPiccoli": [],
+    "bassoContrasto": 9,
+    "esempiBassi": [
+      "3.36 14px «Asia (Tokyo)»",
+      "3.36 14px «—»",
+      "3.36 14px «—»",
+      "3.36 14px «—»",
+      "3.36 14px «—»",
+      "3.36 14px «—»",
+      "3.36 14px «—»",
+      "3.81 11px «Mag»",
+      "3.81 11px «Giu»"
+    ],
+    "famiglie": [
+      "Geist"
+    ],
+    "erroriConsole": []
+  },
+  {
+    "pagina": "/login",
+    "larghezza": 390,
+    "tema": "dark",
+    "file": "login__390__dark.png",
+    "h1": "Dashboard",
+    "altezza": 5783,
+    "innerWidth": 390,
+    "scrollWidth": 390,
+    "sbordi": [
+      {
+        "d": 430,
+        "w": 326,
+        "t": "",
+        "cols": 8
+      },
+      {
+        "d": 410,
+        "w": 326,
+        "t": "",
+        "cols": 8
+      }
+    ],
+    "sotto12": 27,
+    "piccoli": 0,
+    "esempiPiccoli": [],
+    "bassoContrasto": 9,
+    "esempiBassi": [
+      "3.36 14px «Asia (Tokyo)»",
+      "3.36 14px «—»",
+      "3.36 14px «—»",
+      "3.36 14px «—»",
+      "3.36 14px «—»",
+      "3.36 14px «—»",
+      "3.36 14px «—»",
+      "3.81 11px «Mag»",
+      "3.81 11px «Giu»"
+    ],
+    "famiglie": [
+      "Geist"
+    ],
+    "erroriConsole": []
+  },
+  {
+    "pagina": "/day/2026-07-09",
+    "larghezza": 390,
+    "tema": "dark",
+    "file": "day_2026-07-09__390__dark.png",
+    "h1": "Giovedì 9 luglio 2026",
+    "altezza": 2465,
+    "innerWidth": 390,
+    "scrollWidth": 390,
+    "sbordi": [
+      {
+        "d": 318,
+        "w": 326,
+        "t": "",
+        "cols": 7
+      }
+    ],
+    "sotto12": 0,
+    "piccoli": 0,
+    "esempiPiccoli": [],
+    "bassoContrasto": 0,
+    "esempiBassi": [],
+    "famiglie": [
+      "Geist"
+    ],
+    "erroriConsole": []
+  },
+  {
+    "pagina": "/day/2026-07-09/review",
+    "larghezza": 390,
+    "tema": "dark",
+    "file": "day_2026-07-09_review__390__dark.png",
+    "h1": "Revisione guidata",
+    "altezza": 900,
+    "innerWidth": 390,
+    "scrollWidth": 390,
+    "sbordi": [],
+    "sotto12": 1,
+    "piccoli": 0,
+    "esempiPiccoli": [],
+    "bassoContrasto": 1,
+    "esempiBassi": [
+      "4.32 11px «setup»"
+    ],
+    "famiglie": [
+      "Geist"
+    ],
+    "erroriConsole": []
+  },
+  {
+    "pagina": "/trades",
+    "larghezza": 390,
+    "tema": "dark",
+    "file": "trades__390__dark.png",
+    "h1": "Trade View",
+    "altezza": 3072,
+    "innerWidth": 390,
+    "scrollWidth": 390,
+    "sbordi": [],
+    "sotto12": 50,
+    "piccoli": 0,
+    "esempiPiccoli": [],
+    "bassoContrasto": 0,
+    "esempiBassi": [],
+    "famiglie": [
+      "Geist"
+    ],
+    "erroriConsole": []
+  },
+  {
+    "pagina": "/dashboard",
+    "larghezza": 390,
+    "tema": "dark",
+    "file": "dashboard__390__dark.png",
+    "h1": "Dashboard",
+    "altezza": 5783,
+    "innerWidth": 390,
+    "scrollWidth": 390,
+    "sbordi": [
+      {
+        "d": 430,
+        "w": 326,
+        "t": "",
+        "cols": 8
+      },
+      {
+        "d": 410,
+        "w": 326,
+        "t": "",
+        "cols": 8
+      }
+    ],
+    "sotto12": 27,
+    "piccoli": 0,
+    "esempiPiccoli": [],
+    "bassoContrasto": 9,
+    "esempiBassi": [
+      "3.36 14px «Asia (Tokyo)»",
+      "3.36 14px «—»",
+      "3.36 14px «—»",
+      "3.36 14px «—»",
+      "3.36 14px «—»",
+      "3.36 14px «—»",
+      "3.36 14px «—»",
+      "3.81 11px «Mag»",
+      "3.81 11px «Giu»"
+    ],
+    "famiglie": [
+      "Geist"
+    ],
+    "erroriConsole": []
+  }
+]

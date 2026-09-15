@@ -7,6 +7,10 @@ import { CalendarOff, ChevronLeft, ChevronRight, ClipboardCheck } from "lucide-r
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { tradeAccountWhere } from "@/lib/active-account";
+import { resolveCurrencyScope } from "@/lib/currency-scope";
+import { withCurrencyParam } from "@/lib/currency-nav";
+import { getCurrencyBreakdown } from "@/lib/queries/stats";
+import { CurrencyFilter } from "@/components/filters/currency-filter";
 import { resolveTradeScope } from "@/lib/demo-account";
 import { ALL_ACCOUNTS } from "@/lib/constants";
 import { addDays, isValidDateKey } from "@/lib/calendar";
@@ -95,26 +99,42 @@ export default async function DayViewPage({
   // Scope dei dati: utente di sistema quando il conto attivo è il demo SIM1.
   const userId = tradeScope.userId;
   const activeAccountId = tradeScope.accountId;
-  // F6 — valuta di scope passata dal calendario (?cur): il totale del giorno
-  // non somma mai valute diverse.
-  const scopeCurrency = typeof cur === "string" && cur ? cur : undefined;
+  const curParam = typeof cur === "string" && cur ? cur : undefined;
 
   // Il "giorno" è quello di calendario nel fuso utente: stessi confini e
   // stessa convenzione (closedAt) del bucketing SQL del calendario.
   const start = zonedInputToUtc(`${date}T00:00`, user.timezone);
   const end = zonedInputToUtc(`${addDays(date, 1)}T00:00`, user.timezone);
 
+  // F6 — la valuta si risolve sui trade DEL GIORNO, come fanno calendario e
+  // dashboard. Prima valeva solo il `?cur` del link: aperta dal mini
+  // calendario, dalle frecce o da un indirizzo scritto a mano, la giornata
+  // di un conto in euro e di uno in dollari sommava le due valute.
+  const dayCurrencies = await getCurrencyBreakdown({
+    userId,
+    accountId: activeAccountId,
+    from: start,
+    to: end,
+  });
+  const scope = resolveCurrencyScope(dayCurrencies, curParam);
+  const scopeCurrency = scope.active ?? curParam;
   const accountWhere = tradeAccountWhere(userId, activeAccountId, scopeCurrency);
+  // Valuta da portare nei link (frecce, revisione, calendario): quella scelta,
+  // o quella attiva quando la giornata ne ha più d'una.
+  const keptCurrency = scope.multi ? scope.active : curParam;
+  const navWhere = tradeAccountWhere(userId, activeAccountId, keptCurrency);
 
   // F44 — navigazione ai GIORNI OPERATIVI (con trade chiusi), non ±1 a vuoto.
+  // Le frecce restano nella valuta scelta: saltano ai giorni operati in
+  // quella valuta, e non la perdono per strada.
   const [prevOperative, nextOperative] = await Promise.all([
     prisma.trade.findFirst({
-      where: { ...accountWhere, status: "CLOSED", closedAt: { lt: start } },
+      where: { ...navWhere, status: "CLOSED", closedAt: { lt: start } },
       orderBy: { closedAt: "desc" },
       select: { closedAt: true },
     }),
     prisma.trade.findFirst({
-      where: { ...accountWhere, status: "CLOSED", closedAt: { gte: end } },
+      where: { ...navWhere, status: "CLOSED", closedAt: { gte: end } },
       orderBy: { closedAt: "asc" },
       select: { closedAt: true },
     }),
@@ -242,21 +262,37 @@ export default async function DayViewPage({
   return (
     <div className="flex flex-col gap-4">
       <PageHeader
-        back={{ href: `/day?month=${date.slice(0, 7)}`, label: "Calendario" }}
+        back={{
+          href: withCurrencyParam(`/day?month=${date.slice(0, 7)}`, keptCurrency),
+          label: "Calendario",
+        }}
         title={dayLabel(date)}
         description={
           trades.length === 0
             ? "Nessun trade chiuso in questa giornata"
-            : `${trades.length} trade chiusi · ${wins} W · ${losses} L${breakevens > 0 ? ` · ${breakevens} BE` : ""}`
+            : `${trades.length} trade chiusi · ${wins} W · ${losses} L${breakevens > 0 ? ` · ${breakevens} BE` : ""}${
+                scope.multi
+                  ? ` · solo ${currency}: ${dayCurrencies
+                      .filter((t) => t.currency !== currency)
+                      .map((t) => `${t.trades} in ${t.currency}`)
+                      .join(", ")} non sommati`
+                  : ""
+              }`
         }
         actions={
           <>
+          {scope.multi ? (
+            <CurrencyFilter
+              currencies={dayCurrencies.map((t) => t.currency)}
+              active={currency}
+            />
+          ) : null}
           {/* F44 — frecce sui GIORNI OPERATIVI: mai pagine vuote a catena */}
           {/* W5 — il rito serale: revisione trade per trade + Post-Market.
               Scrive sui trade: non compare sul conto demo (sola lettura). */}
           {trades.length > 0 && !tradeScope.isDemo ? (
             <Button asChild variant="outline">
-              <Link href={`/day/${date}/review`}>
+              <Link href={withCurrencyParam(`/day/${date}/review`, keptCurrency)}>
                 <ClipboardCheck className="size-4" />
                 <span className="max-sm:hidden">Revisione guidata</span>
               </Link>
@@ -269,7 +305,7 @@ export default async function DayViewPage({
               size="icon"
               aria-label={`Giorno operativo precedente (${prevDayKey})`}
             >
-              <Link href={`/day/${prevDayKey}`}>
+              <Link href={withCurrencyParam(`/day/${prevDayKey}`, keptCurrency)}>
                 <ChevronLeft className="size-4" />
               </Link>
             </Button>
@@ -290,7 +326,7 @@ export default async function DayViewPage({
               size="icon"
               aria-label={`Giorno operativo successivo (${nextDayKey})`}
             >
-              <Link href={`/day/${nextDayKey}`}>
+              <Link href={withCurrencyParam(`/day/${nextDayKey}`, keptCurrency)}>
                 <ChevronRight className="size-4" />
               </Link>
             </Button>

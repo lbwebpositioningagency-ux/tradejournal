@@ -54,12 +54,15 @@ interface TradeDraft {
  */
 export function ReviewWizard({
   date,
+  dayHref,
   trades,
   strategies,
   tagSuggestions,
   postmarketInitial,
 }: {
   date: string;
+  /** Link alla giornata con la valuta scelta (?cur), se c'era. */
+  dayHref: string;
   trades: ReviewTrade[];
   strategies: { id: string; name: string }[];
   tagSuggestions: TagValue[];
@@ -142,7 +145,7 @@ export function ReviewWizard({
             è archiviata come si deve.
           </p>
           <Button asChild className="mt-2">
-            <Link href={`/day/${date}`}>Torna alla giornata</Link>
+            <Link href={dayHref}>Torna alla giornata</Link>
           </Button>
         </CardContent>
       </Card>

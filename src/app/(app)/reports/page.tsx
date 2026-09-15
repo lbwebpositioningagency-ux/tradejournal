@@ -387,6 +387,9 @@ export default async function ReportsPage({
       query.set("period", period.key);
     }
     for (const [key, value] of Object.entries(extra)) query.set(key, value);
+    // La sequenza della Trade View è ristretta a una valuta: deve essere la
+    // stessa della riga da cui si arriva.
+    if (scope.multi && scope.active) query.set("cur", scope.active);
     return `/trades?${query.toString()}`;
   }
 

@@ -10,6 +10,7 @@ import { resolveTradeScope } from "@/lib/demo-account";
 import { resolvePeriod } from "@/lib/period";
 import { periodCookieFallback } from "@/lib/period-cookie";
 import { resolveCurrencyScope } from "@/lib/currency-scope";
+import { withCurrencyParam } from "@/lib/currency-nav";
 import { formatNumber } from "@/lib/format-number";
 import { getCurrencyBreakdown } from "@/lib/queries/stats";
 import {
@@ -716,7 +717,13 @@ export default async function AnalyticsPage({
             {senzaR > 0 && (
               <>
                 {" "}
-                <Link href="/trades?risk=missing" className="underline underline-offset-2">
+                <Link
+                  href={withCurrencyParam(
+                    "/trades?risk=missing",
+                    currencyScope.multi ? currencyScope.active : undefined,
+                  )}
+                  className="underline underline-offset-2"
+                >
                   {senzaR} senza rischio
                 </Link>
                 : R non calcolabile (N/D)

@@ -42,6 +42,7 @@ import {
   type StatsFilter,
 } from "@/lib/queries/stats";
 import { resolveCurrencyScope } from "@/lib/currency-scope";
+import { withCurrencyParam } from "@/lib/currency-nav";
 import {
   formatPercent,
   formatProfitFactor,
@@ -114,8 +115,11 @@ export default async function WeeklyReportPage({
     to: zonedInputToUtc(`${endOfRange(fromKey, range)}T00:00`, user.timezone),
   });
 
+  // La valuta scelta resta nelle frecce e nel cambio di periodo: senza `cur`
+  // il periodo accanto tornava alla valuta prevalente.
+  const keptCurrency = typeof params.cur === "string" && params.cur ? params.cur : undefined;
   const hrefFor = (nextRange: ReportRange, nextKey: string) =>
-    `/reports/settimana?r=${nextRange}&w=${nextKey}`;
+    withCurrencyParam(`/reports/settimana?r=${nextRange}&w=${nextKey}`, keptCurrency);
 
   const baseFilter: StatsFilter = {
     userId,

@@ -17,6 +17,9 @@ import {
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { tradeAccountWhere } from "@/lib/active-account";
+import { resolveCurrencyScope } from "@/lib/currency-scope";
+import { currencyTotalsFromAccounts } from "@/lib/currency-nav";
+import { CurrencyFilter } from "@/components/filters/currency-filter";
 import { resolveTradeScope } from "@/lib/demo-account";
 import { formatDateTime } from "@/lib/dates";
 import { formatPrice } from "@/lib/instruments";
@@ -94,10 +97,43 @@ export default async function TradesPage({
   const hasAnyFilter = activeCount > 0 || period.key !== "all";
 
   // Il filtro account/userId resta SEMPRE la base del where.
+  const accountWhere = tradeAccountWhere(userId, activeAccountId);
   const where = {
-    ...tradeAccountWhere(userId, activeAccountId),
+    ...accountWhere,
     ...buildTradeFilterWhere(filters, period),
   };
+
+  // F6 — la SEQUENZA è l'unico aggregato della pagina (barre su un asse solo,
+  // limite di taglio degli outlier calcolato sull'insieme): con conti di
+  // valute diverse metteva euro e dollari sullo stesso asse con la valuta di
+  // un conto solo. Si restringe a una valuta, scelta con `?cur` o prevalente.
+  // La tabella resta com'è: ogni riga porta la valuta del suo conto.
+  const closedWhere = { ...where, status: "CLOSED" as const, closedAt: { not: null } };
+  const closedPerAccount = await prisma.trade.groupBy({
+    by: ["tradingAccountId"],
+    where: closedWhere,
+    _count: { _all: true },
+  });
+  const closedAccounts =
+    closedPerAccount.length > 0
+      ? await prisma.tradingAccount.findMany({
+          where: { id: { in: closedPerAccount.map((r) => r.tradingAccountId) }, userId },
+          select: { id: true, currency: true },
+        })
+      : [];
+  const currencyOf = new Map(closedAccounts.map((a) => [a.id, a.currency]));
+  const sequenceScope = resolveCurrencyScope(
+    currencyTotalsFromAccounts(
+      closedPerAccount.map((r) => ({
+        currency: currencyOf.get(r.tradingAccountId) ?? "",
+        trades: r._count._all,
+      })),
+    ),
+    typeof params.cur === "string" ? params.cur : undefined,
+  );
+  const sequenceWhere = sequenceScope.active
+    ? { ...closedWhere, account: { ...accountWhere.account, currency: sequenceScope.active } }
+    : closedWhere;
 
   const [trades, total, strategies, tags, closedSequenceDesc, activeAccount] =
     await Promise.all([
@@ -125,7 +161,7 @@ export default async function TradesPage({
       // Sequenza per il grafico "candele": STESSI filtri della tabella,
       // solo i chiusi, ultimi 200, tre colonne — mai la lista completa.
       prisma.trade.findMany({
-        where: { ...where, status: "CLOSED", closedAt: { not: null } },
+        where: sequenceWhere,
         orderBy: [{ closedAt: "desc" }, { id: "desc" }],
         take: 200,
         select: { netPnl: true, symbol: true, closedAt: true },
@@ -147,7 +183,8 @@ export default async function TradesPage({
   const runs = streakSummary(
     sequencePoints.map((p) => classifyOutcome(p.netPnl)),
   );
-  const sequenceCurrency = activeAccount?.currency ?? user.baseCurrency;
+  const sequenceCurrency =
+    sequenceScope.active ?? activeAccount?.currency ?? user.baseCurrency;
 
   const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
 
@@ -248,7 +285,13 @@ export default async function TradesPage({
               Sequenza trade (filtri attivi)
               <MetricInfo info={streaksInfo} />
             </CardTitle>
-            <div className="flex items-center gap-4 text-xs text-muted-foreground">
+            <div className="flex flex-wrap items-center gap-4 text-xs text-muted-foreground">
+              {sequenceScope.multi ? (
+                <CurrencyFilter
+                  currencies={sequenceScope.totals.map((t) => t.currency)}
+                  active={sequenceScope.active}
+                />
+              ) : null}
               <span>
                 Max Win Streak{" "}
                 <span className="font-semibold text-profit">{runs.maxWin}</span>

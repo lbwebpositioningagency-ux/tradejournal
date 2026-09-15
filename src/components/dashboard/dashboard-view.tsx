@@ -973,6 +973,7 @@ export function DashboardView({ data }: { data: DashboardData }) {
           month={data.miniCalendar.month}
           todayKey={data.miniCalendar.todayKey}
           days={data.miniCalendar.days}
+          currency={data.lifetimeCurrency}
         />
       ) : null}
 

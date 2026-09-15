@@ -1,15 +1,13 @@
 import { PageHeader } from "@/components/layout/page-header";
 import type { Metadata } from "next";
 import { notFound, redirect } from "next/navigation";
-import Decimal from "decimal.js";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { tradeAccountWhere } from "@/lib/active-account";
 import { resolveTradeScope } from "@/lib/demo-account";
 import { addDays, isValidDateKey } from "@/lib/calendar";
 import { zonedInputToUtc } from "@/lib/dates";
-import { profitFactor, winRate } from "@/lib/metrics";
-import { formatPercent, formatProfitFactor, formatSignedMoney } from "@/lib/money";
+import { reviewBalanceLines, withCurrencyParam } from "@/lib/currency-nav";
 import { ReviewWizard } from "./review-wizard";
 
 export const metadata: Metadata = { title: "Revisione guidata" };
@@ -18,11 +16,18 @@ export const metadata: Metadata = { title: "Revisione guidata" };
  * W5 — revisione guidata di fine giornata: i trade del giorno uno a uno
  * (strategia, tag, valutazione, una riga di nota) e chiusura col Post-Market
  * precompilato con le statistiche REALI del giorno. Il rito serale in 3 minuti.
+ *
+ * VALUTE: la revisione mostra TUTTI i trade della giornata, perché
+ * classificarli non somma denaro. Il bilancio del Post-Market sì, e quindi si
+ * scrive una riga per valuta (`reviewBalanceLines`): prima sommava euro e
+ * dollari e ci metteva accanto la valuta del primo trade.
  */
 export default async function DayReviewPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ date: string }>;
+  searchParams: Promise<{ cur?: string }>;
 }) {
   const session = await auth();
   if (!session?.user?.id) redirect("/login");
@@ -30,6 +35,8 @@ export default async function DayReviewPage({
 
   const { date } = await params;
   if (!isValidDateKey(date)) notFound();
+  const { cur } = await searchParams;
+  const dayHref = withCurrencyParam(`/day/${date}`, typeof cur === "string" ? cur : undefined);
 
   const [user, tradeScope] = await Promise.all([
     prisma.user.findUniqueOrThrow({
@@ -41,7 +48,7 @@ export default async function DayReviewPage({
 
   // La revisione SCRIVE sui trade: sul conto demo (sola lettura) non ha senso
   // aprirla nemmeno per sbaglio — si torna alla Day View.
-  if (tradeScope.isDemo) redirect(`/day/${date}`);
+  if (tradeScope.isDemo) redirect(dayHref);
   const activeAccountId = tradeScope.accountId;
 
   const start = zonedInputToUtc(`${date}T00:00`, user.timezone);
@@ -78,31 +85,14 @@ export default async function DayReviewPage({
     }),
   ]);
 
-  // Statistiche del giorno per il template Post-Market (Decimal-safe).
-  let net = new Decimal(0);
-  let wins = 0;
-  let losses = 0;
-  let winSum = new Decimal(0);
-  let lossSum = new Decimal(0);
-  for (const trade of trades) {
-    const pnl = new Decimal(trade.netPnl.toString());
-    net = net.plus(pnl);
-    if (pnl.gt(0)) {
-      wins += 1;
-      winSum = winSum.plus(pnl);
-    } else if (pnl.lt(0)) {
-      losses += 1;
-      lossSum = lossSum.plus(pnl);
-    }
-  }
-  const currency = trades[0]?.account.currency ?? "USD";
-  const pf = profitFactor(winSum.toFixed(2), lossSum.toFixed(2));
-  const rate = winRate(wins, trades.length);
+  // Statistiche del giorno per il template Post-Market: una riga per valuta.
   const statsTemplate =
     trades.length === 0
       ? ""
       : [
-          `Bilancio: ${formatSignedMoney(net.toFixed(2), currency)} · ${trades.length} trade (${wins}W/${losses}L) · Win ${formatPercent(rate)} · PF ${formatProfitFactor(pf, wins)}`,
+          ...reviewBalanceLines(
+            trades.map((t) => ({ netPnl: t.netPnl.toString(), currency: t.account.currency })),
+          ),
           "",
           "Cosa ho fatto bene:",
           "",
@@ -113,7 +103,7 @@ export default async function DayReviewPage({
   return (
     <div className="mx-auto flex w-full max-w-xl flex-col gap-4">
       <PageHeader
-        back={{ href: `/day/${date}`, label: "Giornata" }}
+        back={{ href: dayHref, label: "Giornata" }}
         title="Revisione guidata"
         description={
           <>
@@ -124,6 +114,7 @@ export default async function DayReviewPage({
 
       <ReviewWizard
         date={date}
+        dayHref={dayHref}
         trades={trades.map((trade) => ({
           id: trade.id,
           symbol: trade.symbol,

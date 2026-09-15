@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { withCurrencyParam } from "@/lib/currency-nav";
 import Decimal from "decimal.js";
 import { ArrowRight } from "lucide-react";
 import { buildMonthWeeks } from "@/lib/calendar";
@@ -41,11 +42,17 @@ export function MiniCalendar({
   month,
   todayKey,
   days,
+  currency,
   className,
 }: {
   month: string;
   todayKey: string;
   days: MiniCalendarDay[];
+  /**
+   * Valuta dei numeri del calendario: viaggia nel link, altrimenti la Day
+   * View ne sceglie un'altra (o, prima della correzione, le sommava).
+   */
+  currency?: string;
   className?: string;
 }) {
   const byDay = new Map(days.map((d) => [d.day, d]));
@@ -100,7 +107,7 @@ export function MiniCalendar({
             return data ? (
               <Link
                 key={date}
-                href={`/day/${date}`}
+                href={withCurrencyParam(`/day/${date}`, currency)}
                 className={cn(cellClass, "hover:opacity-80")}
                 aria-label={`Apri il ${date} (${data.trades} trade)`}
               >
