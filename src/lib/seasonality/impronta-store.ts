@@ -20,14 +20,19 @@ import {
   type ImprontaSerie,
   type Variazione,
 } from "@/lib/seasonality/impronta";
+import { VERSIONE_CALCOLO } from "@/lib/seasonality/precompute";
 
 /** Granularità e opzioni su cui si prende l'impronta: la vista di riferimento. */
 const GRANULARITA = "MONTH" as const;
 const SCOPE = "ALL";
 const CLOCK = "ROME" as const;
 const DETRENDED = false;
-/** Ultimo giorno del percorso annuale: il punto che riassume tutta la curva. */
-const GIORNO_FINE_ANNO = 366;
+/**
+ * Ultimo giorno del percorso annuale: il punto che riassume tutta la curva.
+ * 365 dal 15/09/2026: il percorso vive sul calendario non bisestile
+ * (`indice.ts`) e il giorno 366 non esiste più.
+ */
+const GIORNO_FINE_ANNO = 365;
 
 function digestDi(i: ImprontaSerie): string {
   return createHash("sha256").update(formaCanonica(i)).digest("hex");
@@ -93,6 +98,7 @@ export async function leggiImpronta(
   }
 
   return {
+    versioneCalcolo: VERSIONE_CALCOLO,
     barre: cov?.dailyRows ?? 0,
     primaData: iso(cov?.dailyFirst),
     ultimaData: iso(cov?.dailyLast),
@@ -161,6 +167,7 @@ export async function registraImpronta(
       primaData: corrente.primaData,
       ultimaData: corrente.ultimaData,
       finestre: [f],
+      versioneCalcolo: corrente.versioneCalcolo,
     };
     const digest = digestDi(soloQuesta);
 

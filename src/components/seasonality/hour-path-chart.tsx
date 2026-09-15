@@ -13,6 +13,7 @@ import {
   YAxis,
 } from "recharts";
 import { CHART } from "@/components/charts/chart-spec";
+import { formatNumber } from "@/lib/format-number";
 import { windowColor } from "@/components/seasonality/window-colors";
 import {
   ChartToggles,
@@ -49,7 +50,7 @@ import {
    standard: meglio più corte che salate. */
 const HOUR_TICKS = Array.from({ length: 25 }, (_, i) => i * 4);
 
-/** Serie: `values[q]` = cumulato in PERCENTUALE a fine quarto d'ora `q`. */
+/** Serie: `values[q]` = INDICE a base 100 (mezzanotte) a fine quarto d'ora `q`. */
 export interface HourPathSeries {
   lookbackYears: number;
   values: number[];
@@ -94,11 +95,11 @@ export function HourPathChart({
 
   const data = useMemo(() => {
     const rows: Row[] = [];
-    // Punto 0 = mezzanotte, valore 0 per tutte: il cumulato parte da lì.
+    // Punto 0 = mezzanotte, indice 100 per tutte: il cumulato parte da lì.
     for (let q = 0; q <= 96; q += 1) {
       const row: Row = { q };
       for (const s of series) {
-        row[`w${s.lookbackYears}`] = q === 0 ? 0 : s.values[q - 1];
+        row[`w${s.lookbackYears}`] = q === 0 ? 100 : s.values[q - 1];
       }
       rows.push(row);
     }
@@ -118,10 +119,10 @@ export function HourPathChart({
         if (v > max) max = v;
       }
     }
-    if (!Number.isFinite(min) || !Number.isFinite(max)) return [0, 0.01];
-    /* Il minimo di respiro è in PUNTI PERCENTUALI, e su una giornata vale
-       millesimi: col vecchio valore — ereditato da quando l'asse era in punti
-       base — la curva sarebbe finita schiacciata in una striscia al centro. */
+    if (!Number.isFinite(min) || !Number.isFinite(max)) return [99.99, 100.01];
+    /* Il minimo di respiro è in PUNTI D'INDICE, e su una giornata l'indice si
+       sposta di millesimi: con un respiro più largo la curva finirebbe
+       schiacciata in una striscia al centro. */
     const pad = Math.max((max - min) * 0.08, 0.002);
     return [min - pad, max + pad];
   }, [data, visibili]);
@@ -203,9 +204,7 @@ export function HourPathChart({
               tick={CHART.axisTick}
               axisLine={false}
               tickLine={false}
-              tickFormatter={(v: number) =>
-                `${v.toLocaleString("it-IT", { maximumFractionDigits: 3 })}%`
-              }
+              tickFormatter={(v: number) => formatNumber(v, { maxDecimals: 3 })}
             />
 
             {/* Fascia dell'ORA corrente, coerente con la fascia del mese sul
@@ -246,8 +245,8 @@ export function HourPathChart({
               />
             ) : null}
 
-            {yMin < 0 && yMax > 0 ? (
-              <ReferenceLine y={0} stroke="var(--md-border)" />
+            {yMin < 100 && yMax > 100 ? (
+              <ReferenceLine y={100} stroke="var(--md-muted)" strokeDasharray="4 3" />
             ) : null}
             <ZoomBrush
               zoom={zoom}
@@ -266,7 +265,7 @@ export function HourPathChart({
               formatter={(value, name) => {
                 const num = Number(value);
                 const fmt = Number.isFinite(num)
-                  ? `${num.toLocaleString("it-IT", { maximumFractionDigits: 4 })}%`
+                  ? formatNumber(num, { decimals: 3 })
                   : "—";
                 return [fmt, `${String(name).replace("w", "")} anni`];
               }}

@@ -180,6 +180,27 @@ describe("confrontaImpronte — il percorso", () => {
     );
   });
 
+  it("un cambio di versione del calcolo spiega medie e percorso diversi a n invariato", () => {
+    const dopo = base();
+    dopo.versioneCalcolo = "indice-365-feriali";
+    dopo.finestre[0].mesi[0].media = 0.0351;
+    dopo.finestre[0].fineAnno = 0.111;
+    const v = confrontaImpronte(base(), dopo);
+    expect(sospette(v)).toEqual([]);
+    expect(v[0]).toEqual({
+      gravita: "attesa",
+      testo:
+        "calcolo cambiato (precedente al 15/09/2026 → indice-365-feriali): medie e percorso cambiano per costruzione",
+    });
+    expect(formaCanonica(dopo)).not.toBe(formaCanonica({ ...dopo, versioneCalcolo: undefined }));
+  });
+
+  it("il cambio di versione non copre barre perse", () => {
+    const prima = { ...base(), versioneCalcolo: "a" };
+    const dopo = { ...base(), versioneCalcolo: "b", barre: 7944 };
+    expect(sospette(confrontaImpronte(prima, dopo))).toHaveLength(1);
+  });
+
   it("sparire è un caso di cambiamento, non un'assenza di cambiamento", () => {
     const dopo = base();
     dopo.finestre[1].fineAnno = null;

@@ -238,6 +238,18 @@ export function monthScope(month: number): string {
   return `M${String(month).padStart(2, "0")}`;
 }
 
+/**
+ * Righe di MAE/MFE di periodo (`escursioni.ts`) nella stessa tabella delle
+ * statistiche: `MAE`/`MFE` su tutto l'anno, `MAE:M09` dentro settembre. Stanno
+ * in uno `scope` proprio perché sono un'altra misura dello stesso bucket, non
+ * un'altra fetta: le letture esistenti chiedono `ALL` o `Mxx` e non le vedono.
+ */
+export type TipoEscursione = "MAE" | "MFE";
+
+export function scopeEscursione(tipo: TipoEscursione, month?: number): string {
+  return month === undefined ? tipo : `${tipo}:${monthScope(month)}`;
+}
+
 /** Inverso di `monthScope`; `null` per "ALL" o per una stringa non valida. */
 export function scopeMonth(scope: string): number | null {
   const m = /^M(0[1-9]|1[0-2])$/.exec(scope);

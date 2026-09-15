@@ -68,6 +68,14 @@ export interface ImprontaSerie {
   ultimaData: string | null;
   /** Ordinate per finestra decrescente. */
   finestre: ImprontaFinestra[];
+  /**
+   * Versione del calcolo che ha prodotto i valori (`VERSIONE_CALCOLO` di
+   * `precompute.ts`). Assente nelle impronte registrate prima del 15/09/2026.
+   * Serve a una cosa sola: quando il calcolo cambia di proposito, medie e
+   * percorso cambiano per costruzione, e segnalarli come sospetti farebbe
+   * diventare rosso il giro per un cambiamento voluto.
+   */
+  versioneCalcolo?: string;
 }
 
 export type Gravita = "attesa" | "sospetta";
@@ -102,7 +110,12 @@ export function formaCanonica(i: ImprontaSerie): string {
         .map((m) => [m.bucket, m.n, m.media.toFixed(8)]),
       f.fineAnno === null ? null : f.fineAnno.toFixed(8),
     ]);
-  return JSON.stringify([i.barre, i.primaData, i.ultimaData, finestre]);
+  /* La versione entra nel digest solo quando c'è: il digest di un'impronta
+     registrata prima che il campo esistesse non deve cambiare da sé. */
+  const testa = [i.barre, i.primaData, i.ultimaData, finestre];
+  return JSON.stringify(
+    i.versioneCalcolo === undefined ? testa : [...testa, i.versioneCalcolo],
+  );
 }
 
 /** Le due impronte descrivono esattamente gli stessi valori. */
@@ -170,6 +183,20 @@ export function confrontaImpronte(
     );
   }
 
+  // ── Il calcolo ───────────────────────────────────────────────────────────
+  /* Un cambio di versione è una variazione ATTESA e spiega da solo le medie e
+     il percorso diversi a campione invariato. Non spiega invece barre perse o
+     una storia accorciata: quei controlli qui sopra restano come sono. */
+  const calcoloCambiato = prima.versioneCalcolo !== dopo.versioneCalcolo;
+  if (calcoloCambiato) {
+    out.push(
+      frase(
+        "attesa",
+        `calcolo cambiato (${prima.versioneCalcolo ?? "precedente al 15/09/2026"} → ${dopo.versioneCalcolo ?? "senza versione"}): medie e percorso cambiano per costruzione`,
+      ),
+    );
+  }
+
   // ── Le finestre ──────────────────────────────────────────────────────────
   const finestrePrima = new Map(
     prima.finestre.map((f) => [f.lookbackYears, f]),
@@ -221,7 +248,7 @@ export function confrontaImpronte(
            spiegazione benigna, quindi non c'è soglia da tarare. Se invece n è
            cambiato, la media DOVEVA cambiare — sarebbe stato strano il
            contrario. */
-        if (md.n === mp.n) {
+        if (md.n === mp.n && !calcoloCambiato) {
           out.push(
             frase(
               "sospetta",
@@ -243,10 +270,11 @@ export function confrontaImpronte(
         !stessoNumero(p.fineAnno, f.fineAnno));
     if (fineCambiato) {
       const testo = `${etichetta}: percorso di fine anno da ${p.fineAnno === null ? "assente" : p.fineAnno.toFixed(6)} a ${f.fineAnno === null ? "assente" : f.fineAnno.toFixed(6)}`;
+      const inspiegato = campioneIntatto && valoriIntatti && !calcoloCambiato;
       out.push(
         frase(
-          campioneIntatto && valoriIntatti ? "sospetta" : "attesa",
-          campioneIntatto && valoriIntatti
+          inspiegato ? "sospetta" : "attesa",
+          inspiegato
             ? `${testo}, ma mesi e n sono identici`
             : testo,
         ),

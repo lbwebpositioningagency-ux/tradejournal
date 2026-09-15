@@ -21,9 +21,11 @@ import {
   HourPathChart,
   SeasonalPathChart,
 } from "@/components/charts/lazy-charts";
-import type { CompactPathSeries } from "@/components/seasonality/path-chart";
+import type { SerieIndice } from "@/components/seasonality/path-chart";
 import type { HourPathSeries } from "@/components/seasonality/hour-path-chart";
-import { logToPercent } from "@/lib/seasonality/series";
+import { aIndice, mediaMobileCentrata } from "@/lib/seasonality/indice";
+import { finestreDellIndice } from "@/lib/seasonality/copertura";
+import type { EstremiBucket } from "@/lib/seasonality/estremi";
 import {
   MONTH_LABELS,
   MONTH_LABELS_SHORT,
@@ -41,6 +43,8 @@ import {
   anniConDatiPerFinestra,
   anniSenzaOsservazioni,
   getCoverage,
+  getEscursioniByWindow,
+  getEstremiByWindow,
   getHeatmap,
   getLastRun,
   getPaths,
@@ -50,6 +54,7 @@ import {
   lastCompleteYear,
   windowCoverage,
   type BucketView,
+  type EscursioniBucket,
   type HeatmapData,
   type PathPointView,
 } from "@/lib/seasonality/query";
@@ -226,9 +231,18 @@ export default async function StagionalitaPage({
   /* Sull'intraday la storia è molto più corta: il CFD del DAX parte dal 2013,
      e una finestra da 20 anni non esiste proprio. Le finestre inesistenti
      vengono NASCOSTE, non mostrate vuote. */
+  /* Sul GIORNALIERO una finestra si mostra solo se tutti i suoi anni sono
+     completi: GVZ parte a giugno 2008 e una finestra da 20 anni non esiste.
+     Non si mostra vuota né con meno anni: si omette, e si dice perché. */
+  const finestreIndice = finestreDellIndice({
+    lookbacks: LOOKBACK_YEARS,
+    primaData: cov?.first ?? null,
+    lastComplete: lastCompleteYear(),
+    strumento: def.label,
+  });
   const lookbacksDisponibili = intraday
     ? intradayLookbacks(LOOKBACK_YEARS, cov?.hourCompleteYears ?? null)
-    : [...LOOKBACK_YEARS];
+    : finestreIndice.disponibili;
   const lookbackEffettivo = lookbacksDisponibili.includes(lookback)
     ? lookback
     : (lookbacksDisponibili[0] ?? lookback);
@@ -263,7 +277,9 @@ export default async function StagionalitaPage({
          toggle di sovrapposizione: esiste solo in vista grezza. */
       getPaths({
         instrument,
-        lookbacks: detrended ? LOOKBACK_YEARS : [...LOOKBACK_YEARS, 0],
+        lookbacks: detrended
+          ? finestreIndice.disponibili
+          : [...finestreIndice.disponibili, 0],
         detrended,
       }),
       /* I 96 punti del grafico intraday: solo sulla vista Ora, e solo per le
@@ -319,6 +335,41 @@ export default async function StagionalitaPage({
     ORIZZONTI_RIEPILOGO.forEach((o, i) => statistichePerOrizzonte.set(o, caricate[i]));
   }
 
+  /* MIGLIORE/PEGGIORE ANNO e MAE/MFE: solo viste di calendario, solo sulla
+     finestra selezionata, solo in vista grezza — un estremo o un'escursione
+     senza tendenza non è accaduto a nessuno. */
+  const vistaGrezzaCalendario = popolato && !intraday && !detrended;
+  let estremi: Map<number, EstremiBucket> | undefined;
+  let escursioni: Map<number, EscursioniBucket> | undefined;
+  if (vistaGrezzaCalendario) {
+    const g = granularity as "MONTH" | "WEEK" | "WEEKDAY";
+    const [perFinestra, escPerFinestra] = await Promise.all([
+      getEstremiByWindow({ instrument, granularity: g, lookbacks: [lookbackEffettivo] }),
+      def.kind === "RETURN"
+        ? getEscursioniByWindow({
+            instrument,
+            granularity: g,
+            mese: scope === SCOPE_ALL ? undefined : scopeMonthNum,
+            lookbacks: [lookbackEffettivo],
+          })
+        : Promise.resolve(new Map<number, Map<number, EscursioniBucket>>()),
+    ]);
+    estremi = scope === SCOPE_ALL ? perFinestra.get(lookbackEffettivo) : undefined;
+    escursioni = escPerFinestra.get(lookbackEffettivo);
+  }
+  const mostraEscursioni = vistaGrezzaCalendario && def.kind === "RETURN";
+  const notaEstremi =
+    vistaGrezzaCalendario && scope !== SCOPE_ALL
+      ? "Migliore e peggiore anno si leggono solo su tutto l'anno: la griglia degli anni non ha il dettaglio dentro il mese."
+      : null;
+  const notaEscursioni = !mostraEscursioni
+    ? null
+    : escursioni && escursioni.size > 0
+      ? null
+      : cov?.source?.startsWith("FRED")
+        ? `MAE e MFE non ci sono: l'archivio di ${def.label} (${cov.source}) ha solo la chiusura, senza massimo e minimo della seduta. Servirebbe l'OHLC dello spot; ricostruirli dalle chiusure li sottostimerebbe, quindi non si approssimano.`
+        : "MAE e MFE compaiono dopo il prossimo ricalcolo notturno.";
+
   /* Il riferimento del colore del riepilogo: per i LIVELLI la mediana dei
      dodici mesi della finestra scelta, la stessa convenzione della tabella
      grande. Con lo zero un indice di volatilità uscirebbe verde in tutte e
@@ -362,23 +413,48 @@ export default async function StagionalitaPage({
      array di oggetti a sette campi. È ciò che rende la piena risoluzione
      più leggera della vecchia decimazione (~5 KB a finestra contro ~40): la
      decimazione era la causa delle linee «troppo rette». */
-  const toDisplay = (v: number) =>
-    def.kind === "LEVEL" ? Number(v.toFixed(3)) : Number(logToPercent(v).toFixed(3));
-  const compact = (points: PathPointView[]): (number | null)[] => {
-    const values: (number | null)[] = new Array(367).fill(null);
-    for (const pt of points) values[pt.dayOfYear] = toDisplay(pt.mean);
-    return values;
+  /* INDICE A BASE 100: i punti arrivano in log (`indice.ts`), qui si
+     convertono una volta sola e si lisciano con la media mobile centrata a
+     cinque giorni — linea e fascia allo stesso modo, la grezza no.
+
+     PUNTI DEL CALCOLO PRECEDENTE: prima del ricalcolo notturno successivo al
+     rifacimento l'archivio ha ancora i punti vecchi, riconoscibili perché non
+     hanno il giorno 0. Per i prezzi sono la stessa grandezza (cumulata log per
+     giorno di calendario) e si mostrano; per gli indici di volatilità erano
+     livelli medi, e mostrarli come indice darebbe un numero falso. */
+  const arrotonda = (v: number) => Math.round(v * 100) / 100;
+  const calcoloNuovo = [...paths.values()].some((pts) => pts.some((p) => p.dayOfYear === 0));
+  const livelliVecchi = def.kind === "LEVEL" && paths.size > 0 && !calcoloNuovo;
+  const suGiorni = (
+    points: PathPointView[],
+    campo: (p: PathPointView) => number,
+  ): (number | null)[] => {
+    const out: (number | null)[] = new Array(366).fill(null);
+    if (!calcoloNuovo) out[0] = 100;
+    for (const p of points) {
+      if (p.dayOfYear <= 365) out[p.dayOfYear] = arrotonda(aIndice(campo(p)));
+    }
+    return out;
   };
-  const pathSeries: CompactPathSeries[] = [...paths.entries()]
-    .filter(([w]) => w !== 0)
-    .map(([lookbackYears, points]) => ({
-      lookbackYears,
-      values: compact(points),
-    }))
-    .sort((a, b) => b.lookbackYears - a.lookbackYears);
-  const annoInCorsoSerie: CompactPathSeries | null = paths.has(0)
-    ? { lookbackYears: 0, values: compact(paths.get(0)!) }
-    : null;
+  const liscia = (v: (number | null)[]) =>
+    mediaMobileCentrata(v).map((x) => (x === null ? null : arrotonda(x)));
+  const pathSeries: SerieIndice[] = livelliVecchi
+    ? []
+    : [...paths.entries()]
+        .filter(([w]) => w !== 0 && finestreIndice.disponibili.includes(w))
+        .map(([lookbackYears, points]) => {
+          const grezza = suGiorni(points, (p) => p.mean);
+          return {
+            lookbackYears,
+            grezza,
+            liscia: liscia(grezza),
+            q1: liscia(suGiorni(points, (p) => p.p25)),
+            q3: liscia(suGiorni(points, (p) => p.p75)),
+          };
+        })
+        .sort((a, b) => b.lookbackYears - a.lookbackYears);
+  const annoInCorsoSerie =
+    paths.has(0) && !livelliVecchi ? suGiorni(paths.get(0)!, (p) => p.mean) : null;
 
   /* Ritorno intraday cumulato: 96 punti a quarto d'ora, precalcolati dalle
      barre M15 e già in percentuale. Solo la vista Ora lo mostra. */
@@ -508,6 +584,16 @@ export default async function StagionalitaPage({
                 );
               })}
             </ChipGroup>
+
+            {!intraday && finestreIndice.omesse.length > 0 ? (
+              <p className="text-2xs text-[var(--md-muted)]">
+                Non si mostrano:{" "}
+                {finestreIndice.omesse
+                  .map((o) => `${o.lookbackYears} anni (${o.motivo})`)
+                  .join("; ")}
+                .
+              </p>
+            ) : null}
 
             {intraday &&
             lookbacksDisponibili.length < LOOKBACK_YEARS.length ? (
@@ -645,7 +731,7 @@ export default async function StagionalitaPage({
                 finestraSelezionata: lookbackEffettivo,
                 adesso: adessoRoma,
               })}
-              finestre={[...LOOKBACK_YEARS].sort((a, b) => b - a)}
+              finestre={[...finestreIndice.disponibili].sort((a, b) => b - a)}
               finestraSelezionata={lookbackEffettivo}
               copertura={selectedCoverage}
               reference={riferimentoRiepilogo}
@@ -665,7 +751,7 @@ export default async function StagionalitaPage({
                 <div className="flex flex-wrap items-baseline justify-between gap-2">
                   <span className="inline-flex items-center gap-1">
                     <PanelLabel>
-                      Percorso stagionale — {def.label}
+                      Indice stagionale — {def.label}
                       {detrended ? " — solo stagionalità" : ""}
                     </PanelLabel>
                     <MetricInfo info={percorsoInfo} size="sm" />
@@ -675,33 +761,47 @@ export default async function StagionalitaPage({
                     linee visibili
                   </span>
                 </div>
-                {pathSeries.length > 0 ? (
+                <p className="text-xs leading-relaxed text-[var(--md-text-2)]">
+                  <strong>Indice a base 100, non un rendimento.</strong>{" "}100 è la
+                  chiusura dell&apos;anno precedente, e un valore di 112 non va letto
+                  come «+12%»: il grafico mostra la forma del percorso medio,
+                  l&apos;ampiezza reale sta nelle tabelle, in percentuale. Linea: media
+                  mobile centrata a 5 giorni. Traccia chiara: curva grezza. Fascia:
+                  fra 1° e 3° quartile degli anni della finestra selezionata.
+                </p>
+                {livelliVecchi ? (
+                  <Callout label="Indice in ricalcolo" color="var(--md-warn)">
+                    L&apos;indice di {def.label} si ricalcola al prossimo giro notturno:
+                    in archivio ci sono ancora i livelli medi del calcolo precedente, e
+                    mostrarli come indice darebbe un numero falso.
+                  </Callout>
+                ) : pathSeries.length > 0 ? (
                   /* Altezza generosa DI PROPOSITO: la pagina può scorrere,
-                     una pendenza schiacciata no. Stessa scala del grafico
-                     intraday più sotto. */
+                     una pendenza schiacciata no. */
                   <div className="h-[560px] w-full md:h-[780px]">
                     <SeasonalPathChart
                       series={pathSeries}
                       currentYear={annoInCorsoSerie}
                       selectedWindow={lookbackEffettivo}
-                      kind={def.kind}
                       todayDoy={oggi}
                       currentMonthDoy={MONTH_START_DOY[adessoRoma.month - 1]}
                     />
                   </div>
                 ) : (
-                  <SectionEmpty what="Il percorso stagionale" />
+                  <SectionEmpty what="L'indice stagionale" />
                 )}
 
 
 
                 <p className="text-2xs leading-relaxed text-[var(--md-muted)]">
+                  Calcolo: rendimenti log giornalieri → media per giorno
+                  dell&apos;anno sugli anni della finestra → cumulata dal 1° gennaio →
+                  indice. Calendario di 365 giorni (il 29 febbraio si somma al 28);
+                  le sessioni del weekend dell&apos;oro stanno nel lunedì.
                   {def.kind === "LEVEL"
-                    ? "Livello medio dell'indice giorno per giorno dell'anno: non si cumula niente, un livello non compone."
-                    : "Rendimento cumulato dal 1° gennaio, mediato sugli anni della finestra."}{" "}
-                  Ogni linea è una media, non una promessa: la dispersione
-                  attorno — la fascia Media±1σ e la sua copertura reale — sta
-                  nelle tabelle qui sotto. L&apos;anno in corso è escluso.
+                    ? " Per un indice di volatilità l'indice nasce dalle sue variazioni giornaliere; le tabelle restano in livelli."
+                    : ""}{" "}
+                  L&apos;anno in corso, tratteggiato, è escluso dalle medie.
                 </p>
               </div>
 
@@ -709,7 +809,7 @@ export default async function StagionalitaPage({
                 <div className="md-card flex flex-col gap-3 p-4">
                   <div className="flex flex-wrap items-baseline justify-between gap-2">
                     <PanelLabel>
-                      Ritorno intraday cumulato — {def.label} (
+                      Indice intraday — {def.label} (
                       {CLOCK_LABEL[clock]})
                       {detrended ? " — solo stagionalità" : ""}
                     </PanelLabel>
@@ -742,7 +842,8 @@ export default async function StagionalitaPage({
                     d&apos;ora, del rendimento medio della finestra: 96 punti
                     reali calcolati dalle barre a 15 minuti, congiunti da una
                     curva che non aggiunge niente fra un punto e l&apos;altro.
-                    A mezzanotte vale zero per costruzione. Le tabelle qui
+                    È un indice a base 100 a mezzanotte, non un rendimento:
+                    100,02 non va letto come «+0,02%». Le tabelle qui
                     sotto restano sulle barre orarie, con le loro statistiche
                     complete.
                     {quartiVuoti > 0 ? (
@@ -905,6 +1006,11 @@ export default async function StagionalitaPage({
                   coverage={windows}
                   anniMancanti={anniMancanti}
                   reference={reference}
+                  estremi={estremi}
+                  notaEstremi={notaEstremi}
+                  escursioni={escursioni}
+                  mostraEscursioni={mostraEscursioni}
+                  notaEscursioni={notaEscursioni}
                 />
               </div>
             </>

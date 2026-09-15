@@ -59,14 +59,14 @@ export function posInfo(kind: SeasonalityKind): MetricInfoData {
       label: "Sopra mediana",
       description:
         "Quota di osservazioni con livello superiore alla mediana dell'intera finestra. Sostituisce l'hit rate, che su un livello non avrebbe significato: la domanda giusta è «in questo periodo l'indice sta storicamente in alto o in basso?».",
-      formula: "n(osservazioni > mediana della finestra) / n",
+      formula: "conteggio degli anni sopra la mediana della finestra, su n",
     };
   }
   return {
     label: "Anni in positivo",
     description:
-      "Quota di ANNI con rendimento positivo nel bucket. Distingue «sale spesso di poco» da «sale di rado ma tanto», due profili che la sola media confonde. Un rendimento nullo NON conta come positivo. È un conteggio storico su n anni, non una probabilità per il prossimo.",
-    formula: "n(rendimenti > 0) / n",
+      "Quanti ANNI hanno chiuso il periodo in rialzo, su quanti ce ne sono: «12 anni su 20». Distingue «sale spesso di poco» da «sale di rado ma tanto», due profili che la sola media confonde. Un rendimento nullo NON conta come positivo. È un conteggio storico, non una probabilità per il prossimo anno: la quota fra parentesi è la stessa informazione, non una previsione.",
+    formula: "conteggio degli anni con rendimento > 0, su n",
   };
 }
 
@@ -110,9 +110,44 @@ export const detrendInfo: MetricInfoData = {
 };
 
 export const percorsoInfo: MetricInfoData = {
-  label: "Percorso stagionale",
+  label: "Indice stagionale",
   description:
-    "Rendimento cumulato dal 1° gennaio, mediato sugli anni della finestra. Ogni linea è una media: la dispersione attorno — la fascia Media±1σ e la sua copertura reale — sta nelle tabelle, non sul grafico.",
-  formula: "media fra gli anni di Σ ln(P_t / P_{t-1}) dal 1° gennaio",
-  note: "L'anno in corso è escluso: un anno incompleto trascinerebbe la curva verso il basso da metà grafico in poi.",
+    "Un indice a base 100, non un rendimento: mostra la FORMA del percorso medio nell'anno — dove sale, dove scende, dov'è il minimo. Si calcola dai rendimenti giornalieri: per ogni giorno dell'anno la media dei rendimenti degli anni della finestra, poi la cumulata dal 1° gennaio. La linea è lisciata con una media mobile centrata a 5 giorni; la traccia chiara sotto è la curva grezza; la fascia sta fra il primo e il terzo quartile dei percorsi dei singoli anni. Dove la fascia è larga la forma è tirata da pochi anni. L'ampiezza reale sta nelle tabelle, in percentuale.",
+  formula:
+    "I(g) = 100 · e^(Σ_{k≤g} r̄_k), r̄_k = media fra gli anni di ln(P_k / P_{k−1}) · calendario di 365 giorni (29/2 nel 28/2)",
+  note: "L'anno in corso è escluso dalle medie e disegnato a parte, tratteggiato. Una finestra si mostra solo se tutti i suoi anni sono completi.",
 };
+
+export function estremiInfo(kind: SeasonalityKind): MetricInfoData {
+  return kind === "LEVEL"
+    ? {
+        label: "Massimo e minimo",
+        description:
+          "Il livello medio più alto e più basso fra gli anni della finestra, con l'anno. Sono le stesse caselle della griglia qui sopra.",
+        formula: "max e min fra gli anni del livello medio del periodo",
+      }
+    : {
+        label: "Migliore e peggiore anno",
+        description:
+          "Il rendimento del periodo nell'anno migliore e in quello peggiore della finestra, con l'anno. Sono le stesse caselle della griglia qui sopra: dicono quanto lontano può andare un singolo anno dalla media.",
+        formula: "max e min fra gli anni di e^(ln(P_fine / P_fine precedente)) − 1",
+      };
+}
+
+export function escursioneInfo(tipo: "MAE" | "MFE"): MetricInfoData {
+  return tipo === "MAE"
+    ? {
+        label: "MAE media — escursione avversa",
+        description:
+          "Per chi entra lungo alla chiusura del periodo precedente: quanto il prezzo è sceso al minimo dentro il periodo, in media fra gli anni. Misurata sul minimo delle barre giornaliere, mai ricostruita dalle chiusure. Zero quando il periodo non è mai sceso sotto il riferimento.",
+        formula: "media fra gli anni di min(0, ln(minimo del periodo / chiusura precedente)), in %",
+        note: "Solo dove l'archivio ha massimo e minimo della seduta: non per il WTI spot.",
+      }
+    : {
+        label: "MFE media — escursione favorevole",
+        description:
+          "Per chi entra lungo alla chiusura del periodo precedente: quanto il prezzo è salito al massimo dentro il periodo, in media fra gli anni. Misurata sul massimo delle barre giornaliere, mai ricostruita dalle chiusure.",
+        formula: "media fra gli anni di max(0, ln(massimo del periodo / chiusura precedente)), in %",
+        note: "Solo dove l'archivio ha massimo e minimo della seduta: non per il WTI spot.",
+      };
+}

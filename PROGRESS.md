@@ -3042,3 +3042,36 @@ migrazione), il payload salvato è intatto, il guardiano dell'impegno continua a
 congelare la confidenza della domenica. **Residuo:** la prosa del report contiene ancora
 parole come «conviction bassa» o «confidence limitata» (in note dei pilastri, narrative,
 lettura vol): è testo del generatore, va corretto nelle sue istruzioni a monte.
+
+## 15/09/2026 · Stagionalità, rifacimento fase 3 — motore dell'indice stagionale
+
+Scongelata dall'utente. Stato di partenza e verifica: `docs/stagionalita-stato-precedente.md`
+(tag `stagionalita-pre-rifacimento`) e `docs/stagionalita-verifica-calcolo.md`.
+
+**Motore** (`src/lib/seasonality/indice.ts`, puro, con test): prezzi → rendimenti log
+giornalieri → media per giorno dell'anno sugli anni della finestra → cumulata → indice
+`100·e^Σ`. Calendario di 365 giorni (29/2 nel 28/2: il calendario vero disallineava i
+bisestili, fino a 3,5 punti sul WTI). Barre di sabato/domenica fuse nel lunedì
+(`soloSeduteFeriali`, anche per le statistiche: il lunedì medio dell'oro cambiava segno).
+Anche VIX/GVZ/OVX dalle variazioni log (prima media dei livelli); le loro tabelle restano in
+livelli. Banda = 1° e 3° quartile dei percorsi dei singoli anni. Finestra con anche un anno
+incompleto → nessun punto, e la pagina la omette dicendo perché (GVZ, OVX, VVIX, VIX3M: niente
+20 anni).
+
+**Tabelle** in percentuale, non riscalate: in più migliore/peggiore anno (dalle caselle della
+heatmap, `estremi.ts`) e MAE/MFE di periodo dal massimo/minimo delle barre (`escursioni.ts`,
+righe `scope` MAE/MFE e MAE:Mxx in `SeasonalityStat`, nessuna migrazione). WTI spot senza
+MAE/MFE: l'archivio FRED non ha massimo e minimo, e non si ricostruiscono dalle chiusure.
+Frequenze sempre come conteggio («12 anni su 20 (60%)», `components/seasonality/frequenza.tsx`).
+
+**Grafico**: asse in valori d'indice, riga di dichiarazione («non un rendimento: 112 non va
+letto come +12%»), linea = media mobile centrata a 5 giorni, grezza in trasparenza, fascia
+Q1-Q3 della finestra selezionata. Anche l'intraday è un indice a base 100.
+
+**Transizione in produzione**: fino al job notturno successivo l'archivio ha i punti del
+calcolo vecchio (senza giorno 0). Prezzi: stessa grandezza, si mostrano. Indici di volatilità:
+erano livelli, la pagina mostra «Indice in ricalcolo» invece di un numero falso. MAE/MFE
+«compaiono dopo il prossimo ricalcolo». L'impronta porta `versioneCalcolo`: il primo giro
+registra le variazioni come attese, non sospette (senza, il cron sarebbe diventato rosso).
+
+Gate: typecheck, lint, 2.144 test, build verdi. Schermate in `docs/stagionalita/rifacimento/fase3/`.

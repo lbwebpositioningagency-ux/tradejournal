@@ -119,6 +119,53 @@ export function anniSenzaOsservazioni(
 }
 
 /**
+ * FINESTRE DELL'INDICE: quali si mostrano e quali si omettono, e perché.
+ *
+ * Una finestra si mostra solo se tutti i suoi anni sono completi. Il primo
+ * anno di una serie non lo è mai: gli manca la chiusura del dicembre prima,
+ * da cui nasce il primo rendimento (è la regola di `anniCompleti` in
+ * `indice.ts`, qui ricavata dalla sola data d'inizio). Una finestra omessa non
+ * si mostra vuota: si dichiara, con la data da cui parte la storia.
+ */
+export interface FinestraOmessa {
+  lookbackYears: number;
+  motivo: string;
+}
+
+export function finestreDellIndice(opts: {
+  lookbacks: readonly number[];
+  /** Prima data della serie giornaliera, "YYYY-MM-DD"; null = nessun dato. */
+  primaData: string | null;
+  lastComplete: number;
+  /** Nome dello strumento per la frase («GVZ — volatilità oro»). */
+  strumento: string;
+}): { disponibili: number[]; omesse: FinestraOmessa[] } {
+  if (opts.primaData === null) {
+    return {
+      disponibili: [],
+      omesse: opts.lookbacks.map((lb) => ({
+        lookbackYears: lb,
+        motivo: `nessuna serie in archivio per ${opts.strumento}`,
+      })),
+    };
+  }
+  const primoAnno = Number(opts.primaData.slice(0, 4)) + 1;
+  const anni = Math.max(0, opts.lastComplete - primoAnno + 1);
+  const [y, m, d] = opts.primaData.split("-");
+  const disponibili: number[] = [];
+  const omesse: FinestraOmessa[] = [];
+  for (const lb of opts.lookbacks) {
+    if (lb <= anni) disponibili.push(lb);
+    else
+      omesse.push({
+        lookbackYears: lb,
+        motivo: `la storia di ${opts.strumento} parte il ${d}/${m}/${y}: gli anni solari completi sono ${anni} (${primoAnno}-${opts.lastComplete}), non ${lb}`,
+      });
+  }
+  return { disponibili, omesse };
+}
+
+/**
  * L'avviso accanto alla finestra, in parole. `null` quando non c'è niente da
  * dire — una finestra piena non merita un asterisco.
  *

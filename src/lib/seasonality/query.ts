@@ -18,9 +18,11 @@ import type {
   SeasonalityKind,
 } from "@/generated/prisma/client";
 import { SEASONALITY_BY_CODE } from "@/lib/seasonality/instruments";
-import { logToPercent } from "@/lib/seasonality/series";
+import { aIndice } from "@/lib/seasonality/indice";
 import { sampleQuality, type SampleQuality } from "@/lib/seasonality/stats";
 import { windowYears } from "@/lib/seasonality/precompute";
+import { scopeEscursione } from "@/lib/seasonality/buckets";
+import { estremiPerBucket, type EstremiBucket } from "@/lib/seasonality/estremi";
 
 export interface BucketView {
   bucket: number;
@@ -204,6 +206,84 @@ export async function getStatsByWindow(opts: {
     const list = out.get(row.lookbackYears);
     if (list) list.push(toView(row));
     else out.set(row.lookbackYears, [toView(row)]);
+  }
+  return out;
+}
+
+export interface EscursioniBucket {
+  mae: BucketView;
+  mfe: BucketView;
+}
+
+/**
+ * MAE e MFE di periodo per finestra e bucket (righe `scope` MAE/MFE del
+ * precalcolo, v. `escursioni.ts`). Mappa vuota = lo strumento non ha massimo
+ * e minimo in archivio, oppure il precalcolo non le ha ancora prodotte: la
+ * pagina distingue i due casi dal catalogo, non da qui.
+ */
+export async function getEscursioniByWindow(opts: {
+  instrument: SeasonalityInstrument;
+  granularity: "MONTH" | "WEEK" | "WEEKDAY";
+  /** Mese del drill sulle sedute; assente = tutto l'anno. */
+  mese?: number;
+  lookbacks: readonly number[];
+}): Promise<Map<number, Map<number, EscursioniBucket>>> {
+  const scopeMae = scopeEscursione("MAE", opts.mese);
+  const scopeMfe = scopeEscursione("MFE", opts.mese);
+  const rows = await prisma.seasonalityStat.findMany({
+    where: {
+      instrument: opts.instrument,
+      granularity: opts.granularity,
+      scope: { in: [scopeMae, scopeMfe] },
+      lookbackYears: { in: [...opts.lookbacks] },
+      detrended: false,
+      clock: "ROME",
+    },
+  });
+  const out = new Map<number, Map<number, EscursioniBucket>>();
+  const parziali = new Map<string, Partial<EscursioniBucket>>();
+  for (const row of rows) {
+    const key = `${row.lookbackYears}-${row.bucket}`;
+    const p = parziali.get(key) ?? {};
+    if (row.scope === scopeMae) p.mae = toView(row);
+    else p.mfe = toView(row);
+    parziali.set(key, p);
+    if (p.mae && p.mfe) {
+      const perBucket = out.get(row.lookbackYears) ?? new Map<number, EscursioniBucket>();
+      perBucket.set(row.bucket, { mae: p.mae, mfe: p.mfe });
+      out.set(row.lookbackYears, perBucket);
+    }
+  }
+  return out;
+}
+
+/**
+ * Migliore e peggiore anno per bucket, per finestra, dalle stesse caselle
+ * della heatmap (`estremi.ts`). Una query sola sugli anni della finestra più
+ * lunga: al massimo una ventina d'anni per 53 bucket.
+ */
+export async function getEstremiByWindow(opts: {
+  instrument: SeasonalityInstrument;
+  granularity: "MONTH" | "WEEK" | "WEEKDAY";
+  lookbacks: readonly number[];
+  now?: Date;
+}): Promise<Map<number, Map<number, EstremiBucket>>> {
+  const out = new Map<number, Map<number, EstremiBucket>>();
+  if (opts.lookbacks.length === 0) return out;
+  const lcy = lastCompleteYear(opts.now ?? new Date());
+  const rows = await prisma.seasonalityYearBucketObs.findMany({
+    where: {
+      instrument: opts.instrument,
+      granularity: opts.granularity,
+      clock: "ROME",
+      year: { gte: lcy - Math.max(...opts.lookbacks) + 1, lte: lcy },
+    },
+    select: { year: true, bucket: true, value: true },
+  });
+  const osservazioni = rows.map((r) => ({ year: r.year, bucket: r.bucket, value: Number(r.value) }));
+  for (const lb of opts.lookbacks) {
+    const { from, to } = windowYears(lb, lcy);
+    out.set(lb, estremiPerBucket(osservazioni, from, to));
   }
   return out;
 }
@@ -436,15 +516,16 @@ export async function getQuarterPaths(opts: {
       ? medie.reduce((a, v) => a + v, 0) / medie.length
       : 0;
 
-    /* Cumulato in log (additivo), convertito in percentuale solo alla fine:
-       la conversione a metà strada romperebbe l'additività. Cinque decimali
-       perché un quarto d'ora vale millesimi di punto percentuale, e
-       arrotondare qui appiattirebbe la curva prima ancora di disegnarla. */
+    /* Cumulato in log (additivo), convertito in INDICE a base 100 solo alla
+       fine, come il percorso annuale: il grafico confronta forme, non
+       rendimenti. Cinque decimali perché un quarto d'ora sposta l'indice di
+       millesimi, e arrotondare qui appiattirebbe la curva prima ancora di
+       disegnarla. */
     const values: number[] = [];
     let cum = 0;
     for (const m of medie) {
       cum += m - drift;
-      values.push(Number(logToPercent(cum).toFixed(5)));
+      values.push(Number(aIndice(cum).toFixed(5)));
     }
     out.set(lookback, { values, years: anni.size, emptyBuckets });
   }

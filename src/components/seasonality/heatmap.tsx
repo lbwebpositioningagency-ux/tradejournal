@@ -11,7 +11,6 @@ import {
   cellBackground,
   decimalsFor,
   formatBucketValue,
-  formatShare,
   formatStdev,
   meanLabel,
   positiveLabel,
@@ -21,6 +20,7 @@ import {
 } from "@/components/seasonality/format";
 import { PanelLabel } from "@/components/macro-desk/primitives";
 import { LowSampleMark } from "@/components/seasonality/low-sample";
+import { Frequenza } from "@/components/seasonality/frequenza";
 import { sampleQuality } from "@/lib/seasonality/stats";
 import { cn } from "@/lib/utils";
 
@@ -264,7 +264,7 @@ export function SeasonalityHeatmap({
               label={positiveLabel(kind)}
               buckets={axis.buckets}
               values={summaryByBucket}
-              render={(s) => formatShare(s.positiveShare)}
+              render={(s) => <Frequenza quota={s.positiveShare} n={s.n} compatta />}
               cellBg={posBg}
             />
             {/* La riga `n` porta il marcatore di campione basso come la
@@ -311,7 +311,7 @@ function SummaryRow({
   label: string;
   buckets: number[];
   values: Map<number, BucketView>;
-  render: (s: BucketView) => string;
+  render: (s: BucketView) => React.ReactNode;
   mark?: (s: BucketView) => React.ReactNode;
   /** Sfondo heatmap della cella (solo Media e Pos%: StDev e n restano nude). */
   cellBg?: (s: BucketView) => string | undefined;

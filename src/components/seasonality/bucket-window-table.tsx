@@ -6,12 +6,16 @@ import {
 import {
   spiegaCopertura,
   type BucketView,
+  type EscursioniBucket,
   type WindowCoverage,
 } from "@/lib/seasonality/query";
+import type { EstremiBucket } from "@/lib/seasonality/estremi";
 import { RangeBar } from "@/components/macro-desk/primitives";
 import { MetricInfo } from "@/components/metric-info";
 import {
   campioneInfo,
+  escursioneInfo,
+  estremiInfo,
   numerositaInfo,
   medianaInfo,
   posInfo,
@@ -23,7 +27,6 @@ import {
   UNIT_LABEL,
   decimalsFor,
   formatBucketValue,
-  formatShare,
   formatStdev,
   meanHelp,
   meanLabel,
@@ -32,21 +35,23 @@ import {
   valueColor,
 } from "@/components/seasonality/format";
 import { LowSampleMark } from "@/components/seasonality/low-sample";
+import { Frequenza } from "@/components/seasonality/frequenza";
+import { formatInteger } from "@/lib/format-number";
 
 /**
  * TABELLA PER BUCKET sulle diverse finestre: righe = i mesi, le settimane ISO
- * o i giorni della settimana; colonne = 20/15/10/5/2 anni. Ogni cella porta il
- * suo `n` — due finestre della stessa riga hanno basi diverse, e senza `n`
- * accanto sembrerebbero confrontabili alla pari.
+ * o i giorni della settimana; colonne = le finestre disponibili. Ogni cella
+ * porta il suo `n` — due finestre della stessa riga hanno basi diverse, e
+ * senza `n` accanto sembrerebbero confrontabili alla pari.
  *
- * La finestra SELEZIONATA ha in più il blocco di statistiche complete
- * (mediana, StDev, Pos%) e la barra di posizione nel range dei dodici mesi:
- * mostrarle per tutte e cinque le finestre significherebbe sessanta colonne,
- * e nessuno le leggerebbe.
+ * I NUMERI RESTANO IN PERCENTUALE (livelli per la volatilità), precisi e non
+ * riscalati: l'indice a base 100 è solo del grafico. Il grafico dà la forma,
+ * la tabella dà l'ampiezza reale.
  *
- * Stile ereditato dalle tabelle di breakdown (Fase 60): card impilate sotto
- * `md`, tabella da `md` in su, `tabular-nums`, icona «i» sulle metriche non
- * ovvie.
+ * La finestra SELEZIONATA ha in più il blocco completo: mediana, StDev,
+ * migliore e peggiore anno, banda ±1σ, anni in positivo come conteggio,
+ * MAE/MFE di periodo (solo prezzi con massimo e minimo in archivio),
+ * campione e posizione.
  */
 export function BucketWindowTable({
   kind,
@@ -57,6 +62,11 @@ export function BucketWindowTable({
   anniMancanti,
   reference = 0,
   currentBucket,
+  estremi,
+  notaEstremi,
+  escursioni,
+  mostraEscursioni = false,
+  notaEscursioni,
 }: {
   kind: SeasonalityKind;
   granularity: SeasonalityGranularityUi;
@@ -64,31 +74,25 @@ export function BucketWindowTable({
   byWindow: Map<number, BucketView[]>;
   selectedWindow: number;
   coverage: WindowCoverage[];
-  /**
-   * Gli anni della finestra SELEZIONATA rimasti senza osservazioni, per nome.
-   * Finiscono nell'avviso: dicono dove guardare invece di far cercare.
-   */
   anniMancanti?: readonly number[];
-  /**
-   * Riferimento del colore per i LIVELLI: la mediana della finestra. Senza,
-   * il confronto sarebbe con lo zero e un indice di volatilità — sempre
-   * positivo — risulterebbe verde in tutti e dodici i mesi.
-   */
+  /** Riferimento del colore per i LIVELLI: la mediana della finestra. */
   reference?: number;
   /** Il bucket in cui ci si trova ADESSO: la sua riga è evidenziata. */
   currentBucket?: number | null;
+  /** Migliore e peggiore anno della finestra selezionata, per bucket. */
+  estremi?: Map<number, EstremiBucket>;
+  /** Perché migliore e peggiore mancano, quando mancano. */
+  notaEstremi?: string | null;
+  /** MAE/MFE della finestra selezionata, per bucket. */
+  escursioni?: Map<number, EscursioniBucket>;
+  /** Vero sulle viste di calendario dei prezzi: le colonne ci sono, anche vuote. */
+  mostraEscursioni?: boolean;
+  /** Perché MAE/MFE mancano, quando mancano. */
+  notaEscursioni?: string | null;
 }) {
   const axis = BUCKET_AXIS[granularity];
   const unit = unitFor(kind);
-  /* Quattro decimali sull'intraday, due sul calendario: senza, i rendimenti
-     orari — qualche millesimo di punto percentuale — uscirebbero tutti
-     «+0,00%». Vedi `decimalsFor`. */
   const dec = decimalsFor(kind, granularity);
-  /* Tabelle LUNGHE (le 24 ore, le 53 settimane) hanno bisogno di più aria per
-     riga di una da dodici mesi: con molte righe e molte colonne l'occhio
-     perde la traccia orizzontale, e comprimere il passo verticale è proprio
-     ciò che rende faticoso leggere una riga fino in fondo. Le tabelle corte
-     restano compatte — allargarle le farebbe galleggiare. */
   const lunga = axis.buckets.length >= 20;
   const cella = lunga ? "px-2 py-3" : "px-2 py-2";
   const cellaRiga = lunga ? "py-3 pl-2 pr-2" : "py-2 pl-2 pr-2";
@@ -96,9 +100,9 @@ export function BucketWindowTable({
   const selected = byWindow.get(selectedWindow) ?? [];
   const selectedByBucket = new Map(selected.map((s) => [s.bucket, s]));
   const coverageByWindow = new Map(coverage.map((c) => [c.lookbackYears, c]));
+  const mostraEstremi = estremi !== undefined || Boolean(notaEstremi);
+  const estremiLabel = kind === "LEVEL" ? ["Massimo", "Minimo"] : ["Migliore", "Peggiore"];
 
-  // Range dei valori medi della finestra selezionata: è la scala della
-  // RangeBar, che indica una POSIZIONE e non una quantità.
   const means = selected.map((s) => s.mean).filter(Number.isFinite);
   const min = means.length > 0 ? Math.min(...means) : 0;
   const max = means.length > 0 ? Math.max(...means) : 0;
@@ -112,10 +116,33 @@ export function BucketWindowTable({
     );
   }
 
+  const estremoCella = (e: { valore: number; anno: number } | undefined) =>
+    e ? (
+      <span className="inline-flex flex-col items-end gap-0">
+        <span style={{ color: valueColor(e.valore, kind, reference) }}>
+          {formatBucketValue(e.valore, kind, dec, unit)}
+        </span>
+        <span className="text-2xs text-[var(--md-muted)]">{e.anno}</span>
+      </span>
+    ) : (
+      "—"
+    );
+
+  const escursioneCella = (v: BucketView | undefined, n: number | undefined) =>
+    v ? (
+      <span className="inline-flex flex-col items-end gap-0">
+        <span>{formatBucketValue(v.mean, "RETURN", dec, "percent")}</span>
+        {n !== undefined && v.n < n ? (
+          <span className="text-2xs text-[var(--md-muted)]">su {v.n} anni</span>
+        ) : null}
+      </span>
+    ) : (
+      "—"
+    );
+
   return (
     <div className="flex flex-col gap-3">
-      {/* Mobile: card impilate, il valore della finestra selezionata sempre
-          in vista (stesso trattamento delle tabelle di breakdown). */}
+      {/* Mobile: card impilate, il valore della finestra selezionata sempre in vista. */}
       <ul className="flex flex-col gap-2 md:hidden">
         {axis.buckets.map((bucket) => {
           const label = axis.label(bucket);
@@ -123,15 +150,13 @@ export function BucketWindowTable({
           if (!sel && !windows.some((w) => byWindow.get(w)?.some((r) => r.bucket === bucket)))
             return null;
           const adessoCard = bucket === currentBucket;
+          const est = estremi?.get(bucket);
+          const esc = escursioni?.get(bucket);
           return (
             <li
               key={bucket}
               className="md-panel flex flex-col gap-1.5 p-3"
-              style={
-                adessoCard
-                  ? { boxShadow: "inset 2px 0 0 var(--md-warn)" }
-                  : undefined
-              }
+              style={adessoCard ? { boxShadow: "inset 2px 0 0 var(--md-warn)" } : undefined}
             >
               <div className="flex items-center justify-between gap-2">
                 <span className="inline-flex items-center gap-1.5 text-sm font-semibold text-[var(--md-text)]">
@@ -141,8 +166,7 @@ export function BucketWindowTable({
                       className="md-mono rounded-[var(--md-r-sm)] px-1 py-0.5 text-2xs leading-none"
                       style={{
                         color: "var(--md-warn)",
-                        backgroundColor:
-                          "color-mix(in oklab, var(--md-warn) 18%, transparent)",
+                        backgroundColor: "color-mix(in oklab, var(--md-warn) 18%, transparent)",
                       }}
                     >
                       adesso
@@ -151,11 +175,7 @@ export function BucketWindowTable({
                 </span>
                 <span
                   className="md-mono text-sm font-semibold tabular-nums"
-                  style={{
-                    color: sel
-                      ? valueColor(sel.mean, kind, reference)
-                      : "var(--md-muted)",
-                  }}
+                  style={{ color: sel ? valueColor(sel.mean, kind, reference) : "var(--md-muted)" }}
                 >
                   {sel ? formatBucketValue(sel.mean, kind, dec, unit) : "—"}
                 </span>
@@ -164,23 +184,24 @@ export function BucketWindowTable({
                 <div className="md-mono flex flex-wrap gap-x-3 gap-y-0.5 text-2xs tabular-nums text-[var(--md-muted)]">
                   <span>Mediana {formatBucketValue(sel.median, kind, dec, unit)}</span>
                   <span>StDev {formatStdev(sel.stdev, kind, unit, dec)}</span>
-                  {sel.stdev !== null ? (
+                  {est ? (
                     <span>
-                      ±1σ {formatBucketValue(sel.mean - sel.stdev, kind, dec, unit)}{" "}
-                      – {formatBucketValue(sel.mean + sel.stdev, kind, dec, unit)}
-                      {sel.withinSigma !== null
-                        ? ` (copre ${formatShare(sel.withinSigma)})`
-                        : ""}
+                      {estremiLabel[0]} {formatBucketValue(est.migliore.valore, kind, dec, unit)} ({est.migliore.anno}) ·{" "}
+                      {estremiLabel[1]} {formatBucketValue(est.peggiore.valore, kind, dec, unit)} ({est.peggiore.anno})
                     </span>
                   ) : null}
                   <span>
-                    {positiveLabel(kind)} {formatShare(sel.positiveShare)}
+                    {positiveLabel(kind)} <Frequenza quota={sel.positiveShare} n={sel.n} />
                   </span>
+                  {esc ? (
+                    <span>
+                      MAE {formatBucketValue(esc.mae.mean, "RETURN", dec, "percent")} · MFE{" "}
+                      {formatBucketValue(esc.mfe.mean, "RETURN", dec, "percent")}
+                    </span>
+                  ) : null}
                   <span className="inline-flex items-center gap-1">
                     n={sel.n}
-                    {sel.rawCount != null
-                      ? ` · ${sel.rawCount.toLocaleString("it-IT")} ${axis.rawUnit}`
-                      : ""}
+                    {sel.rawCount != null ? ` · ${formatInteger(sel.rawCount)} ${axis.rawUnit}` : ""}
                     <LowSampleMark quality={sel.quality} n={sel.n} />
                   </span>
                 </div>
@@ -203,8 +224,7 @@ export function BucketWindowTable({
       <div className="hidden overflow-x-auto md:block">
         <table className="w-full text-sm tabular-nums">
           <caption className="sr-only">
-            Statistica per {axis.columnName.toLowerCase()} e per finestra di
-            analisi.
+            Statistica per {axis.columnName.toLowerCase()} e per finestra di analisi.
           </caption>
           <thead>
             <tr
@@ -221,26 +241,15 @@ export function BucketWindowTable({
                     key={w}
                     scope="col"
                     className="px-2 py-2 text-right font-semibold"
-                    style={
-                      w === selectedWindow
-                        ? { color: "var(--md-text)" }
-                        : undefined
-                    }
+                    style={w === selectedWindow ? { color: "var(--md-text)" } : undefined}
                   >
-                    {/* Il numero da solo non dice QUALI anni, e quando la
-                        finestra scorre a capodanno nessuno se ne accorge. */}
                     <span className="inline-flex flex-col items-end gap-0">
                       <span>
                         {w} anni
                         {cov?.truncated ? (
                           <span
                             className="ml-1 text-[var(--md-warn)]"
-                            title={
-                              spiegaCopertura(
-                                cov,
-                                w === selectedWindow ? anniMancanti : undefined,
-                              ) ?? undefined
-                            }
+                            title={spiegaCopertura(cov, w === selectedWindow ? anniMancanti : undefined) ?? undefined}
                           >
                             !
                           </span>
@@ -267,6 +276,19 @@ export function BucketWindowTable({
                   <MetricInfo info={stdevInfo(kind)} size="sm" />
                 </span>
               </th>
+              {mostraEstremi ? (
+                <>
+                  <th scope="col" className="px-2 py-2 text-right font-semibold">
+                    <span className="inline-flex items-center justify-end gap-1">
+                      {estremiLabel[0]}
+                      <MetricInfo info={estremiInfo(kind)} size="sm" />
+                    </span>
+                  </th>
+                  <th scope="col" className="px-2 py-2 text-right font-semibold">
+                    {estremiLabel[1]}
+                  </th>
+                </>
+              ) : null}
               <th scope="col" className="px-2 py-2 text-right font-semibold">
                 <span className="inline-flex items-center justify-end gap-1">
                   Media ± 1σ
@@ -279,13 +301,22 @@ export function BucketWindowTable({
                   <MetricInfo info={posInfo(kind)} size="sm" />
                 </span>
               </th>
-              {/* UNA colonna sola per il campione, dal 29/08/2026. Erano due,
-                  «n · anni» e «Campione», e sul mese dicevano lo stesso
-                  numero due volte (n = 20, campione = 20 mesi): una riga per
-                  anno, per costruzione. Restano due righe nella stessa cella
-                  quando dicono cose diverse — su un giorno della settimana
-                  venti anni fanno ~1.040 giorni — e una sola quando no.
-                  `n` resta il denominatore di media, StDev e Pos%. */}
+              {mostraEscursioni ? (
+                <>
+                  <th scope="col" className="px-2 py-2 text-right font-semibold">
+                    <span className="inline-flex items-center justify-end gap-1">
+                      MAE
+                      <MetricInfo info={escursioneInfo("MAE")} size="sm" />
+                    </span>
+                  </th>
+                  <th scope="col" className="px-2 py-2 text-right font-semibold">
+                    <span className="inline-flex items-center justify-end gap-1">
+                      MFE
+                      <MetricInfo info={escursioneInfo("MFE")} size="sm" />
+                    </span>
+                  </th>
+                </>
+              ) : null}
               <th scope="col" className="px-2 py-2 text-right font-semibold">
                 <span className="inline-flex items-center justify-end gap-1">
                   Campione
@@ -306,33 +337,23 @@ export function BucketWindowTable({
               const label = axis.label(bucket);
               const sel = selectedByBucket.get(bucket);
               const presente =
-                sel !== undefined ||
-                windows.some((w) =>
-                  byWindow.get(w)?.some((r) => r.bucket === bucket),
-                );
-              // Nessuna riga inventata: la settimana 53 non esiste in tutti
-              // gli strumenti, e una riga di trattini non aggiunge niente.
+                sel !== undefined || windows.some((w) => byWindow.get(w)?.some((r) => r.bucket === bucket));
               if (!presente) return null;
               const adesso = bucket === currentBucket;
+              const est = estremi?.get(bucket);
+              const esc = escursioni?.get(bucket);
               return (
                 <tr
                   key={bucket}
                   className="border-b last:border-0"
                   style={{
                     borderColor: "var(--md-border)",
-                    backgroundColor: adesso
-                      ? "color-mix(in oklab, var(--md-warn) 7%, transparent)"
-                      : undefined,
-                    boxShadow: adesso
-                      ? "inset 2px 0 0 var(--md-warn)"
-                      : undefined,
+                    backgroundColor: adesso ? "color-mix(in oklab, var(--md-warn) 7%, transparent)" : undefined,
+                    boxShadow: adesso ? "inset 2px 0 0 var(--md-warn)" : undefined,
                   }}
                   aria-current={adesso ? "date" : undefined}
                 >
-                  <th
-                    scope="row"
-                    className={`${cellaRiga} text-left font-medium text-[var(--md-text)]`}
-                  >
+                  <th scope="row" className={`${cellaRiga} text-left font-medium text-[var(--md-text)]`}>
                     <span className="inline-flex items-center gap-1.5 whitespace-nowrap">
                       {label}
                       {adesso ? (
@@ -340,8 +361,7 @@ export function BucketWindowTable({
                           className="md-mono rounded-[var(--md-r-sm)] px-1 py-0.5 text-2xs leading-none"
                           style={{
                             color: "var(--md-warn)",
-                            backgroundColor:
-                              "color-mix(in oklab, var(--md-warn) 18%, transparent)",
+                            backgroundColor: "color-mix(in oklab, var(--md-warn) 18%, transparent)",
                           }}
                           title="Ci troviamo qui adesso"
                         >
@@ -351,18 +371,14 @@ export function BucketWindowTable({
                     </span>
                   </th>
                   {windows.map((w) => {
-                    const row = byWindow
-                      .get(w)
-                      ?.find((r) => r.bucket === bucket);
+                    const row = byWindow.get(w)?.find((r) => r.bucket === bucket);
                     const isSelected = w === selectedWindow;
                     return (
                       <td
                         key={w}
                         className={`${cella} text-right md-mono`}
                         style={{
-                          color: row
-                            ? valueColor(row.mean, kind, reference)
-                            : "var(--md-muted)",
+                          color: row ? valueColor(row.mean, kind, reference) : "var(--md-muted)",
                           fontWeight: isSelected ? 700 : 500,
                           opacity: isSelected ? 1 : 0.75,
                         }}
@@ -378,58 +394,55 @@ export function BucketWindowTable({
                   <td className={`${cella} text-right md-mono text-[var(--md-text-2)]`}>
                     {sel ? formatStdev(sel.stdev, kind, unit, dec) : "—"}
                   </td>
-                  {/* Banda media±1σ al livello degli anni, con la copertura
-                      EMPIRICA accanto: quanti anni ci sono caduti davvero
-                      dentro. Mai il 68% teorico — vale per una normale, e i
-                      rendimenti non lo sono (stessa scelta del simulatore
-                      di equity). */}
+                  {mostraEstremi ? (
+                    <>
+                      <td className={`${cella} whitespace-nowrap text-right md-mono`}>{estremoCella(est?.migliore)}</td>
+                      <td className={`${cella} whitespace-nowrap text-right md-mono`}>{estremoCella(est?.peggiore)}</td>
+                    </>
+                  ) : null}
                   <td className={`whitespace-nowrap ${cella} text-right md-mono`}>
                     {sel && sel.stdev !== null ? (
                       <span className="inline-flex flex-col items-end gap-0">
                         <span className="text-[var(--md-text-2)]">
-                          {formatBucketValue(sel.mean - sel.stdev, kind, dec, unit)}{" "}
-                          – {formatBucketValue(sel.mean + sel.stdev, kind, dec, unit)}
+                          {formatBucketValue(sel.mean - sel.stdev, kind, dec, unit)} –{" "}
+                          {formatBucketValue(sel.mean + sel.stdev, kind, dec, unit)}
                         </span>
-                        <span className="text-2xs text-[var(--md-muted)]">
-                          {sel.withinSigma !== null
-                            ? `copre ${formatShare(sel.withinSigma)} degli anni`
-                            : ""}
-                        </span>
+                        {sel.withinSigma !== null ? (
+                          <span className="text-2xs text-[var(--md-muted)]">
+                            dentro <Frequenza quota={sel.withinSigma} n={sel.n} />
+                          </span>
+                        ) : null}
                       </span>
                     ) : (
                       "—"
                     )}
                   </td>
-                  <td className={`${cella} text-right md-mono text-[var(--md-text-2)]`}>
-                    {sel ? formatShare(sel.positiveShare) : "—"}
+                  <td className={`${cella} text-right md-mono text-[var(--md-text)]`}>
+                    {sel ? <Frequenza quota={sel.positiveShare} n={sel.n} /> : "—"}
                   </td>
-                  {/* `17/20` invece di `17`: il numeratore sono gli anni che
-                      hanno prodotto il dato, il denominatore quelli chiesti.
-                      Un `17` da solo e un `20` da solo si leggono uguale — due
-                      numeri — e il primo è un avviso. `20/20` conferma la
-                      completezza invece di lasciarla implicita. */}
+                  {mostraEscursioni ? (
+                    <>
+                      <td className={`${cella} whitespace-nowrap text-right md-mono text-[var(--md-text-2)]`}>
+                        {escursioneCella(esc?.mae, sel?.n)}
+                      </td>
+                      <td className={`${cella} whitespace-nowrap text-right md-mono text-[var(--md-text-2)]`}>
+                        {escursioneCella(esc?.mfe, sel?.n)}
+                      </td>
+                    </>
+                  ) : null}
                   <td className={`whitespace-nowrap ${cella} text-right md-mono text-[var(--md-text-2)]`}>
                     {sel ? (
                       <span className="inline-flex flex-col items-end gap-0">
                         <span className="inline-flex items-center justify-end gap-1">
-                          <span
-                            style={
-                              sel.n < selectedWindow
-                                ? { color: "var(--md-warn)" }
-                                : undefined
-                            }
-                          >
+                          <span style={sel.n < selectedWindow ? { color: "var(--md-warn)" } : undefined}>
                             {sel.n}/{selectedWindow}
                           </span>
-                          <span className="text-2xs text-[var(--md-muted)]">
-                            anni
-                          </span>
+                          <span className="text-2xs text-[var(--md-muted)]">anni</span>
                           <LowSampleMark quality={sel.quality} n={sel.n} />
                         </span>
                         {sel.rawCount != null && sel.rawCount !== sel.n ? (
                           <span className="text-2xs text-[var(--md-muted)]">
-                            {sel.rawCount.toLocaleString("it-IT")}{" "}
-                            {axis.rawUnit}
+                            {formatInteger(sel.rawCount)} {axis.rawUnit}
                           </span>
                         ) : null}
                       </span>
@@ -455,37 +468,27 @@ export function BucketWindowTable({
       </div>
 
       <p className="text-2xs leading-relaxed text-[var(--md-muted)]">
-        Valori in <strong>{UNIT_LABEL[unit]}</strong>. Mediana, StDev,{" "}
-        {positiveLabel(kind)}, n e posizione si riferiscono alla finestra
-        selezionata ({selectedWindow} anni)
-        {kind === "LEVEL"
-          ? ", e su quella è calcolata anche la mediana che decide il colore di tutte le colonne"
-          : ""}
-        .{" "}
-        {meanHelp(kind)} La colonna «{meanLabel(kind)}» di ogni finestra porta
-        il suo `n` nel tooltip: finestre diverse hanno basi diverse.
+        Valori in <strong>{UNIT_LABEL[unit]}</strong>, non riscalati: l&apos;indice a base 100 è solo del
+        grafico. Mediana, StDev, {kind === "LEVEL" ? "massimo e minimo" : "migliore e peggiore anno"},{" "}
+        {positiveLabel(kind).toLowerCase()}
+        {mostraEscursioni ? ", MAE, MFE" : ""}, n e posizione si riferiscono alla finestra selezionata (
+        {selectedWindow} anni). Le frequenze sono conteggi storici, non probabilità. {meanHelp(kind)} La
+        colonna «{meanLabel(kind)}» di ogni finestra porta il suo `n` nel tooltip.
+        {notaEstremi ? ` ${notaEstremi}` : ""}
+        {notaEscursioni ? ` ${notaEscursioni}` : ""}
       </p>
     </div>
   );
 }
 
-
 /**
- * «Meglio del X% · peggio del Y%»: il rango del bucket fra tutti i bucket
- * della stessa vista (stessa granularità, stessa finestra). Volutamente
- * banale — conteggio, non statistica — perché deve solo rispondere alla
- * domanda «quanto in alto sta questa riga rispetto alle altre».
+ * «1º su 12 — più alto di X · più basso di Y»: il rango del bucket fra tutti i
+ * bucket della stessa vista. Conteggio, non statistica.
  */
-function percentileTitle(
-  label: string,
-  value: number,
-  all: number[],
-  plural: string,
-): string {
+function percentileTitle(label: string, value: number, all: number[], plural: string): string {
   const altri = all.length - 1;
   if (altri <= 0) return label;
   const sotto = all.filter((m) => m < value).length;
   const sopra = all.filter((m) => m > value).length;
-  const rango = sopra + 1;
-  return `${label}: ${rango}º su ${all.length} — meglio del ${Math.round((sotto / altri) * 100)}% · peggio del ${Math.round((sopra / altri) * 100)}% degli altri ${plural}`;
+  return `${label}: ${sopra + 1}º su ${all.length} — sopra ${sotto} e sotto ${sopra} degli altri ${altri} ${plural}`;
 }

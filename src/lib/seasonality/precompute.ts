@@ -40,15 +40,28 @@ import { describeSample, quantileSorted } from "@/lib/seasonality/stats";
 import {
   SCOPE_ALL,
   WEEKDAY_BUCKETS,
-  dayOfYear,
   isoWeekday,
   monthScope,
+  scopeEscursione,
+  type TipoEscursione,
 } from "@/lib/seasonality/buckets";
 import {
-  cumulativePathsByYear,
+  anniCompleti,
+  giornoStagionale,
+  percorsoAnno,
+  percorsoIndice,
+  rendimentiPerGiorno,
+  soloSeduteFeriali,
+} from "@/lib/seasonality/indice";
+import {
+  escursioniGiornaliere,
+  escursioniMensili,
+  escursioniSettimanali,
+  type EscursionePeriodo,
+} from "@/lib/seasonality/escursioni";
+import {
   dailyLogReturns,
   detrend,
-  levelPathsByYear,
   monthlyLogReturns,
   monthlyMeanLevels,
   weeklyLogReturns,
@@ -88,6 +101,25 @@ export interface StatRow {
   lastDate: string;
 }
 
+/**
+ * Versione del calcolo, registrata nell'impronta di ogni giro
+ * (`impronta-store.ts`). Va cambiata OGNI volta che una modifica al calcolo
+ * sposta di proposito i valori salvati: è ciò che distingue un cambiamento
+ * voluto da un dato che cambia da solo.
+ *
+ * `indice-365-feriali` (15/09/2026): percorso come indice stagionale su
+ * calendario non bisestile, barre del weekend fuse nel lunedì, percorso degli
+ * indici di volatilità dalle variazioni log, righe MAE/MFE.
+ */
+export const VERSIONE_CALCOLO = "indice-365-feriali";
+
+/**
+ * Un punto del percorso dell'indice stagionale (`indice.ts`), in LOG:
+ * l'indice è `100 · e^meanCum`. `dayOfYear` è il giorno del calendario non
+ * bisestile, 0 = partenza. I nomi delle colonne sono quelli storici della
+ * tabella: `p25Cum`/`p75Cum` sono il primo e il terzo quartile dei percorsi
+ * dei singoli anni.
+ */
 export interface PathRow {
   instrument: SeasonalityInstrument;
   lookbackYears: number;
@@ -355,106 +387,6 @@ function statsForBuckets(opts: {
 }
 
 /**
- * Punti del percorso stagionale con bande di dispersione.
- *
- * Per i PREZZI: rendimento log cumulato dal 1° gennaio, un percorso per anno,
- * poi media/mediana/p25/p75 fra gli anni a parità di giorno.
- * Per la VOLATILITÀ: livello (non cumulato — un livello non compone), stessa
- * aggregazione fra anni.
- *
- * Le bande non sono un ornamento: se p25 e p75 stanno a ±8% attorno a una
- * media di +2%, la forma media esiste ma il singolo anno può fare tutt'altro,
- * e il grafico lo deve dire a colpo d'occhio invece di mostrare una linea
- * sola che sembra una previsione.
- */
-function pathRows(opts: {
-  instrument: SeasonalityInstrument;
-  kind: SeasonalityKind;
-  lookbackYears: number;
-  detrended: boolean;
-  pathsByYear: Map<number, number[]>;
-  years: number[];
-}): PathRow[] {
-  const rows: PathRow[] = [];
-  const paths = opts.years
-    .map((y) => opts.pathsByYear.get(y))
-    .filter((p): p is number[] => Array.isArray(p));
-  if (paths.length === 0) return rows;
-
-  /* `positiveShare` sul percorso: per i rendimenti è la quota di anni sopra
-     lo zero a quel punto dell'anno. Per i LIVELLI lo zero non significa
-     niente — un VIX è sempre positivo — quindi il riferimento è la mediana
-     di tutti i livelli della finestra: «quanti anni, a questo punto, stavano
-     sopra il livello tipico». */
-  const reference =
-    opts.kind === "LEVEL"
-      ? quantileSorted(
-          paths
-            .flat()
-            .filter((v) => Number.isFinite(v))
-            .sort((a, b) => a - b),
-          0.5,
-        )
-      : 0;
-  const isPositive = (v: number) => v > reference;
-
-  for (let doy = 1; doy <= 366; doy += 1) {
-    const values: number[] = [];
-    for (const p of paths) {
-      const v = p[doy];
-      if (Number.isFinite(v)) values.push(v);
-    }
-    const described = describeSample(values, isPositive);
-    if (!described) continue;
-    rows.push({
-      instrument: opts.instrument,
-      lookbackYears: opts.lookbackYears,
-      detrended: opts.detrended,
-      dayOfYear: doy,
-      meanCum: described.mean,
-      medianCum: described.median,
-      p25Cum: described.p25,
-      p75Cum: described.p75,
-      positiveShare: described.positiveShare,
-      n: described.n,
-    });
-  }
-  return rows;
-}
-
-/**
- * Detrend applicato al PERCORSO: si toglie il drift medio giornaliero
- * moltiplicato per i giorni trascorsi, cioè si raddrizza la retta di
- * tendenza lasciando la forma. Sottrarre la media dei cumulati sarebbe
- * sbagliato — abbasserebbe tutta la curva di una costante senza togliere la
- * pendenza, che è esattamente ciò che il detrend deve rimuovere.
- */
-function detrendPaths(
-  pathsByYear: Map<number, number[]>,
-  years: number[],
-): Map<number, number[]> {
-  let totalDrift = 0;
-  let counted = 0;
-  for (const y of years) {
-    const p = pathsByYear.get(y);
-    if (!p || !Number.isFinite(p[365])) continue;
-    totalDrift += p[365];
-    counted += 1;
-  }
-  if (counted === 0) return pathsByYear;
-  const driftPerDay = totalDrift / counted / 365;
-
-  const out = new Map<number, number[]>();
-  for (const [year, p] of pathsByYear) {
-    out.set(
-      year,
-      p.map((v, doy) => (Number.isFinite(v) ? v - driftPerDay * doy : v)),
-    );
-  }
-  return out;
-}
-
-/**
  * Media dei valori giornalieri per (anno, bucket). Serve alla heatmap del
  * giorno della settimana: la casella «lunedì 2024» non è un'osservazione
  * singola ma il riassunto dei ~52 lunedì di quell'anno, e `days` dichiara su
@@ -497,7 +429,13 @@ export function precomputeDaily(opts: {
   /** Data di riferimento: da qui si ricava l'ultimo anno solare completo. */
   now?: Date;
 }): PrecomputeResult {
-  const { instrument, kind, bars } = opts;
+  const { instrument, kind } = opts;
+  /* SOLO SEDUTE FERIALI (15/09/2026): le barre di sabato e domenica — la
+     riapertura serale dell'oro — si fondono nel lunedì prima di qualunque
+     calcolo. Lasciate come sedute a sé, i rendimenti venerdì→domenica
+     sparivano dalla tabella per giorno (il lunedì medio dell'oro cambiava
+     segno) e le chiusure di fine mese cadevano sulla sessione domenicale. */
+  const bars = soloSeduteFeriali(opts.bars);
   const now = opts.now ?? new Date();
   const lastCompleteYear = now.getUTCFullYear() - 1;
 
@@ -603,12 +541,21 @@ export function precomputeDaily(opts: {
     })),
   ];
 
-  // ── Percorsi annuali ────────────────────────────────────────────────────
-  const rawPaths = isReturn
-    ? cumulativePathsByYear(
-        dailyObs.map((o) => ({ date: o.date, r: o.value })),
-      )
-    : levelPathsByYear(bars);
+  // ── Indice stagionale ───────────────────────────────────────────────────
+  /* Rendimenti log per anno e giorno stagionale, per TUTTI gli strumenti:
+     anche per un indice di volatilità la forma dell'anno si legge dalle sue
+     variazioni, non dalla media dei livelli. Una finestra entra solo se tutti
+     i suoi anni sono completi (`anniCompleti`): altrimenti non ha punti, e la
+     pagina la omette dicendo perché. */
+  const perGiorno = rendimentiPerGiorno(bars);
+  const completi = anniCompleti(bars);
+
+  // ── MAE/MFE di periodo: solo prezzi, solo dove ci sono massimo e minimo ──
+  const escursioni = {
+    MONTH: isReturn ? escursioniMensili(bars) : [],
+    WEEK: isReturn ? escursioniSettimanali(bars) : [],
+    WEEKDAY: isReturn ? escursioniGiornaliere(bars) : [],
+  };
 
   const stats: StatRow[] = [];
   const paths: PathRow[] = [];
@@ -706,15 +653,40 @@ export function precomputeDaily(opts: {
         );
       }
 
-      const usable = detrended ? detrendPaths(rawPaths, years) : rawPaths;
-      paths.push(
-        ...pathRows({
+      if (years.every((y) => completi.has(y))) {
+        for (const p of percorsoIndice({
+          perAnno: perGiorno,
+          anni: years,
+          detrend: detrended,
+        })) {
+          paths.push({
+            instrument,
+            lookbackYears: lookback,
+            detrended,
+            dayOfYear: p.giorno,
+            meanCum: p.mediaCum,
+            medianCum: p.medianaCum,
+            p25Cum: p.q1Cum,
+            p75Cum: p.q3Cum,
+            positiveShare: p.quotaSopra,
+            n: p.n,
+          });
+        }
+      }
+    }
+
+    /* MAE/MFE: righe con `scope` MAE/MFE (e MAE:Mxx dentro il mese sulle
+       sedute). Solo vista grezza: un'escursione detrendizzata non è
+       un'escursione che qualcuno abbia subito. */
+    for (const tipo of ["MAE", "MFE"] as const) {
+      stats.push(
+        ...statsEscursione({
           instrument,
-          kind,
+          tipo,
           lookbackYears: lookback,
-          detrended,
-          pathsByYear: usable,
-          years,
+          from,
+          to,
+          escursioni,
         }),
       );
     }
@@ -727,30 +699,23 @@ export function precomputeDaily(opts: {
      Solo vista grezza — nella vista detrendizzata il confronto con un anno
      non detrendizzabile (è incompleto) non avrebbe significato. */
   const annoCorrente = now.getUTCFullYear();
-  const pathCorrente = rawPaths.get(annoCorrente);
-  if (pathCorrente) {
-    const oggiDoy = dayOfYear(
-      annoCorrente,
-      now.getUTCMonth() + 1,
-      now.getUTCDate(),
-    );
-    for (let doy = 1; doy <= Math.min(oggiDoy, 366); doy += 1) {
-      const v = pathCorrente[doy];
-      if (!Number.isFinite(v)) continue;
-      paths.push({
-        instrument,
-        lookbackYears: 0,
-        detrended: false,
-        dayOfYear: doy,
-        meanCum: v,
-        medianCum: v,
-        p25Cum: v,
-        p75Cum: v,
-        positiveShare: v > 0 ? 1 : 0,
-        n: 1,
-      });
-    }
-  }
+  percorsoAnno(
+    perGiorno.get(annoCorrente),
+    todayDayOfYear(now),
+  ).forEach((v, giorno) => {
+    paths.push({
+      instrument,
+      lookbackYears: 0,
+      detrended: false,
+      dayOfYear: giorno,
+      meanCum: v,
+      medianCum: v,
+      p25Cum: v,
+      p75Cum: v,
+      positiveShare: v > 0 ? 1 : 0,
+      n: 1,
+    });
+  });
 
   return {
     stats,
@@ -762,11 +727,84 @@ export function precomputeDaily(opts: {
   };
 }
 
-/** Giorno dell'anno di oggi, per l'indicatore «siamo qui» sul percorso. */
+/**
+ * Giorno stagionale di oggi (calendario non bisestile, lo stesso del
+ * percorso), per l'indicatore «siamo qui» e per troncare l'anno in corso.
+ */
 export function todayDayOfYear(now: Date = new Date()): number {
-  return dayOfYear(
-    now.getUTCFullYear(),
-    now.getUTCMonth() + 1,
-    now.getUTCDate(),
-  );
+  return giornoStagionale(now.toISOString().slice(0, 10));
+}
+
+/**
+ * Le righe MAE o MFE di una finestra, per mese, settimana e seduta (tutto
+ * l'anno e dentro ogni mese). Stesso nucleo `statsForBuckets` delle altre
+ * statistiche, così `n`, mediana e quartili hanno la stessa definizione; per
+ * la seduta l'unità è la media dell'anno, come per i rendimenti.
+ */
+function statsEscursione(opts: {
+  instrument: SeasonalityInstrument;
+  tipo: TipoEscursione;
+  lookbackYears: number;
+  from: number;
+  to: number;
+  escursioni: Record<"MONTH" | "WEEK" | "WEEKDAY", EscursionePeriodo[]>;
+}): StatRow[] {
+  const { tipo, from, to } = opts;
+  /* `weekday` porta il bucket della granularità (mese, settimana o giorno),
+     `month` il mese civile: serve al drill delle sedute dentro il mese. */
+  const osserva = (list: EscursionePeriodo[]): Observation[] =>
+    list
+      .filter((e) => e.year >= from && e.year <= to)
+      .map((e) => ({
+        value: tipo === "MAE" ? e.mae : e.mfe,
+        date: e.date,
+        year: e.year,
+        month: e.month,
+        weekday: e.bucket,
+      }));
+  const comune = {
+    instrument: opts.instrument,
+    kind: "RETURN" as const,
+    lookbackYears: opts.lookbackYears,
+    detrended: false,
+  };
+  const giorni = osserva(opts.escursioni.WEEKDAY);
+  return [
+    ...statsForBuckets({
+      ...comune,
+      granularity: "MONTH",
+      scope: scopeEscursione(tipo),
+      observations: osserva(opts.escursioni.MONTH),
+      buckets: MONTH_BUCKETS,
+      bucketOf: (o) => o.weekday ?? 0,
+    }),
+    ...statsForBuckets({
+      ...comune,
+      granularity: "WEEK",
+      scope: scopeEscursione(tipo),
+      observations: osserva(opts.escursioni.WEEK),
+      buckets: WEEK_BUCKETS,
+      bucketOf: (o) => o.weekday ?? 0,
+    }),
+    ...statsForBuckets({
+      ...comune,
+      granularity: "WEEKDAY",
+      scope: scopeEscursione(tipo),
+      observations: giorni,
+      buckets: [...WEEKDAY_BUCKETS],
+      bucketOf: (o) => o.weekday ?? 0,
+      aggregateByYear: true,
+    }),
+    ...Array.from({ length: 12 }, (_, i) =>
+      statsForBuckets({
+        ...comune,
+        granularity: "WEEKDAY",
+        scope: scopeEscursione(tipo, i + 1),
+        observations: giorni.filter((o) => o.month === i + 1),
+        buckets: [...WEEKDAY_BUCKETS],
+        bucketOf: (o) => o.weekday ?? 0,
+        aggregateByYear: true,
+      }),
+    ).flat(),
+  ];
 }

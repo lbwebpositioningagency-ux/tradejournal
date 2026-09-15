@@ -14,7 +14,6 @@ import {
   UNIT_LABEL,
   decimalsFor,
   formatBucketValue,
-  formatShare,
   formatStdev,
   meanLabel,
   positiveLabel,
@@ -22,6 +21,8 @@ import {
   valueColor,
 } from "@/components/seasonality/format";
 import { LowSampleMark } from "@/components/seasonality/low-sample";
+import { Frequenza } from "@/components/seasonality/frequenza";
+import { formatInteger } from "@/lib/format-number";
 
 /**
  * IL RIEPILOGO IN TESTA: mese, settimana e giorno correnti, uno sotto
@@ -131,13 +132,15 @@ export function RiepilogoAdesso({
                         ±1σ{" "}
                         {formatBucketValue(sel.mean - sel.stdev, kind, dec, unit)} –{" "}
                         {formatBucketValue(sel.mean + sel.stdev, kind, dec, unit)}
-                        {sel.withinSigma !== null
-                          ? ` (copre ${formatShare(sel.withinSigma)})`
-                          : ""}
+                        {sel.withinSigma !== null ? (
+                          <>
+                            {" "}· dentro <Frequenza quota={sel.withinSigma} n={sel.n} />
+                          </>
+                        ) : null}
                       </span>
                     ) : null}
                     <span>
-                      {positiveLabel(kind)} {formatShare(sel.positiveShare)}
+                      {positiveLabel(kind)} <Frequenza quota={sel.positiveShare} n={sel.n} />
                     </span>
                     <span className="inline-flex items-center gap-1">
                       <span
@@ -150,7 +153,7 @@ export function RiepilogoAdesso({
                         {sel.n}/{finestraSelezionata} anni
                       </span>
                       {sel.rawCount != null && sel.rawCount !== sel.n
-                        ? ` · ${sel.rawCount.toLocaleString("it-IT")} ${r.unitaCampione}`
+                        ? ` · ${formatInteger(sel.rawCount)} ${r.unitaCampione}`
                         : ""}
                       <LowSampleMark quality={sel.quality} n={sel.n} />
                     </span>
@@ -309,17 +312,19 @@ export function RiepilogoAdesso({
                                 una normale, e i rendimenti non lo sono. Stessa
                                 convenzione della tabella grande. */}
                             <span className="text-2xs text-[var(--md-muted)]">
-                              {sel.withinSigma !== null
-                                ? `copre ${formatShare(sel.withinSigma)} degli anni`
-                                : ""}
+                              {sel.withinSigma !== null ? (
+                                <>
+                                  dentro <Frequenza quota={sel.withinSigma} n={sel.n} />
+                                </>
+                              ) : null}
                             </span>
                           </span>
                         ) : (
                           "—"
                         )}
                       </td>
-                      <td className="md-mono px-2 py-2 text-right text-[var(--md-text-2)]">
-                        {formatShare(sel.positiveShare)}
+                      <td className="md-mono px-2 py-2 text-right text-[var(--md-text)]">
+                        <Frequenza quota={sel.positiveShare} n={sel.n} />
                       </td>
                       <td className="md-mono px-2 py-2 text-right whitespace-nowrap text-[var(--md-text-2)]">
                         <span className="inline-flex flex-col items-end gap-0">
@@ -340,7 +345,7 @@ export function RiepilogoAdesso({
                           </span>
                           {sel.rawCount != null && sel.rawCount !== sel.n ? (
                             <span className="text-2xs text-[var(--md-muted)]">
-                              {sel.rawCount.toLocaleString("it-IT")}{" "}
+                              {formatInteger(sel.rawCount)}{" "}
                               {r.unitaCampione}
                             </span>
                           ) : null}
