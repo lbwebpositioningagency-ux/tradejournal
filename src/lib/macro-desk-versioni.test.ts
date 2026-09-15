@@ -7,7 +7,7 @@ import {
 
 /**
  * La riga «è stato rifatto» è PARCA per scelta: compare solo quando la
- * revisione ha cambiato un bias o una confidenza. Questi test sorvegliano
+ * revisione ha cambiato un bias. Questi test sorvegliano
  * soprattutto i casi in cui NON deve comparire — è lì che una riga di troppo
  * si trasforma in arredamento, e l'arredamento insegna a saltare la zona in
  * cui vive.
@@ -42,23 +42,21 @@ describe("differenzeFraVersioni", () => {
     ).toEqual(["il bias di Petrolio è passato da NEUTRALE a RIBASSISTA"]);
   });
 
-  it("confidenza cambiata", () => {
+  it("solo la confidenza cambiata: nessuna riga, la confidenza non si mostra più", () => {
     expect(
       differenzeFraVersioni(
         versione([{ id: "gold", name: "Oro", bias: "RIALZISTA", conf: 51 }]).payload,
         versione([{ id: "gold", name: "Oro", bias: "RIALZISTA", conf: 44 }]).payload,
       ),
-    ).toEqual(["la confidenza di Oro è passata da 51 a 44"]);
+    ).toEqual([]);
   });
 
-  it("entrambi cambiati sullo stesso asset: due frasi", () => {
+  it("bias e confidenza cambiati sullo stesso asset: si nomina solo il bias", () => {
     const out = differenzeFraVersioni(
       versione([{ id: "idx", name: "Indici", bias: "NEUTRALE", conf: 46 }]).payload,
       versione([{ id: "idx", name: "Indici", bias: "RIALZISTA", conf: 52 }]).payload,
     );
-    expect(out).toHaveLength(2);
-    expect(out[0]).toContain("il bias di Indici");
-    expect(out[1]).toContain("la confidenza di Indici");
+    expect(out).toEqual(["il bias di Indici è passato da NEUTRALE a RIALZISTA"]);
   });
 
   it("niente di cambiato → nessuna differenza, nemmeno con payload diversi altrove", () => {
@@ -155,30 +153,36 @@ describe("revisioneDaDire — quando la riga compare, e quando tace", () => {
       { id: "gold", name: "Oro", bias: "RIALZISTA", conf: 51 },
       { id: "oil", name: "Petrolio", bias: "NEUTRALE", conf: 45 },
       { id: "idx", name: "Indici", bias: "NEUTRALE", conf: 46 },
+      { id: "eur", name: "Euro", bias: "NEUTRALE", conf: 50 },
     ]);
     const dopo = versione([
       { id: "gold", name: "Oro", bias: "RIBASSISTA", conf: 40 },
       { id: "oil", name: "Petrolio", bias: "RIBASSISTA", conf: 41 },
       { id: "idx", name: "Indici", bias: "RIALZISTA", conf: 52 },
+      { id: "eur", name: "Euro", bias: "RIALZISTA", conf: 50 },
     ]);
     const r = revisioneDaDire(2, prima, dopo)!;
-    expect(r.cambiamenti).toHaveLength(6);
+    // quattro bias cambiati; le confidenze cambiate non contano più
+    expect(r.cambiamenti).toHaveLength(4);
     expect(r.frase).toContain("il bias di Oro");
-    expect(r.frase).toContain("e altri 4 cambiamenti");
+    expect(r.frase).toContain("e altri 2 cambiamenti");
   });
 
   it("un solo cambiamento residuo si dice al singolare", () => {
     const prima = versione([
       { id: "gold", name: "Oro", bias: "RIALZISTA", conf: 51 },
       { id: "oil", name: "Petrolio", bias: "NEUTRALE", conf: 45 },
+      { id: "idx", name: "Indici", bias: "NEUTRALE", conf: 46 },
     ]);
     const dopo = versione([
       { id: "gold", name: "Oro", bias: "RIBASSISTA", conf: 40 },
-      { id: "oil", name: "Petrolio", bias: "NEUTRALE", conf: 45 },
+      { id: "oil", name: "Petrolio", bias: "RIBASSISTA", conf: 45 },
+      { id: "idx", name: "Indici", bias: "RIALZISTA", conf: 46 },
     ]);
     const r = revisioneDaDire(2, prima, dopo)!;
-    expect(r.cambiamenti).toHaveLength(2);
-    expect(r.frase).not.toContain("e altri");
+    expect(r.cambiamenti).toHaveLength(3);
+    expect(r.frase).toContain("e altri 1 cambiamento");
+    expect(r.frase).not.toContain("cambiamenti");
   });
 
   it("versioni mancanti: nessuna riga, nessun crash", () => {

@@ -3006,3 +3006,39 @@ scorre ancora la Correlazione (124px): lì la larghezza non è cambiata. 0 testi
 
 **Verificato:** typecheck ✅ · eslint ✅ · 2170/2170 test ✅ · build ✅ · schermate
 reali a 1440 e 390 nei due temi · controllo a 1280.
+
+## 15/09/2026 · Report MD: via ogni traccia della confidenza, il bias spiegato
+
+Tavola Claude Design «Report MD - ricostruzione» aggiornata: via il blocco «Confidenza»,
+riga sull'origine del bias sopra la tabella, nuovo testo di «Da notare».
+
+**Dove nasce il bias.** Non lo calcola l'app. Arriva già scritto nel POST del flusso
+esterno: `assets.<asset>.bias` validato come enum in `src/lib/validations/macro-desk.ts`
+(`const bias = enumTollerante(...)`), salvato così com'è in `biasXau/Wti/Idx` da
+`src/lib/macro-desk.ts`; nel dettaglio si legge `weekly.biasLabel` verbatim in
+`parseHorizon` (`src/lib/macro-desk-payload.ts`). Nessuna regola e nessun peso
+trasformano i pilastri in un bias; `unanimitaControBiasNeutro` rileva soltanto la
+discrepanza. Di conseguenza la pagina lo dice (riga sopra la tabella dei bias) e «Da
+notare» spiega che bias e pilastri sono due dichiarazioni separate, che la differenza è
+un fatto e non un errore, e che il perché non si deduce: rimanda alla prosa del report
+(Edge, Narrativa) solo se c'è.
+
+**Confidenza tolta da:** lettura per asset (blocco «Confidenza» /100, fascia, impegno →
+oggi con delta, «Scostamento non motivato», «Motivo dichiarato / riconosciuto nel
+testo»), riga del pilastro («Motivo della confidenza» / «Da qui la confidenza»),
+trimestrale («confidenza N/100 · fascia» + motivo), didascalia «Le due confidenze»,
+Scorecard (colonna Conf., colonna Calibrazione, frase nel Metodo), riga della revisione
+(«la confidenza di X è passata da A a B»), rilievi e rifiuti d'impegno sulla confidenza
+nascosti in pagina. A monte: cancellato `macro-desk-confidenza.ts` (resta
+`macro-desk-pilastri.ts` con unanimità e etichette del segno), via `confidenceCalibration`,
+controlli 4 e 6 della sentinella e `confMotivo` fra i testi controllati, campi
+`confidence/confMotivo/confPilastro/confLabel` dal parser del payload,
+`confidenceOggi/confMotivo/confPilastro` dal parser del monitor, `confidence` da
+`ResolvedWeek`, i due casi simulati dell'anteprima.
+
+**Non toccato di proposito:** l'ingresso del flusso esterno. Zod accetta ancora
+`confidence` e i campi del monitor, le colonne `confidenceXau/Wti/Idx` restano (nessuna
+migrazione), il payload salvato è intatto, il guardiano dell'impegno continua a
+congelare la confidenza della domenica. **Residuo:** la prosa del report contiene ancora
+parole come «conviction bassa» o «confidence limitata» (in note dei pilastri, narrative,
+lettura vol): è testo del generatore, va corretto nelle sue istruzioni a monte.

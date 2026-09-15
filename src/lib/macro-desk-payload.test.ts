@@ -39,7 +39,6 @@ describe("parseMacroPayload — sample autoritativo", () => {
     const gold = p.assets[0];
     expect(gold.ticker).toBe("XAUUSD");
     expect(gold.weekly?.biasLabel).toBe("NEUTRALE");
-    expect(gold.weekly?.confidence).toBe(50);
     expect(gold.weekly?.pillars).toHaveLength(4);
     expect(gold.quarterly?.since).toBe("15 lug 2026");
     expect(gold.drivers).toHaveLength(5);
@@ -130,12 +129,24 @@ describe("parseMacroPayload — campi mancanti/malformati", () => {
     expect(p.macroTiles).toHaveLength(1);
   });
 
-  it("confidence non numerica → undefined (mai NaN in UI)", () => {
+  it("i campi di confidenza che arrivano nel payload non si leggono (15/09/2026)", () => {
     const p = parseMacroPayload({
-      assets: [{ name: "Oro", weekly: { biasLabel: "NEUTRALE", confidence: "50" } }],
+      assets: [
+        {
+          name: "Oro",
+          weekly: { biasLabel: "NEUTRALE", confidence: 50, confMotivo: "x", confPilastro: "eventi", confLabel: "Bassa" },
+          quarterly: { biasLabel: "RIALZISTA", confidence: 60, confMotivo: "y" },
+        },
+      ],
     });
-    expect(p.assets[0].weekly?.confidence).toBeUndefined();
+    for (const h of [p.assets[0].weekly, p.assets[0].quarterly]) {
+      for (const campo of ["confidence", "confMotivo", "confPilastro", "confLabel"]) {
+        expect(h).not.toHaveProperty(campo);
+      }
+    }
+    // il bias, invece, si legge così come arriva
     expect(p.assets[0].weekly?.biasLabel).toBe("NEUTRALE");
+    expect(p.assets[0].quarterly?.biasLabel).toBe("RIALZISTA");
   });
 });
 
@@ -366,27 +377,6 @@ describe("parseMacroPayload — url della fonte", () => {
   it("url non stringa → undefined, mai crash", () => {
     expect(parseMacroPayload({ news: [{ url: 42 }] }).news[0].url).toBeUndefined();
     expect(parseMacroPayload({ news: [{ url: null }] }).news[0].url).toBeUndefined();
-  });
-});
-
-describe("parseMacroPayload — confMotivo", () => {
-  it("si legge su settimanale e trimestrale", () => {
-    const p = parseMacroPayload({
-      assets: [
-        {
-          id: "gold",
-          weekly: { confidence: 55, confMotivo: "evento binario" },
-          quarterly: { confidence: 60, confMotivo: "regime stabile" },
-        },
-      ],
-    });
-    expect(p.assets[0].weekly?.confMotivo).toBe("evento binario");
-    expect(p.assets[0].quarterly?.confMotivo).toBe("regime stabile");
-  });
-
-  it("assente → undefined: i 23 report storici non ce l'hanno", () => {
-    const p = parseMacroPayload({ assets: [{ id: "gold", weekly: { confidence: 55 } }] });
-    expect(p.assets[0].weekly?.confMotivo).toBeUndefined();
   });
 });
 

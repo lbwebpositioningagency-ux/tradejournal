@@ -62,33 +62,30 @@ describe("tab Asset — la lettura per asset", () => {
     expect(html).toContain("Conflitto genuino"); // note del pilastro rese
   });
 
-  it("la confidenza è sulla sua scala, senza barra, con la fascia CALCOLATA dall'app", () => {
-    expect(html).toContain("Confidenza");
-    expect(html).toContain("50/100");
+  it("nessuna traccia della confidenza: né numero, né fascia, né motivo", () => {
+    /* Il sample porta `confidence: 50` e `confLabel: "Bassa"`: il dato arriva
+       ancora dal flusso esterno, ma dal 15/09/2026 non si mostra in nessuna
+       forma — né /100, né percentuale, né fascia, né «motivo». */
+    expect(html).not.toContain("Confidenza");
+    expect(html).not.toMatch(/\d+\/100/);
     expect(html).not.toMatch(/Confidenza \d+%/);
-    expect(html).toContain("non una probabilità");
-    /* La fascia c'è di nuovo, ma è dell'app: 50 → «Media-bassa». Il sample
-       porta `confLabel: "Bassa"` per lo stesso 50, e quel valore NON deve
-       comparire — è proprio l'etichetta instabile che si è smesso di leggere. */
-    expect(html).toContain("Media-bassa");
-    const gold = html.slice(html.indexOf("XAUUSD"), html.indexOf("XAUUSD") + 6000);
-    expect(gold).toContain("50/100");
-    expect(gold).not.toMatch(/50\/100<\/span><span[^>]*>Bassa</);
-  });
-
-  it("la ragione estratta resta NEL pilastro da cui viene, non in fondo", () => {
-    /* L'euristica pesca la frase da una nota: il posto giusto per mostrarla è
-       quel pilastro, dove commenta la misura che la genera. Il blocco a sé
-       resta il ripiego per quando l'ancora non si trova. */
-    expect(html).toContain("Da qui la confidenza");
-    expect(html).toContain("confidence limitata a prescindere dal tape");
-    // ancorata: niente blocco staccato e niente etichetta da campo dichiarato
+    expect(html).not.toContain("Motivo della confidenza");
+    expect(html).not.toContain("Da qui la confidenza");
+    expect(html).not.toContain("Motivo dichiarato");
     expect(html).not.toContain("Motivo riconosciuto nel testo");
-    expect(html).not.toContain(">Motivo dichiarato<");
-    // e la frase compare UNA volta sola, non anche nella nota del pilastro
+    expect(html).not.toContain("Le due confidenze");
+    expect(html).not.toContain("non una probabilità");
+    expect(html).not.toContain("Media-bassa");
+    /* La nota del pilastro resta com'è scritta dal report, una volta: è prosa
+       del report, non un punteggio della pagina. */
     expect(
       (html.match(/confidence limitata a prescindere dal tape/g) ?? []).length,
     ).toBe(1);
+  });
+
+  it("l'origine del bias è detta sopra la tabella: dichiarato, non calcolato", () => {
+    expect(html).toContain("Il bias è dichiarato dal report, non calcolato dall&#x27;app");
+    expect(html).toContain("i pilastri sono una lettura separata dello stesso report");
   });
 
   it("edge, invalidazione, narrativa e driver restano", () => {
@@ -135,11 +132,10 @@ describe("tab Asset — la lettura per asset", () => {
 });
 
 describe("tab Asset — i casi limite trovati nei 23 report reali", () => {
-  it("pilastri concordi e bias NEUTRALE: la card lo dice invece di tacere", () => {
+  function petrolio(extra: Record<string, unknown> = {}) {
     /* Caso reale: petrolio del 21/08/2026, 3 pilastri su 4 rialzisti e bias
-       NEUTRALE a 41. Prima la pagina mostrava l'ago al centro e tre frecce
-       concordi, senza una parola. */
-    const p = parseMacroPayload({
+       NEUTRALE. */
+    return parseMacroPayload({
       assets: [
         {
           id: "oil",
@@ -154,15 +150,46 @@ describe("tab Asset — i casi limite trovati nei 23 report reali", () => {
               { k: "Tattico", dir: "up" },
               { k: "Eventi", dir: "up" },
             ],
+            ...extra,
           },
         },
       ],
     });
-    const html = renderToStaticMarkup(<AssetsTab payload={p} natura="monitorato" />);
+  }
+
+  it("pilastri concordi e bias NEUTRALE: la nota SPIEGA da dove nasce la differenza", () => {
+    const html = renderToStaticMarkup(
+      <AssetsTab payload={petrolio()} natura="monitorato" />,
+    );
     expect(html).toContain("Da notare");
     expect(html).toContain("3 pilastri su 4");
     expect(html).toContain("puntano tutti al rialzo");
-    expect(html).toContain("il bias dichiarato resta");
+    expect(html).toContain("il bias dichiarato è");
+    // il fatto spiegato: il bias non viene dai pilastri, arriva dal report
+    expect(html).toContain("Non è un errore");
+    expect(html).toContain("il bias non è calcolato dai pilastri");
+    expect(html).toContain("lo dichiara il report a monte");
+    // e il perché della scelta NON si inventa
+    expect(html).toContain(
+      "Il report non accompagna la scelta con una spiegazione, e la pagina non la deduce.",
+    );
+    // la vecchia riga che constatava soltanto non c'è più
+    expect(html).not.toContain("non segue la somma dei pilastri");
+    // il 41 del payload non compare
+    expect(html).not.toContain("41");
+  });
+
+  it("se il report ha prosa, la nota rimanda lì senza attribuirle un contenuto", () => {
+    const html = renderToStaticMarkup(
+      <AssetsTab
+        payload={petrolio({ edge: "Scarso edge.", narrative: "Tre forze in tensione." })}
+        natura="monitorato"
+      />,
+    );
+    expect(html).toContain(
+      "Il perché della scelta, se il report lo scrive, sta nella sua prosa (Edge, Narrativa): la pagina non lo deduce.",
+    );
+    expect(html).not.toContain("Il report non accompagna");
   });
 
   it("2 pilastri concordi su 4 NON sono un coro: nessuna nota", () => {
@@ -188,7 +215,7 @@ describe("tab Asset — i casi limite trovati nei 23 report reali", () => {
     ).not.toContain("Da notare");
   });
 
-  it("report senza verdetto e senza ragione riconosciuta: nessun buco, nessuna invenzione", () => {
+  it("report senza verdetto: nessun buco, nessuna invenzione", () => {
     const p = parseMacroPayload({
       synthesis: { pills: [{ k: "Ciclo", v: "Rallentamento" }] },
       assets: [
@@ -209,113 +236,27 @@ describe("tab Asset — i casi limite trovati nei 23 report reali", () => {
     const html = renderToStaticMarkup(<AssetsTab payload={p} natura="monitorato" />);
     expect(html).toContain("Rallentamento"); // il quadro c'è
     expect(html).not.toContain("Verdetto"); // la conclusion no, e non si finge
-    /* «compressi», «contenuta», «limitato» ci sono tutte, ma nessuna riferita
-       alla confidenza: l'euristica NON deve agganciare. */
-    expect(html).not.toContain("Motivo riconosciuto nel testo");
-    /* E SENZA MOTIVO IL NUMERO NON SI MOSTRA. Un 51/100 da solo ha dev.std ~5
-       e correlazione ~0 con i pilastri: non aggiunge niente al bias e alla
-       striscia, e dà l'aria di una misura dove c'è un'opinione. */
     expect(html).not.toContain("51/100");
     expect(html).not.toContain("Confidenza");
-    // ma bias e pilastri restano: la card non si svuota
+    // bias e pilastri restano: la lettura non si svuota
     expect(html).toContain("RIALZISTA");
     expect(html).toContain("Regime");
   });
-});
 
-describe("tab Asset — i due numeri della confidenza", () => {
-  const conDivergenza = parseMacroPayload({
-    assets: [
-      {
-        id: "gold",
-        name: "Oro",
-        ticker: "XAUUSD",
-        weekly: {
-          biasLabel: "RIALZISTA",
-          confidence: 55,
-          confLabel: "Bassa", // dal payload: si ignora
-          pillars: [{ k: "Eventi", dir: "fl", note: "Keynote in agenda." }],
-        },
-      },
-    ],
-  });
-
-  it("campo dichiarato e lettura di oggi: due numeri, la differenza e il perché", () => {
-    const html = renderToStaticMarkup(
-      <AssetsTab
-        payload={conDivergenza}
-        natura="monitorato"
-        monitor={{
-          gold: { confidenceOggi: 48, confMotivo: "evento binario oggi: lettura sospesa" },
-        }}
-      />,
-    );
-    expect(html).toContain("impegno di domenica");
-    expect(html).toContain("lettura di oggi");
-    expect(html).toContain("48/100");
-    expect(html).toContain("−7"); // il delta, col segno
-    /* La fascia sta SOLO sul numero di oggi: l'impegno è l'ancora storica.
-       48 → «Media-bassa»; il «Media» che spetterebbe a 55 non compare. */
-    expect(html).toContain("Media-bassa");
-    expect(html).not.toContain(">Media<");
-    expect(html).toContain(">55<"); // l'impegno resta, nudo
-    expect(html).not.toContain("55/100");
-    expect(html).not.toContain(">Bassa<"); // il confLabel del payload resta fuori
-    /* La didascalia NON è più dentro la card: si dice una volta sola in testa
-       al tab, e infatti qui sopra c'è (AssetsTab la rende). */
-    expect(html).toContain("Le due confidenze");
-    expect(html.indexOf("Le due confidenze")).toBeLessThan(html.indexOf("XAUUSD"));
-    // campo dichiarato: niente avvertenza da euristica, e mai le due insieme
-    expect(html).toContain("Motivo dichiarato");
-    expect(html).toContain("evento binario oggi: lettura sospesa");
-    expect(html).not.toContain("Motivo riconosciuto nel testo");
-    /* La nota del pilastro resta dov'è — nella striscia — ma non viene MAI
-       citata come motivo: le virgolette sono la firma del blocco motivo. */
-    expect(html).toContain("Keynote in agenda.");
-    expect(html).not.toContain("«Keynote in agenda.»");
-  });
-
-  it("lettura di oggi UGUALE all'impegno: un numero solo, niente delta", () => {
-    const html = renderToStaticMarkup(
-      <AssetsTab
-        payload={conDivergenza}
-        natura="monitorato"
-        monitor={{ gold: { confidenceOggi: 55, confMotivo: "quadro invariato" } }}
-      />,
-    );
-    expect(html).toContain("55/100");
-    expect(html).not.toContain("impegno di domenica");
-    expect(html).not.toContain("lettura di oggi");
-    expect(html).toContain("quadro invariato");
-  });
-
-  it("scostamento NON motivato: si mostra e si dice che manca il motivo", () => {
-    /* Il silenzio vale per un numero solo. Due numeri diversi senza motivo
-       sono una violazione del contratto, e nasconderla ripeterebbe il difetto
-       del 18/08 — un errore invisibile perché la pagina non lo espone. */
-    const html = renderToStaticMarkup(
-      <AssetsTab
-        payload={conDivergenza}
-        natura="monitorato"
-        monitor={{ gold: { confidenceOggi: 48 } }}
-      />,
-    );
-    expect(html).toContain(">55<");
-    expect(html).toContain("48/100");
-    expect(html).toContain("−7");
-    expect(html).toContain("Scostamento non motivato");
-    expect(html).toContain("senza dichiarare perché");
-    // e nessun motivo inventato al suo posto
-    expect(html).not.toContain("Motivo dichiarato");
-    expect(html).not.toContain("Motivo riconosciuto nel testo");
-  });
-
-  it("il trimestrale mostra il numero quando il report lo motiva", () => {
-    const conQuarterly = parseMacroPayload({
+  it("i campi di confidenza che arrivano ancora nel payload non compaiono in nessun orizzonte", () => {
+    const p = parseMacroPayload({
       assets: [
         {
           id: "gold",
           name: "Oro",
+          weekly: {
+            biasLabel: "RIALZISTA",
+            confidence: 55,
+            confLabel: "Bassa",
+            confMotivo: "keynote binario oggi: la lettura vale meno",
+            confPilastro: "eventi",
+            pillars: [{ k: "Eventi", dir: "fl", note: "Keynote a Jackson Hole oggi." }],
+          },
           quarterly: {
             biasLabel: "RIALZISTA",
             confidence: 62,
@@ -326,149 +267,28 @@ describe("tab Asset — i due numeri della confidenza", () => {
       ],
     });
     const html = renderToStaticMarkup(
-      <AssetsTab payload={conQuarterly} natura="monitorato" />,
-    );
-    expect(html).toContain("Trimestrale · regime di fondo");
-    expect(html).toContain("confidenza 62/100 · Media");
-    expect(html).toContain("Motivo dichiarato");
-    expect(html).toContain("regime di debasement stabile da tre trimestri");
-  });
-
-  it("il trimestrale senza motivo tace, come in tutti i report storici", () => {
-    const html = renderToStaticMarkup(<AssetsTab payload={full} natura="monitorato" />);
-    expect(html).toContain("Trimestrale · regime di fondo");
-    expect(html).not.toContain("confidenza 55/100");
-  });
-
-  it("la didascalia delle due confidenze si dice UNA volta, e solo se serve", () => {
-    /* Prima stava dentro ogni card con uno scostamento: tre volte per report,
-       identica. Ora è una riga sola in testa al tab — e senza scostamenti non
-       c'è affatto, perché spiegherebbe una cosa che in pagina non si vede. */
-    const conDue = renderToStaticMarkup(
       <AssetsTab
-        payload={conDivergenza}
+        payload={p}
         natura="monitorato"
-        monitor={{ gold: { confidenceOggi: 48, confMotivo: "x" } }}
+        monitor={{ gold: { state: "conferma", note: "Oro sui massimi." } }}
       />,
     );
-    expect((conDue.match(/Le due confidenze/g) ?? []).length).toBe(1);
-
-    const senzaDue = renderToStaticMarkup(
-      <AssetsTab payload={conDivergenza} natura="monitorato" />,
-    );
-    expect(senzaDue).not.toContain("Le due confidenze");
-  });
-
-  it("il motivo dichiarato è ancorato al suo pilastro via confPilastro", () => {
-    const p = parseMacroPayload({
-      assets: [
-        {
-          id: "gold",
-          name: "Oro",
-          weekly: {
-            biasLabel: "RIALZISTA",
-            confidence: 55,
-            confMotivo: "keynote binario oggi: la lettura vale meno",
-            confPilastro: "eventi",
-            pillars: [
-              { k: "Regime", dir: "up", note: "Stagflation-lite pro-oro." },
-              { k: "Eventi", dir: "fl", note: "Keynote a Jackson Hole oggi." },
-            ],
-          },
-        },
-      ],
-    });
-    const html = renderToStaticMarkup(<AssetsTab payload={p} natura="emesso" />);
-    /* Ancorato: la frase sta DENTRO la card del pilastro «Eventi», non in un
-       blocco staccato in fondo. */
-    expect(html).toContain("Motivo della confidenza");
-    expect(html).toContain("«keynote binario oggi: la lettura vale meno»");
-    const eventi = html.indexOf("Eventi");
-    const frase = html.indexOf("keynote binario oggi");
-    const regime = html.indexOf("Stagflation-lite pro-oro");
-    expect(frase).toBeGreaterThan(eventi);
-    // sta nella colonna di Eventi, quindi DOPO la nota di Regime
-    expect(frase).toBeGreaterThan(regime);
-    // e il blocco a sé non compare
-    expect(html).not.toContain(">Motivo dichiarato<");
-  });
-
-  it("senza ancora il motivo torna nel blocco a sé: il ripiego regge", () => {
-    const p = parseMacroPayload({
-      assets: [
-        {
-          id: "gold",
-          name: "Oro",
-          weekly: {
-            biasLabel: "RIALZISTA",
-            confidence: 55,
-            confMotivo: "motivo che non appartiene a nessun pilastro noto",
-            confPilastro: "liquidita",
-            pillars: [{ k: "Regime", dir: "up", note: "Reali in calo." }],
-          },
-        },
-      ],
-    });
-    const html = renderToStaticMarkup(<AssetsTab payload={p} natura="emesso" />);
-    expect(html).toContain("Motivo dichiarato");
-    expect(html).toContain("«motivo che non appartiene a nessun pilastro noto»");
-    expect(html).not.toContain("Motivo della confidenza");
-  });
-
-  it("la frase del motivo non si stampa due volte: sparisce dalla striscia", () => {
-    const frase = "Evento binario in agenda: confidence limitata a prescindere.";
-    const p = parseMacroPayload({
-      assets: [
-        {
-          id: "gold",
-          name: "Oro",
-          weekly: {
-            biasLabel: "RIALZISTA",
-            confidence: 55,
-            confMotivo: frase,
-            confPilastro: "eventi",
-            pillars: [
-              { k: "Regime", dir: "up", note: "Reali in calo." },
-              { k: "Eventi", dir: "fl", note: `Warsh parla oggi. ${frase}` },
-            ],
-          },
-        },
-      ],
-    });
-    const html = renderToStaticMarkup(<AssetsTab payload={p} natura="emesso" />);
-    expect((html.match(/confidence limitata a prescindere/g) ?? []).length).toBe(1);
-    // il resto della nota resta dov'era, nello stesso pilastro
-    expect(html).toContain("Warsh parla oggi.");
-    expect(html).toContain("Reali in calo.");
-  });
-
-  it("il campo dichiarato ha la precedenza sull'euristica, che resta un ripiego", () => {
-    const conEntrambi = parseMacroPayload({
-      assets: [
-        {
-          id: "gold",
-          name: "Oro",
-          weekly: {
-            biasLabel: "RIALZISTA",
-            confidence: 51,
-            confMotivo: "posizionamento pieno, dichiarato dal desk",
-            pillars: [
-              { k: "Eventi", dir: "fl", note: "Evento binario: confidence limitata." },
-            ],
-          },
-        },
-      ],
-    });
-    const html = renderToStaticMarkup(
-      <AssetsTab payload={conEntrambi} natura="emesso" />,
-    );
-    expect(html).toContain("«posizionamento pieno, dichiarato dal desk»");
-    expect(html).toContain("Motivo dichiarato");
-    /* La frase che l'euristica avrebbe agganciato è nella striscia, non fra le
-       virgolette del motivo: dichiarato ed estratto non compaiono INSIEME. */
-    expect(html).toContain("Evento binario: confidence limitata.");
-    expect(html).not.toContain("«Evento binario: confidence limitata.»");
-    expect(html).not.toContain("Motivo riconosciuto nel testo");
+    expect(html).toContain("Trimestrale · regime di fondo");
+    expect(html).toContain("Keynote a Jackson Hole oggi.");
+    expect(html).toContain("Oro sui massimi.");
+    for (const assente of [
+      "55",
+      "62",
+      "/100",
+      "Bassa",
+      "keynote binario oggi",
+      "regime di debasement",
+      "Confidenza",
+      "confidenza",
+      "Motivo",
+    ]) {
+      expect(html).not.toContain(assente);
+    }
   });
 });
 

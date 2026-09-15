@@ -209,7 +209,7 @@ export async function upsertMacroDeskReport(
      report con 11 news su 11 senza titolo è passato con 200 e nessuno l'ha
      saputo per dieci giorni — non perché mancasse la sorveglianza, ma perché
      l'informazione non veniva prodotta. */
-  const rilievi = controllaContratto(input.payload, input.biasRecord);
+  const rilievi = controllaContratto(input.payload);
   if (rilievi.length > 0) {
     console.error(
       `[macro-desk] ${input.type} ${input.reportDate}: ` +

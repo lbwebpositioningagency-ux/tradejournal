@@ -5,7 +5,7 @@ import { formatDateTime } from "@/lib/dates";
 import { prisma } from "@/lib/db";
 import { biasTone, parseMacroPayload } from "@/lib/macro-desk-payload";
 import { ASSET_PAYLOAD_A_RECORD, parseMonitor } from "@/lib/macro-desk-bias-record";
-import type { MonitorConfidenza } from "@/lib/macro-desk-confidenza";
+import type { MonitorAsset } from "@/lib/macro-desk-pilastri";
 import type { Rilievo } from "@/lib/macro-desk-contratto";
 import {
   giornoBreve,
@@ -82,23 +82,18 @@ function naturaDelBias(type: VoceArchivio["type"], schemaVersion: number | null)
   return (schemaVersion ?? 0) >= 2 ? "monitorato" : "aggiornato";
 }
 
-/** La lettura di oggi per asset, dalla colonna `monitor` (chiave: id del payload). */
-function monitorPerAsset(monitor: unknown): Record<string, MonitorConfidenza> {
+/**
+ * Il monitoraggio di oggi per asset, dalla colonna `monitor` (chiave: id del
+ * payload): solo stato e nota. La confidenza di oggi può continuare ad
+ * arrivare nel monitor, ma dal 15/09/2026 non si legge e non si mostra.
+ */
+function monitorPerAsset(monitor: unknown): Record<string, MonitorAsset> {
   const perChiave = new Map(parseMonitor(monitor).map((m) => [m.asset, m]));
-  const fuori: Record<string, MonitorConfidenza> = {};
+  const fuori: Record<string, MonitorAsset> = {};
   for (const [idPayload, chiave] of Object.entries(ASSET_PAYLOAD_A_RECORD)) {
     const m = perChiave.get(chiave);
-    if (!m) continue;
-    if (m.confidenceOggi === null && m.confMotivo === null && m.state === null && m.note === null) {
-      continue;
-    }
-    fuori[idPayload] = {
-      confidenceOggi: m.confidenceOggi,
-      confMotivo: m.confMotivo,
-      confPilastro: m.confPilastro,
-      state: m.state,
-      note: m.note,
-    };
+    if (!m || (m.state === null && m.note === null)) continue;
+    fuori[idPayload] = { state: m.state, note: m.note };
   }
   return fuori;
 }
@@ -109,9 +104,11 @@ function rilieviDelReport(colonna: unknown): Rilievo[] {
   return colonna.flatMap((r) => {
     if (typeof r !== "object" || r === null) return [];
     const o = r as Record<string, unknown>;
-    return typeof o.campo === "string" && typeof o.problema === "string"
-      ? [{ campo: o.campo, problema: o.problema }]
-      : [];
+    if (typeof o.campo !== "string" || typeof o.problema !== "string") return [];
+    /* I rilievi sulla confidenza, salvati prima del 15/09/2026, non si
+       mostrano: la confidenza del report non compare più in pagina. */
+    if (/confiden|confMotivo|confPilastro|confLabel/i.test(o.campo)) return [];
+    return [{ campo: o.campo, problema: o.problema }];
   });
 }
 
@@ -380,8 +377,8 @@ export async function PaginaReport({
   const id = report.id;
   const [user, revisione] = await Promise.all([
     prisma.user.findUniqueOrThrow({ where: { id: userId }, select: { timezone: true } }),
-    /* La riga «è stato rifatto», solo se la revisione ha cambiato un bias o
-       una confidenza: vedi `macro-desk-versioni.ts`. */
+    /* La riga «è stato rifatto», solo se la revisione ha cambiato un bias:
+       vedi `macro-desk-versioni.ts`. */
     getRevisioneReport(id),
   ]);
 

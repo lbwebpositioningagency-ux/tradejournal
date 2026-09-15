@@ -5,7 +5,7 @@ import type { RevisioneDaDire } from "@/lib/macro-desk-versioni";
  * LA RIGA DELLA REVISIONE — sotto il sottotitolo del dettaglio report.
  *
  * Compare solo quando una nuova versione dello stesso giorno ha cambiato un
- * bias o una confidenza: la regola sta in `macro-desk-versioni.ts`, qui c'è
+ * bias: la regola sta in `macro-desk-versioni.ts`, qui c'è
  * solo la resa. Non è una cronologia e non porta da nessuna parte; è una frase
  * che risponde alla domanda che si fa chi ricorda un numero diverso da
  * stamattina.

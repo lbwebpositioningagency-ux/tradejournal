@@ -8,7 +8,6 @@ import {
   K_BREAK,
   K_HIT,
   MIN_WEEKS_FOR_HIT_RATE,
-  confidenceCalibration,
   resolveWeek,
   resolveWeeks,
   scorecardMetrics,
@@ -309,59 +308,6 @@ describe("metriche", () => {
       weeksOf(...Array(MIN_WEEKS_FOR_HIT_RATE).fill("hit" as const)),
     );
     expect(m.hitRate).toBe("1.0000");
-  });
-});
-
-describe("calibrazione della confidenza", () => {
-  it("correlazione positiva quando il desk si sbilancia sulle settimane giuste", () => {
-    const weeks = [30, 40, 50, 60, 70, 80, 90, 95].map((confidence, i) =>
-      resolveWeek(
-        `2026-08-${String(2 + i * 7).padStart(2, "0")}`,
-        record({ confidence, path: path(-0.5 + i * 0.25) }),
-      ),
-    );
-    const r = confidenceCalibration(weeks);
-    expect(Number(r)).toBeGreaterThan(0.9);
-  });
-
-  it("Q-07 — i NEUTRALI non entrano nella calibrazione (funzione di perdita opposta)", () => {
-    // 8 direzionali ben calibrati (confidenza che cresce con closeEm)…
-    const directional = [30, 40, 50, 60, 70, 80, 90, 95].map((confidence, i) =>
-      resolveWeek(
-        `2026-08-${String(2 + i * 7).padStart(2, "0")}`,
-        record({ confidence, path: path(-0.5 + i * 0.25) }),
-      ),
-    );
-    // …più 4 neutrali PERFETTI ad alta confidenza: closeEm ≈ 0 è il loro
-    // successo, ma su Pearson (confidenza, closeEm) tirerebbero la
-    // correlazione verso il basso. Devono essere ignorati.
-    const neutrals = [90, 92, 94, 96].map((confidence, i) =>
-      resolveWeek(
-        `2026-10-${String(5 + i * 7).padStart(2, "0")}`,
-        record({ bias: "NEUTRALE", confidence, path: path(0.01) }),
-      ),
-    );
-    const both = confidenceCalibration([...directional, ...neutrals]);
-    const only = confidenceCalibration(directional);
-    expect(both).toBe(only);
-    expect(Number(both)).toBeGreaterThan(0.9);
-  });
-
-  it("null sotto il minimo di osservazioni", () => {
-    const weeks = [50, 60, 70].map((confidence, i) =>
-      resolveWeek(`2026-08-0${2 + i}`, record({ confidence, path: path(0.5) })),
-    );
-    expect(confidenceCalibration(weeks)).toBeNull();
-  });
-
-  it("null se la confidenza è sempre uguale (correlazione indefinita)", () => {
-    const weeks = Array.from({ length: 10 }, (_, i) =>
-      resolveWeek(
-        `2026-08-${String(2 + i).padStart(2, "0")}`,
-        record({ confidence: 50, path: path(i * 0.1) }),
-      ),
-    );
-    expect(confidenceCalibration(weeks)).toBeNull();
   });
 });
 

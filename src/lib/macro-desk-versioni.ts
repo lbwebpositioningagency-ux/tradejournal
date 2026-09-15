@@ -12,7 +12,8 @@ import { parseMacroPayload, type MacroAsset } from "@/lib/macro-desk-payload";
  * «Il desk ha rispedito lo stesso report» non ne dà nessuno. Chi legge non può
  * farci niente, e una riga che compare ogni volta smette di essere letta
  * proprio il giorno in cui direbbe qualcosa. Quindi la riga compare SOLO
- * quando la revisione ha cambiato **il bias o la confidenza** di un asset:
+ * quando la revisione ha cambiato **il bias** di un asset (la confidenza non
+ * conta più dal 15/09/2026: non si mostra):
  * cioè quando quello che la pagina mostrava stamattina non è più vero.
  *
  * Il prezzo di questa parsimonia è che la riga è più difficile da spiegare —
@@ -84,14 +85,8 @@ export function differenzeFraVersioni(
     if (biasPrima && biasDopo && biasPrima !== biasDopo) {
       fuori.push(`il bias di ${nomeAsset(dopo)} è passato da ${biasPrima} a ${biasDopo}`);
     }
-
-    const confPrima = primaAsset.weekly?.confidence;
-    const confDopo = dopo.weekly?.confidence;
-    if (confPrima !== undefined && confDopo !== undefined && confPrima !== confDopo) {
-      fuori.push(
-        `la confidenza di ${nomeAsset(dopo)} è passata da ${confPrima} a ${confDopo}`,
-      );
-    }
+    /* Una revisione che cambia solo la confidenza non fa più comparire la
+       riga (15/09/2026): la confidenza del report non si mostra. */
   }
   return fuori;
 }

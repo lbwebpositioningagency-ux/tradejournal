@@ -18,27 +18,12 @@ export interface MacroPillar {
 export interface MacroHorizon {
   bias?: string;
   biasLabel?: string;
-  confidence?: number;
-  /**
-   * DICHIARATO dal generatore (campo nuovo, dai report del 28/08/2026 in poi):
-   * perché la confidenza è quella che è. Prima esisteva solo sepolto nella
-   * `note` di un pilastro, da cui `macro-desk-confidenza.ts` prova ancora a
-   * estrarlo per i 23 report storici che il campo non ce l'hanno.
+  /*
+   * NIENTE CONFIDENZA (15/09/2026). Il payload del flusso esterno può
+   * continuare a portare `confidence`, `confMotivo`, `confPilastro` e
+   * `confLabel`: restano intatti nel JSON salvato, ma questo parser non li
+   * legge più, perché nessuna pagina li mostra.
    */
-  confMotivo?: string;
-  /**
-   * A quale pilastro si riferisce `confMotivo` (`eventi` | `pricing` |
-   * `regime` | `tattico`). Serve ad ancorare la frase in un posto solo invece
-   * di stamparla due volte, una nella striscia e una sotto il numero.
-   */
-  confPilastro?: string;
-  /**
-   * L'etichetta qualitativa che ARRIVAVA nel payload. Si legge ancora per non
-   * perdere dato, ma NON si mostra: non era funzione di `confidence` (51 valeva
-   * «Bassa» il 27/08 e «Media» il 28/08 sullo stesso asset). In pagina va la
-   * fascia calcolata dall'app — `fasciaConfidenza()` — che è una sola.
-   */
-  confLabel?: string;
   since?: string;
   pillars: MacroPillar[];
   edge?: string;
@@ -170,9 +155,6 @@ export interface MacroPayload {
 function str(v: unknown): string | undefined {
   return typeof v === "string" && v.trim() !== "" ? v : undefined;
 }
-function num(v: unknown): number | undefined {
-  return typeof v === "number" && Number.isFinite(v) ? v : undefined;
-}
 function arr(v: unknown): unknown[] {
   return Array.isArray(v) ? v : [];
 }
@@ -224,10 +206,6 @@ function parseHorizon(raw: unknown): MacroHorizon | undefined {
   return {
     bias: str(o.bias),
     biasLabel: str(o.biasLabel),
-    confidence: num(o.confidence),
-    confMotivo: str(o.confMotivo),
-    confPilastro: str(o.confPilastro),
-    confLabel: str(o.confLabel),
     since: str(o.since),
     pillars: arr(o.pillars).flatMap((p) => {
       const po = obj(p);

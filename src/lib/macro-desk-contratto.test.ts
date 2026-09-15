@@ -150,29 +150,18 @@ describe("i cinque controlli, uno per uno", () => {
     expect(riassuntoRilievi(r)).not.toContain("entità HTML");
   });
 
-  it("4 · la stessa confidenza dichiarata due volte con due valori", () => {
-    /* Il caso reale del 21/08: payload 46, biasRecord 52. */
-    const r = controllaContratto(
-      { ...BASE, assets: [{ id: "idx", weekly: { confidence: 46, pillars: [] } }] },
-      { weekStart: "2026-08-16", assets: { idx: { confidence: 52 } } },
-    );
-    const c = r.find((x) => x.campo === "assets[idx].weekly.confidence");
-    expect(c?.problema).toContain("payload 46, biasRecord 52");
-  });
-
-  it("4 · confidenze uguali, o record assente: nessun rilievo", () => {
-    const uguali = controllaContratto(
-      { ...BASE, assets: [{ id: "idx", weekly: { confidence: 52, pillars: [] } }] },
-      { weekStart: "2026-08-16", assets: { idx: { confidence: 52 } } },
-    );
-    expect(uguali.some((x) => x.campo.includes("confidence"))).toBe(false);
-
-    // un report v1 non manda il biasRecord: la sua assenza non è un difetto
-    const senzaRecord = controllaContratto({
+  it("4 e 6 · la confidenza non produce più rilievi, né doppia né fuori scala", () => {
+    /* Controlli tolti il 15/09/2026 insieme alla confidenza in pagina: il
+       caso reale del 21/08 (payload 46, biasRecord 52) e un 105 fuori scala
+       arrivano ancora, e restano nel payload salvato, ma non sono rilievi. */
+    const r = controllaContratto({
       ...BASE,
-      assets: [{ id: "idx", weekly: { confidence: 52, pillars: [] } }],
+      assets: [
+        { id: "idx", weekly: { confidence: 46, pillars: [] } },
+        { id: "gold", weekly: { confidence: 105, pillars: [] }, quarterly: { confidence: -3, pillars: [] } },
+      ],
     });
-    expect(senzaRecord.some((x) => x.campo.includes("confidence"))).toBe(false);
+    expect(r.some((x) => /confiden/i.test(x.campo) || /confiden/i.test(x.problema))).toBe(false);
   });
 
   it("5 · synthesis assente", () => {
@@ -215,35 +204,5 @@ describe("la sentinella non rifiuta e non lancia MAI", () => {
 
   it("riassuntoRilievi: senza rilievi la riga è vuota, non «nessuno»", () => {
     expect(riassuntoRilievi([])).toBe("");
-  });
-});
-
-describe("confidenza fuori scala: il confine non rifiuta più, la sentinella lo dice", () => {
-  it("un 105 nel payload diventa un rilievo", () => {
-    /* Il confine Zod ha smesso di rifiutarlo il 28/08 — perdere il report per
-       un numero fuori scala era sproporzionato — e la promessa scritta lì
-       accanto è che se ne occupi la sentinella. Questo test è quella promessa. */
-    const r = controllaContratto({
-      ...BASE,
-      assets: [{ id: "gold", weekly: { confidence: 105, pillars: [] } }],
-    });
-    const c = r.find((x) => x.campo === "assets[gold].weekly.confidence");
-    expect(c?.problema).toContain("fuori dalla scala dichiarata 0-100");
-  });
-
-  it("vale anche per il trimestrale, e per i valori negativi", () => {
-    const r = controllaContratto({
-      ...BASE,
-      assets: [{ id: "oil", quarterly: { confidence: -3, pillars: [] } }],
-    });
-    expect(r.some((x) => x.campo === "assets[oil].quarterly.confidence")).toBe(true);
-  });
-
-  it("dentro la scala: nessun rilievo, nemmeno agli estremi", () => {
-    const r = controllaContratto({
-      ...BASE,
-      assets: [{ id: "gold", weekly: { confidence: 0, pillars: [] }, quarterly: { confidence: 100, pillars: [] } }],
-    });
-    expect(r.some((x) => x.campo.includes("confidence"))).toBe(false);
   });
 });

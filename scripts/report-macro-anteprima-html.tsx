@@ -32,7 +32,7 @@ import { PrismaClient } from "../src/generated/prisma/client";
 import { guardedPgAdapter } from "../src/lib/db-guard";
 import { parseMacroPayload } from "../src/lib/macro-desk-payload";
 import { ASSET_PAYLOAD_A_RECORD, parseMonitor } from "../src/lib/macro-desk-bias-record";
-import type { MonitorConfidenza } from "../src/lib/macro-desk-confidenza";
+import type { MonitorAsset } from "../src/lib/macro-desk-pilastri";
 import { controllaContratto } from "../src/lib/macro-desk-contratto";
 import { MacroReportDetail } from "../src/components/macro-desk/report-detail";
 import { RigaRevisione } from "../src/components/macro-desk/riga-revisione";
@@ -45,19 +45,14 @@ const prisma = new PrismaClient({
 
 /**
  * I casi da guardare, scelti sui difetti trovati nelle indagini del 28/08.
- * `monitorFinto` esiste per un caso solo: i campi nuovi della confidenza sono
- * stati ordinati al generatore oggi e in Neon non è ancora arrivato un report
- * che li porti. Il payload resta REALE, si aggiunge soltanto il blocco
- * `monitor` che il desk manderà — ed è dichiarato come simulato nel titolo,
- * perché un'anteprima che finge di essere un dato di produzione è peggio di
- * nessuna anteprima.
+ * Fino al 15/09/2026 c'erano anche due casi con un `monitor` simulato per
+ * la confidenza: tolti insieme alla confidenza, che non si mostra più.
  */
 const CASI: {
   data: string;
   nota: string;
   news?: string;
   titolo?: string;
-  monitorFinto?: Record<string, MonitorConfidenza>;
   /** Ricostruisce una versione precedente per far comparire la riga. */
   revisioneFinta?: boolean;
 }[] = [
@@ -65,48 +60,7 @@ const CASI: {
     data: "2026-08-28",
     news: "Titoli cliccabili quando c'è l'url, date ancorate al giorno del report, chip dell'asset non ripetuto sotto il suo gruppo",
     nota:
-      "DAILY v3 REALE · oro e indici dichiarano il taglio della confidenza (euristica) · PETROLIO: 3 pilastri su 4 ribassisti con bias NEUTRALE (caso limite)",
-  },
-  {
-    data: "2026-08-28",
-    titolo: "2026-08-28 · DAILY · CAMPI NUOVI (monitor simulato)",
-    nota:
-      "Stesso payload reale, più il blocco `monitor` che il generatore manderà da oggi: due numeri quando impegno e lettura di oggi divergono, e il motivo DICHIARATO reso DENTRO il pilastro cui `confPilastro` lo assegna, non in un blocco staccato",
-    monitorFinto: {
-      gold: {
-        confidenceOggi: 44,
-        confMotivo:
-          "keynote Warsh alle 16:00 è un bivio binario: fino a quel momento la lettura vale meno di quanto valesse domenica",
-        confPilastro: "eventi",
-        state: "conferma",
-        note: "Oro sui massimi ~3 mesi; PCE core in linea ha ridotto le odds di rialzo Fed a ~34%. Warsh oggi il bivio.",
-      },
-      oil: {
-        confidenceOggi: 44,
-        confMotivo: "ramo b1 a un soffio (81,85 contro 81,0): la lettura è appesa a una chiusura",
-        confPilastro: "tattico",
-        state: "stress",
-        note: "Scivola verso il ramo b1<81 (unwind Hormuz + tagli domanda IEA/OPEC); a 81,85 ancora in banda neutrale.",
-      },
-      idx: {
-        confidenceOggi: 46,
-        confMotivo: "breadth negativa con indice in tenuta: due segnali opposti",
-        confPilastro: "pricing",
-        state: "conferma",
-        note: "Nvidia blowout toglie il rischio-coda AI ma breadth negativa; ramo b1>7.843 armato non scattato.",
-      },
-    },
-  },
-  {
-    data: "2026-08-28",
-    titolo: "2026-08-28 · DAILY · SCOSTAMENTO NON MOTIVATO (monitor simulato)",
-    nota:
-      "Il report cambia la confidenza senza dichiarare perché: dal 28/08 è una violazione del contratto, e la card la DICE invece di tacere. I due numeri restano visibili",
-    monitorFinto: {
-      gold: { confidenceOggi: 44, state: "conferma", note: "Oro sui massimi ~3 mesi." },
-      oil: { confidenceOggi: 38, state: "stress", note: "Scivola verso il ramo b1<81." },
-      idx: { confidenceOggi: 52, state: "conferma", note: "Nvidia toglie il rischio-coda AI." },
-    },
+      "DAILY v3 REALE · PETROLIO: 3 pilastri su 4 ribassisti con bias NEUTRALE (caso limite, la nota spiega che il bias è dichiarato dal report)",
   },
   {
     data: "2026-08-28",
@@ -192,22 +146,13 @@ ${blocchi
 </html>`;
 }
 
-function monitorReale(colonna: unknown): Record<string, MonitorConfidenza> {
+function monitorReale(colonna: unknown): Record<string, MonitorAsset> {
   const perChiave = new Map(parseMonitor(colonna).map((m) => [m.asset, m]));
-  const fuori: Record<string, MonitorConfidenza> = {};
+  const fuori: Record<string, MonitorAsset> = {};
   for (const [id, chiave] of Object.entries(ASSET_PAYLOAD_A_RECORD)) {
     const m = perChiave.get(chiave);
-    if (!m) continue;
-    if (m.confidenceOggi === null && m.confMotivo === null && m.state === null && m.note === null) {
-      continue;
-    }
-    fuori[id] = {
-      confidenceOggi: m.confidenceOggi,
-      confMotivo: m.confMotivo,
-      confPilastro: m.confPilastro,
-      state: m.state,
-      note: m.note,
-    };
+    if (!m || (m.state === null && m.note === null)) continue;
+    fuori[id] = { state: m.state, note: m.note };
   }
   return fuori;
 }
@@ -250,7 +195,7 @@ async function main() {
     }
     const payload = parseMacroPayload(report.payload);
     const n = natura(report.type, report.schemaVersion);
-    const monitor = caso.monitorFinto ?? monitorReale(report.monitor);
+    const monitor = monitorReale(report.monitor);
 
     /* La coppia di versioni: la corrente è il payload VERO, la precedente si
        ricostruisce cambiando un bias — quella originale è stata cancellata
@@ -291,7 +236,7 @@ async function main() {
              colonna: i 23 report in archivio sono entrati prima che la
              sentinella esistesse, e la loro colonna è vuota. È lo stesso
              risultato che avrebbero avuto arrivando oggi. */
-          rilievi={controllaContratto(report.payload, report.biasRecord)}
+          rilievi={controllaContratto(report.payload)}
         />,
       ),
     });

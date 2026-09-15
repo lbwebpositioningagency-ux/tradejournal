@@ -4,7 +4,6 @@ import {
   K_BREAK,
   K_HIT,
   MIN_WEEKS_FOR_HIT_RATE,
-  confidenceCalibration,
   scorecardMetrics,
   type ResolvedWeek,
   type WeekOutcome,
@@ -237,13 +236,10 @@ function StrisciaStato({
 function RigaConsuntivo({
   etichetta,
   rows,
-  calibrazione,
   totale = false,
 }: {
   etichetta: string;
   rows: ResolvedWeek[];
-  /** Solo per asset: la calibrazione complessiva non si calcola. */
-  calibrazione?: string | null;
   totale?: boolean;
 }) {
   const m = scorecardMetrics(rows);
@@ -262,13 +258,6 @@ function RigaConsuntivo({
       </td>
       <td>
         <CellaHitRate rows={neutral} />
-      </td>
-      <td className="ml-sep">
-        {totale ? null : calibrazione === null || calibrazione === undefined ? (
-          <Vuoto />
-        ) : (
-          formatNumber(calibrazione, { decimals: 2 })
-        )}
       </td>
     </tr>
   );
@@ -306,7 +295,6 @@ function Consuntivo({
             <th>Ramo attivato</th>
             <th className="ml-sep">Hit rate direzionali</th>
             <th>Hit rate neutrali</th>
-            <th className="ml-sep">Calibrazione</th>
           </tr>
         </thead>
         <tbody>
@@ -317,7 +305,6 @@ function Consuntivo({
                 key={asset}
                 etichetta={ASSET_LABELS[asset]}
                 rows={rows}
-                calibrazione={confidenceCalibration(rows)}
               />
             );
           })}
@@ -329,7 +316,7 @@ function Consuntivo({
       <details className="group/metodo mt-2">
         <summary className="flex cursor-pointer list-none items-center gap-1.5 text-xs font-medium text-[var(--md-muted)] hover:text-[var(--md-text)]">
           <ChevronRight className="size-3.5 transition-transform group-open/metodo:rotate-90" aria-hidden />
-          Metodo · due hit rate, cosa esce dal denominatore, la calibrazione
+          Metodo · due hit rate, cosa esce dal denominatore
         </summary>
         <div className="mt-2 flex max-w-[80ch] flex-col gap-2 text-xs leading-relaxed text-[var(--md-text-2)]">
           <p>
@@ -346,8 +333,7 @@ function Consuntivo({
             diversi (i neutrali non hanno la zona senza informazione): mai una
             percentuale unica. «X di {MIN_WEEKS_FOR_HIT_RATE}» sono le settimane
             valutate raccolte finora; la percentuale compare da{" "}
-            {MIN_WEEKS_FOR_HIT_RATE}. La calibrazione è la correlazione fra
-            confidenza dichiarata e risultato, sui soli bias direzionali.
+            {MIN_WEEKS_FOR_HIT_RATE}.
           </p>
           <p>
             Circa 52 osservazioni all&apos;anno per asset: le percentuali si
@@ -384,7 +370,6 @@ function TabellaSettimane({ weeks }: { weeks: ResolvedWeek[] }) {
             <th className="ml-sx">Settimana</th>
             <th className="ml-sx">Asset</th>
             <th className="ml-sx">Bias</th>
-            <th>Conf.</th>
             <th className="ml-sep">Chiusura</th>
             <th>MFE</th>
             <th>MAE</th>
@@ -400,7 +385,6 @@ function TabellaSettimane({ weeks }: { weeks: ResolvedWeek[] }) {
               <td className="ml-sx">
                 <Glifo tone={biasTone(w.bias)} /> {parolaBias(w.bias)}
               </td>
-              <td>{w.confidence ?? <Vuoto />}</td>
               <td className="ml-sep font-semibold">
                 <ValoreEm value={w.closeEm} />
               </td>

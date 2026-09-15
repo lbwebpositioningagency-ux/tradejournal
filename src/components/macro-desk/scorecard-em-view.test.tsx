@@ -22,7 +22,6 @@ const SETTIMANA: ResolvedWeek = {
   weekStart: "2026-08-30",
   asset: "xau",
   bias: "NEUTRALE",
-  confidence: 48,
   mfeEm: 0.4,
   maeEm: -0.2,
   status: "live",

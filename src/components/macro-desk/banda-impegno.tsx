@@ -21,9 +21,14 @@ export function BandaImpegno({
 }: {
   segnalazioni: ImpegnoRifiutatoDiReport[];
 }) {
-  if (segnalazioni.length === 0) return null;
+  /* La confidenza non si mostra più (15/09/2026): le modifiche rifiutate che
+     la riguardano restano registrate, ma non compaiono in pagina. */
+  const visibili = segnalazioni
+    .map((s) => ({ ...s, rifiutate: s.rifiutate.filter((r) => !/confiden/i.test(r.campo)) }))
+    .filter((s) => s.rifiutate.length > 0);
+  if (visibili.length === 0) return null;
 
-  const totale = segnalazioni.reduce((n, s) => n + s.rifiutate.length, 0);
+  const totale = visibili.reduce((n, s) => n + s.rifiutate.length, 0);
 
   /* Una NOTA dentro la scatola del desk, non un riquadro ambra a sé (tavola
      «Scorecard - ricostruzione»): il tono attenzione sta sull'icona e sul filo
@@ -55,7 +60,7 @@ export function BandaImpegno({
       </p>
 
       <ul className="flex flex-col gap-2">
-        {segnalazioni.map((s) => (
+        {visibili.map((s) => (
           <li key={s.reportDate} className="flex flex-col gap-0.5">
             <span className="text-xs font-semibold">
               Report {s.tipo} del {s.reportDate}

@@ -1,5 +1,4 @@
 import { parseMacroPayload } from "@/lib/macro-desk-payload";
-import { ASSET_PAYLOAD_A_RECORD } from "@/lib/macro-desk-bias-record";
 
 /**
  * LA SENTINELLA ALL'INGRESSO — modulo PURO, nessun I/O.
@@ -63,7 +62,7 @@ function testiDiOrizzonte(
 ): { campo: string; testo: string }[] {
   if (!isRecord(orizzonte)) return [];
   const fuori: { campo: string; testo: string }[] = [];
-  for (const chiave of ["edge", "invalid", "narrative", "confMotivo"]) {
+  for (const chiave of ["edge", "invalid", "narrative"]) {
     const v = orizzonte[chiave];
     if (typeof v === "string") fuori.push({ campo: `${prefisso}.${chiave}`, testo: v });
   }
@@ -104,10 +103,10 @@ function testiDelPayload(p: Record<string, unknown>): { campo: string; testo: st
  * I rilievi di un report in arrivo. Array vuoto = niente da dire, che è il
  * caso normale e quello in cui non deve succedere assolutamente nulla.
  *
- * `biasRecord` è opzionale: i report v1 non lo mandano, e la loro assenza non
- * è un rilievo — è la loro versione.
+ * Fino al 15/09/2026 riceveva anche il `biasRecord`, che serviva solo al
+ * confronto delle due confidenze (controllo 4, tolto).
  */
-export function controllaContratto(payload: unknown, biasRecord?: unknown): Rilievo[] {
+export function controllaContratto(payload: unknown): Rilievo[] {
   const rilievi: Rilievo[] = [];
   if (!isRecord(payload)) {
     return [{ campo: "payload", problema: "non è un oggetto: nessuna sezione è leggibile" }];
@@ -144,51 +143,11 @@ export function controllaContratto(payload: unknown, biasRecord?: unknown): Rili
     .map((t) => `${t.campo}: entità HTML nel testo (es. «&lt;» al posto di «<»)`);
   aggiungi(rilievi, "testi", "entità HTML non decodificata", conEntita);
 
-  /* ── 4 · la stessa confidenza in due posti, dentro LO STESSO report ────
-     Diverso dal guardiano dell'impegno, che confronta report DIVERSI della
-     stessa settimana: questo prende la contraddizione già alla partenza. Nei
-     23 report storici i due numeri divergevano 13 volte su 42, e nessuno dei
-     due canali se ne accorgeva. */
-  const recordAssets = isRecord(biasRecord) && isRecord(biasRecord.assets)
-    ? biasRecord.assets
-    : undefined;
-  if (recordAssets) {
-    for (const asset of lette.assets) {
-      const chiave = asset.id ? ASSET_PAYLOAD_A_RECORD[asset.id] : undefined;
-      const voce = chiave ? recordAssets[chiave] : undefined;
-      if (!isRecord(voce)) continue;
-      const nelRecord = voce.confidence;
-      const nelPayload = asset.weekly?.confidence;
-      if (typeof nelRecord !== "number" || nelPayload === undefined) continue;
-      if (nelRecord === nelPayload) continue;
-      rilievi.push({
-        campo: `assets[${asset.id}].weekly.confidence`,
-        problema:
-          `payload ${nelPayload}, biasRecord ${nelRecord}: la stessa confidenza ` +
-          "dichiarata due volte con due valori. La card mostra il payload, la " +
-          "Scorecard misura il record",
-      });
-    }
-  }
-
-  /* ── 6 · confidenza fuori dalla scala dichiarata ──────────────────────
-     Il confine Zod non rifiuta più un 105: perdere il report per un numero
-     fuori scala sarebbe sproporzionato. Ma «non rifiutare» non vuol dire
-     «non dire»: la promessa scritta accanto a quella scelta è che se ne
-     occupi la sentinella, ed è questa riga a mantenerla. */
-  for (const asset of lette.assets) {
-    for (const [nome, h] of [
-      ["weekly", asset.weekly],
-      ["quarterly", asset.quarterly],
-    ] as const) {
-      const c = h?.confidence;
-      if (c === undefined || (c >= 0 && c <= 100)) continue;
-      rilievi.push({
-        campo: `assets[${asset.id}].${nome}.confidence`,
-        problema: `${c} è fuori dalla scala dichiarata 0-100`,
-      });
-    }
-  }
+  /* ── 4 e 6 · confidenza — TOLTI il 15/09/2026 ─────────────────────────
+     Controllavano la stessa confidenza scritta due volte e la confidenza fuori
+     scala. La confidenza del report non si mostra più in nessuna pagina: una
+     sentinella su un dato che nessuno legge produrrebbe rilievi senza lettore.
+     Il dato continua ad arrivare e resta intatto nel payload salvato. */
 
   /* ── 5 · la sintesi c'è, ed è un oggetto ──────────────────────────────
      Il 31/07 mandava `synthesis` come STRINGA di 533 caratteri: il quadro, il

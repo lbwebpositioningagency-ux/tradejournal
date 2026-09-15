@@ -4,7 +4,7 @@ import { tabClass, tabListClass } from "@/components/layout/tab-nav";
 
 import { useState } from "react";
 import { isCriticalIssue, type MacroPayload } from "@/lib/macro-desk-payload";
-import type { MonitorConfidenza } from "@/lib/macro-desk-confidenza";
+import type { MonitorAsset } from "@/lib/macro-desk-pilastri";
 import type { Rilievo } from "@/lib/macro-desk-contratto";
 import { BandaRilievi } from "./banda-rilievi";
 import { AssetsTab, DataIssuesList, NewsTab, type NaturaBias } from "./report-tabs";
@@ -48,7 +48,7 @@ export function MacroReportDetail({
   payload: MacroPayload;
   natura: NaturaBias;
   /** Lettura del giorno per asset, dalla colonna `monitor`. Chiave: `id` del payload. */
-  monitor?: Record<string, MonitorConfidenza>;
+  monitor?: Record<string, MonitorAsset>;
   /** Ancora delle date relative delle news: senza, «Ieri» resta «Ieri». */
   reportDate?: Date;
   /** Rilievi della sentinella d'ingresso su QUESTO report. */

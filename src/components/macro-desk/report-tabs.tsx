@@ -19,15 +19,10 @@ import {
   type MacroPayload,
 } from "@/lib/macro-desk-payload";
 import {
-  letturaConfidenza,
-  notaSenzaMotivo,
-  stessaFrase,
   unanimitaControBiasNeutro,
   SEGNO_LABEL,
-  type LetturaConfidenza,
-  type MonitorConfidenza,
-  type MotivoConfidenza,
-} from "@/lib/macro-desk-confidenza";
+  type MonitorAsset,
+} from "@/lib/macro-desk-pilastri";
 import { quandoNews } from "@/lib/macro-desk-news-quando";
 import { cn } from "@/lib/utils";
 import { SegmentedControl } from "@/components/ui/segmented-control";
@@ -148,29 +143,13 @@ const NATURA_TESTO: Record<NaturaBias, string> = {
  * I QUATTRO PILASTRI — dal 15/09/2026 una tabella del listino (pilastro,
  * segno, nota) al posto di quattro scatole col bordo superiore colorato:
  * quello che si ripete diventa una riga (tavola «Report MD - ricostruzione»).
- * Prima ancora, al posto del termometro semicircolare.
- *
- * Il gauge è stato tolto perché mostrava, con un ago che si muove di poco, un
- * numero che su 138 osservazioni reali vive fra 41 e 65 (dev.std ~5) e che
- * correla 0,06 con la composizione dei pilastri: l'ago prometteva una
- * misurazione che il dato non regge. I quattro pilastri, invece, il conflitto
- * lo mostrano davvero — è normale trovarne due opposti nello stesso asset.
+ * I quattro pilastri il conflitto lo mostrano davvero: è normale trovarne due
+ * opposti nello stesso asset.
  *
  * Tripla codifica del segno (glifo + parola + colore) perché sia leggibile
  * senza colore: la parola «rialzista/ribassista/neutro» è testo, non stile.
  */
-function TabellaPilastri({
-  horizon,
-  motivo,
-}: {
-  horizon: MacroHorizon;
-  /**
-   * Il motivo della confidenza. Se è ANCORATO a un pilastro (`confPilastro`,
-   * o in ripiego il confronto testuale) viene reso DENTRO quel pilastro; il
-   * blocco confidenza allora non lo ripete.
-   */
-  motivo?: MotivoConfidenza;
-}) {
+function TabellaPilastri({ horizon }: { horizon: MacroHorizon }) {
   if (horizon.pillars.length === 0) return null;
   return (
     <Tab>
@@ -184,13 +163,6 @@ function TabellaPilastri({
       <tbody>
         {horizon.pillars.map((pillar) => {
           const tone = dirTone(pillar.dir);
-          /* UN SOLO POSTO PER QUELLA FRASE, e quel posto è la riga del
-             pilastro che commenta: accanto alla misura si legge come una
-             conseguenza, staccata in fondo si leggeva come un'eco. La
-             deduplica resta VERBATIM: togliere una frase perché «somiglia» a
-             un'altra prima o poi toglie qualcosa che serviva. */
-          const ancorato = motivo?.pilastro === pillar.k ? motivo : undefined;
-          const nota = notaSenzaMotivo(pillar.note, ancorato?.testo);
           return (
             <tr key={pillar.k}>
               <td className="ml-sx ml-wrap max-w-[9rem] align-top font-semibold leading-snug">{pillar.k}</td>
@@ -201,15 +173,7 @@ function TabellaPilastri({
                 <span className="text-[var(--md-text-2)]">{SEGNO_LABEL[tone]}</span>
               </td>
               <td className="ml-sx ml-wrap min-w-[10rem] align-top leading-relaxed text-[var(--md-text-2)] sm:min-w-[12rem]">
-                {nota ? <span>{nota}</span> : ancorato ? null : <Vuoto />}
-                {ancorato ? (
-                  <span className={cn("block text-[var(--md-text)]", nota && "mt-1.5")}>
-                    <span className="mr-1 text-2xs font-semibold uppercase tracking-[0.06em] text-[var(--md-muted)]">
-                      {ancorato.fonte === "estratto" ? "Da qui la confidenza" : "Motivo della confidenza"}
-                    </span>
-                    «{ancorato.testo}»
-                  </span>
-                ) : null}
+                {pillar.note ? <span>{pillar.note}</span> : <Vuoto />}
               </td>
             </tr>
           );
@@ -219,192 +183,39 @@ function TabellaPilastri({
   );
 }
 
-/** Un punteggio con la sua fascia, calcolata dall'app. Mai il `confLabel`. */
-function Punteggio({
-  valore,
-  fascia,
-  forte,
-}: {
-  valore: number;
-  fascia: string;
-  forte?: boolean;
-}) {
-  return (
-    <span className="whitespace-nowrap">
-      <span
-        className={cn(
-          "md-mono font-bold",
-          forte ? "text-sm text-[var(--md-text)]" : "text-sm text-[var(--md-text-2)]",
-        )}
-      >
-        {valore}/100
-      </span>
-      <span className="md-mono ml-1.5 text-2xs text-[var(--md-muted)]">{fascia}</span>
-    </span>
-  );
-}
-
-/**
- * La confidenza, in secondo piano — e accanto il MOTIVO, quando esiste.
- *
- * Niente barra e niente ago: su tutti i report reali il numero resta fra 41 e
- * 65, cioè in un quarto del binario. Una barra prometterebbe una variabilità
- * che il dato non ha.
- *
- * Senza motivo il blocco NON compare affatto — `letturaConfidenza` torna
- * `null` e qui non si rende niente. Il perché sta in quel modulo: un numero
- * con dev.std ~5 e correlazione ~0 coi pilastri, da solo, non sposta nessuna
- * decisione, mentre il bias e la striscia sì.
- *
- * Quando l'impegno della domenica e la lettura di oggi divergono si mostrano
- * ENTRAMBI, con la differenza: non sono uno la correzione dell'altro, sono
- * due misure di due momenti diversi. Dirlo è metà del lavoro.
- */
-function BloccoConfidenza({
-  lettura,
-  mostraMotivo,
-}: {
-  lettura: LetturaConfidenza | null;
-  /** Falso quando il motivo è già reso dentro il suo pilastro: non si ripete. */
-  mostraMotivo: boolean;
-}) {
-  if (!lettura) return null;
-  const {
-    impegno,
-    fasciaImpegno,
-    oggi,
-    fasciaOggi,
-    delta,
-    motivi,
-    scostamentoNonMotivato,
-  } = lettura;
-  const stimato = motivi.length > 0 && motivi[0].fonte === "estratto";
-
-  return (
-    <div className="flex flex-col gap-2">
-      <div className="flex flex-col gap-1">
-        <span className="text-2xs font-semibold uppercase tracking-[0.14em] text-[var(--md-muted)]">
-          Confidenza
-        </span>
-
-        {oggi === undefined ? (
-          <p className="flex flex-wrap items-baseline gap-x-2.5 gap-y-1">
-            <Punteggio valore={impegno} fascia={fasciaImpegno} forte />
-            <span className="text-2xs text-[var(--md-muted)]">
-              dichiarata dal report: quanto si fida della propria lettura, non
-              una probabilità
-            </span>
-          </p>
-        ) : (
-          /* La fascia sta SOLO sul numero di oggi: l'impegno è l'ancora
-             storica, la lettura di oggi è quella viva. Due fasce sulla stessa
-             riga facevano cinque elementi dove ne bastano tre.
-             La didascalia che spiega le due misure non è qui: si dice una
-             volta sola in testa al tab, sopra le tre card. */
-          <p className="flex flex-wrap items-baseline gap-x-2 gap-y-1">
-            <span className="text-2xs text-[var(--md-muted)]">
-              impegno di domenica
-            </span>
-            <span className="md-mono text-sm font-bold text-[var(--md-text-2)]">
-              {impegno}
-            </span>
-            <span className="text-[var(--md-muted)]" aria-hidden>
-              →
-            </span>
-            <span className="text-2xs text-[var(--md-muted)]">lettura di oggi</span>
-            <Punteggio valore={oggi} fascia={fasciaOggi!} forte />
-            <span
-              className="md-mono text-xs font-bold"
-              style={{ color: delta! > 0 ? "var(--md-up)" : "var(--md-down)" }}
-            >
-              {delta! > 0 ? "+" : "−"}
-              {Math.abs(delta!)}
-            </span>
-          </p>
-        )}
-      </div>
-
-      {/* LO SCOSTAMENTO NON MOTIVATO. Dal 28/08/2026 il report deve dichiarare
-          il perché di ogni scarto fra impegno e lettura di oggi: se non lo fa,
-          la card lo dice invece di far finta di niente. Nasconderlo sarebbe
-          esattamente il difetto del 18/08 — un errore invisibile perché la
-          pagina non lo espone. Tono da constatazione, non da accusa: chi legge
-          deve sapere che manca qualcosa, non sentirsi rimproverare. */}
-      {scostamentoNonMotivato ? (
-        <div>
-          <p
-            className="text-2xs font-semibold uppercase tracking-[0.12em]"
-            style={{ color: "var(--md-down)" }}
-          >
-            Scostamento non motivato
-          </p>
-          <p className="mt-1 text-xs leading-relaxed text-[var(--md-text-2)]">
-            Il report ha cambiato la propria confidenza senza dichiarare perché.
-            Il motivo è previsto a ogni scostamento: qui manca, e il numero di
-            oggi va letto sapendolo.
-          </p>
-        </div>
-      ) : null}
-
-      {/* Il blocco a sé è il RIPIEGO: c'è solo quando il motivo non ha trovato
-          il suo pilastro — niente `confPilastro` e nessuna corrispondenza nel
-          testo. Con l'ancora, la frase sta lassù accanto alla sua misura. */}
-      {mostraMotivo && motivi.length > 0 ? (
-      <div>
-        <p
-          className="text-2xs font-semibold uppercase tracking-[0.12em]"
-          style={{ color: "var(--md-warn)" }}
-        >
-          {stimato ? "Motivo riconosciuto nel testo" : "Motivo dichiarato"}
-        </p>
-        {/* L'ANCORAGGIO. Il pilastro c'è per l'estratto (viene da lì) e ora
-            anche per il dichiarato, via `confPilastro`: dice da quale delle
-            quattro forze arriva il taglio, che è metà dell'informazione. */}
-        {motivi.slice(0, 2).map((motivo, i) => (
-          <p
-            key={`${motivo.pilastro ?? "dichiarato"}-${i}`}
-            className="mt-1 text-xs leading-relaxed text-[var(--md-text-2)]"
-          >
-            {motivo.pilastro ? (
-              <span className="md-mono text-2xs text-[var(--md-muted)]">
-                {motivo.pilastro} ·{" "}
-              </span>
-            ) : null}
-            «{motivo.testo}»
-          </p>
-        ))}
-        {/* L'euristica va DICHIARATA come tale — e SOLO quando è lei a parlare:
-            appiccicare l'avvertenza a un campo dichiarato dal desk lo
-            sminuirebbe senza motivo. */}
-        {stimato ? (
-          <p className="mt-1.5 text-2xs leading-tight text-[var(--md-muted)]">
-            Frase riconosciuta nella nota del pilastro: questo report non porta
-            il campo dedicato, che esiste dal 28 agosto 2026.
-          </p>
-        ) : null}
-      </div>
-      ) : null}
-    </div>
-  );
-}
-
 /**
  * I pilastri concordi contro un bias NEUTRALE: 5 casi su 69 nei report reali.
- * Prima la card mostrava l'ago al centro e tre frecce dalla stessa parte,
- * senza una parola. Qui si constata e basta — la lettura resta quella
- * dichiarata dal desk, non la si corregge.
+ *
+ * La nota SPIEGA da dove nasce la differenza, perché è l'unica cosa che il
+ * dato permette di spiegare: il bias non è calcolato dall'app a partire dai
+ * pilastri — nessuna regola, nessun peso — ma arriva già scritto nel report
+ * (`assets.<asset>.bias` e `weekly.biasLabel`, letti così come sono). Bias e
+ * pilastri sono due dichiarazioni separate dello stesso report, e che non
+ * coincidano è un fatto, non un errore.
+ *
+ * Il PERCHÉ il desk abbia dichiarato neutrale non lo si inventa: se il report
+ * lo scrive, sta nella sua prosa, e la nota rimanda lì solo quando quella
+ * prosa c'è.
  */
 function NotaUnanimita({ horizon }: { horizon: MacroHorizon }) {
   const u = unanimitaControBiasNeutro(horizon);
   if (!u) return null;
+  const prosa = [horizon.edge ? "Edge" : null, horizon.narrative ? "Narrativa" : null].filter(
+    (x): x is string => x !== null,
+  );
   return (
     <p className="rounded-md bg-[var(--md-surface-2)] px-3 py-2 text-xs leading-relaxed text-[var(--md-text-2)]">
       <span className="mr-1.5 font-semibold text-[var(--md-text)]">
         Da notare
       </span>
-      {u.conSegno} pilastri su {u.totale} hanno un segno, e puntano tutti al{" "}
-      {u.verso === "up" ? "rialzo" : "ribasso"}; il bias dichiarato resta
-      NEUTRALE. La direzione dichiarata non segue la somma dei pilastri.
+      {u.conSegno} pilastri su {u.totale} hanno un segno e puntano tutti al{" "}
+      {u.verso === "up" ? "rialzo" : "ribasso"}, ma il bias dichiarato è
+      NEUTRALE. Non è un errore: il bias non è calcolato dai pilastri, lo
+      dichiara il report a monte, e i pilastri sono una lettura separata dello
+      stesso report.{" "}
+      {prosa.length > 0
+        ? `Il perché della scelta, se il report lo scrive, sta nella sua prosa (${prosa.join(", ")}): la pagina non lo deduce.`
+        : "Il report non accompagna la scelta con una spiegazione, e la pagina non la deduce."}
     </p>
   );
 }
@@ -418,25 +229,11 @@ function NotaUnanimita({ horizon }: { horizon: MacroHorizon }) {
  *
  * Sta in cima alla lettura settimanale, subito sotto il bias, perché è il
  * fatto del giorno e va letto prima delle forze che lo spiegano.
- *
- * COMPITI DISTINTI, e la card li tiene distinti: `note` dice che cosa è
- * successo, `confMotivo` perché la fiducia si è mossa. Quando però dicono la
- * stessa cosa — e capiterà, sono scritte dallo stesso generatore nello stesso
- * momento — se ne stampa UNA sola: qui sparisce la nota, perché il motivo è
- * ancorato al numero che spiega e senza di esso quel numero resterebbe muto.
  */
-function NotaDelGiorno({
-  monitor,
-  motivo,
-}: {
-  monitor?: MonitorConfidenza;
-  /** Il motivo già stampato altrove: se la nota lo ripete, la nota tace. */
-  motivo?: string;
-}) {
+function NotaDelGiorno({ monitor }: { monitor?: MonitorAsset }) {
   const nota = monitor?.note?.trim();
   const stato = monitor?.state?.trim().toLowerCase();
   if (!nota && !stato) return null;
-  if (nota && stessaFrase(nota, motivo)) return null;
 
   /* Lo stato del monitoraggio è una PAROLA neutra: «stress» non è una
      perdita e «conferma» non è un guadagno, quindi niente verde e rosso (e
@@ -475,17 +272,11 @@ function Voce({ etichetta, children }: { etichetta: string; children: React.Reac
 
 /**
  * La lettura TRIMESTRALE: regime di fondo, subordinata a quella settimanale.
- * Nei report reali non porta mai pilastri né edge: bias, confidenza, `since`,
+ * Nei report reali non porta mai pilastri né edge: bias, `since`,
  * invalidazione e narrativa.
- *
- * La regola del silenzio vale ANCHE qui, con la stessa precedenza stretta:
- * `quarterly.confMotivo` dichiarato dal generatore (dal 28/08/2026), poi
- * l'euristica, poi niente. La confidenza trimestrale ha dev.std 5,46 su 69
- * osservazioni: senza motivo non si mostra.
  */
 function LetturaTrimestrale({ horizon }: { horizon: MacroHorizon }) {
   const tone = biasTone(horizon.biasLabel, horizon.bias);
-  const conf = letturaConfidenza(horizon);
   return (
     <div className="flex flex-col gap-1.5">
       <div className="flex flex-wrap items-center justify-between gap-2">
@@ -497,22 +288,7 @@ function LetturaTrimestrale({ horizon }: { horizon: MacroHorizon }) {
         <span className="text-sm font-semibold text-[var(--md-text)]">
           {horizon.biasLabel ?? "non dichiarato"}
         </span>
-        {conf ? (
-          <span className="text-2xs text-[var(--md-muted)]">
-            confidenza {conf.impegno}/100 · {conf.fasciaImpegno}
-          </span>
-        ) : null}
       </p>
-      {conf ? (
-        <p className="text-xs leading-relaxed text-[var(--md-text-2)]">
-          <span className="font-semibold text-[var(--md-text)]">
-            {conf.motivi[0].fonte === "estratto"
-              ? "Motivo riconosciuto nel testo · "
-              : "Motivo dichiarato · "}
-          </span>
-          «{conf.motivi[0].testo}»
-        </p>
-      ) : null}
       {horizon.narrative ? (
         <p className="text-xs leading-relaxed text-[var(--md-text-2)]">{horizon.narrative}</p>
       ) : null}
@@ -569,9 +345,8 @@ function TabellaDriver({ drivers }: { drivers: MacroDriver[] }) {
  * segmentato (tavola «Report MD - ricostruzione», opzione 1a). Prima erano tre
  * schede verticali identiche, 4.340px a 1440 e 9.599 a 390.
  *
- * La colonna laterale (confidenza, trimestrale, driver) viene PRIMA nel DOM e
- * va a destra solo a schermo: il numero della confidenza sta così accanto al
- * nome dell'asset anche per chi legge in sequenza.
+ * La colonna laterale (trimestrale, driver) sta a destra a schermo largo e in
+ * coda su mobile: la settimana si legge per prima.
  */
 function LetturaAsset({
   asset,
@@ -580,17 +355,9 @@ function LetturaAsset({
 }: {
   asset: MacroAsset;
   natura: NaturaBias;
-  monitor?: MonitorConfidenza;
+  monitor?: MonitorAsset;
 }) {
   const weekly = asset.weekly;
-  /* UNA SOLA lettura per asset: la usano in tre e devono dire la stessa cosa. */
-  const lettura = weekly ? letturaConfidenza(weekly, monitor) : null;
-  const motivo = lettura?.motivi[0];
-  /* Ancorato = il pilastro esiste davvero in questo orizzonte. Un
-     `confPilastro` che punta a un pilastro assente torna al blocco a sé. */
-  const ancorato = Boolean(
-    weekly && motivo?.pilastro && weekly.pillars.some((p) => p.k === motivo.pilastro),
-  );
   const tone = weekly ? biasTone(weekly.biasLabel, weekly.bias) : "flat";
 
   return (
@@ -608,7 +375,6 @@ function LetturaAsset({
         {/* `order-last` sempre, non solo a colonne affiancate: su mobile la
             settimana viene prima del trimestrale e dei driver. */}
         <div className="order-last flex min-w-0 flex-col gap-5">
-          {weekly ? <BloccoConfidenza lettura={lettura} mostraMotivo={!ancorato} /> : null}
           {asset.quarterly ? <LetturaTrimestrale horizon={asset.quarterly} /> : null}
           {asset.drivers.length > 0 ? <TabellaDriver drivers={asset.drivers} /> : null}
         </div>
@@ -631,8 +397,8 @@ function LetturaAsset({
                 </div>
                 <span className="text-2xs text-[var(--md-muted)]">{NATURA_TESTO[natura]}</span>
               </div>
-              <NotaDelGiorno monitor={monitor} motivo={motivo?.testo} />
-              <TabellaPilastri horizon={weekly} motivo={ancorato ? motivo : undefined} />
+              <NotaDelGiorno monitor={monitor} />
+              <TabellaPilastri horizon={weekly} />
               <NotaUnanimita horizon={weekly} />
               {weekly.edge ? <Voce etichetta="Edge">{weekly.edge}</Voce> : null}
               {/* L'invalidazione settimanale sta nella tabella dei bias, accanto
@@ -689,7 +455,7 @@ function TabellaBias({
   onScegli,
 }: {
   assets: MacroAsset[];
-  monitor?: Record<string, MonitorConfidenza>;
+  monitor?: Record<string, MonitorAsset>;
   scelto: number;
   onScegli: (indice: number) => void;
 }) {
@@ -702,6 +468,15 @@ function TabellaBias({
           ▲ rialzista · ● neutrale · ▼ ribassista · clic su una riga per la lettura
         </span>
       </div>
+      {/* DA DOVE VIENE IL BIAS, detto una volta sopra la tabella che lo
+          mostra accanto ai pilastri: chi vede tre frecce giù e un bias
+          neutrale deve sapere che non c'è un conto che la pagina ha
+          sbagliato. */}
+      <p className="mb-2 max-w-[80ch] text-2xs leading-relaxed text-[var(--md-muted)]">
+        Il bias è dichiarato dal report, non calcolato dall&apos;app: i pilastri
+        sono una lettura separata dello stesso report, e bias e pilastri possono
+        non coincidere.
+      </p>
       <Tab>
         <thead>
           <tr>
@@ -807,19 +582,11 @@ export function AssetsTab({
   /** Come questo report tratta il bias settimanale (vedi `NaturaBias`). */
   natura: NaturaBias;
   /** Lettura del giorno per asset, dalla colonna `monitor`. Chiave: `id`. */
-  monitor?: Record<string, MonitorConfidenza>;
+  monitor?: Record<string, MonitorAsset>;
 }) {
   const [scelto, setScelto] = useState(0);
   const { assets, synthesis, volPanel } = payload;
   const pills = synthesis?.pills ?? [];
-  /* Quanti asset mostrano DAVVERO due numeri: la didascalia si stampa solo
-     allora, e una volta sola. Si chiede alla stessa funzione che poi decide
-     nella lettura, così le due cose non possono dissentire. */
-  const scostamenti = assets.filter((a) => {
-    if (!a.weekly) return false;
-    const l = letturaConfidenza(a.weekly, a.id ? monitor?.[a.id] : undefined);
-    return l?.oggi !== undefined;
-  }).length;
   // I critici li rende la shell in testa alla pagina: qui restano gli altri.
   const riserve = payload.dataIssues.filter((issue) => !isCriticalIssue(issue.sev));
 
@@ -840,21 +607,6 @@ export function AssetsTab({
             ))}
           </div>
         </div>
-      ) : null}
-
-      {/* LA DIDASCALIA DELLE DUE MISURE, una volta sola per report, e solo se
-          almeno un asset ha davvero due numeri diversi. */}
-      {scostamenti > 0 ? (
-        <p className="text-xs leading-relaxed text-[var(--md-muted)]">
-          <span className="mr-1.5 font-semibold uppercase tracking-[0.06em] text-[var(--md-text-2)]">
-            Le due confidenze
-          </span>
-          Dove trovi due numeri non ce n&apos;è uno corretto e uno sbagliato:
-          l&apos;<strong className="font-semibold">impegno di domenica</strong> è
-          dichiarato all&apos;apertura della settimana e resta fermo, la{" "}
-          <strong className="font-semibold">lettura di oggi</strong> dice quanto
-          il desk si fida di quel bias adesso.
-        </p>
       ) : null}
 
       {synthesis?.conclusion ? (
