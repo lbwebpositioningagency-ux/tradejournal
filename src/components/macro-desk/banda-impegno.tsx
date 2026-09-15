@@ -25,16 +25,15 @@ export function BandaImpegno({
 
   const totale = segnalazioni.reduce((n, s) => n + s.rifiutate.length, 0);
 
+  /* Una NOTA dentro la scatola del desk, non un riquadro ambra a sé (tavola
+     «Scorecard - ricostruzione»): il tono attenzione sta sull'icona e sul filo
+     in alto, il testo resta neutro. */
   return (
     <div
       role="status"
-      className="flex flex-col gap-2 rounded-[var(--md-r-md)] border px-4 py-3"
-      style={{
-        borderColor: "var(--md-warn)",
-        backgroundColor: "color-mix(in oklab, var(--md-warn) 8%, transparent)",
-      }}
+      className="flex flex-col gap-2 rounded-md bg-[var(--md-surface-2)] px-4 py-3 shadow-[inset_0_2px_0_var(--warning)]"
     >
-      <p className="flex items-start gap-2 text-sm font-semibold">
+      <p className="flex items-start gap-2 text-sm font-semibold text-[var(--md-text)]">
         <TriangleAlert
           className="mt-0.5 size-4 shrink-0"
           style={{ color: "var(--md-warn)" }}

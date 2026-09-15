@@ -2892,3 +2892,37 @@ geometria nuova.
 
 **Verificato:** typecheck ✅ · eslint ✅ · 2166/2166 test ✅ · build ✅ · schermate reali
 a 1440 e 390 nei due temi.
+
+## Ricostruzione, fase 4 — Scorecard (15/09/2026)
+
+**Scelta: opzione 2a «Una tabella di consuntivo»**, adattata nella tavola Claude
+Design «Scorecard - ricostruzione». Scartata 2b (griglia settimana × asset): richiede
+il calendario delle settimane attese anche senza report, cioè un dato nuovo.
+
+**Forma, coerente con Report e Analytics.** Striscia di STATO in testa, come nel
+Report: dove siamo (una frase coi conteggi che la pagina aveva già), il campione verso
+le 8 settimane che servono a pubblicare un hit rate («1 di 8» con la barra), l'età del
+report da cui la Scorecard legge (la banda generica non si ripete). Poi UNA tabella di
+consuntivo asset × esiti con la riga «Complessivo» (nuova classe di sistema
+`tr.ml-totale`, doppio filetto) al posto di tre blocchi con la stessa spiegazione
+ripetuta tre volte; l'hit rate non pubblicabile è «X di 8» in grigio, la frase
+«Campione troppo piccolo» resta solo come title. La spiegazione sta una volta in un
+«Metodo» chiuso. Settimane dalla più recente, esito in parola (Azzeccata, Sbagliata,
+Senza info), MFE e MAE in due colonne, colore solo sui valori in EM. La banda
+dell'impegno diventa una nota dentro la scatola del desk. Nessun numero nuovo: niente
+data prevista per l'8ª settimana.
+
+**Dell'impianto vecchio non resta nulla** (verificato nel codice): via `md-card-2`,
+`OUTCOME_TONE`, `HitRateLine`, `AssetBlock`, `md-mono`, `md-fade`, i colori inline su
+conteggi, rami e invalidazioni; l'unico colore inline rimasto fuori dai valori in EM è
+l'icona d'attenzione della nota dell'impegno.
+
+**Misurato (build locale):** 1.322 → **1.014px a 1440 (−23%)**, 2.496 → **1.358 a 390
+(−46%)**. 0 testi sotto 11px, 0 sotto 4,5:1 nel contenuto nei due temi, nessun errore
+in console, nessuna pagina più larga del viewport (le tabelle scorrono nel loro
+riquadro a 390). La verifica a 390 ha trovato righe alte come tre per la nota che
+andava a capo a ogni parola: la cella ha ora una larghezza minima. Skeleton con la
+geometria nuova. 4 test nuovi sulla forma.
+
+**Verificato:** typecheck ✅ · eslint ✅ · 2170/2170 test ✅ · build ✅ · schermate reali
+a 1440 e 390 nei due temi.

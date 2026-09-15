@@ -242,6 +242,13 @@
 .ml-tab tr.ml-scelta td:first-child {
   box-shadow: inset 2px 0 0 var(--md-info);
 }
+/* Riga del TOTALE: doppio filetto sopra e peso semibold, come in un consuntivo
+   stampato (tavola «Scorecard - ricostruzione»). */
+.ml-tab tr.ml-totale td {
+  border-top: 3px double var(--ml-rule);
+  border-bottom: 0;
+  font-weight: 600;
+}
 /* Riga del BUCO: un periodo in cui qualcosa doveva arrivare e non è arrivato
    (i giorni senza report). È una riga dello storico, non un avviso sopra la
    tabella: il buco si legge dove sarebbero stati i dati. */

@@ -126,6 +126,56 @@ describe("le discrepanze si mostrano", () => {
   });
 });
 
+describe("la forma del consuntivo (ricostruzione del 15/09/2026)", () => {
+  const MISS: ResolvedWeek = { ...SETTIMANA, asset: "wti", bias: "RIALZISTA", closeEm: -0.8, mfeEm: 0.1, maeEm: -0.9, outcome: "MISS" };
+
+  it("una tabella di consuntivo con il totale, non tre blocchi con la spiegazione ripetuta", () => {
+    const html = rendi([], [SETTIMANA, MISS]);
+    expect(html).toContain("Consuntivo per asset");
+    expect(html).toContain("Complessivo");
+    // la spiegazione dei denominatori una volta sola, dentro il Metodo
+    expect((html.match(/fuori dal\s+denominatore insieme alle invalidate/g) ?? []).length).toBe(1);
+    expect(html).toContain("<details");
+    expect(html).not.toContain("<details open");
+  });
+
+  it("finché il campione non basta, al posto della percentuale c'è «X di 8»", () => {
+    const html = rendi([], [SETTIMANA, MISS]);
+    expect(html).toContain("1 di 8");
+    // la frase ambra ripetuta non è più testo in pagina: resta solo come title
+    expect(html).not.toContain(">Campione troppo piccolo");
+  });
+
+  it("l'esito è una parola, e il colore resta solo sui valori in EM", () => {
+    const html = rendi([], [SETTIMANA, MISS]);
+    expect(html).toContain("Sbagliata");
+    expect(html).toContain("Senza info");
+    expect(html).not.toMatch(/>MISS</);
+    expect(html).not.toMatch(/>NULLO</);
+    // la parola dell'esito non è colorata; la chiusura negativa sì
+    expect(html).not.toMatch(/color:var\(--md-down\)"?>Sbagliata/);
+    expect(html).toMatch(/color:var\(--md-down\)">-0,80</);
+  });
+
+  it("la striscia dello stato dice dove siamo, il campione e l'età del report", () => {
+    const html = renderToStaticMarkup(
+      <ScorecardEmView
+        weeks={[SETTIMANA, MISS]}
+        eligibleReports={12}
+        excludedReports={9}
+        trackRecordStart="2026-08-02"
+        percorsiRicalcolati={[]}
+        freschezza={{ stantio: true, motivo: "report_vecchio", oreDiRitardo: 600, testo: "x" }}
+      />,
+    );
+    expect(html).toContain("Dove siamo");
+    expect(html).toContain("Campione · direzionali");
+    expect(html).toContain("Report · in ritardo");
+    expect(html).toContain("25 giorni fa");
+    expect(html).toContain("Nessun hit rate è ancora pubblicabile");
+  });
+});
+
 describe("archivio vuoto: la scorecard dice che non ha dati, e non dice altro", () => {
   /* Stato prodotto il 28/08/2026, quando l'archivio Macro Desk è stato
      svuotato: nessuna settimana valutabile e nessun report escluso. */
