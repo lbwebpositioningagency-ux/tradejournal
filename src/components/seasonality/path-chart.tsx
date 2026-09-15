@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   CartesianGrid,
   ComposedChart,
@@ -18,11 +18,12 @@ import {
   ChartToggles,
   type ToggleItem,
 } from "@/components/seasonality/chart-toggles";
-import { useChartZoom } from "@/components/charts/use-chart-zoom";
+import { useChartZoom, type ChartZoom } from "@/components/charts/use-chart-zoom";
 import {
   ChartZoomControls,
   ZoomBrush,
 } from "@/components/charts/chart-zoom";
+import { scalaIndice, tickDelDominio } from "@/components/seasonality/scala-indice";
 import { formatNumber } from "@/lib/format-number";
 
 /**
@@ -33,19 +34,33 @@ import { formatNumber } from "@/lib/format-number";
  * d'indice. Una linea per finestra accesa, GIORNO PER GIORNO: il valore di
  * ogni giorno così com'è, senza media mobile, senza fascia di dispersione e
  * senza traccia grezza sotto (tolte il 15/09/2026, tavola «Sistema visivo v3 -
- * Stagionalità e grafico con banda», giro 3e). La finestra selezionata è più
- * spessa.
+ * Stagionalità e grafico con banda», giro 3e).
+ *
+ * Giro 4 della stessa tavola (15/09/2026 sera), RISOLUZIONE VERTICALE. Prima
+ * erano accese tutte le finestre più l'anno in corso, e la scala le conteneva
+ * tutte: sull'oro 61,8 punti d'indice su 424px, 6,9px per punto — la finestra
+ * selezionata (11 punti) si schiacciava in 77px. Ora:
+ * - all'apertura è accesa SOLO la finestra selezionata; le altre e l'anno in
+ *   corso sono a un clic nella legenda;
+ * - la scala segue le linee accese E i giorni scelti nella striscia sotto il
+ *   grafico (prima ignorava la striscia), con il 100 sempre dentro e tacche
+ *   1-2-5 fitte quanto l'altezza permette (`scala-indice.ts`);
+ * - l'asse dichiara il suo intervallo accanto ai controlli di scala.
  *
  * Più l'anno in corso tratteggiato, la linea «oggi» e la fascia del mese
- * corrente. L'asse Y si adatta a ciò che è acceso.
- *
- * Asse X: il giorno del calendario non bisestile, 0 = partenza (100).
+ * corrente. Asse X: il giorno del calendario non bisestile, 0 = partenza (100).
  */
 
 const MONTH_TICKS = [1, 32, 60, 91, 121, 152, 182, 213, 244, 274, 305, 335];
 const MONTH_NAMES = [
   "Gen", "Feb", "Mar", "Apr", "Mag", "Giu", "Lug", "Ago", "Set", "Ott", "Nov", "Dic",
 ];
+
+/**
+ * Parte del riquadro che NON è area di disegno: asse X, striscia di selezione
+ * e margini. Misurata il 15/09/2026: 484px di riquadro → 424 di disegno, 214 → 154.
+ */
+const FUORI_DAL_DISEGNO_PX = 60;
 
 /** «15 Apr» da un giorno del calendario non bisestile; 0 = «inizio anno». */
 function giornoLabel(g: number): string {
@@ -79,11 +94,27 @@ export function SeasonalPathChart({
   series: SerieIndice[];
   /** Indice dell'anno in corso fino a oggi; null = non disponibile. */
   currentYear: (number | null)[] | null;
+  /** All'apertura è l'unica linea accesa: la pagina rimonta il grafico quando cambia. */
   selectedWindow: number;
   todayDoy: number;
   currentMonthDoy: number;
 }) {
-  const [spente, setSpente] = useState<ReadonlySet<number>>(() => new Set<number>());
+  /* Chiavi delle linee ACCESE: anni di finestra, 0 = anno in corso. */
+  const [accese, setAccese] = useState<ReadonlySet<number>>(() => new Set([selectedWindow]));
+  /* Indici della striscia di selezione dei giorni; null = tutto l'anno. */
+  const [intervallo, setIntervallo] = useState<{ startIndex: number; endIndex: number } | null>(null);
+
+  /* L'altezza reale del riquadro decide quante tacche ci stanno. */
+  const riquadro = useRef<HTMLDivElement>(null);
+  const [altezza, setAltezza] = useState(0);
+  useEffect(() => {
+    const el = riquadro.current;
+    if (!el) return;
+    const osservatore = new ResizeObserver(([voce]) => setAltezza(Math.round(voce.contentRect.height)));
+    osservatore.observe(el);
+    return () => osservatore.disconnect();
+  }, []);
+  const altezzaDisegno = Math.max(120, (altezza || 420) - FUORI_DAL_DISEGNO_PX);
 
   const windows = useMemo(
     () => series.map((s) => s.lookbackYears).sort((a, b) => b - a),
@@ -105,10 +136,12 @@ export function SeasonalPathChart({
     return rows;
   }, [series, currentYear]);
 
-  const visibili = windows.filter((w) => !spente.has(w));
-  const overlayAccesa = currentYear !== null && !spente.has(0);
+  const visibili = useMemo(() => windows.filter((w) => accese.has(w)), [windows, accese]);
+  const overlayAccesa = currentYear !== null && accese.has(0);
+  const giornoDa = intervallo ? (data[intervallo.startIndex]?.g ?? 0) : 0;
+  const giornoA = intervallo ? (data[intervallo.endIndex]?.g ?? 365) : 365;
 
-  const [yMin, yMax] = useMemo(() => {
+  const scala = useMemo(() => {
     let min = Number.POSITIVE_INFINITY;
     let max = Number.NEGATIVE_INFINITY;
     const tieni = (v: number | undefined) => {
@@ -117,21 +150,41 @@ export function SeasonalPathChart({
       if (v > max) max = v;
     };
     for (const row of data) {
+      if (row.g < giornoDa || row.g > giornoA) continue;
       for (const w of visibili) tieni(row[`w${w}`]);
       if (overlayAccesa) tieni(row.cur);
     }
-    if (!Number.isFinite(min) || !Number.isFinite(max)) return [99, 101];
-    const pad = Math.max((max - min) * 0.05, 0.2);
-    return [min - pad, max + pad];
-  }, [data, visibili, overlayAccesa]);
+    return scalaIndice(Number.isFinite(min) ? { min, max } : null, altezzaDisegno);
+  }, [data, visibili, overlayAccesa, giornoDa, giornoA, altezzaDisegno]);
 
-  const zoom = useChartZoom({ dataLength: data.length, base: [yMin, yMax] });
-  const xDomain: [number, number] = zoom.range
-    ? [data[zoom.range.startIndex]?.g ?? 0, data[zoom.range.endIndex]?.g ?? 365]
-    : [0, 365];
+  /* Lo zoom condiviso resta quello di tutti i grafici a linea; qui la sua
+     vista di base è la scala adattata, e «Adatta» azzera anche la striscia. */
+  const zoomBase = useChartZoom({ dataLength: data.length, base: scala.dominio });
+  const ultimo = data.length - 1;
+  const zoom: ChartZoom = {
+    ...zoomBase,
+    brushProps: {
+      ...zoomBase.brushProps,
+      onChange: (r) => {
+        zoomBase.brushProps.onChange(r);
+        if (r.startIndex === undefined || r.endIndex === undefined) return;
+        setIntervallo(
+          r.startIndex === 0 && r.endIndex === ultimo ? null : { startIndex: r.startIndex, endIndex: r.endIndex },
+        );
+      },
+    },
+    reset: () => {
+      zoomBase.reset();
+      setIntervallo(null);
+    },
+  };
+
+  const dominio = zoom.yDomain;
+  const { passo, tick } = dominio === scala.dominio ? scala : tickDelDominio(dominio, altezzaDisegno);
+  const fmtAsse = (v: number) => formatNumber(v, { decimals: passo < 1 ? 1 : 0 });
 
   const toggle = (key: number) => {
-    setSpente((prev) => {
+    setAccese((prev) => {
       const next = new Set(prev);
       if (next.has(key)) next.delete(key);
       else next.add(key);
@@ -143,22 +196,28 @@ export function SeasonalPathChart({
     ...windows.map((w) => ({ key: w, label: `${w} anni`, selected: w === selectedWindow })),
     ...(currentYear ? [{ key: 0, label: "anno in corso", color: "var(--md-text)" }] : []),
   ];
+  const spente = new Set(toggles.map((t) => t.key).filter((k) => !accese.has(k)));
 
   return (
     <div className="flex h-full flex-col gap-2">
-      <div className="flex flex-wrap items-center justify-between gap-2">
+      <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
         <ChartToggles items={toggles} hidden={spente} onToggle={toggle} />
-        <ChartZoomControls zoom={zoom} />
+        <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
+          <span className="text-2xs tabular-nums text-[var(--md-muted)]" aria-live="polite">
+            asse {fmtAsse(dominio[0])} → {fmtAsse(dominio[1])}, tacche ogni {formatNumber(passo, { maxDecimals: 1 })}
+          </span>
+          <ChartZoomControls zoom={zoom} />
+        </div>
       </div>
 
-      <div className="min-h-0 flex-1">
+      <div ref={riquadro} className="min-h-0 flex-1">
         <ResponsiveContainer width="100%" height="100%">
           <ComposedChart data={data} margin={{ ...CHART.margin, left: 4 }}>
             <CartesianGrid strokeDasharray="3 3" stroke="var(--md-border)" vertical />
             <XAxis
               dataKey="g"
               type="number"
-              domain={xDomain}
+              domain={[giornoDa, giornoA]}
               allowDataOverflow
               ticks={MONTH_TICKS}
               tickFormatter={(v: number) => MONTH_NAMES[MONTH_TICKS.indexOf(v)] ?? ""}
@@ -168,13 +227,14 @@ export function SeasonalPathChart({
             />
             <YAxis
               width={CHART.yAxisWidth}
-              domain={zoom.yDomain}
+              domain={dominio}
               allowDataOverflow
-              tickCount={9}
+              ticks={tick}
+              interval={0}
               tick={CHART.axisTick}
               axisLine={false}
               tickLine={false}
-              tickFormatter={(v: number) => formatNumber(v, { maxDecimals: 1 })}
+              tickFormatter={fmtAsse}
             />
 
             <ReferenceArea
@@ -185,15 +245,18 @@ export function SeasonalPathChart({
               stroke="none"
             />
 
-            <ReferenceLine y={100} stroke="var(--md-muted)" strokeDasharray="4 3" />
+            {/* La base: più marcata della griglia, così resta riconoscibile
+                anche con le tacche fitte. */}
+            <ReferenceLine y={100} stroke="var(--md-text-2)" strokeDasharray="6 3" strokeWidth={1} />
 
             {visibili.map((w) => (
               <Line
                 key={w}
                 dataKey={`w${w}`}
                 stroke={windowColor(w)}
-                strokeWidth={w === selectedWindow ? 2.5 : 1.5}
+                strokeWidth={w === selectedWindow ? 2 : 1.5}
                 strokeOpacity={w === selectedWindow ? 1 : 0.85}
+                strokeLinejoin="round"
                 dot={false}
                 connectNulls
                 isAnimationActive={false}
@@ -204,8 +267,9 @@ export function SeasonalPathChart({
               <Line
                 dataKey="cur"
                 stroke="var(--md-text)"
-                strokeWidth={1.75}
+                strokeWidth={1.5}
                 strokeDasharray="5 3"
+                strokeLinejoin="round"
                 dot={false}
                 connectNulls
                 isAnimationActive={false}

@@ -587,8 +587,11 @@ export default async function StagionalitaPage({
                   numero falso.
                 </Callout>
               ) : pathSeries.length > 0 ? (
-                <div className="mt-2 h-[320px] w-full md:h-[520px]">
+                <div className="mt-2 h-[420px] w-full md:h-[520px]">
+                  {/* Rimontato a ogni cambio di strumento, finestra o vista:
+                      all'apertura è accesa solo la finestra selezionata. */}
                   <SeasonalPathChart
+                    key={`${instrument}-${lookbackEffettivo}-${detrended ? "d" : "g"}`}
                     series={pathSeries}
                     currentYear={annoInCorsoSerie}
                     selectedWindow={lookbackEffettivo}
@@ -609,7 +612,10 @@ export default async function StagionalitaPage({
                 {def.kind === "LEVEL"
                   ? " Per un indice di volatilità l'indice nasce dalle sue variazioni giornaliere; le tabelle restano in livelli."
                   : ""}{" "}
-                L&apos;anno in corso, tratteggiato, è escluso dalle medie.
+                L&apos;anno in corso, tratteggiato, è escluso dalle medie. All&apos;apertura è accesa
+                solo la finestra selezionata, le altre sono a un clic nella legenda: la scala verticale
+                segue le linee accese e i giorni scelti nella striscia sotto il grafico, contiene sempre
+                il 100 e l&apos;asse riporta i valori veri dell&apos;indice.
               </p>
             </section>
 
