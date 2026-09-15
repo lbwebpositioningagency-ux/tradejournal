@@ -14,21 +14,31 @@ export function Frequenza({
   n,
   unita = "anni",
   compatta = false,
+  aCapo = false,
 }: {
   quota: number;
   n: number;
   unita?: string;
-  /** «12 su 20»: per le celle strette della heatmap. */
+  /** «12 su 20»: quando l'unità è già nell'intestazione. */
   compatta?: boolean;
+  /** La quota va sulla riga sotto: tiene stretta la colonna (tabelle, griglia). */
+  aCapo?: boolean;
 }) {
   if (!Number.isFinite(quota) || n <= 0) return <>—</>;
   const conteggio = Math.round(quota * n);
+  const testo = compatta ? `${conteggio} su ${n}` : `${conteggio} ${unita} su ${n}`;
+  const q = `(${formatNumber(quota * 100, { decimals: 0 })}%)`;
+  if (aCapo) {
+    return (
+      <span className="inline-flex flex-col items-end whitespace-nowrap">
+        <span>{testo}</span>
+        <span className="text-2xs font-normal text-[var(--md-muted)]">{q}</span>
+      </span>
+    );
+  }
   return (
     <span className="whitespace-nowrap">
-      {compatta ? `${conteggio} su ${n}` : `${conteggio} ${unita} su ${n}`}{" "}
-      <span className="font-normal text-[var(--md-text-2)]">
-        ({formatNumber(quota * 100, { decimals: 0 })}%)
-      </span>
+      {testo} <span className="font-normal text-[var(--md-text-2)]">{q}</span>
     </span>
   );
 }

@@ -1,22 +1,20 @@
 import type { Metadata } from "next";
-import Link from "next/link";
 import { redirect } from "next/navigation";
-import { Inter, JetBrains_Mono } from "next/font/google";
-import { ArrowLeft } from "lucide-react";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { formatDateTime } from "@/lib/dates";
 import { ritardoRelativo } from "@/lib/serie-in-ritardo";
-import { cn } from "@/lib/utils";
+import { formatInteger } from "@/lib/format-number";
 import { Badge } from "@/components/ui/badge";
-import { MacroDeskSectionNav } from "@/components/macro-desk/section-nav";
+import { PageHeader } from "@/components/layout/page-header";
+import { MacroDeskTabs } from "@/components/macro-desk/section-nav";
 import { MetricInfo } from "@/components/metric-info";
+import { Callout, SectionEmpty } from "@/components/macro-desk/primitives";
 import {
-  Callout,
-  MonoChip,
-  PanelLabel,
-  SectionEmpty,
-} from "@/components/macro-desk/primitives";
+  NotaChiusura,
+  Provenienza,
+  Titolo,
+} from "@/components/macro-desk/listino/primitive";
 import {
   HourPathChart,
   SeasonalPathChart,
@@ -27,10 +25,17 @@ import { aIndice, mediaMobileCentrata } from "@/lib/seasonality/indice";
 import { finestreDellIndice } from "@/lib/seasonality/copertura";
 import type { EstremiBucket } from "@/lib/seasonality/estremi";
 import {
+  CLOCKS,
+  CLOCK_LABEL,
+  CLOCK_TIMEZONE,
   MONTH_LABELS,
   MONTH_LABELS_SHORT,
   SCOPE_ALL,
+  isoWeek,
+  isoWeekday,
   monthScope,
+  sessionBucket,
+  zonedParts,
 } from "@/lib/seasonality/buckets";
 import {
   DEFAULT_LOOKBACK,
@@ -58,18 +63,11 @@ import {
   type HeatmapData,
   type PathPointView,
 } from "@/lib/seasonality/query";
-import {
-  CLOCKS,
-  CLOCK_LABEL,
-  CLOCK_TIMEZONE,
-  isoWeek,
-  isoWeekday,
-  sessionBucket,
-  zonedParts,
-} from "@/lib/seasonality/buckets";
-import type { SeasonalityClock } from "@/generated/prisma/client";
+import type {
+  SeasonalityClock,
+  SeasonalityInstrument,
+} from "@/generated/prisma/client";
 import { todayDayOfYear } from "@/lib/seasonality/precompute";
-import type { SeasonalityInstrument } from "@/generated/prisma/client";
 import { SeasonalityHeatmap } from "@/components/seasonality/heatmap";
 import { BucketWindowTable } from "@/components/seasonality/bucket-window-table";
 import { RiepilogoAdesso } from "@/components/seasonality/riepilogo-adesso";
@@ -85,32 +83,27 @@ import {
   type SeasonalityGranularityUi,
 } from "@/components/seasonality/bucket-labels";
 import {
-  Chip,
-  ChipGroup,
+  GruppoControlli,
   hrefWith,
   type Params,
 } from "@/components/seasonality/controls";
 
 /* D-02 — la voce di sidebar, l'h1 e il title coincidono. */
-export const metadata: Metadata = { title: "Stagionalità" };
-
-const fontUi = Inter({
-  subsets: ["latin"],
-  weight: ["400", "500", "600", "700", "800"],
-  variable: "--md-font-ui",
-});
-const fontMono = JetBrains_Mono({
-  subsets: ["latin"],
-  weight: ["500", "600", "700"],
-  variable: "--md-font-mono",
-});
+export const metadata: Metadata = { title: "Stagionalità · Macro Desk" };
 
 /**
- * Tab di profondità. Mese, settimana e giorno si ricavano tutti e tre dalle
- * chiusure GIORNALIERE — la settimana non è più profonda del giorno, è solo un
- * altro modo di raggrupparlo. Sessione e ora richiedono le barre orarie, che
- * esistono solo per i quattro strumenti di PREZZO: di un indice che misura la
- * volatilità attesa a 30 giorni non esiste il «rendimento delle 15:00».
+ * Stagionalità — dal 15/09/2026 dentro il sistema visivo pubblicato (tavola
+ * «Sistema visivo v3 - Stagionalità e grafico con banda», decisione 1a + 2a):
+ * PageHeader con le schede del desk, ambiente `.md-listino` che segue il tema
+ * (era `.macro-report`, scuro fisso anche in chiaro), solo Geist, segmentati
+ * condivisi al posto dei chip propri, tabelle del listino a ogni larghezza.
+ *
+ * Il contenuto non cambia rispetto alla fase 3 del rifacimento: il grafico è
+ * un INDICE stagionale a base 100 con banda, le tabelle restano in percentuale.
+ *
+ * Tab di profondità. Mese, settimana e giorno si ricavano dalle chiusure
+ * GIORNALIERE; sessione e ora richiedono le barre orarie, che esistono solo
+ * per i quattro strumenti di PREZZO.
  */
 const TABS = [
   { id: "mese", label: "Mese", granularity: "MONTH" as const },
@@ -122,6 +115,9 @@ const TABS = [
 
 type TabId = (typeof TABS)[number]["id"];
 
+/** Primo giorno di ogni mese sul calendario non bisestile dell'indice. */
+const MONTH_START_DOY = [1, 32, 60, 91, 121, 152, 182, 213, 244, 274, 305, 335];
+
 function parseInstrument(raw: string | undefined): SeasonalityInstrument {
   if (raw && SEASONALITY_BY_CODE.has(raw as SeasonalityInstrument)) {
     const def = SEASONALITY_BY_CODE.get(raw as SeasonalityInstrument)!;
@@ -132,9 +128,7 @@ function parseInstrument(raw: string | undefined): SeasonalityInstrument {
 
 function parseLookback(raw: string | undefined): number {
   const n = Number(raw);
-  return (LOOKBACK_YEARS as readonly number[]).includes(n)
-    ? n
-    : DEFAULT_LOOKBACK;
+  return (LOOKBACK_YEARS as readonly number[]).includes(n) ? n : DEFAULT_LOOKBACK;
 }
 
 /** Mediana dei valori medi: riferimento del colore per i LIVELLI. */
@@ -142,6 +136,12 @@ function medianOfMeans(rows: BucketView[]): number {
   if (rows.length === 0) return 0;
   const sorted = [...rows.map((r) => r.mean)].sort((a, b) => a - b);
   return sorted[Math.floor(sorted.length / 2)];
+}
+
+/** "2026-09-14" → "14/09/2026": una data in una frase, non una colonna. */
+function dataIt(iso: string): string {
+  const [a, m, g] = iso.split("-");
+  return `${g}/${m}/${a}`;
 }
 
 export default async function StagionalitaPage({
@@ -152,8 +152,7 @@ export default async function StagionalitaPage({
   const session = await auth();
   if (!session?.user?.id) redirect("/login");
 
-  // L'ora dell'ultimo calcolo è un ISTANTE, non una data-giorno: va resa nel
-  // fuso dell'utente. Era fissata a Europe/Rome nel markup.
+  // L'ora dell'ultimo calcolo è un ISTANTE: va resa nel fuso dell'utente.
   const { timezone } = await prisma.user.findUniqueOrThrow({
     where: { id: session.user.id },
     select: { timezone: true },
@@ -163,18 +162,14 @@ export default async function StagionalitaPage({
   const instrument = parseInstrument(params.s);
   const def = SEASONALITY_BY_CODE.get(instrument)!;
   const lookback = parseLookback(params.w);
-  // Vista GREZZA di default: il numero mostrato è quello realmente accaduto.
-  // Il detrend è una lente, e per i livelli di volatilità non esiste proprio.
+  // Vista GREZZA di default: il detrend è una lente, e per i livelli non esiste.
   const detrended = params.d === "1" && def.kind === "RETURN";
   const [coverage, lastRun] = await Promise.all([getCoverage(), getLastRun()]);
   const cov = coverage.find((c) => c.instrument === instrument) ?? null;
 
-  /* Se QUESTO strumento è più indietro degli altri, va detto: il giornaliero
-     di WTI arriva dall'EIA via FRED, che pubblica con circa una settimana di
-     ritardo, e la pagina lo mostrava come se fosse aggiornato quanto gli
-     altri. Il confronto è relativo alla serie più fresca del catalogo, così
-     non serve un calendario di festività. Gli strumenti senza fonte (VDAX)
-     restano fuori: hanno già la loro nota dedicata. */
+  /* Se QUESTO strumento è più indietro degli altri va detto: il WTI arriva
+     dall'EIA via FRED con circa una settimana di ritardo. Il confronto è con
+     la serie più fresca del catalogo, così non serve un calendario festivo. */
   const noteRitardo = (() => {
     const esito = ritardoRelativo(
       coverage
@@ -186,31 +181,26 @@ export default async function StagionalitaPage({
     );
     const mio = esito.inRitardo.find((r) => r.codice === instrument);
     return mio
-      ? `Questa serie è ferma a ${cov?.last ?? "—"}, ${mio.giorniDiScarto} giorni più indietro della più fresca del catalogo. Di solito è l'upstream che pubblica in ritardo, non un dato mancante.`
+      ? `Questa serie è ferma al ${cov?.last ? dataIt(cov.last) : "—"}, ${mio.giorniDiScarto} giorni più indietro della più fresca del catalogo. Di solito è la fonte che pubblica in ritardo, non un dato mancante.`
       : null;
   })();
 
-  /* L'intraday esiste solo per i prezzi e solo se le barre orarie sono state
-     caricate: un tab che porta a una pagina vuota è peggio di un tab spento. */
+  /* L'intraday esiste solo per i prezzi e solo se le barre orarie ci sono:
+     una scheda che porta a una pagina vuota è peggio di una scheda spenta. */
   const intradayPronto = def.hourly !== null && (cov?.hourRows ?? 0) > 0;
   const richiesto = TABS.find((t) => t.id === params.t);
   const tab: TabId =
     richiesto && (!isIntradayGranularity(richiesto.granularity) || intradayPronto)
       ? richiesto.id
       : "mese";
-  const granularity: SeasonalityGranularityUi =
-    TABS.find((t) => t.id === tab)!.granularity;
+  const granularity: SeasonalityGranularityUi = TABS.find((t) => t.id === tab)!.granularity;
   const intraday = isIntradayGranularity(granularity);
 
   /* L'orologio riguarda solo la vista ORARIA: le sessioni sono ancorate agli
-     orari dei centri finanziari, quindi i loro bucket non dipendono dal fuso
-     di lettura — cambia solo come si scrivono i confini in legenda. */
-  const clock: SeasonalityClock =
-    params.c === "UTC" && granularity === "HOUR" ? "UTC" : "ROME";
+     orari dei centri finanziari e non dipendono dal fuso di lettura. */
+  const clock: SeasonalityClock = params.c === "UTC" && granularity === "HOUR" ? "UTC" : "ROME";
 
-  /* Il drill dentro un mese ha senso solo per il GIORNO della settimana: una
-     settimana ISO sta dentro un mese per costruzione, e un mese dentro sé
-     stesso non vuol dire niente. */
+  /* Il drill dentro un mese ha senso solo per il GIORNO della settimana. */
   const scopeMonthNum = Number(params.m);
   const scope =
     granularity === "WEEKDAY" && scopeMonthNum >= 1 && scopeMonthNum <= 12
@@ -228,12 +218,10 @@ export default async function StagionalitaPage({
 
   const popolato = (cov?.rows ?? 0) > 0;
 
-  /* Sull'intraday la storia è molto più corta: il CFD del DAX parte dal 2013,
-     e una finestra da 20 anni non esiste proprio. Le finestre inesistenti
-     vengono NASCOSTE, non mostrate vuote. */
   /* Sul GIORNALIERO una finestra si mostra solo se tutti i suoi anni sono
-     completi: GVZ parte a giugno 2008 e una finestra da 20 anni non esiste.
-     Non si mostra vuota né con meno anni: si omette, e si dice perché. */
+     completi (GVZ parte a giugno 2008: niente 20 anni); sull'intraday valgono
+     gli anni dell'archivio orario. Mai una finestra vuota: si omette e si dice
+     perché. */
   const finestreIndice = finestreDellIndice({
     lookbacks: LOOKBACK_YEARS,
     primaData: cov?.first ?? null,
@@ -247,24 +235,14 @@ export default async function StagionalitaPage({
     ? lookback
     : (lookbacksDisponibili[0] ?? lookback);
 
-  /* Tipi espliciti sul ramo "non popolato": senza, il `new Map()` vuoto
-     allarga il tipo a Map<any, any> e le righe perdono il loro tipo. */
   let heatmap: HeatmapData | null = null;
   let byWindow: Map<number, BucketView[]> = new Map();
   let paths: Map<number, PathPointView[]> = new Map();
-  let quarterPaths: Map<
-    number,
-    { values: number[]; years: number; emptyBuckets: number }
-  > = new Map();
+  let quarterPaths: Map<number, { values: number[]; years: number; emptyBuckets: number }> = new Map();
 
   if (popolato) {
     [heatmap, byWindow, paths, quarterPaths] = await Promise.all([
-      getHeatmap({
-        instrument,
-        granularity,
-        clock,
-        lookbackYears: lookbackEffettivo,
-      }),
+      getHeatmap({ instrument, granularity, clock, lookbackYears: lookbackEffettivo }),
       getStatsByWindow({
         instrument,
         granularity,
@@ -273,53 +251,27 @@ export default async function StagionalitaPage({
         lookbacks: lookbacksDisponibili,
         detrended,
       }),
-      /* Il lookback 0 è il percorso PARZIALE dell'anno in corso, per il
-         toggle di sovrapposizione: esiste solo in vista grezza. */
+      /* Il lookback 0 è il percorso dell'anno in corso: solo in vista grezza. */
       getPaths({
         instrument,
-        lookbacks: detrended
-          ? finestreIndice.disponibili
-          : [...finestreIndice.disponibili, 0],
+        lookbacks: detrended ? finestreIndice.disponibili : [...finestreIndice.disponibili, 0],
         detrended,
       }),
-      /* I 96 punti del grafico intraday: solo sulla vista Ora, e solo per le
-         finestre che l'archivio intraday copre davvero. */
       granularity === "HOUR"
         ? getQuarterPaths({
             instrument,
             clock,
-            lookbacks: intradayLookbacks(
-              LOOKBACK_YEARS,
-              cov?.hourCompleteYears ?? null,
-            ),
+            lookbacks: intradayLookbacks(LOOKBACK_YEARS, cov?.hourCompleteYears ?? null),
             detrended,
           })
-        : Promise.resolve(
-            new Map<
-              number,
-              { values: number[]; years: number; emptyBuckets: number }
-            >(),
-          ),
+        : Promise.resolve(new Map<number, { values: number[]; years: number; emptyBuckets: number }>()),
     ]);
   }
 
   /* ── IL RIEPILOGO IN TESTA ────────────────────────────────────────────
-     Tre orizzonti — mese, settimana, giorno — sempre e comunque, qualunque
-     scheda sia aperta: è un riepilogo, e un riepilogo che cambia contenuto
-     a seconda della scheda non riepiloga niente.
-
-     SEMPRE `SCOPE_ALL`, anche quando la scheda Giorno ha un filtro di mese
-     attivo: le tre righe devono essere confrontabili fra loro, e un giorno
-     ristretto ad agosto accanto a un mese intero non lo sarebbe. Il filtro
-     resta dov'era, sulla tabella dei giorni.
-
-     Le finestre sono quelle di CALENDARIO (`LOOKBACK_YEARS`), non
-     `lookbacksDisponibili`: quest'ultimo si accorcia sulle viste intraday per
-     via dell'archivio orario, e il riepilogo non ha righe intraday. */
-  const statistichePerOrizzonte = new Map<
-    OrizzonteRiepilogo,
-    Map<number, BucketView[]>
-  >();
+     Mese, settimana e giorno, qualunque scheda sia aperta, sempre su tutto
+     l'anno: le tre righe devono essere confrontabili fra loro. */
+  const statistichePerOrizzonte = new Map<OrizzonteRiepilogo, Map<number, BucketView[]>>();
   if (popolato) {
     const caricate = await Promise.all(
       ORIZZONTI_RIEPILOGO.map((o) =>
@@ -327,17 +279,19 @@ export default async function StagionalitaPage({
           instrument,
           granularity: o,
           scope: SCOPE_ALL,
-          lookbacks: [...LOOKBACK_YEARS],
+          lookbacks: finestreIndice.disponibili,
           detrended,
         }),
       ),
     );
     ORIZZONTI_RIEPILOGO.forEach((o, i) => statistichePerOrizzonte.set(o, caricate[i]));
   }
+  const finestraRiepilogo = finestreIndice.disponibili.includes(lookbackEffettivo)
+    ? lookbackEffettivo
+    : (finestreIndice.disponibili[0] ?? lookbackEffettivo);
 
-  /* MIGLIORE/PEGGIORE ANNO e MAE/MFE: solo viste di calendario, solo sulla
-     finestra selezionata, solo in vista grezza — un estremo o un'escursione
-     senza tendenza non è accaduto a nessuno. */
+  /* MIGLIORE/PEGGIORE ANNO e MAE/MFE: viste di calendario, finestra
+     selezionata, vista grezza — un estremo senza tendenza non è accaduto. */
   const vistaGrezzaCalendario = popolato && !intraday && !detrended;
   let estremi: Map<number, EstremiBucket> | undefined;
   let escursioni: Map<number, EscursioniBucket> | undefined;
@@ -370,74 +324,40 @@ export default async function StagionalitaPage({
         ? `MAE e MFE non ci sono: l'archivio di ${def.label} (${cov.source}) ha solo la chiusura, senza massimo e minimo della seduta. Servirebbe l'OHLC dello spot; ricostruirli dalle chiusure li sottostimerebbe, quindi non si approssimano.`
         : "MAE e MFE compaiono dopo il prossimo ricalcolo notturno.";
 
-  /* Il riferimento del colore del riepilogo: per i LIVELLI la mediana dei
-     dodici mesi della finestra scelta, la stessa convenzione della tabella
-     grande. Con lo zero un indice di volatilità uscirebbe verde in tutte e
-     tre le righe. */
+  /* Riferimento del colore per i LIVELLI: la mediana dei dodici mesi. */
   const riferimentoRiepilogo =
     def.kind === "LEVEL"
-      ? medianOfMeans(
-          statistichePerOrizzonte.get("MONTH")?.get(lookbackEffettivo) ?? [],
-        )
+      ? medianOfMeans(statistichePerOrizzonte.get("MONTH")?.get(finestraRiepilogo) ?? [])
       : 0;
 
-  /* La copertura si misura sui DATI, non sulla lunghezza della storia: il
-     massimo `n` raggiunto da ogni finestra. Senza questo l'avviso taceva
-     proprio nel caso che ci interessa — v. `windowCoverage`. */
   const windows = windowCoverage({
     lookbacks: lookbacksDisponibili,
-    completeYears: intraday
-      ? (cov?.hourCompleteYears ?? null)
-      : (cov?.completeYears ?? null),
+    completeYears: intraday ? (cov?.hourCompleteYears ?? null) : (cov?.completeYears ?? null),
     lastComplete: lastCompleteYear(),
     anniConDati: anniConDatiPerFinestra(byWindow),
   });
-  /* Gli anni vuoti si possono NOMINARE solo per la finestra selezionata: è
-     l'unica di cui la heatmap sia in pagina. Per le altre resta il conteggio. */
-  const anniMancanti = heatmap
-    ? anniSenzaOsservazioni(heatmap, lastCompleteYear())
-    : [];
-  const selectedCoverage = windows.find(
-    (w) => w.lookbackYears === lookbackEffettivo,
-  );
-
+  const anniMancanti = heatmap ? anniSenzaOsservazioni(heatmap, lastCompleteYear()) : [];
+  const selectedCoverage = windows.find((w) => w.lookbackYears === lookbackEffettivo);
   const selectedStats = byWindow.get(lookbackEffettivo) ?? [];
-  /* Riferimento del colore per i LIVELLI: la mediana della granularità e
-     della finestra correnti. Con lo zero un indice sempre positivo sarebbe
-     verde ovunque; con la mediana dei mesi su una tabella di giorni le scale
-     non tornerebbero, quindi si ricalcola per ogni vista. */
   const reference = def.kind === "LEVEL" ? medianOfMeans(selectedStats) : 0;
 
-  /* PIENA risoluzione giornaliera su TUTTE le finestre, in forma COMPATTA:
-     un array di numeri arrotondati indicizzato sul giorno dell'anno, non un
-     array di oggetti a sette campi. È ciò che rende la piena risoluzione
-     più leggera della vecchia decimazione (~5 KB a finestra contro ~40): la
-     decimazione era la causa delle linee «troppo rette». */
-  /* INDICE A BASE 100: i punti arrivano in log (`indice.ts`), qui si
-     convertono una volta sola e si lisciano con la media mobile centrata a
-     cinque giorni — linea e fascia allo stesso modo, la grezza no.
+  /* INDICE A BASE 100: i punti arrivano in log, si convertono qui una volta
+     sola e si lisciano con la media mobile centrata a cinque giorni — linea e
+     fascia allo stesso modo, la grezza no.
 
-     PUNTI DEL CALCOLO PRECEDENTE: prima del ricalcolo notturno successivo al
-     rifacimento l'archivio ha ancora i punti vecchi, riconoscibili perché non
-     hanno il giorno 0. Per i prezzi sono la stessa grandezza (cumulata log per
-     giorno di calendario) e si mostrano; per gli indici di volatilità erano
-     livelli medi, e mostrarli come indice darebbe un numero falso. */
+     PUNTI DEL CALCOLO PRECEDENTE (senza giorno 0): per i prezzi sono la stessa
+     grandezza e si mostrano; per gli indici di volatilità erano livelli medi,
+     e mostrarli come indice darebbe un numero falso. */
   const arrotonda = (v: number) => Math.round(v * 100) / 100;
   const calcoloNuovo = [...paths.values()].some((pts) => pts.some((p) => p.dayOfYear === 0));
   const livelliVecchi = def.kind === "LEVEL" && paths.size > 0 && !calcoloNuovo;
-  const suGiorni = (
-    points: PathPointView[],
-    campo: (p: PathPointView) => number,
-  ): (number | null)[] => {
+  const suGiorni = (points: PathPointView[], campo: (p: PathPointView) => number): (number | null)[] => {
     const out: (number | null)[] = new Array(366).fill(null);
     if (!calcoloNuovo) out[0] = 100;
-    for (const p of points) {
-      if (p.dayOfYear <= 365) out[p.dayOfYear] = arrotonda(aIndice(campo(p)));
-    }
+    for (const p of points) if (p.dayOfYear <= 365) out[p.dayOfYear] = arrotonda(aIndice(campo(p)));
     return out;
   };
-  const liscia = (v: (number | null)[]) =>
-    mediaMobileCentrata(v).map((x) => (x === null ? null : arrotonda(x)));
+  const liscia = (v: (number | null)[]) => mediaMobileCentrata(v).map((x) => (x === null ? null : arrotonda(x)));
   const pathSeries: SerieIndice[] = livelliVecchi
     ? []
     : [...paths.entries()]
@@ -453,32 +373,18 @@ export default async function StagionalitaPage({
           };
         })
         .sort((a, b) => b.lookbackYears - a.lookbackYears);
-  const annoInCorsoSerie =
-    paths.has(0) && !livelliVecchi ? suGiorni(paths.get(0)!, (p) => p.mean) : null;
+  const annoInCorsoSerie = paths.has(0) && !livelliVecchi ? suGiorni(paths.get(0)!, (p) => p.mean) : null;
 
-  /* Ritorno intraday cumulato: 96 punti a quarto d'ora, precalcolati dalle
-     barre M15 e già in percentuale. Solo la vista Ora lo mostra. */
+  /* Indice intraday: 96 punti a quarto d'ora. Solo la vista Ora lo mostra. */
   const quartiVuoti = quarterPaths.get(lookbackEffettivo)?.emptyBuckets ?? 0;
   const hourPathSeries: HourPathSeries[] = [...quarterPaths.entries()]
-    .map(([lookbackYears, v]) => ({
-      lookbackYears,
-      values: v.values,
-      years: v.years,
-    }))
+    .map(([lookbackYears, v]) => ({ lookbackYears, values: v.values, years: v.years }))
     .sort((a, b) => b.lookbackYears - a.lookbackYears);
 
   const oggi = todayDayOfYear();
-  /* Primo giorno del mese corrente sulla mappa non bisestile dei tick del
-     grafico: il divisore «mese corrente». */
-  const MONTH_START_DOY = [1, 32, 60, 91, 121, 152, 182, 213, 244, 274, 305, 335];
 
-  /* ── Il bucket «adesso», nel fuso giusto per ogni granularità ────────────
-     Mese/settimana/giorno si valutano sulla data civile ITALIANA (le
-     granularità di calendario del modulo vivono lì); l'ora sul fuso
-     dell'orologio selezionato, così il marcatore segue il toggle UTC/Roma; la
-     sessione con gli stessi confini ancorati ai centri finanziari usati dal
-     precalcolo. Di sabato e domenica il giorno corrente non esiste fra i
-     bucket lun-ven: nessun marcatore, che è la risposta giusta. */
+  /* Il bucket «adesso», nel fuso giusto per ogni granularità. Di sabato e
+     domenica il giorno corrente non esiste fra i bucket lun-ven. */
   const adessoTs = new Date();
   const adessoRoma = zonedParts(adessoTs, CLOCK_TIMEZONE.ROME);
   const bucketCorrente: number | null =
@@ -488,534 +394,374 @@ export default async function StagionalitaPage({
         ? isoWeek(adessoRoma.year, adessoRoma.month, adessoRoma.day)
         : granularity === "WEEKDAY"
           ? (() => {
-              const wd = isoWeekday(
-                adessoRoma.year,
-                adessoRoma.month,
-                adessoRoma.day,
-              );
+              const wd = isoWeekday(adessoRoma.year, adessoRoma.month, adessoRoma.day);
               return wd <= 5 ? wd : null;
             })()
           : granularity === "SESSION"
             ? sessionBucket(adessoRoma.hour)
             : zonedParts(adessoTs, CLOCK_TIMEZONE[clock]).hour;
+  const quartoCorrente = (() => {
+    const p = clock === "UTC" ? zonedParts(adessoTs, CLOCK_TIMEZONE.UTC) : adessoRoma;
+    return p.hour * 4 + Math.floor(p.minute / 15);
+  })();
 
   return (
     <div className="flex flex-col gap-4">
-      <div className="flex flex-wrap items-start justify-between gap-3">
-        <div className="min-w-0">
-          <Link
-            href="/macro-desk"
-            className="mb-1 inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground"
-          >
-            <ArrowLeft className="size-4" />
-            Macro Desk
-          </Link>
-          <h1 className="page-title flex flex-wrap items-center gap-2.5">
-            Stagionalità
-            <Badge variant="outline">mercato, non i tuoi trade</Badge>
-          </h1>
-          <p className="page-subtitle">
-            Il comportamento storico degli strumenti: come si è mosso l&apos;oro a
-            settembre, quali settimane dell&apos;anno hanno prodotto il movimento
-            dell&apos;S&amp;P, dove sta il VIX a gennaio. Ogni numero porta con sé
-            media, mediana, deviazione standard, quota di casi favorevoli e
-            numerosità del campione — perché una media da sola non dice se quella
-            regolarità esiste davvero.
-          </p>
-        </div>
-        <MacroDeskSectionNav active="stagionalita" />
-      </div>
+      <PageHeader
+        nav={<MacroDeskTabs active="stagionalita" />}
+        title="Stagionalità"
+        badge={<Badge variant="outline">mercato, non i tuoi trade</Badge>}
+        description="Come si è mosso ogni strumento nello stesso periodo dell'anno: la forma del percorso medio nel grafico, l'ampiezza reale nelle tabelle, sempre con il numero di anni che c'è dietro."
+      />
 
-      <div
-        className={cn(
-          "macro-report overflow-hidden rounded-[var(--md-r-lg)] border",
-          fontUi.variable,
-          fontMono.variable,
-        )}
-        style={{ borderColor: "var(--md-border)" }}
-      >
-        <div className="flex flex-col gap-4 p-4 sm:p-5">
-          {/* ── Selettori ─────────────────────────────────────────────── */}
-          <div className="md-panel flex flex-col gap-3 p-3">
-            <ChipGroup label="Strumento">
-              {/* `fuoriDallaStagionalita` esclude VIX9D e VIX3M: sono
-                  raccolti per il confronto fra scadenze nella sezione
-                  Volatilità, e come schede di calendario non avrebbero
-                  destinatario. */}
-              {SEASONALITY_INSTRUMENTS.filter(
-                (i) => !i.fuoriDallaStagionalita,
-              ).map((i) => (
-                <Chip
-                  key={i.code}
-                  href={
-                    i.unavailable
-                      ? undefined
-                      : hrefWith(base, { s: i.code, m: undefined })
-                  }
-                  active={i.code === instrument}
-                  disabled={Boolean(i.unavailable)}
-                  color={i.colorToken}
-                  title={i.unavailable ?? i.sourceNote}
-                >
-                  {i.ticker}
-                  {i.kind === "LEVEL" ? (
-                    <span className="opacity-60">·liv</span>
-                  ) : null}
-                </Chip>
-              ))}
-            </ChipGroup>
-
-            <ChipGroup label="Finestra">
-              {lookbacksDisponibili.map((y) => {
-                const c = windows.find((w) => w.lookbackYears === y);
-                return (
-                  <Chip
-                    key={y}
-                    href={hrefWith(base, { w: String(y) })}
-                    active={y === lookbackEffettivo}
-                    title={
-                      popolato && c?.truncated
-                        ? `Storia disponibile: ${c.available} anni su ${y} richiesti`
-                        : `${y} anni solari completi`
-                    }
-                  >
-                    {y}a{popolato && c?.truncated ? "!" : ""}
-                  </Chip>
-                );
-              })}
-            </ChipGroup>
-
-            {!intraday && finestreIndice.omesse.length > 0 ? (
-              <p className="text-2xs text-[var(--md-muted)]">
-                Non si mostrano:{" "}
-                {finestreIndice.omesse
-                  .map((o) => `${o.lookbackYears} anni (${o.motivo})`)
-                  .join("; ")}
-                .
-              </p>
-            ) : null}
-
-            {intraday &&
-            lookbacksDisponibili.length < LOOKBACK_YEARS.length ? (
-              <p className="text-2xs text-[var(--md-muted)]">
-                Le finestre più lunghe di {cov?.hourCompleteYears}{" "}
-                anni non compaiono: l&apos;archivio orario di questo strumento
-                parte dal{" "}
-                {cov?.hourFirst}. Mostrarle vuote sarebbe peggio che non
-                mostrarle.
-              </p>
-            ) : null}
-
-            {granularity === "HOUR" ? (
-              <ChipGroup label="Orologio">
-                {CLOCKS.map((c) => (
-                  <Chip
-                    key={c}
-                    href={hrefWith(base, { c: c === "ROME" ? undefined : c })}
-                    active={c === clock}
-                    title={
-                      c === "ROME"
-                        ? "Ora italiana, con l'ora legale applicata correttamente"
-                        : "Ora UTC, senza cambi stagionali"
-                    }
-                  >
-                    {CLOCK_LABEL[c]}
-                  </Chip>
-                ))}
-              </ChipGroup>
-            ) : null}
-
-            {def.kind === "RETURN" ? (
-              <ChipGroup label="Vista">
-                <Chip
-                  href={hrefWith(base, { d: undefined })}
-                  active={!detrended}
-                  title="Il percorso realmente accaduto, tendenza di fondo pluriennale inclusa."
-                >
-                  Percorso medio
-                </Chip>
-                <Chip
-                  href={hrefWith(base, { d: "1" })}
-                  active={detrended}
-                  title="Tolta la deriva pluriennale: resta solo quali periodi fanno meglio o peggio della media dell'anno."
-                >
-                  Solo stagionalità
-                </Chip>
-                <MetricInfo info={detrendInfo} size="sm" />
-              </ChipGroup>
-            ) : (
-              <p className="text-2xs text-[var(--md-muted)]">
-                Indice di volatilità: si mostra il <strong>livello</strong>{" "}
-                medio, non la variazione percentuale. Nessun detrend — un
-                indice che oscilla attorno alla propria media non ha un drift
-                da togliere.
-              </p>
-            )}
-          </div>
-
-          {noteRitardo ? (
-            <p
-              role="status"
-              className="rounded-md border border-dashed px-3 py-2 text-2xs leading-relaxed"
-              style={{ borderColor: "var(--md-muted)", color: "var(--md-muted)" }}
+      <div className="md-listino overflow-hidden border p-4 sm:p-6" style={{ borderColor: "var(--ml-rule)" }}>
+        {/* ── Controlli ───────────────────────────────────────────────── */}
+        <div className="flex flex-wrap items-center gap-x-5 gap-y-2.5">
+          {/* `fuoriDallaStagionalita` esclude le serie raccolte per altre
+              sezioni (VIX9D, VIX3M, VVIX, SKEW, il future del WTI). */}
+          <GruppoControlli
+            label="Strumento"
+            voci={SEASONALITY_INSTRUMENTS.filter((i) => !i.fuoriDallaStagionalita).map((i) => ({
+              key: i.code,
+              label: i.ticker,
+              href: i.unavailable ? undefined : hrefWith(base, { s: i.code, m: undefined }),
+              active: i.code === instrument,
+              color: i.colorToken,
+              title: i.unavailable ?? `${i.label}${i.kind === "LEVEL" ? " · livello di volatilità" : ""}`,
+            }))}
+          />
+          <GruppoControlli
+            label="Finestra"
+            voci={lookbacksDisponibili.map((y) => ({
+              key: String(y),
+              label: `${y} anni`,
+              href: hrefWith(base, { w: String(y) }),
+              active: y === lookbackEffettivo,
+            }))}
+          />
+          {def.kind === "RETURN" ? (
+            <GruppoControlli
+              label="Vista"
+              voci={[
+                {
+                  key: "grezza",
+                  label: "Percorso medio",
+                  href: hrefWith(base, { d: undefined }),
+                  active: !detrended,
+                  title: "Il percorso realmente accaduto, tendenza di fondo pluriennale inclusa.",
+                },
+                {
+                  key: "detrend",
+                  label: "Solo stagionalità",
+                  href: hrefWith(base, { d: "1" }),
+                  active: detrended,
+                  title: "Tolta la deriva pluriennale: resta solo quali periodi fanno meglio o peggio della media dell'anno.",
+                },
+              ]}
             >
-              {noteRitardo}
+              <MetricInfo info={detrendInfo} size="sm" />
+            </GruppoControlli>
+          ) : null}
+        </div>
+
+        <div className="mt-3 flex flex-col gap-1.5">
+          {!intraday && finestreIndice.omesse.length > 0 ? (
+            <p className="text-xs leading-[1.5] text-[var(--md-text-2)]">
+              Non si mostrano:{" "}
+              {finestreIndice.omesse.map((o) => `${o.lookbackYears} anni (${o.motivo})`).join("; ")}.
             </p>
           ) : null}
-
-          {/* ── Provenienza e freschezza del dato ─────────────────────── */}
-          {/* La provenienza segue la SCHEDA, non lo strumento: sulle viste
-              intraday i numeri vengono da Dukascopy anche quando il
-              giornaliero arriva da FRED o da Yahoo. Dichiarare qui la fonte
-              del giornaliero sarebbe un'affermazione falsa. */}
-          <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5 text-2xs text-[var(--md-muted)]">
-            <MonoChip color={def.colorToken}>{def.label}</MonoChip>
+          {intraday && lookbacksDisponibili.length < LOOKBACK_YEARS.length ? (
+            <p className="text-xs leading-[1.5] text-[var(--md-text-2)]">
+              Le finestre più lunghe di {cov?.hourCompleteYears} anni non compaiono: l&apos;archivio
+              orario di questo strumento parte dal {cov?.hourFirst ? dataIt(cov.hourFirst) : "—"}.
+            </p>
+          ) : null}
+          {def.kind === "LEVEL" ? (
+            <p className="text-xs leading-[1.5] text-[var(--md-text-2)]">
+              Indice di volatilità: nelle tabelle il <strong>livello</strong> medio, non la variazione
+              percentuale; nessun detrend, perché un indice che oscilla attorno alla propria media non
+              ha una deriva da togliere.
+            </p>
+          ) : null}
+          {noteRitardo ? (
+            <p role="status" className="text-xs leading-[1.5] text-[var(--md-text-2)]">
+              <span className="font-medium text-[var(--md-text)]">In ritardo.</span> {noteRitardo}
+            </p>
+          ) : null}
+          {/* La provenienza segue la SCHEDA: sulle viste intraday i numeri
+              vengono da Dukascopy anche quando il giornaliero no. */}
+          <Provenienza>
+            {def.label} ·{" "}
             {intraday ? (
               <>
-                {cov?.hourSource ? <span>fonte: {cov.hourSource}</span> : null}
-                {cov?.hourFirst && cov.hourLast ? (
-                  <span>
-                    storia oraria: {cov.hourFirst} → {cov.hourLast} (
-                    {cov.hourCompleteYears} anni)
-                  </span>
-                ) : null}
-                {cov?.hourRows ? (
-                  <span>{cov.hourRows.toLocaleString("it-IT")} ore</span>
-                ) : null}
+                {cov?.hourSource ? `fonte ${cov.hourSource}` : "fonte —"}
+                {cov?.hourFirst && cov.hourLast
+                  ? ` · storia oraria ${dataIt(cov.hourFirst)} → ${dataIt(cov.hourLast)} (${cov.hourCompleteYears} anni)`
+                  : ""}
+                {cov?.hourRows ? ` · ${formatInteger(cov.hourRows)} ore` : ""}
               </>
             ) : (
               <>
-                {cov?.source ? <span>fonte: {cov.source}</span> : null}
-                {cov?.first && cov.last ? (
-                  <span>
-                    storia: {cov.first} → {cov.last} ({cov.completeYears} anni
-                    completi)
-                  </span>
-                ) : null}
-                {cov?.rows ? <span>{cov.rows} chiusure</span> : null}
+                {cov?.source ? `fonte ${cov.source}` : "fonte —"}
+                {cov?.first && cov.last ? ` · storia ${dataIt(cov.first)} → ${dataIt(cov.last)}` : ""}
+                {cov?.rows ? ` · ${formatInteger(cov.rows)} sedute` : ""}
               </>
             )}
-            {lastRun?.finishedAt ? (
-              <span>
-                ultimo calcolo:{" "}
-                {formatDateTime(lastRun.finishedAt, timezone)}
-                {lastRun.ok ? "" : " (con errori)"}
-              </span>
-            ) : null}
-          </div>
-
-          <p className="text-2xs leading-relaxed text-[var(--md-muted)]">
-            Dati: <strong>{def.attribution}</strong>. In questa pagina sono
-            esposte solo statistiche aggregate e derivate: le serie di prezzo
-            grezze restano sul server e non sono scaricabili.
-          </p>
-
-          {/* L'avviso di finestra troncata ha senso solo quando i dati ci
-              sono: su una tabella vuota diceva «storia disponibile 0», che
-              sembra un errore di calcolo e si accavallava al messaggio giusto
-              subito sotto. Un'assenza va detta una volta sola. */}
+            {lastRun?.finishedAt
+              ? ` · ultimo calcolo ${formatDateTime(lastRun.finishedAt, timezone)}${lastRun.ok ? "" : " (con errori)"}`
+              : ""}
+          </Provenienza>
           {popolato && selectedCoverage?.truncated ? (
-            <WindowTruncatedNote
-              requested={selectedCoverage.requested}
-              available={selectedCoverage.available}
-            />
+            <WindowTruncatedNote requested={selectedCoverage.requested} available={selectedCoverage.available} />
           ) : null}
+        </div>
 
-          {popolato ? (
-            /* PRIMA COSA DELLA SEZIONE, prima del percorso annuale: risponde
-               a «in che periodo siamo» senza aprire tre schede. */
-            <RiepilogoAdesso
-              kind={def.kind}
-              righe={righeRiepilogo({
-                perOrizzonte: statistichePerOrizzonte,
-                finestraSelezionata: lookbackEffettivo,
-                adesso: adessoRoma,
-              })}
-              finestre={[...finestreIndice.disponibili].sort((a, b) => b - a)}
-              finestraSelezionata={lookbackEffettivo}
-              copertura={selectedCoverage}
-              reference={riferimentoRiepilogo}
-              motivoVuota={(r) => motivoRigaVuota(r, adessoRoma)}
-            />
-          ) : null}
-
-          {!popolato ? (
-            <Callout label="Dati non ancora presenti" color="var(--md-warn)">
-              {cov?.note ??
-                "Nessuna serie salvata per questo strumento. Il caricamento procede a tappe e converge su più esecuzioni del job notturno: appena il giornaliero è pronto questa pagina si popola, l'intraday arriva dopo."}
-            </Callout>
-          ) : (
-            <>
-              {/* ── Percorso stagionale annuale ──────────────────────── */}
-              <div className="md-card flex flex-col gap-3 p-4">
-                <div className="flex flex-wrap items-baseline justify-between gap-2">
-                  <span className="inline-flex items-center gap-1">
-                    <PanelLabel>
-                      Indice stagionale — {def.label}
-                      {detrended ? " — solo stagionalità" : ""}
-                    </PanelLabel>
-                    <MetricInfo info={percorsoInfo} size="sm" />
-                  </span>
-                  <span className="text-2xs text-[var(--md-muted)]">
-                    spunta le finestre da confrontare · l’asse si adatta alle
-                    linee visibili
-                  </span>
-                </div>
-                <p className="text-xs leading-relaxed text-[var(--md-text-2)]">
-                  <strong>Indice a base 100, non un rendimento.</strong>{" "}100 è la
-                  chiusura dell&apos;anno precedente, e un valore di 112 non va letto
-                  come «+12%»: il grafico mostra la forma del percorso medio,
-                  l&apos;ampiezza reale sta nelle tabelle, in percentuale. Linea: media
-                  mobile centrata a 5 giorni. Traccia chiara: curva grezza. Fascia:
-                  fra 1° e 3° quartile degli anni della finestra selezionata.
-                </p>
-                {livelliVecchi ? (
-                  <Callout label="Indice in ricalcolo" color="var(--md-warn)">
-                    L&apos;indice di {def.label} si ricalcola al prossimo giro notturno:
-                    in archivio ci sono ancora i livelli medi del calcolo precedente, e
-                    mostrarli come indice darebbe un numero falso.
-                  </Callout>
-                ) : pathSeries.length > 0 ? (
-                  /* Altezza generosa DI PROPOSITO: la pagina può scorrere,
-                     una pendenza schiacciata no. */
-                  <div className="h-[560px] w-full md:h-[780px]">
-                    <SeasonalPathChart
-                      series={pathSeries}
-                      currentYear={annoInCorsoSerie}
-                      selectedWindow={lookbackEffettivo}
-                      todayDoy={oggi}
-                      currentMonthDoy={MONTH_START_DOY[adessoRoma.month - 1]}
-                    />
-                  </div>
-                ) : (
-                  <SectionEmpty what="L'indice stagionale" />
-                )}
-
-
-
-                <p className="text-2xs leading-relaxed text-[var(--md-muted)]">
-                  Calcolo: rendimenti log giornalieri → media per giorno
-                  dell&apos;anno sugli anni della finestra → cumulata dal 1° gennaio →
-                  indice. Calendario di 365 giorni (il 29 febbraio si somma al 28);
-                  le sessioni del weekend dell&apos;oro stanno nel lunedì.
-                  {def.kind === "LEVEL"
-                    ? " Per un indice di volatilità l'indice nasce dalle sue variazioni giornaliere; le tabelle restano in livelli."
-                    : ""}{" "}
-                  L&apos;anno in corso, tratteggiato, è escluso dalle medie.
-                </p>
-              </div>
-
-              {granularity === "HOUR" && hourPathSeries.length > 0 ? (
-                <div className="md-card flex flex-col gap-3 p-4">
-                  <div className="flex flex-wrap items-baseline justify-between gap-2">
-                    <PanelLabel>
-                      Indice intraday — {def.label} (
-                      {CLOCK_LABEL[clock]})
-                      {detrended ? " — solo stagionalità" : ""}
-                    </PanelLabel>
-                    <span className="text-2xs text-[var(--md-muted)]">
-                      96 punti a quarto d&apos;ora · la pendenza dice quali
-                      momenti hanno storicamente spinto
-                    </span>
-                  </div>
-                  <div className="h-[560px] w-full md:h-[780px]">
-                    <HourPathChart
-                      series={hourPathSeries}
-                      selectedWindow={lookbackEffettivo}
-                      currentQuarter={
-                        clock === "UTC"
-                          ? (() => {
-                              const p = zonedParts(
-                                adessoTs,
-                                CLOCK_TIMEZONE.UTC,
-                              );
-                              return p.hour * 4 + Math.floor(p.minute / 15);
-                            })()
-                          : adessoRoma.hour * 4 +
-                            Math.floor(adessoRoma.minute / 15)
-                      }
-                      clockLabel={CLOCK_LABEL[clock]}
-                    />
-                  </div>
-                  <p className="text-2xs leading-relaxed text-[var(--md-muted)]">
-                    Somma progressiva, quarto d&apos;ora dopo quarto
-                    d&apos;ora, del rendimento medio della finestra: 96 punti
-                    reali calcolati dalle barre a 15 minuti, congiunti da una
-                    curva che non aggiunge niente fra un punto e l&apos;altro.
-                    È un indice a base 100 a mezzanotte, non un rendimento:
-                    100,02 non va letto come «+0,02%». Le tabelle qui
-                    sotto restano sulle barre orarie, con le loro statistiche
-                    complete.
-                    {quartiVuoti > 0 ? (
-                      <>
-                        {" "}
-                        <strong>{quartiVuoti} quarti d&apos;ora</strong>{" "}
-                        su 96 non hanno quotazioni sulla finestra selezionata — è la
-                        pausa serale del mercato, non un buco d&apos;archivio:
-                        lì la curva resta piatta perché non è successo niente,
-                        non perché il valore sia stimato.
-                      </>
-                    ) : null}
-                  </p>
-                </div>
-              ) : null}
-
-              {/* ── Profondità del calendario ────────────────────────── */}
-              <ChipGroup label="Profondità">
-                {TABS.map((t) => {
-                  const bloccato =
-                    isIntradayGranularity(t.granularity) && !intradayPronto;
-                  return (
-                    <Chip
-                      key={t.id}
-                      href={
-                        bloccato
-                          ? undefined
-                          : hrefWith(base, {
-                              t: t.id === "mese" ? undefined : t.id,
-                              // Il drill per mese vale solo sul giorno, e
-                              // l'orologio solo sull'ora: cambiando tab si
-                              // azzerano, altrimenti resterebbero filtri
-                              // invisibili.
-                              m: t.id === "giorno" ? base.m : undefined,
-                              c: t.id === "ora" ? base.c : undefined,
-                            })
-                      }
-                      active={t.id === tab}
-                      disabled={bloccato}
-                      title={
-                        bloccato
-                          ? def.hourly === null
-                            ? "Un indice di volatilità non ha sessione né ora: misura la volatilità attesa a 30 giorni, non un prezzo che si muove durante la giornata."
-                            : "Barre orarie non ancora caricate per questo strumento."
-                          : undefined
-                      }
-                    >
-                      {t.label}
-                    </Chip>
-                  );
+        {!popolato ? (
+          <Callout label="Dati non ancora presenti" color="var(--md-warn)" className="mt-5">
+            {cov?.note ??
+              "Nessuna serie salvata per questo strumento. Il caricamento procede a tappe e converge su più esecuzioni del job notturno: appena il giornaliero è pronto questa pagina si popola, l'intraday arriva dopo."}
+          </Callout>
+        ) : (
+          <>
+            <div className="mt-6">
+              <RiepilogoAdesso
+                kind={def.kind}
+                righe={righeRiepilogo({
+                  perOrizzonte: statistichePerOrizzonte,
+                  finestraSelezionata: finestraRiepilogo,
+                  adesso: adessoRoma,
                 })}
-              </ChipGroup>
+                finestre={[...finestreIndice.disponibili].sort((a, b) => b - a)}
+                finestraSelezionata={finestraRiepilogo}
+                copertura={windows.find((w) => w.lookbackYears === finestraRiepilogo)}
+                reference={riferimentoRiepilogo}
+                motivoVuota={(r) => motivoRigaVuota(r, adessoRoma)}
+              />
+            </div>
 
-              {intraday && def.intradayNote ? (
-                <p className="text-2xs leading-relaxed text-[var(--md-text-2)]">
-                  <strong>Strumento diverso dal giornaliero.</strong>{" "}
-                  {def.intradayNote}
-                </p>
-              ) : null}
-
-              {intraday && cov?.hourNote ? (
-                <p className="text-2xs leading-relaxed text-[var(--md-warn)]">
-                  {cov.hourNote}
-                </p>
-              ) : null}
-
-              {granularity === "SESSION" ? (
-                <div className="md-panel flex flex-col gap-1.5 p-3">
-                  <PanelLabel>
-                    Confini delle sessioni (ora italiana)
-                  </PanelLabel>
-                  <div className="md-mono flex flex-wrap gap-x-4 gap-y-1 text-2xs text-[var(--md-text-2)]">
-                    <span>Asia 00:00 → 08:00</span>
-                    <span>Londra 08:00 → 14:00</span>
-                    <span>New York 14:00 → 22:00</span>
-                    <span>Fuori 22:00 → 00:00</span>
-                  </div>
-                  <p className="text-2xs leading-relaxed text-[var(--md-muted)]">
-                    Fasce sull&apos;<strong>orologio italiano</strong>{" "}
-                    (Europe/Rome, ora legale inclusa): le stesse con cui
-                    l&apos;app classifica i tuoi trade, così le due letture si
-                    confrontano direttamente. Il compromesso dichiarato: nelle
-                    due-tre settimane l&apos;anno in cui l&apos;Italia e Londra
-                    o New York cambiano ora in giorni diversi, il confine può
-                    scostarsi di un&apos;ora dall&apos;apertura reale di quel
-                    centro.
-                  </p>
-                </div>
-              ) : null}
-
-              {granularity === "WEEKDAY" ? (
-                <ChipGroup label="Dentro il mese">
-                  <Chip
-                    href={hrefWith(base, { m: undefined })}
-                    active={scope === SCOPE_ALL}
-                  >
-                    tutto l&apos;anno
-                  </Chip>
-                  {MONTH_LABELS_SHORT.map((m, i) => (
-                    <Chip
-                      key={m}
-                      href={hrefWith(base, { m: String(i + 1) })}
-                      active={scope === monthScope(i + 1)}
-                      title={`Solo i giorni di ${MONTH_LABELS[i]}`}
-                    >
-                      {m}
-                    </Chip>
-                  ))}
-                </ChipGroup>
-              ) : null}
-
-              {/* ── Vista 1: heatmap anni × bucket ───────────────────── */}
-              <div className="md-card flex flex-col gap-3 p-4">
-                {heatmap ? (
-                  <SeasonalityHeatmap
-                    data={heatmap}
-                    kind={def.kind}
-                    granularity={granularity}
-                    currentBucket={bucketCorrente}
-                    summary={
-                      // La heatmap è sempre su tutto l'anno: le sue righe di
-                      // sintesi devono venire dallo scope ALL, e con un filtro
-                      // di mese attivo si tolgono invece di accostare numeri
-                      // calcolati su periodi diversi.
-                      scope === SCOPE_ALL ? selectedStats : []
-                    }
-                    windowMedian={reference}
-                    lookbackYears={lookbackEffettivo}
-                  />
-                ) : (
-                  <SectionEmpty what="La heatmap" />
-                )}
-                {scope !== SCOPE_ALL ? (
-                  <p className="text-2xs text-[var(--md-muted)]">
-                    La griglia resta su tutto l&apos;anno: il filtro «
-                    {MONTH_LABELS[scopeMonthNum - 1]}» agisce sulla tabella qui
-                    sotto. Le righe di sintesi sono nascoste per non accostare
-                    numeri calcolati su periodi diversi.
-                  </p>
-                ) : null}
-              </div>
-
-              {/* ── Vista 2: tabella per bucket su tutte le finestre ─── */}
-              <div className="md-card flex flex-col gap-3 p-4">
-                <PanelLabel>
-                  Per {tab}
-                  {granularity === "HOUR" ? ` (${CLOCK_LABEL[clock]})` : ""}, su
-                  tutte le finestre
-                  {scope === SCOPE_ALL
-                    ? ""
-                    : ` — solo ${MONTH_LABELS[scopeMonthNum - 1]}`}
+            {/* ── Indice stagionale ─────────────────────────────────────── */}
+            <section className="mt-6" aria-labelledby="indice-stagionale">
+              <Titolo>
+                <span id="indice-stagionale" className="inline-flex items-center gap-1">
+                  Indice stagionale — {def.label}
                   {detrended ? " — solo stagionalità" : ""}
-                </PanelLabel>
-                <BucketWindowTable
+                  <MetricInfo info={percorsoInfo} size="sm" />
+                </span>
+              </Titolo>
+              <p className="bg-[var(--md-surface-2)] px-3 py-2.5 text-sm leading-[1.5] text-[var(--md-text-2)]">
+                <strong className="font-semibold text-[var(--md-text)]">
+                  Indice a base 100, non un rendimento.
+                </strong>{" "}
+                100 è la chiusura dell&apos;anno precedente, e 112 non va letto come «+12%»: il grafico
+                mostra la forma del percorso medio, l&apos;ampiezza reale sta nelle tabelle,{" "}
+                {def.kind === "LEVEL" ? "in livelli" : "in percentuale"}. Linea: media mobile
+                centrata a 5 giorni · traccia chiara: curva grezza ·
+                fascia: 1° e 3° quartile degli anni della finestra selezionata.
+              </p>
+              {livelliVecchi ? (
+                <Callout label="Indice in ricalcolo" color="var(--md-warn)" className="mt-3">
+                  L&apos;indice di {def.label} si ricalcola al prossimo giro notturno: in archivio ci
+                  sono ancora i livelli medi del calcolo precedente, e mostrarli come indice darebbe un
+                  numero falso.
+                </Callout>
+              ) : pathSeries.length > 0 ? (
+                <div className="mt-2 h-[320px] w-full md:h-[520px]">
+                  <SeasonalPathChart
+                    series={pathSeries}
+                    currentYear={annoInCorsoSerie}
+                    selectedWindow={lookbackEffettivo}
+                    todayDoy={oggi}
+                    currentMonthDoy={MONTH_START_DOY[adessoRoma.month - 1]}
+                  />
+                </div>
+              ) : (
+                <div className="mt-3">
+                  <SectionEmpty what="L'indice stagionale" />
+                </div>
+              )}
+              <p className="mt-2 text-2xs leading-[1.5] text-[var(--md-muted)]">
+                Calcolo: rendimenti log giornalieri → media per giorno dell&apos;anno sugli anni della
+                finestra → cumulata dal 1° gennaio → indice. Calendario di 365 giorni (il 29 febbraio si
+                somma al 28); le sessioni del weekend dell&apos;oro stanno nel lunedì.
+                {def.kind === "LEVEL"
+                  ? " Per un indice di volatilità l'indice nasce dalle sue variazioni giornaliere; le tabelle restano in livelli."
+                  : ""}{" "}
+                L&apos;anno in corso, tratteggiato, è escluso dalle medie.
+              </p>
+            </section>
+
+            {/* ── Profondità ────────────────────────────────────────────── */}
+            <div className="mt-6 flex flex-wrap items-center gap-x-5 gap-y-2.5">
+              <GruppoControlli
+                label="Profondità"
+                voci={TABS.map((t) => {
+                  const bloccato = isIntradayGranularity(t.granularity) && !intradayPronto;
+                  return {
+                    key: t.id,
+                    label: t.label,
+                    // Il drill per mese vale solo sul giorno, l'orologio solo
+                    // sull'ora: cambiando scheda si azzerano.
+                    href: bloccato
+                      ? undefined
+                      : hrefWith(base, {
+                          t: t.id === "mese" ? undefined : t.id,
+                          m: t.id === "giorno" ? base.m : undefined,
+                          c: t.id === "ora" ? base.c : undefined,
+                        }),
+                    active: t.id === tab,
+                    title: bloccato
+                      ? def.hourly === null
+                        ? "Un indice di volatilità non ha sessione né ora: misura la volatilità attesa a 30 giorni, non un prezzo che si muove durante la giornata."
+                        : "Barre orarie non ancora caricate per questo strumento."
+                      : undefined,
+                  };
+                })}
+              />
+              {granularity === "HOUR" ? (
+                <GruppoControlli
+                  label="Orologio"
+                  voci={CLOCKS.map((c) => ({
+                    key: c,
+                    label: CLOCK_LABEL[c],
+                    href: hrefWith(base, { c: c === "ROME" ? undefined : c }),
+                    active: c === clock,
+                    title:
+                      c === "ROME"
+                        ? "Ora italiana, con l'ora legale applicata correttamente"
+                        : "Ora UTC, senza cambi stagionali",
+                  }))}
+                />
+              ) : null}
+              {granularity === "WEEKDAY" ? (
+                <GruppoControlli
+                  label="Dentro il mese"
+                  voci={[
+                    {
+                      key: "tutto",
+                      label: "Tutto l'anno",
+                      href: hrefWith(base, { m: undefined }),
+                      active: scope === SCOPE_ALL,
+                    },
+                    ...MONTH_LABELS_SHORT.map((m, i) => ({
+                      key: m,
+                      label: m,
+                      href: hrefWith(base, { m: String(i + 1) }),
+                      active: scope === monthScope(i + 1),
+                      title: `Solo i giorni di ${MONTH_LABELS[i]}`,
+                    })),
+                  ]}
+                />
+              ) : null}
+            </div>
+
+            {intraday && def.intradayNote ? (
+              <p className="mt-3 text-xs leading-[1.5] text-[var(--md-text-2)]">
+                <strong className="font-medium text-[var(--md-text)]">Strumento diverso dal giornaliero.</strong>{" "}
+                {def.intradayNote}
+              </p>
+            ) : null}
+            {intraday && cov?.hourNote ? (
+              <p className="mt-2 text-xs leading-[1.5] text-[var(--md-text-2)]">
+                <strong className="font-medium text-[var(--md-text)]">Archivio orario.</strong> {cov.hourNote}
+              </p>
+            ) : null}
+            {granularity === "SESSION" ? (
+              <p className="mt-3 text-xs leading-[1.5] text-[var(--md-text-2)]">
+                <strong className="font-medium text-[var(--md-text)]">Confini delle sessioni</strong>, ora
+                italiana (Europe/Rome, ora legale inclusa): Asia 00:00 → 08:00 · Londra 08:00 → 14:00 · New
+                York 14:00 → 22:00 · fuori 22:00 → 00:00. Sono le stesse fasce con cui l&apos;app classifica
+                i tuoi trade; nelle due-tre settimane l&apos;anno in cui Italia, Londra e New York cambiano
+                ora in giorni diversi il confine può scostarsi di un&apos;ora dall&apos;apertura reale.
+              </p>
+            ) : null}
+
+            {granularity === "HOUR" && hourPathSeries.length > 0 ? (
+              <section className="mt-6" aria-labelledby="indice-intraday">
+                <Titolo>
+                  <span id="indice-intraday">
+                    Indice intraday — {def.label} ({CLOCK_LABEL[clock]})
+                    {detrended ? " — solo stagionalità" : ""}
+                  </span>
+                </Titolo>
+                <div className="h-[320px] w-full md:h-[520px]">
+                  <HourPathChart
+                    series={hourPathSeries}
+                    selectedWindow={lookbackEffettivo}
+                    currentQuarter={quartoCorrente}
+                    clockLabel={CLOCK_LABEL[clock]}
+                  />
+                </div>
+                <p className="mt-2 text-2xs leading-[1.5] text-[var(--md-muted)]">
+                  Indice a base 100 a mezzanotte, non un rendimento: 100,02 non va letto come «+0,02%». 96
+                  punti reali, uno per quarto d&apos;ora, dalle barre a 15 minuti; nessuna lisciatura. Le
+                  tabelle qui sotto restano sulle barre orarie.
+                  {quartiVuoti > 0
+                    ? ` ${quartiVuoti} quarti d'ora su 96 non hanno quotazioni nella finestra selezionata: è la pausa serale del mercato, e lì la curva resta piatta perché non è successo niente.`
+                    : ""}
+                </p>
+              </section>
+            ) : null}
+
+            {/* ── Griglia anni × bucket ─────────────────────────────────── */}
+            <section className="mt-6">
+              {heatmap ? (
+                <SeasonalityHeatmap
+                  data={heatmap}
                   kind={def.kind}
                   granularity={granularity}
                   currentBucket={bucketCorrente}
-                  byWindow={byWindow}
-                  selectedWindow={lookbackEffettivo}
-                  coverage={windows}
-                  anniMancanti={anniMancanti}
-                  reference={reference}
-                  estremi={estremi}
-                  notaEstremi={notaEstremi}
-                  escursioni={escursioni}
-                  mostraEscursioni={mostraEscursioni}
-                  notaEscursioni={notaEscursioni}
+                  /* Con un filtro di mese le righe di sintesi si tolgono invece
+                     di accostare numeri calcolati su periodi diversi. */
+                  summary={scope === SCOPE_ALL ? selectedStats : []}
+                  windowMedian={reference}
+                  lookbackYears={lookbackEffettivo}
                 />
-              </div>
-            </>
-          )}
-        </div>
+              ) : (
+                <SectionEmpty what="La griglia" />
+              )}
+              {scope !== SCOPE_ALL ? (
+                <p className="mt-2 text-2xs leading-[1.5] text-[var(--md-muted)]">
+                  La griglia resta su tutto l&apos;anno: il filtro «{MONTH_LABELS[scopeMonthNum - 1]}» agisce
+                  sulla tabella qui sotto.
+                </p>
+              ) : null}
+            </section>
+
+            {/* ── Tabella per bucket ────────────────────────────────────── */}
+            <section className="mt-6">
+              <Titolo>
+                <span>
+                  Per {tab}
+                  {granularity === "HOUR" ? ` (${CLOCK_LABEL[clock]})` : ""}, su tutte le finestre
+                  {scope === SCOPE_ALL ? "" : ` — solo ${MONTH_LABELS[scopeMonthNum - 1]}`}
+                  {detrended ? " — solo stagionalità" : ""}
+                </span>
+              </Titolo>
+              <BucketWindowTable
+                kind={def.kind}
+                granularity={granularity}
+                currentBucket={bucketCorrente}
+                byWindow={byWindow}
+                selectedWindow={lookbackEffettivo}
+                coverage={windows}
+                anniMancanti={anniMancanti}
+                reference={reference}
+                estremi={estremi}
+                notaEstremi={notaEstremi}
+                escursioni={escursioni}
+                mostraEscursioni={mostraEscursioni}
+                notaEscursioni={notaEscursioni}
+              />
+            </section>
+          </>
+        )}
+
+        <NotaChiusura>
+          Dati: {def.attribution}. In questa pagina ci sono solo statistiche aggregate e derivate: le
+          serie di prezzo grezze restano sul server e non sono scaricabili. Finestre di anni solari
+          completi; l&apos;anno in corso non entra in nessuna media.
+        </NotaChiusura>
       </div>
     </div>
   );

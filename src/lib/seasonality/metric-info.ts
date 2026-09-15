@@ -63,7 +63,7 @@ export function posInfo(kind: SeasonalityKind): MetricInfoData {
     };
   }
   return {
-    label: "Anni in positivo",
+    label: "In rialzo — anni in positivo",
     description:
       "Quanti ANNI hanno chiuso il periodo in rialzo, su quanti ce ne sono: «12 anni su 20». Distingue «sale spesso di poco» da «sale di rado ma tanto», due profili che la sola media confonde. Un rendimento nullo NON conta come positivo. È un conteggio storico, non una probabilità per il prossimo anno: la quota fra parentesi è la stessa informazione, non una previsione.",
     formula: "conteggio degli anni con rendimento > 0, su n",
@@ -112,7 +112,7 @@ export const detrendInfo: MetricInfoData = {
 export const percorsoInfo: MetricInfoData = {
   label: "Indice stagionale",
   description:
-    "Un indice a base 100, non un rendimento: mostra la FORMA del percorso medio nell'anno — dove sale, dove scende, dov'è il minimo. Si calcola dai rendimenti giornalieri: per ogni giorno dell'anno la media dei rendimenti degli anni della finestra, poi la cumulata dal 1° gennaio. La linea è lisciata con una media mobile centrata a 5 giorni; la traccia chiara sotto è la curva grezza; la fascia sta fra il primo e il terzo quartile dei percorsi dei singoli anni. Dove la fascia è larga la forma è tirata da pochi anni. L'ampiezza reale sta nelle tabelle, in percentuale.",
+    "Un indice a base 100, non un rendimento: mostra la FORMA del percorso medio nell'anno — dove sale, dove scende, dov'è il minimo. Si calcola dai rendimenti giornalieri: per ogni giorno dell'anno la media dei rendimenti degli anni della finestra, poi la cumulata dal 1° gennaio. La linea è lisciata con una media mobile centrata a 5 giorni; la traccia chiara sotto è la curva grezza; la fascia sta fra il primo e il terzo quartile dei percorsi dei singoli anni. Dove la fascia è larga la forma è tirata da pochi anni. L'ampiezza reale sta nelle tabelle: in percentuale per i prezzi, in livelli per gli indici di volatilità.",
   formula:
     "I(g) = 100 · e^(Σ_{k≤g} r̄_k), r̄_k = media fra gli anni di ln(P_k / P_{k−1}) · calendario di 365 giorni (29/2 nel 28/2)",
   note: "L'anno in corso è escluso dalle medie e disegnato a parte, tratteggiato. Una finestra si mostra solo se tutti i suoi anni sono completi.",

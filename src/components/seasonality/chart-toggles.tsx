@@ -34,11 +34,12 @@ export function ChartToggles({
         return (
           <label
             key={item.key}
-            className="md-mono inline-flex cursor-pointer select-none items-center gap-1.5 text-2xs"
+            className="inline-flex min-h-7 cursor-pointer select-none items-center gap-1.5 text-xs"
             style={{
+              /* Una finestra spenta resta leggibile (muted, niente opacità):
+                 la casella vuota dice già che è spenta. */
               color: accesa ? "var(--md-text-2)" : "var(--md-muted)",
-              fontWeight: item.selected ? 700 : 500,
-              opacity: accesa ? 1 : 0.6,
+              fontWeight: item.selected ? 600 : 500,
             }}
           >
             <input

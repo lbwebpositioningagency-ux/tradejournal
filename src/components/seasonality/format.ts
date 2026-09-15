@@ -3,6 +3,7 @@ import type {
   SeasonalityKind,
 } from "@/generated/prisma/client";
 import { logToPercent } from "@/lib/seasonality/series";
+import { formatNumber } from "@/lib/format-number";
 
 /**
  * Unità di visualizzazione: i rendimenti sono SEMPRE in percentuale, i
@@ -51,7 +52,13 @@ export const UNIT_SUFFIX: Record<DisplayUnit, string> = {
  * prendere una decisione su un numero che non esiste.
  */
 
-const IT = "it-IT";
+/*
+ * Tutte le cifre passano dal formattatore unico dell'app (`lib/format-number.ts`):
+ * stesso locale, stesso punto delle migliaia anche a quattro cifre. Qui resta
+ * solo ciò che è della Stagionalità: l'unità e il SEGNO, deciso sul valore e
+ * non sulla cifra arrotondata — un rendimento orario di +0,0036% a due
+ * decimali è «+0,00%», non «0,00%»: positivo, ma sotto la precisione scelta.
+ */
 
 /** Media/mediana di un bucket, nell'unità giusta per strumento e granularità. */
 export function formatBucketValue(
@@ -61,18 +68,10 @@ export function formatBucketValue(
   unit: DisplayUnit = kind === "LEVEL" ? "level" : "percent",
 ): string {
   if (!Number.isFinite(value)) return "—";
-  if (unit === "level") {
-    return value.toLocaleString(IT, {
-      minimumFractionDigits: decimals,
-      maximumFractionDigits: decimals,
-    });
-  }
+  if (unit === "level") return formatNumber(value, { decimals });
   const scaled = logToPercent(value);
   const sign = scaled > 0 ? "+" : "";
-  return `${sign}${scaled.toLocaleString(IT, {
-    minimumFractionDigits: decimals,
-    maximumFractionDigits: decimals,
-  })}${UNIT_SUFFIX[unit]}`;
+  return `${sign}${formatNumber(scaled, { decimals })}${UNIT_SUFFIX[unit]}`;
 }
 
 /**
@@ -88,17 +87,13 @@ export function formatStdev(
   decimals = 2,
 ): string {
   if (value === null || !Number.isFinite(value)) return "—";
-  const scaled = unit === "level" ? value : value * 100;
-  return scaled.toLocaleString(IT, {
-    minimumFractionDigits: decimals,
-    maximumFractionDigits: decimals,
-  });
+  return formatNumber(unit === "level" ? value : value * 100, { decimals });
 }
 
-/** Quota 0-1 → percentuale intera. */
+/** Quota 0-1 → percentuale intera. Da mostrare solo accanto a un conteggio. */
 export function formatShare(value: number): string {
   if (!Number.isFinite(value)) return "—";
-  return `${Math.round(value * 100)}%`;
+  return `${formatNumber(value * 100, { decimals: 0 })}%`;
 }
 
 /**
@@ -112,7 +107,9 @@ export function positiveLabel(kind: SeasonalityKind): string {
      successo: è invece la QUOTA di osservazioni con rendimento positivo in un
      campione storico dichiarato. «Anni in positivo» dice esattamente quello,
      e non si presta a essere letto come una probabilità. */
-  return kind === "LEVEL" ? "Sopra mediana" : "Anni in positivo";
+  /* «In rialzo» dal 15/09/2026: la cella dice già «14 anni su 20», e
+     l'intestazione più corta tiene MAE e MFE dentro la tabella a 1440. */
+  return kind === "LEVEL" ? "Sopra mediana" : "In rialzo";
 }
 
 export function positiveHelp(kind: SeasonalityKind): string {

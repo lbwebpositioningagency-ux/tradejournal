@@ -3075,3 +3075,25 @@ erano livelli, la pagina mostra «Indice in ricalcolo» invece di un numero fals
 registra le variazioni come attese, non sospette (senza, il cron sarebbe diventato rosso).
 
 Gate: typecheck, lint, 2.144 test, build verdi. Schermate in `docs/stagionalita/rifacimento/fase3/`.
+
+## 15/09/2026 · Stagionalità, rifacimento fase 4 — dentro il sistema visivo
+
+Decisione in Claude Design, tavola «Sistema visivo v3 - Stagionalità e grafico con banda»
+(estende la v2): composizione 1a (riepilogo, poi grafico) + riquadro 8 del grafico con banda.
+
+- `PageHeader` con `MacroDeskTabs`; cancellata `MacroDeskSectionNav` (la usava solo questa pagina).
+- `.md-listino` al posto di `.macro-report`: segue il tema, niente più isola scura. Via Inter e
+  JetBrains Mono: solo Geist.
+- Controlli = segmentato del sistema (`controls.tsx` → `GruppoControlli` con voce disabilitata
+  e pallino); via i chip propri.
+- Riepilogo e tabelle: una resa `ml-tab` a ogni larghezza, prima colonna ferma, niente card
+  impilate; via la colonna «Posizione» (ripeteva il rango); MAE/MFE prima di banda e campione.
+- Formattatore unico: i 13 punti a mano passano da `format-number.ts`.
+- Riga delle frequenze della griglia senza tinta: la quota sul fondo colorato scendeva a 2,9:1.
+- Fascia del grafico: `--ml-banda` 0,16 chiaro / 0,22 scuro; altezza 520px (320 sotto 768).
+
+Misure (DOM, build locale, 6 viste × 1440/390 × due temi): 0 testi < 11px, 0 < 4,5:1, una
+famiglia, 0 errori in console, nessuna pagina più larga del viewport. Altezza 3.574 → 2.983
+(1440) e 5.349 → 3.228 (390). Residuo: la vista Ora a 390 è 4.409px (griglia di 24 colonne e
+due grafici). Gate: typecheck, lint, 2.144 test, build verdi. Schermate in
+`docs/stagionalita/rifacimento/fase4/`.

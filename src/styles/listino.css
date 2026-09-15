@@ -148,6 +148,17 @@
   display: none;
 }
 
+/* ── fascia di dispersione dei grafici (tavola «Sistema visivo v3 -
+   Stagionalità e grafico con banda», riquadro 8) ─────────────────────────
+   Il colore è quello della finestra; l'opacità cambia col tema perché sul
+   fondo scuro la stessa tinta al 16% quasi sparisce. */
+.md-listino {
+  --ml-banda: 0.16;
+}
+.dark .md-listino {
+  --ml-banda: 0.22;
+}
+
 /* ── titolo di sezione ───────────────────────────────────────────────────
    Il filetto corre fino al margine destro: separa i blocchi senza spendere
    una riga vuota, che è il modo in cui un listino stampato guadagna spazio. */

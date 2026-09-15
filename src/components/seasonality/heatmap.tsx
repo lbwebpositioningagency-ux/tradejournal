@@ -5,8 +5,6 @@ import {
 } from "@/components/seasonality/bucket-labels";
 import type { BucketView, HeatmapData } from "@/lib/seasonality/query";
 import {
-  CELL_OPACITY_MAX,
-  CELL_OPACITY_MIN,
   UNIT_LABEL,
   cellBackground,
   decimalsFor,
@@ -16,9 +14,8 @@ import {
   positiveLabel,
   robustScale,
   unitFor,
-  valueColor,
 } from "@/components/seasonality/format";
-import { PanelLabel } from "@/components/macro-desk/primitives";
+import { Titolo } from "@/components/macro-desk/listino/primitive";
 import { LowSampleMark } from "@/components/seasonality/low-sample";
 import { Frequenza } from "@/components/seasonality/frequenza";
 import { sampleQuality } from "@/lib/seasonality/stats";
@@ -90,16 +87,9 @@ export function SeasonalityHeatmap({
   /* La riga Pos% si colora attorno al 50%: piu della meta degli anni
      positivi → verso l'alto, meno → verso il basso. Stessi tetti di opacita
      AA (CELL_OPACITY_MIN/MAX) delle celle. */
-  const posBg = (s: BucketView) => {
-    const delta = s.positiveShare - 0.5;
-    const intensity = Math.min(1, Math.abs(delta) * 2);
-    if (intensity < 0.04) return undefined;
-    const color = delta > 0 ? valueColor(1, "RETURN") : valueColor(-1, "RETURN");
-    const pct = Math.round(
-      CELL_OPACITY_MIN + intensity * (CELL_OPACITY_MAX - CELL_OPACITY_MIN),
-    );
-    return `color-mix(in oklab, ${color} ${pct}%, transparent)`;
-  };
+  /* La riga delle frequenze NON si tinge (15/09/2026): una frequenza colorata
+     come una casella di rendimento si legge come un «caldo» probabilistico, e
+     la quota in secondo piano sul fondo tinto scendeva a 2,9-4,4:1. */
 
   if (data.cells.length === 0) {
     return (
@@ -112,9 +102,9 @@ export function SeasonalityHeatmap({
   return (
     <div className="flex flex-col gap-2">
       <div className="flex flex-wrap items-baseline justify-between gap-2">
-        <PanelLabel>
+        <Titolo className="mb-0 min-w-0 flex-1">
           Anni × {axis.columnName.toLowerCase()} — ultimi {lookbackYears} anni
-        </PanelLabel>
+        </Titolo>
         <span className="text-2xs text-[var(--md-muted)]">
           {UNIT_LABEL[unit]}
           {granularity === "MONTH"
@@ -264,8 +254,7 @@ export function SeasonalityHeatmap({
               label={positiveLabel(kind)}
               buckets={axis.buckets}
               values={summaryByBucket}
-              render={(s) => <Frequenza quota={s.positiveShare} n={s.n} compatta />}
-              cellBg={posBg}
+              render={(s) => <Frequenza quota={s.positiveShare} n={s.n} compatta aCapo />}
             />
             {/* La riga `n` porta il marcatore di campione basso come la
                 tabella sotto: due viste dello stesso numero non possono

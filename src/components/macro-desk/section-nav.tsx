@@ -1,4 +1,3 @@
-import Link from "next/link";
 import {
   Activity,
   CalendarClock,
@@ -9,7 +8,6 @@ import {
   Waypoints,
   type LucideIcon,
 } from "lucide-react";
-import { Button } from "@/components/ui/button";
 import { TabNav } from "@/components/layout/tab-nav";
 
 /**
@@ -146,118 +144,6 @@ export const SEZIONI_REGISTRO = MACRO_DESK_SECTIONS.filter(
 export type MacroDeskSectionKey = (typeof MACRO_DESK_SECTIONS)[number]["key"];
 
 /**
- * Barra di salto fra sezioni, in alto a destra nelle PAGINE DI SEZIONE.
- *
- * Da 720px in su è una GRIGLIA FISSA, non un wrap naturale. Il wrap naturale
- * mandava a capo un numero variabile di voci e lasciava "Report" orfano in
- * fondo a sinistra. Le colonne sono `1fr` dentro un contenitore `w-fit`, quindi
- * larghe quanto la pillola più larga: il blocco resta uniforme e allineato a
- * destra.
- *
- * Dal 14/09/2026, uscita Trends, le quotidiane sono QUATTRO. Il numero di
- * colonne segue il numero di voci perché nessuna resti sola in fondo: quattro
- * voci stanno su DUE colonne (due righe piene), le cinque di una pagina
- * d'archivio su TRE (tre più due). Con tre colonne fisse le quattro quotidiane
- * lasciavano Calendario orfano. A distinguere la pagina corrente non è la
- * posizione ma la pillola piena con `aria-current`, che è il segnale vero e
- * non dipende da quante sezioni ci sono.
- *
- * Sotto 720px il comportamento resta quello di prima — una riga sola che scorre
- * in orizzontale — perché a quelle larghezze tre colonne non ci starebbero
- * senza schiacciare "Stagionalità", che dal 27/08/2026 è l'etichetta più lunga
- * rimasta (prima lo era "Posizionamento"). La soglia è 720 e non `md` (768)
- * perché a 768 esatti il viewport utile scende sotto la soglia e la griglia non
- * scattava proprio alla larghezza da verificare.
- *
- * In nessuno dei due casi un'etichetta viene troncata (le pillole sono
- * `whitespace-nowrap`) né la fila sborda dalla pagina, perché il contenitore è
- * `min-w-0` dentro un header flex.
- */
-export function MacroDeskSectionNav({
-  active,
-}: {
-  /** Sezione corrente: resa come pillola piena e marcata `aria-current`. */
-  active: MacroDeskSectionKey;
-}) {
-  /* Le quattro quotidiane, più quella corrente se è d'archivio: dalla Scorecard
-     si deve poter tornare indietro, e soprattutto si deve vedere di essere in
-     una pagina che non è fra le quattro. */
-  const corrente = MACRO_DESK_SECTIONS.find((s) => s.key === active);
-  const voci =
-    corrente && corrente.gruppo === "archivio"
-      ? [...SEZIONI_QUOTIDIANE, corrente]
-      : SEZIONI_QUOTIDIANE;
-  /* Classi scritte per intero: Tailwind non vede quelle composte a runtime. */
-  const colonne =
-    voci.length % 2 === 0 ? "min-[720px]:grid-cols-2" : "min-[720px]:grid-cols-3";
-
-  const radar = SEZIONI_REGISTRO[0];
-  const radarAttivo = active === radar.key;
-  const IconaRadar = radar.icon;
-
-  return (
-    <nav
-      aria-label="Sezioni del Macro Desk"
-      className="w-full min-w-0 min-[720px]:ml-auto min-[720px]:w-fit"
-    >
-      {/* La utility `scrollbar-none` del progetto è scoped a `.macro-report`, e
-          questa barra vive fuori dal terminale: la barra di scorrimento si
-          nasconde qui, senza toccare i token globali. */}
-      <ul
-        className={`flex flex-nowrap gap-2 overflow-x-auto pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden min-[720px]:grid ${colonne} min-[720px]:overflow-x-visible min-[720px]:pb-0`}
-      >
-        {voci.map((section) => {
-          const isActive = section.key === active;
-          const Icon = section.icon;
-          return (
-            <li key={section.key} className="shrink-0">
-              <Button
-                asChild
-                size="sm"
-                variant={isActive ? "secondary" : "outline"}
-                /* In griglia la pillola riempie la sua cella: colonne uguali
-                   invece di larghezze diverse. */
-                className="min-[720px]:w-full"
-              >
-                <Link
-                  href={section.href}
-                  aria-current={isActive ? "page" : undefined}
-                >
-                  <Icon className="size-4" />
-                  {section.label}
-                </Link>
-              </Button>
-            </li>
-          );
-        })}
-      </ul>
-
-      {/* IL RADAR STA FUORI DALLA GRIGLIA, sempre e in fondo.
-          Non è una nona pillola messa in coda alle altre: è l'unica sezione
-          che non parla di prezzi, e dentro la griglia delle sezioni di mercato
-          si leggerebbe come una di loro. Il filo sopra e l'allineamento a
-          destra dicono «questo è un'altra cosa» senza bisogno di una legenda.
-          Su mobile diventa una riga sua sotto la barra scorrevole, che è
-          esattamente la stessa affermazione. */}
-      <div className="mt-2 flex justify-end border-t border-border/60 pt-2">
-        <Button
-          asChild
-          size="sm"
-          variant={radarAttivo ? "secondary" : "ghost"}
-          className="text-muted-foreground hover:text-foreground data-[attivo=true]:text-foreground"
-          data-attivo={radarAttivo}
-        >
-          <Link href={radar.href} aria-current={radarAttivo ? "page" : undefined}>
-            <IconaRadar className="size-4" />
-            {radar.label}
-          </Link>
-        </Button>
-      </div>
-    </nav>
-  );
-}
-
-/**
  * SCHEDE DEL MACRO DESK — sistema v2 (14/09/2026), tavola «Sistema visivo v2»
  * riquadro 5 in Claude Design.
  *
@@ -268,8 +154,8 @@ export function MacroDeskSectionNav({
  * resta visibile senza bisogno di una seconda riga, e la sezione corrente è
  * sempre in vista anche quando è d'archivio.
  *
- * `MacroDeskSectionNav` qui sopra resta SOLO per la Stagionalità, congelata
- * dal 29/08/2026: il suo file di pagina non si tocca.
+ * Dal 15/09/2026 le usa anche la Stagionalità, l'ultima pagina che teneva la
+ * vecchia griglia di pillole (`MacroDeskSectionNav`, cancellata).
  */
 export function MacroDeskTabs({ active }: { active?: MacroDeskSectionKey }) {
   return (
