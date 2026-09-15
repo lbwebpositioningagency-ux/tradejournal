@@ -79,14 +79,29 @@ export { sqn, sqnInfo, SQN_MIN_TRADES } from "./sqn";
 export { calmarRatio, calmarInfo, coveredDays, CALMAR_MIN_DAYS } from "./calmar";
 export {
   correlationMatrix,
+  correlationEligible,
   correlationTone,
   correlationInfo,
   pairKey,
   CORRELATION_MIN_DAYS,
+  CORRELATION_TONE_LABELS,
   type CorrelationMatrix,
   type CorrelationPair,
   type CorrelationSeries,
+  type CorrelationTone,
 } from "./correlation";
+export {
+  drawdownEpisodes,
+  drawdownDurationSummary,
+  drawdownDurationInfo,
+  DRAWDOWN_BANDS,
+  DRAWDOWN_DEPTH_FILTERS,
+  DRAWDOWN_EPISODES_MIN,
+  type DrawdownBand,
+  type DrawdownDepthKey,
+  type DrawdownDurationSummary,
+  type DrawdownEpisode,
+} from "./drawdown-episodes";
 export {
   DAY_UNIT_LABELS,
   DAY_UNIT_NOTES,

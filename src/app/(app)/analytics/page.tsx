@@ -36,9 +36,16 @@ import {
   breakEvenWinRateInfo,
   concentration,
   concentrationInfo,
+  correlationEligible,
   correlationMatrix,
   correlationInfo,
   CORRELATION_MIN_DAYS,
+  drawdownDurationInfo,
+  drawdownDurationSummary,
+  drawdownEpisodes,
+  DRAWDOWN_DEPTH_FILTERS,
+  DRAWDOWN_EPISODES_MIN,
+  type DrawdownDepthKey,
   equityFitInfo,
   equityLinearFit,
   expectedLongestRun,
@@ -55,7 +62,12 @@ import {
   winRateMargin,
 } from "@/lib/metrics";
 import { ConcentrationTable } from "@/components/analytics/concentration-table";
-import { CorrelationMatrixTable } from "@/components/analytics/correlation-matrix";
+import {
+  CorrelationMatrixTable,
+  CorrelationPairsTable,
+} from "@/components/analytics/correlation-matrix";
+import { DrawdownEpisodesTable } from "@/components/analytics/drawdown-episodes-table";
+import { SegmentedNav } from "@/components/ui/segmented";
 import {
   DAY_WINDOWS,
   DURATION_BUCKETS,
@@ -91,6 +103,7 @@ import {
 // /dashboard e /trades: nessuno sta sopra la piega, e recharts+d3 usciva dal
 // percorso critico solo per le altre due route.
 import {
+  DrawdownDurationChart,
   EquitySimulator,
   RDistributionChart,
   RollingRatioChart,
@@ -578,11 +591,41 @@ export default async function AnalyticsPage({
     netPnl: proAgg.netPnl,
   });
 
+  /* Durata dei drawdown: gli episodi si tagliano sulla STESSA serie
+     giornaliera di rolling e VaR (metrica di conto, parte dall'equity a
+     inizio periodo). La soglia di profondità arriva dall'URL con parsing
+     lenient: un valore sconosciuto torna a «Tutti». */
+  const depthKey: DrawdownDepthKey =
+    DRAWDOWN_DEPTH_FILTERS.find((f) => f.key === params.ddp)?.key ?? "0";
+  const depthFilter = DRAWDOWN_DEPTH_FILTERS.find((f) => f.key === depthKey)!;
+  const ddSummary = drawdownDurationSummary(
+    drawdownEpisodes(returnsSeries, seriesEquity),
+    depthFilter.minPct,
+  );
+  const depthHref = (key: DrawdownDepthKey) => {
+    const query = new URLSearchParams();
+    for (const [k, value] of Object.entries(params)) {
+      if (typeof value === "string" && k !== "ddp") query.set(k, value);
+    }
+    if (key !== "0") query.set("ddp", key);
+    const qs = query.toString();
+    return `/analytics${qs ? `?${qs}` : ""}#rischio`;
+  };
+  const worstDuration = ddSummary.closed.reduce<(typeof ddSummary.closed)[number] | null>(
+    (acc, e) => (acc === null || e.durationSessions > acc.durationSessions ? e : acc),
+    null,
+  );
+  const worstRecovery = ddSummary.closed.reduce<(typeof ddSummary.closed)[number] | null>(
+    (acc, e) => (acc === null || e.recoverySessions > acc.recoverySessions ? e : acc),
+    null,
+  );
+
   /* Matrice di correlazione fra strategie: le righe SQL diventano una serie
-     per strategia con il suo calendario. Le strategie con meno di 10 trade
-     restano fuori — una correlazione costruita su una manciata di giornate
-     descrive quelle giornate, non la strategia. */
-  const strategySeries = (() => {
+     per strategia con il suo calendario. Entrano le strategie con almeno
+     CORRELATION_MIN_DAYS giorni operati: sotto, nessuna loro coppia può avere
+     abbastanza giorni in comune, e sarebbero righe di celle vuote. Le escluse
+     si nominano in pagina, non spariscono. */
+  const allStrategySeries = (() => {
     const byStrategy = new Map<
       string,
       { key: string; label: string; byDay: Map<string, string>; trades: number }
@@ -598,10 +641,10 @@ export default async function AnalyticsPage({
       entry.trades += row.trades;
       byStrategy.set(row.strategyId, entry);
     }
-    return [...byStrategy.values()]
-      .filter((s) => s.trades >= 10)
-      .sort((a, b) => b.trades - a.trades);
+    return [...byStrategy.values()].sort((a, b) => b.trades - a.trades);
   })();
+  const strategySeries = allStrategySeries.filter(correlationEligible);
+  const excludedStrategies = allStrategySeries.filter((s) => !correlationEligible(s));
   const correlations = correlationMatrix(strategySeries);
 
   // Durata contro esito su TUTTI i trade insieme: la tabella per fascia dice
@@ -895,9 +938,169 @@ export default async function AnalyticsPage({
               <Capitolo
                 id="rischio"
                 titolo="Rischio"
-                sottotitolo="serie consecutive, concentrazione del profitto, strategie che si muovono insieme"
+                sottotitolo="quanto si resta sotto il massimo, serie consecutive, concentrazione del profitto, strategie che si muovono insieme"
               >
                 <div className="flex flex-col gap-4">
+                  {/* Durata dei drawdown (tavola CD «Analytics - durata
+                      drawdown e correlazione», riquadri 1-2). In testa al
+                      capitolo: è la domanda più vicina all'esperienza. */}
+                  <PannelloAnalisi
+                    titolo="Durata dei drawdown"
+                    info={drawdownDurationInfo}
+                    azioni={
+                      <SegmentedNav
+                        label="Profondità minima degli episodi"
+                        scroll={false}
+                        items={DRAWDOWN_DEPTH_FILTERS.map((f) => ({
+                          key: f.key,
+                          href: depthHref(f.key),
+                          label: f.label,
+                          active: f.key === depthKey,
+                        }))}
+                      />
+                    }
+                    meta={
+                      <>
+                        {ddSummary.closed.length}{" "}
+                        {ddSummary.closed.length === 1 ? "episodio chiuso" : "episodi chiusi"}{" "}
+                        nel periodo
+                        {depthFilter.minPct !== null &&
+                          ` oltre il ${depthFilter.label.replace("Oltre ", "")} di profondità (${ddSummary.belowDepth} più lievi esclusi)`}
+                        , in sedute. Durata: dal massimo al ritorno sul massimo · recupero:
+                        dal punto più basso al ritorno.
+                        {instrumentFilterActive ? <AccountScopeNote className="mt-2" /> : null}
+                      </>
+                    }
+                    metodo={
+                      <>
+                        <p>
+                          Un episodio parte dall&apos;ultimo massimo dell&apos;equity e
+                          finisce la prima seduta in cui l&apos;equity torna a quel
+                          massimo o sopra. Le sedute sono quelle della serie
+                          giornaliera di Sharpe e VaR: giorni feriali, quelli senza
+                          trade a P&amp;L zero. Un drawdown iniziato prima del periodo
+                          selezionato si conta dal primo giorno del periodo.
+                        </p>
+                        <p>
+                          Le durate hanno una coda lunga a destra — tanti episodi da
+                          due o tre sedute, pochi da decine — quindi si leggono per
+                          fasce e mediana, non con media e deviazione standard.
+                          Mediana e istogramma compaiono da {DRAWDOWN_EPISODES_MIN}{" "}
+                          episodi chiusi: sotto, la forma della distribuzione è la
+                          forma del caso. L&apos;episodio ancora aperto non entra nei
+                          conteggi, perché la sua durata è solo un minimo.
+                        </p>
+                      </>
+                    }
+                  >
+                    {ddSummary.closed.length === 0 && ddSummary.open === null ? (
+                      <EmptyState
+                        compact
+                        icon={Activity}
+                        title="Nessun drawdown nel periodo"
+                        description={
+                          depthFilter.minPct === null
+                            ? "L'equity non è mai scesa sotto un suo massimo precedente."
+                            : "Nessun episodio supera la soglia di profondità scelta."
+                        }
+                      />
+                    ) : (
+                      <>
+                        <div className="grid gap-px overflow-hidden rounded-lg border bg-border sm:grid-cols-2 xl:grid-cols-4">
+                          <CellaPro
+                            label="Durata tipica"
+                            value={
+                              ddSummary.duration.median === null
+                                ? "—"
+                                : `${formatNumber(ddSummary.duration.median, { decimals: ddSummary.duration.median.includes(".") ? 1 : 0 })} sedute`
+                            }
+                            sub={
+                              ddSummary.lowSample
+                                ? `campione insufficiente: servono ${DRAWDOWN_EPISODES_MIN} episodi chiusi, ce ne sono ${ddSummary.closed.length}`
+                                : `mediana di ${ddSummary.closed.length} episodi`
+                            }
+                          />
+                          <CellaPro
+                            label={ddSummary.lowSample ? "Durata più lunga finora" : "Durata più lunga"}
+                            value={worstDuration ? `${worstDuration.durationSessions} sedute` : "—"}
+                            sub={
+                              worstDuration === null
+                                ? "nessun episodio chiuso"
+                                : ddSummary.lowSample
+                                  ? `su ${ddSummary.closed.length} ${ddSummary.closed.length === 1 ? "episodio" : "episodi"}: troppo pochi per dire quanto può durare`
+                                  : `su ${ddSummary.closed.length} episodi · profondità ${formatPercent(worstDuration.depthPct === null ? null : `-${worstDuration.depthPct}`)}`
+                            }
+                          />
+                          <CellaPro
+                            label="Recupero tipico"
+                            value={
+                              ddSummary.recovery.median === null
+                                ? "—"
+                                : `${formatNumber(ddSummary.recovery.median, { decimals: ddSummary.recovery.median.includes(".") ? 1 : 0 })} sedute`
+                            }
+                            sub={
+                              ddSummary.lowSample
+                                ? "campione insufficiente"
+                                : `mediana di ${ddSummary.closed.length} episodi`
+                            }
+                          />
+                          <CellaPro
+                            label={ddSummary.lowSample ? "Recupero più lungo finora" : "Recupero più lungo"}
+                            value={worstRecovery ? `${worstRecovery.recoverySessions} sedute` : "—"}
+                            sub={
+                              worstRecovery === null
+                                ? "nessun episodio chiuso"
+                                : `su ${ddSummary.closed.length} ${ddSummary.closed.length === 1 ? "episodio" : "episodi"}`
+                            }
+                          />
+                        </div>
+
+                        {ddSummary.lowSample ? (
+                          <p className="text-xs text-muted-foreground">
+                            Niente istogramma sotto {DRAWDOWN_EPISODES_MIN} episodi
+                            chiusi: con {ddSummary.closed.length} osservazioni la forma
+                            della distribuzione è quella del caso. Gli episodi sono
+                            tutti nella tabella qui sotto.
+                          </p>
+                        ) : (
+                          <DrawdownDurationChart bands={ddSummary.bands} />
+                        )}
+
+                        {ddSummary.open && (
+                          <p className="text-xs text-[var(--foreground-2)]">
+                            In corso: {ddSummary.open.durationSessions} sedute sotto il
+                            massimo
+                            {ddSummary.open.peakDay
+                              ? ` del ${ddSummary.open.peakDay.split("-").reverse().join("/")}`
+                              : " di inizio periodo"}
+                            {ddSummary.open.depthPct !== null &&
+                              ` (${formatPercent(`-${ddSummary.open.depthPct}`)} nel punto più basso)`}
+                            . Non entra nei conteggi: la sua durata è solo un minimo.
+                          </p>
+                        )}
+
+                        {ddSummary.lowSample ? (
+                          <DrawdownEpisodesTable
+                            episodes={ddSummary.closed}
+                            open={ddSummary.open}
+                            currency={currency}
+                          />
+                        ) : (
+                          <TabellaChiusa
+                            righe={ddSummary.closed.length + (ddSummary.open ? 1 : 0)}
+                            unita={ddSummary.open ? "episodi (uno in corso)" : "episodi"}
+                          >
+                            <DrawdownEpisodesTable
+                              episodes={ddSummary.closed}
+                              open={ddSummary.open}
+                              currency={currency}
+                            />
+                          </TabellaChiusa>
+                        )}
+                      </>
+                    )}
+                  </PannelloAnalisi>
+
                   {/* §3 — distribuzione delle lunghezze di streak. */}
                   <PannelloAnalisi
                     titolo="Distribuzione delle streak"
@@ -983,38 +1186,60 @@ export default async function AnalyticsPage({
                   titolo="Correlazione fra strategie"
                   info={correlationInfo}
                   meta={
-                    correlations.keys.length >= 2 ? (
-                      <>
-                        {strategySeries.length} strategie con almeno 10 trade nel
-                        periodo · rosso = vanno bene e male negli stessi giorni,
-                        verde = si alternano.
-                      </>
-                    ) : undefined
+                    <>
+                      {strategySeries.length}{" "}
+                      {strategySeries.length === 1 ? "strategia" : "strategie"}
+                      {` con almeno ${CORRELATION_MIN_DAYS} giorni operati nel periodo. `}
+                      Ogni cella:
+                      coefficiente sui P&amp;L giornalieri e giorni in cui le due
+                      strategie hanno operato insieme.
+                      {excludedStrategies.length > 0 && (
+                        <>
+                          {" "}
+                          Fuori perché operate meno di {CORRELATION_MIN_DAYS} giorni:{" "}
+                          {excludedStrategies
+                            .map((s) => `${s.label} (${s.byDay.size})`)
+                            .join(", ")}
+                          .
+                        </>
+                      )}
+                    </>
                   }
                   metodo={
                     <>
                       <p>
-                        Quanto si muovono insieme i P&amp;L giornalieri. Rosso = le
-                        due vanno bene e male negli stessi giorni, quindi sommarle
-                        non riduce il rischio; verde = si alternano, ed è lì che la
-                        diversificazione fa il suo lavoro.
+                        Il campione di una coppia sono i giorni in cui{" "}
+                        <strong className="text-foreground">entrambe</strong> hanno
+                        operato: solo lì possono perdere o guadagnare insieme. Sotto{" "}
+                        {CORRELATION_MIN_DAYS} giorni in comune la cella non mostra un
+                        numero. Il coefficiente si calcola invece su tutti i giorni in
+                        cui almeno una ha operato, con zero per quella ferma: il P&amp;L
+                        del conto è la somma dei due, zero compreso.
                       </p>
                       <p>
-                        Nei giorni in cui una strategia non opera il suo contributo
-                        è zero: è un fatto, non un dato mancante. Sotto{" "}
-                        {CORRELATION_MIN_DAYS} giornate comuni la cella resta vuota.
+                        La tinta tiene il segno: le due che si muovono insieme (tinta
+                        perdita) moltiplicano il rischio, quelle che si compensano
+                        (tinta profitto) lo riducono. Un valore dentro la banda di
+                        rumore ±1,96/√giorni in comune — ±0,36 con 30 giorni, ±0,20 con
+                        100 — non si distingue da zero e resta neutro: con i giorni che
+                        ci sono non si può dire.
                       </p>
                     </>
                   }
                 >
                   {correlations.keys.length >= 2 ? (
-                    <CorrelationMatrixTable matrix={correlations} />
+                    <>
+                      <CorrelationMatrixTable matrix={correlations} />
+                      <TabellaChiusa righe={correlations.pairs.size} unita="coppie">
+                        <CorrelationPairsTable matrix={correlations} />
+                      </TabellaChiusa>
+                    </>
                   ) : (
                     <EmptyState
                       compact
                       icon={Crosshair}
-                      title="Servono almeno due strategie"
-                      description="La correlazione confronta strategie fra loro: assegna una strategia ai trade (almeno 10 per strategia) e questa matrice si popola."
+                      title="Servono almeno due strategie con storia"
+                      description={`La correlazione confronta strategie fra loro: servono almeno due strategie operate ${CORRELATION_MIN_DAYS} giorni ciascuna nel periodo.`}
                     />
                   )}
                 </PannelloAnalisi>

@@ -3120,3 +3120,32 @@ Ampiezza massimo-minimo accanto ai rendimenti (oro, DAX, S&P su mese, settimana,
 sessione e ora dichiarano perché no). Via banda, lisciatura, MAE/MFE, grafico intraday e fase M15
 del job. WTI da Dukascopy verificato e NON sostituito: storia dal 2007 con due anni mancanti e
 lunedì di segno opposto, decisione all'utente.
+
+## 15/09/2026 · Journal, durata dei drawdown e correlazione fra strategie estesa
+
+Tavola Claude Design «Analytics - durata drawdown e correlazione». Prima del lavoro, censimento di
+tutte le metriche del journal letto dal codice: episodi di drawdown, durata e recupero non
+esistevano da nessuna parte (solo la curva Underwater); la correlazione fra strategie esisteva.
+
+- **Durata dei drawdown** (nuovo, Analytics › Rischio, in testa): `lib/metrics/drawdown-episodes.ts`
+  taglia la serie giornaliera unica in episodi (massimo → ritorno sul massimo; il pari conta come
+  recuperato; l'episodio aperto non entra nelle statistiche). Istogramma a fasce di sedute
+  1–2 · 3–5 · 6–10 · 11–20 · 21–40 · oltre 40, tarate su SIM1 (37 episodi chiusi, mediana 3,
+  90° percentile 13, massimo 100), con durata e recupero affiancati; celle con durata e recupero
+  tipici (mediana) e più lunghi, sempre col numero di episodi. Sotto 20 episodi chiusi: niente
+  mediana né istogramma, «più lunga finora» con l'avvertenza e tabella degli episodi aperta.
+  Soglia di profondità nell'URL (`ddp` = Tutti · Oltre 1% · Oltre 3%): su SIM1 16 e 5 episodi,
+  quindi entrambe mostrano il campione insufficiente. Nessuna query nuova: riusa la serie di
+  rolling e VaR.
+- **Correlazione fra strategie** (estesa, non duplicata): il campione della coppia sono i giorni in
+  cui operano ENTRAMBE (minimo 30), il coefficiente resta sull'unione con lo zero. Prima la soglia
+  guardava l'unione: Mean reversion × Pullback EMA ha 226 giorni di unione e 28 in comune, e
+  mostrava un numero. Ogni cella scrive i giorni in comune (non più solo nel tooltip); la cella
+  sotto soglia non ha numero. La tinta tiene segno e rumore (|r| < 1,96/√giorni = neutro): prima
+  −0,8 era rossa come +0,8. Entrano le strategie con almeno 30 giorni operati (prima 10 trade), le
+  escluse sono nominate. Tabella completa delle coppie chiusa sotto la heatmap.
+
+Misure (DOM, build locale, capitolo Rischio a 1440/390 nei due temi, tabelle chiuse aperte dalla
+sonda): 0 testi < 11px, 0 < 4,5:1, pagina mai più larga del viewport, 0 errori in console; a 390
+la heatmap non scorre più (prima 124px). Gate (dopo il rebase su 4cd57d6): typecheck, lint, 2.169 test, build verdi.
+Schermate in `docs/analytics/metriche-1509/`. Nessuna migrazione.
