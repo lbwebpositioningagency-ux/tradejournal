@@ -488,7 +488,7 @@ export interface ConcentrationRow {
   top1Pct: string | null;
   top5Pct: string | null;
   top10Pct: string | null;
-  top30Pct: string | null;
+  top25Pct: string | null;
   grossProfit: string;
   winners: number;
 }
@@ -525,8 +525,8 @@ export async function getTopConcentration(
         WHERE "rn" <= (SELECT CEIL(COUNT(*) * 10 / 100.0) FROM vincenti)
       ))::text AS "top10Pct",
       (SUM("netPnl") FILTER (
-        WHERE "rn" <= (SELECT CEIL(COUNT(*) * 30 / 100.0) FROM vincenti)
-      ))::text AS "top30Pct",
+        WHERE "rn" <= (SELECT CEIL(COUNT(*) * 25 / 100.0) FROM vincenti)
+      ))::text AS "top25Pct",
       COALESCE(SUM("netPnl"), 0)::text                AS "grossProfit",
       COUNT(*)::int                                   AS "winners"
     FROM vincenti

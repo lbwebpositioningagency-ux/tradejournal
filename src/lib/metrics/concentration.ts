@@ -17,7 +17,7 @@ import type { MetricInfoData } from "./types";
  * («i 3 migliori»): il 5% di 40 vincenti e il 5% di 400 sono la stessa
  * domanda, i tre migliori no, e con pochi vincenti «Top 10» era già tutto.
  */
-export const CONCENTRATION_PERCENTS = [1, 5, 10, 30] as const;
+export const CONCENTRATION_PERCENTS = [1, 5, 10, 25] as const;
 export type ConcentrationPercent = (typeof CONCENTRATION_PERCENTS)[number];
 
 /**
@@ -27,8 +27,8 @@ export type ConcentrationPercent = (typeof CONCENTRATION_PERCENTS)[number];
  * devono parlare dello stesso gruppo.
  *
  * Solo interi: `winners * percent` è esatto e la divisione per 100 cade su
- * un intero oppure lontano da esso. Con `winners * 0.3` invece 10 × 0,3 fa
- * 3,0000000000000004 e l'eccesso darebbe 4.
+ * un intero oppure lontano da esso. Con `winners * 0.07` invece 100 × 0,07 fa
+ * 7,000000000000001 e l'eccesso darebbe 8.
  */
 export function tradesForPercent(winners: number, percent: number): number {
   if (winners <= 0) return 0;
@@ -40,7 +40,7 @@ export interface ConcentrationInput {
   top1Pct: string | null;
   top5Pct: string | null;
   top10Pct: string | null;
-  top30Pct: string | null;
+  top25Pct: string | null;
   /** Profitto lordo: somma di TUTTI i netPnl positivi. */
   grossProfit: string;
   /** Numero di trade vincenti nello scope. */
@@ -90,8 +90,8 @@ function sumFor(input: ConcentrationInput, percent: ConcentrationPercent) {
       return input.top5Pct;
     case 10:
       return input.top10Pct;
-    case 30:
-      return input.top30Pct;
+    case 25:
+      return input.top25Pct;
   }
 }
 
@@ -150,6 +150,6 @@ export const concentrationInfo: MetricInfoData = {
   description:
     "Quanta parte del profitto lordo viene dai trade migliori, e cosa resterebbe togliendoli. Serve a distinguere un edge ripetibile da un risultato che sta in piedi grazie a poche operazioni fortunate: se togliendo il 5% dei tuoi trade vincenti migliori il periodo va in perdita, tutte le altre statistiche stanno descrivendo rumore.",
   formula:
-    "Quota = Σ netPnl dei migliori N vincenti / Σ di tutti i netPnl positivi · N = 1%, 5%, 10%, 30% dei vincenti, arrotondato per eccesso (almeno 1)",
+    "Quota = Σ netPnl dei migliori N vincenti / Σ di tutti i netPnl positivi · N = 1%, 5%, 10%, 25% dei vincenti, arrotondato per eccesso (almeno 1)",
   note: "Le soglie sono percentuali dei trade vincenti, così la tabella si legge allo stesso modo con 20 o con 2.000 trade. Quando due soglie danno lo stesso numero di trade stanno sulla stessa riga.",
 };

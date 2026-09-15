@@ -3466,3 +3466,12 @@ Misure (build locale, oro mese/settimana/sessione, S&P ora, VIX mese/giorno, 144
 temi): 0 testi < 11px, contrasto minimo 4,76 (icona del campione basso), 0 errori in console, pagina
 mai più larga del viewport. Gate: typecheck, lint, test, build verdi. Nessuna migrazione. Schermate in
 `docs/stagionalita/heatmap-tenue/`.
+
+## 16/09/2026 · Analytics › Rischio — Concentrazione del profitto: Top 30% diventa Top 25%
+
+Richiesta del proprietario: l'ultima soglia passa dal 30% al 25% dei trade vincenti. Le quattro righe
+sono ora **Top 1% · Top 5% · Top 10% · Top 25%**. Invariati il numero di trade fra parentesi,
+l'arrotondamento per eccesso (stessa formula intera in SQL e in `tradesForPercent`), le colonne e le
+note sotto la tabella, che si scrivono dai dati e non citavano il 30%. Su SIM1, 307 vincenti:
+76,75 → 77 trade. `top30Pct` rinominato `top25Pct` in query e modulo; test aggiornati (il caso di
+virgola mobile ora è il 7% di 100, che in floating point darebbe 8). Nessuna migrazione.

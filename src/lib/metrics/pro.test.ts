@@ -105,12 +105,12 @@ describe("optimalF", () => {
 });
 
 describe("concentration", () => {
-  // 100 vincenti: 1% → 1 trade, 5% → 5, 10% → 10, 30% → 30, tutti interi.
+  // 100 vincenti: 1% → 1 trade, 5% → 5, 10% → 10, 25% → 25, tutti interi.
   const base = {
     top1Pct: "500",
     top5Pct: "900",
     top10Pct: "1100",
-    top30Pct: "1400",
+    top25Pct: "1400",
     grossProfit: "2000",
     winners: 100,
     netPnl: "800",
@@ -123,7 +123,7 @@ describe("concentration", () => {
       "Top 1% (1)",
       "Top 5% (5)",
       "Top 10% (10)",
-      "Top 30% (30)",
+      "Top 25% (25)",
     ]);
     expect(concentration(base).rounding).toBeNull();
   });
@@ -144,30 +144,31 @@ describe("concentration", () => {
   });
 
   it("arrotonda per eccesso e dichiara il primo caso non intero", () => {
-    // 31 vincenti: 0,31 → 1 · 1,55 → 2 · 3,1 → 4 · 9,3 → 10.
+    // 31 vincenti: 0,31 → 1 · 1,55 → 2 · 3,1 → 4 · 7,75 → 8.
     const result = concentration({ ...base, winners: 31 });
-    expect(result.slices.map((s) => s.trades)).toEqual([1, 2, 4, 10]);
+    expect(result.slices.map((s) => s.trades)).toEqual([1, 2, 4, 8]);
     expect(result.rounding).toEqual({ percent: 1, exact: "0.31", trades: 1 });
   });
 
-  it("niente errore di virgola mobile: il 30% di 10 è 3, non 4", () => {
-    expect(tradesForPercent(10, 30)).toBe(3);
+  it("niente errore di virgola mobile: il 7% di 100 è 7, non 8", () => {
+    // In virgola mobile 100 × 0,07 fa 7,000000000000001 e l'eccesso darebbe 8.
+    expect(tradesForPercent(100, 7)).toBe(7);
     expect(tradesForPercent(30, 10)).toBe(3);
     expect(tradesForPercent(700, 1)).toBe(7);
   });
 
   it("ogni soglia contiene almeno un trade, e nessuno senza vincenti", () => {
     expect(tradesForPercent(1, 1)).toBe(1);
-    expect(tradesForPercent(0, 30)).toBe(0);
+    expect(tradesForPercent(0, 25)).toBe(0);
   });
 
   it("le soglie che danno lo stesso gruppo stanno su una riga sola", () => {
-    // 12 vincenti: 1% e 5% sono entrambe 1 trade; 10% → 2; 30% → 4.
+    // 12 vincenti: 1% e 5% sono entrambe 1 trade; 10% → 2; 25% → 3.
     const result = concentration({ ...base, winners: 12 });
     expect(result.slices.map((s) => s.label)).toEqual([
       "Top 1% · 5% (1)",
       "Top 10% (2)",
-      "Top 30% (4)",
+      "Top 25% (3)",
     ]);
     expect(result.slices[0].percents).toEqual([1, 5]);
     // La riga unita porta la somma del gruppo, non una media delle soglie.
@@ -175,7 +176,7 @@ describe("concentration", () => {
   });
 
   it("con 3 vincenti tutte le soglie sono il miglior trade: una riga", () => {
-    expect(labels({ ...base, winners: 3 })).toEqual(["Top 1% · 5% · 10% · 30% (1)"]);
+    expect(labels({ ...base, winners: 3 })).toEqual(["Top 1% · 5% · 10% · 25% (1)"]);
   });
 
   it("nessun vincente: nessuna riga", () => {
@@ -185,7 +186,7 @@ describe("concentration", () => {
       top1Pct: null,
       top5Pct: null,
       top10Pct: null,
-      top30Pct: null,
+      top25Pct: null,
     });
     expect(result.slices).toEqual([]);
     expect(result.rounding).toBeNull();
