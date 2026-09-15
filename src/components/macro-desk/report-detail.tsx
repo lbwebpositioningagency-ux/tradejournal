@@ -58,14 +58,14 @@ export function MacroReportDetail({
   const critici = payload.dataIssues.filter((issue) => isCriticalIssue(issue.sev));
 
   return (
-    <div className="flex flex-col gap-5 p-4 sm:p-6">
+    <div className="flex flex-col gap-4">
+      {/* Il disclaimer è una riga di testo neutro, non un riquadro: qualifica
+          tutto il report e si legge una volta (tavola «Report MD -
+          ricostruzione»). */}
       {payload.disclaimer ? (
-        <p
-          className="border-l-2 pl-3 text-xs leading-relaxed text-[var(--md-muted)]"
-          style={{ borderColor: "var(--md-border)" }}
-        >
-          <span className="mr-1.5 font-semibold uppercase tracking-wider text-[var(--md-info)]">
-            Disclaimer
+        <p className="text-xs leading-relaxed text-[var(--md-muted)]">
+          <span className="mr-1.5 font-semibold text-[var(--md-text-2)]">
+            Disclaimer ·
           </span>
           {payload.disclaimer}
         </p>

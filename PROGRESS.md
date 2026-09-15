@@ -2813,3 +2813,49 @@ e il commento della rotta dice come riattivarlo. Resta un solo cron
 
 **Verificato:** typecheck ✅ · eslint ✅ · 2154/2154 test ✅ · build ✅ · schermate
 reali di Volatilità a 1440 e 390 nei due temi.
+
+## Ricostruzione, fase 2 — Report del Macro Desk (15/09/2026)
+
+**Scelta: opzione 1a «Nota di ricerca a colonna»**, adattata al sistema v2/v3 nella
+tavola Claude Design «Report MD - ricostruzione». Scartata 1b (matrice asset ×
+pilastri) perché vuole i pilastri in forma breve: il report manda prosa lunga, e
+troncarla o toccare il flusso a monte è una decisione del proprietario.
+
+**Indice e dettaglio sono la stessa pagina.** `/macro-desk/report` apre l'ultimo
+giornaliero, `/macro-desk/[id]` quello scelto; lo storico (ultimi 20, glifo +
+parola, nessuna confidenza) sta in una colonna da 320px e porta ai report vicini,
+come i pulsanti ‹ › della testata. Vista in `components/macro-desk/report-view.tsx`,
+archivio in `lib/queries/macro-desk-archivio.ts`. Il `notFound()` resta nelle
+pagine, dove lo sorveglia `not-found-streaming.test.ts`.
+
+**Il ritardo è uno stato.** `lib/macro-desk-stato-report.ts` (puro, 9 test): la
+striscia in cima dice di che giorno è il report, da quanto e se è l'ultimo —
+`aggiornato` · `in_ritardo` (fondo tinto, filo ambra, «25 giorni fa · nessun
+report dal 22/08») · `archivio` (dice qual è l'ultimo). La soglia è quella della
+sentinella del desk (26 ore). Nello storico il buco è una riga («22/08 → oggi ·
+nessun report · 25 giorni»). Sulla pagina Report la banda generica non si ripete.
+
+**Tab Asset.** Quadro in quattro celle, verdetto in prosa, **una tabella dei bias**
+(settimana, stato di oggi, segno dei pilastri, trimestrale, invalidazione) e **una
+lettura alla volta** scelta dalla riga o dal segmentato: pilastri in tabella,
+confidenza /100 (regola del silenzio invariata), trimestrale e driver in tabella.
+Via le quattro scatole col bordo colorato, le strisce a sinistra, lo stato del
+monitoraggio in rosso/verde. Stati di prima classe: nessun report, errore di
+caricamento con Riprova e riferimento (`report-errore.tsx`), caricamento con la
+geometria vera (`report-skeleton.tsx`).
+
+**Estensioni del sistema, in `listino.css`:** riga scelta `tr.ml-scelta`, riga del
+buco `tr.ml-buco`; `.ml-scroll` ora è `position: relative` — un `sr-only` in cella
+sfuggiva al riquadro e allargava la pagina a 463px su 390. Glifo del segno unico in
+`primitives.tsx` (neutro grigio, non ambra).
+
+**Misurato (build locale, dati fino al 21/08):** per leggere un report servivano
+indice 1.709px + dettaglio 4.307 a 1440 (9.599 a 390); ora 2.889 a 1440 e 5.657 a
+390. 0 testi sotto 11px, 0 sotto 4,5:1 nel contenuto nei due temi (resta il 4,06 di
+«Macro Desk» nella barra laterale in chiaro, che non è di questa pagina); errore
+#418 sparito; id inesistente = 404. Regressione su Volatilità, Scorecard, Driver,
+Calendario, Radar: altezze invariate, nessuna pagina più larga del viewport.
+
+**Verificato:** typecheck ✅ · eslint ✅ · 2166/2166 test ✅ · build ✅ · schermate
+reali a 1440 e 390 nei due temi (ultimo, archivio) e degli stati resi coi componenti
+veri.

@@ -1,4 +1,7 @@
+"use client";
+
 import Link from "next/link";
+import { useState } from "react";
 import { AlertTriangle, ArrowUpRight, ChevronRight, Newspaper } from "lucide-react";
 import {
   assetAccentVar,
@@ -9,11 +12,11 @@ import {
   sanitizeInlineHtml,
   type MacroAsset,
   type MacroDataIssue,
+  type MacroDriver,
   type MacroHorizon,
   type MacroNews,
   type MacroNewsCategory,
   type MacroPayload,
-  type MacroTone,
 } from "@/lib/macro-desk-payload";
 import {
   letturaConfidenza,
@@ -27,20 +30,21 @@ import {
 } from "@/lib/macro-desk-confidenza";
 import { quandoNews } from "@/lib/macro-desk-news-quando";
 import { cn } from "@/lib/utils";
+import { SegmentedControl } from "@/components/ui/segmented-control";
+import { Tab, Vuoto } from "./listino/primitive";
 import {
-  Callout,
+  Glifo,
   MonoChip,
   PanelLabel,
   SectionEmpty,
   TONE_COLOR,
-  ToneArrow,
 } from "./primitives";
 
 /**
- * I DUE tab del dettaglio report Macro Desk — «Asset» e «News». Componenti
- * PURI (nessuno stato): lo stato del tab attivo vive nella shell client, qui
- * solo resa dei dati. Ogni sezione degrada con eleganza se il payload non la
- * contiene.
+ * I DUE tab del dettaglio report Macro Desk — «Asset» e «News». Lo stato del
+ * tab attivo vive nella shell client; qui c'è un solo stato, l'asset di cui si
+ * legge la lettura (dal 15/09/2026, tavola «Report MD - ricostruzione»). Ogni
+ * sezione degrada con eleganza se il payload non la contiene.
  *
  * Panoramica, Eventi & Watch, Macro e Storico sono state rimosse il
  * 28/08/2026. Il perché, per chi tornerà qui:
@@ -92,13 +96,12 @@ export function DataIssuesList({ issues }: { issues: MacroDataIssue[] }) {
   return (
     <div className="flex flex-col gap-2">
       {issues.map((issue, i) => (
+        /* Una NOTA (fondo muted, niente bordo): il colore della gravità sta
+           sull'icona, che è grafica; l'etichetta resta testo neutro, perché
+           sul riempimento ambra e rosso scendono sotto 4,5:1. */
         <div
           key={i}
-          className="flex items-start gap-2.5 rounded-[var(--md-r-md)] border px-3.5 py-2.5 text-xs leading-relaxed"
-          style={{
-            borderColor: "var(--md-border)",
-            backgroundColor: "var(--md-surface)",
-          }}
+          className="flex items-start gap-2.5 rounded-md bg-[var(--md-surface-2)] px-3 py-2 text-xs leading-relaxed"
         >
           <AlertTriangle
             className="mt-0.5 size-3.5 shrink-0"
@@ -107,10 +110,7 @@ export function DataIssuesList({ issues }: { issues: MacroDataIssue[] }) {
           />
           <span className="text-[var(--md-text-2)]">
             {issue.sev ? (
-              <span
-                className="md-mono mr-1.5 uppercase"
-                style={{ color: issueColor(issue.sev) }}
-              >
+              <span className="mr-1.5 font-semibold uppercase text-[var(--md-text)]">
                 [{issue.sev}]
               </span>
             ) : null}
@@ -144,12 +144,11 @@ const NATURA_TESTO: Record<NaturaBias, string> = {
   aggiornato: "bias della settimana, aggiornato da questo report giornaliero",
 };
 
-/** Glifo direzionale del bias: leggibile anche dove il colore non arriva. */
-const BIAS_GLIFO: Record<MacroTone, string> = { up: "▲", down: "▼", flat: "●" };
-
 /**
- * STRISCIA DEI PILASTRI — il protagonista della card, al posto del vecchio
- * termometro semicircolare.
+ * I QUATTRO PILASTRI — dal 15/09/2026 una tabella del listino (pilastro,
+ * segno, nota) al posto di quattro scatole col bordo superiore colorato:
+ * quello che si ripete diventa una riga (tavola «Report MD - ricostruzione»).
+ * Prima ancora, al posto del termometro semicircolare.
  *
  * Il gauge è stato tolto perché mostrava, con un ago che si muove di poco, un
  * numero che su 138 osservazioni reali vive fra 41 e 65 (dev.std ~5) e che
@@ -160,7 +159,7 @@ const BIAS_GLIFO: Record<MacroTone, string> = { up: "▲", down: "▼", flat: "�
  * Tripla codifica del segno (glifo + parola + colore) perché sia leggibile
  * senza colore: la parola «rialzista/ribassista/neutro» è testo, non stile.
  */
-function StrisciaPilastri({
+function TabellaPilastri({
   horizon,
   motivo,
 }: {
@@ -174,68 +173,49 @@ function StrisciaPilastri({
 }) {
   if (horizon.pillars.length === 0) return null;
   return (
-    <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-4">
-      {horizon.pillars.map((pillar) => {
-        const tone = dirTone(pillar.dir);
-        /* UN SOLO POSTO PER QUELLA FRASE — e da oggi quel posto è QUI, quando
-           si sa a quale pilastro appartiene. Il motivo commenta una delle
-           quattro forze: messo accanto alla misura che commenta si legge come
-           una conseguenza, staccato in fondo si leggeva come un'eco.
-           Effetto voluto anche a monte: se il generatore ripete nel motivo
-           quello che ha già scritto nella nota, la ripetizione finisce sotto
-           gli occhi di chi scrive le istruzioni, non del lettore. */
-        const ancorato = motivo?.pilastro === pillar.k ? motivo : undefined;
-        /* La deduplica resta VERBATIM e basta: togliere una frase perché
-           «somiglia» a un'altra prima o poi toglie qualcosa che serviva, e in
-           silenzio. Le parafrasi si correggono nelle istruzioni del desk. */
-        const nota = notaSenzaMotivo(pillar.note, ancorato?.testo);
-        const muted = tone === "flat";
-        const colore = muted ? "var(--md-muted)" : TONE_COLOR[tone];
-        return (
-          <div
-            key={pillar.k}
-            className="flex flex-col rounded-[var(--md-r-sm)] border p-2.5"
-            style={{
-              borderColor: "var(--md-border)",
-              backgroundColor: "var(--md-surface)",
-              borderTopColor: muted ? "var(--md-border)" : colore,
-              borderTopWidth: 2,
-            }}
-          >
-            <div className="flex items-start justify-between gap-2">
-              <span className="text-xs font-semibold leading-snug text-[var(--md-text)]">
-                {pillar.k}
-              </span>
-              <span className="flex shrink-0 items-center gap-1">
-                <ToneArrow tone={tone} muted={muted} />
-                <span className="md-mono text-2xs leading-none" style={{ color: colore }}>
-                  {SEGNO_LABEL[tone]}
-                </span>
-              </span>
-            </div>
-            {nota ? (
-              <p className="mt-1.5 text-2xs leading-relaxed text-[var(--md-muted)]">
-                {nota}
-              </p>
-            ) : null}
-            {ancorato ? (
-              <p
-                className="mt-2 border-l-2 pl-2 text-2xs leading-relaxed text-[var(--md-text-2)]"
-                style={{ borderColor: "var(--md-warn)" }}
-              >
-                <span
-                  className="mr-1 font-semibold uppercase tracking-[0.1em]"
-                  style={{ color: "var(--md-warn)" }}
-                >
-                  {ancorato.fonte === "estratto" ? "Da qui la confidenza" : "Motivo della confidenza"}
-                </span>
-                «{ancorato.testo}»
-              </p>
-            ) : null}
-          </div>
-        );
-      })}
-    </div>
+    <Tab>
+      <thead>
+        <tr>
+          <th className="ml-sx">Pilastro</th>
+          <th className="ml-sx">Segno</th>
+          <th className="ml-sx">Nota</th>
+        </tr>
+      </thead>
+      <tbody>
+        {horizon.pillars.map((pillar) => {
+          const tone = dirTone(pillar.dir);
+          /* UN SOLO POSTO PER QUELLA FRASE, e quel posto è la riga del
+             pilastro che commenta: accanto alla misura si legge come una
+             conseguenza, staccata in fondo si leggeva come un'eco. La
+             deduplica resta VERBATIM: togliere una frase perché «somiglia» a
+             un'altra prima o poi toglie qualcosa che serviva. */
+          const ancorato = motivo?.pilastro === pillar.k ? motivo : undefined;
+          const nota = notaSenzaMotivo(pillar.note, ancorato?.testo);
+          return (
+            <tr key={pillar.k}>
+              <td className="ml-sx ml-wrap max-w-[9rem] align-top font-semibold leading-snug">{pillar.k}</td>
+              {/* Tripla codifica del segno: glifo, parola, colore solo sul
+                  glifo. La parola è testo, non stile. */}
+              <td className="ml-sx align-top">
+                <Glifo tone={tone} />{" "}
+                <span className="text-[var(--md-text-2)]">{SEGNO_LABEL[tone]}</span>
+              </td>
+              <td className="ml-sx ml-wrap min-w-[10rem] align-top leading-relaxed text-[var(--md-text-2)] sm:min-w-[12rem]">
+                {nota ? <span>{nota}</span> : ancorato ? null : <Vuoto />}
+                {ancorato ? (
+                  <span className={cn("block text-[var(--md-text)]", nota && "mt-1.5")}>
+                    <span className="mr-1 text-2xs font-semibold uppercase tracking-[0.06em] text-[var(--md-muted)]">
+                      {ancorato.fonte === "estratto" ? "Da qui la confidenza" : "Motivo della confidenza"}
+                    </span>
+                    «{ancorato.testo}»
+                  </span>
+                ) : null}
+              </td>
+            </tr>
+          );
+        })}
+      </tbody>
+    </Tab>
   );
 }
 
@@ -334,11 +314,8 @@ function BloccoConfidenza({
             <span className="text-2xs text-[var(--md-muted)]">lettura di oggi</span>
             <Punteggio valore={oggi} fascia={fasciaOggi!} forte />
             <span
-              className="md-mono rounded-[var(--md-r-sm)] px-1.5 py-0.5 text-2xs font-bold"
-              style={{
-                color: delta! > 0 ? "var(--md-up)" : "var(--md-down)",
-                backgroundColor: "var(--md-surface-3)",
-              }}
+              className="md-mono text-xs font-bold"
+              style={{ color: delta! > 0 ? "var(--md-up)" : "var(--md-down)" }}
             >
               {delta! > 0 ? "+" : "−"}
               {Math.abs(delta!)}
@@ -354,10 +331,7 @@ function BloccoConfidenza({
           pagina non lo espone. Tono da constatazione, non da accusa: chi legge
           deve sapere che manca qualcosa, non sentirsi rimproverare. */}
       {scostamentoNonMotivato ? (
-        <div
-          className="rounded-[var(--md-r-sm)] py-1.5 pl-2.5"
-          style={{ borderLeft: "2px solid var(--md-down)" }}
-        >
+        <div>
           <p
             className="text-2xs font-semibold uppercase tracking-[0.12em]"
             style={{ color: "var(--md-down)" }}
@@ -376,10 +350,7 @@ function BloccoConfidenza({
           il suo pilastro — niente `confPilastro` e nessuna corrispondenza nel
           testo. Con l'ancora, la frase sta lassù accanto alla sua misura. */}
       {mostraMotivo && motivi.length > 0 ? (
-      <div
-        className="rounded-[var(--md-r-sm)] py-1.5 pl-2.5"
-        style={{ borderLeft: "2px solid var(--md-warn)" }}
-      >
+      <div>
         <p
           className="text-2xs font-semibold uppercase tracking-[0.12em]"
           style={{ color: "var(--md-warn)" }}
@@ -427,11 +398,8 @@ function NotaUnanimita({ horizon }: { horizon: MacroHorizon }) {
   const u = unanimitaControBiasNeutro(horizon);
   if (!u) return null;
   return (
-    <p
-      className="rounded-[var(--md-r-sm)] border px-3 py-2 text-xs leading-relaxed text-[var(--md-text-2)]"
-      style={{ borderColor: "var(--md-border)", backgroundColor: "var(--md-bg)" }}
-    >
-      <span className="md-mono mr-1.5 text-2xs uppercase tracking-wider text-[var(--md-muted)]">
+    <p className="rounded-md bg-[var(--md-surface-2)] px-3 py-2 text-xs leading-relaxed text-[var(--md-text-2)]">
+      <span className="mr-1.5 font-semibold text-[var(--md-text)]">
         Da notare
       </span>
       {u.conSegno} pilastri su {u.totale} hanno un segno, e puntano tutti al{" "}
@@ -440,13 +408,6 @@ function NotaUnanimita({ horizon }: { horizon: MacroHorizon }) {
     </p>
   );
 }
-
-/** Colore dello stato del monitoraggio: conferma verde, stress rosso, resto ambra. */
-const COLORE_STATO: Record<string, string> = {
-  conferma: "var(--md-up)",
-  stress: "var(--md-down)",
-  indebolisce: "var(--md-warn)",
-};
 
 /**
  * CHE COSA È SUCCESSO OGGI — `monitor.state` + `monitor.note`.
@@ -477,19 +438,16 @@ function NotaDelGiorno({
   if (!nota && !stato) return null;
   if (nota && stessaFrase(nota, motivo)) return null;
 
+  /* Lo stato del monitoraggio è una PAROLA neutra: «stress» non è una
+     perdita e «conferma» non è un guadagno, quindi niente verde e rosso (e
+     niente striscia colorata a sinistra, sistema v2). */
   return (
-    <p
-      className="flex flex-wrap items-baseline gap-x-2 gap-y-1 rounded-[var(--md-r-sm)] border-l-2 pl-2.5 text-xs leading-relaxed text-[var(--md-text-2)]"
-      style={{ borderColor: stato ? (COLORE_STATO[stato] ?? "var(--md-border)") : "var(--md-border)" }}
-    >
-      <span className="text-2xs font-semibold uppercase tracking-[0.12em] text-[var(--md-muted)]">
+    <p className="flex flex-wrap items-baseline gap-x-2 gap-y-1 text-sm leading-relaxed text-[var(--md-text-2)]">
+      <span className="text-2xs font-semibold uppercase tracking-[0.06em] text-[var(--md-muted)]">
         Oggi
       </span>
       {stato ? (
-        <span
-          className="md-mono text-2xs font-bold uppercase"
-          style={{ color: COLORE_STATO[stato] ?? "var(--md-text-2)" }}
-        >
+        <span className="text-2xs font-semibold uppercase tracking-[0.06em] text-[var(--md-text)]">
           {stato}
         </span>
       ) : null}
@@ -498,120 +456,56 @@ function NotaDelGiorno({
   );
 }
 
-/** La lettura SETTIMANALE: il blocco principale della card. */
-function LetturaSettimanale({
-  horizon,
-  natura,
-  monitor,
-}: {
-  horizon: MacroHorizon;
-  natura: NaturaBias;
-  monitor?: MonitorConfidenza;
-}) {
-  const tone = biasTone(horizon.biasLabel, horizon.bias);
-  /* UNA SOLA lettura per tutta la card: la calcolano in tre e devono dire la
-     stessa cosa, quindi la si calcola una volta e la si passa. */
-  const lettura = letturaConfidenza(horizon, monitor);
-  const motivo = lettura?.motivi[0];
-  /* Ancorato = il pilastro esiste davvero in questo orizzonte. Un
-     `confPilastro` che punta a un pilastro assente non deve far sparire il
-     motivo: torna al blocco a sé. */
-  const ancorato = Boolean(
-    motivo?.pilastro && horizon.pillars.some((p) => p.k === motivo.pilastro),
-  );
+/** Nel testo di una cella: «NEUTRALE» → «Neutrale». */
+function parolaBias(label: string): string {
+  return label.charAt(0).toUpperCase() + label.slice(1).toLowerCase();
+}
+
+/** Voce di prosa etichettata (Edge, Radar rischi…): niente scatola né striscia. */
+function Voce({ etichetta, children }: { etichetta: string; children: React.ReactNode }) {
   return (
-    <div className="flex flex-col gap-3.5">
-      <div className="flex flex-wrap items-center justify-between gap-2">
-        <PanelLabel>Settimanale</PanelLabel>
-        <span className="text-2xs text-[var(--md-muted)]">{NATURA_TESTO[natura]}</span>
+    <div>
+      <PanelLabel>{etichetta}</PanelLabel>
+      <div className="mt-1 max-w-[80ch] text-sm leading-relaxed text-[var(--md-text-2)]">
+        {children}
       </div>
-
-      {horizon.biasLabel ? (
-        <p className="flex items-baseline gap-2">
-          <span className="md-mono text-lg leading-none" style={{ color: TONE_COLOR[tone] }} aria-hidden>
-            {BIAS_GLIFO[tone]}
-          </span>
-          <span
-            className="md-mono text-2xl font-extrabold tracking-tight"
-            style={{ color: TONE_COLOR[tone] }}
-          >
-            {horizon.biasLabel}
-          </span>
-        </p>
-      ) : (
-        <p className="text-sm text-[var(--md-muted)]">Bias settimanale non dichiarato.</p>
-      )}
-
-      <NotaDelGiorno monitor={monitor} motivo={motivo?.testo} />
-      <StrisciaPilastri horizon={horizon} motivo={ancorato ? motivo : undefined} />
-      <NotaUnanimita horizon={horizon} />
-      <BloccoConfidenza lettura={lettura} mostraMotivo={!ancorato} />
-
-      {horizon.edge ? (
-        <Callout label="Edge" color="var(--md-info)">
-          {horizon.edge}
-        </Callout>
-      ) : null}
-      {horizon.invalid ? (
-        <Callout label="Invalidazione" color="var(--md-warn)">
-          {horizon.invalid}
-        </Callout>
-      ) : null}
-      {horizon.narrative ? (
-        <div>
-          <PanelLabel>Narrativa</PanelLabel>
-          <p className="mt-1.5 text-sm leading-relaxed text-[var(--md-text-2)]">
-            {horizon.narrative}
-          </p>
-        </div>
-      ) : null}
     </div>
   );
 }
 
 /**
- * La lettura TRIMESTRALE: regime di fondo, visivamente subordinata a quella
- * settimanale — fondo diverso, tipografia più piccola, `since` in evidenza.
+ * La lettura TRIMESTRALE: regime di fondo, subordinata a quella settimanale.
  * Nei report reali non porta mai pilastri né edge: bias, confidenza, `since`,
  * invalidazione e narrativa.
  *
  * La regola del silenzio vale ANCHE qui, con la stessa precedenza stretta:
  * `quarterly.confMotivo` dichiarato dal generatore (dal 28/08/2026), poi
- * l'euristica, poi niente. Sui 23 report storici resterà sempre niente, ed è
- * il risultato giusto: nessuno di quei numeri trimestrali è mai stato
- * motivato, e la confidenza trimestrale ha dev.std 5,46 su 69 osservazioni —
- * ancora meno informativa di quella settimanale.
+ * l'euristica, poi niente. La confidenza trimestrale ha dev.std 5,46 su 69
+ * osservazioni: senza motivo non si mostra.
  */
 function LetturaTrimestrale({ horizon }: { horizon: MacroHorizon }) {
   const tone = biasTone(horizon.biasLabel, horizon.bias);
   const conf = letturaConfidenza(horizon);
   return (
-    <div className="md-card-2 flex flex-col gap-2.5 p-4">
+    <div className="flex flex-col gap-1.5">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <PanelLabel>Trimestrale · regime di fondo</PanelLabel>
         {horizon.since ? <MonoChip>invariato dal {horizon.since}</MonoChip> : null}
       </div>
-
-      <p className="flex flex-wrap items-baseline gap-x-2.5 gap-y-1">
-        <span className="md-mono text-sm leading-none" style={{ color: TONE_COLOR[tone] }} aria-hidden>
-          {BIAS_GLIFO[tone]}
-        </span>
-        <span className="md-mono text-base font-bold" style={{ color: TONE_COLOR[tone] }}>
+      <p className="flex flex-wrap items-baseline gap-x-2 gap-y-1">
+        <Glifo tone={tone} />
+        <span className="text-sm font-semibold text-[var(--md-text)]">
           {horizon.biasLabel ?? "non dichiarato"}
         </span>
         {conf ? (
-          <span className="md-mono text-2xs text-[var(--md-muted)]">
+          <span className="text-2xs text-[var(--md-muted)]">
             confidenza {conf.impegno}/100 · {conf.fasciaImpegno}
           </span>
         ) : null}
       </p>
-
       {conf ? (
-        <p className="text-2xs leading-relaxed text-[var(--md-text-2)]">
-          <span
-            className="font-semibold uppercase tracking-wider"
-            style={{ color: "var(--md-warn)" }}
-          >
+        <p className="text-xs leading-relaxed text-[var(--md-text-2)]">
+          <span className="font-semibold text-[var(--md-text)]">
             {conf.motivi[0].fonte === "estratto"
               ? "Motivo riconosciuto nel testo · "
               : "Motivo dichiarato · "}
@@ -619,17 +513,12 @@ function LetturaTrimestrale({ horizon }: { horizon: MacroHorizon }) {
           «{conf.motivi[0].testo}»
         </p>
       ) : null}
-
       {horizon.narrative ? (
-        <p className="text-xs leading-relaxed text-[var(--md-text-2)]">
-          {horizon.narrative}
-        </p>
+        <p className="text-xs leading-relaxed text-[var(--md-text-2)]">{horizon.narrative}</p>
       ) : null}
       {horizon.invalid ? (
-        <p className="text-2xs leading-relaxed text-[var(--md-muted)]">
-          <span className="font-semibold uppercase tracking-wider" style={{ color: "var(--md-warn)" }}>
-            Invalidazione ·{" "}
-          </span>
+        <p className="text-xs leading-relaxed text-[var(--md-text-2)]">
+          <span className="font-semibold text-[var(--md-text)]">Invalidazione · </span>
           {horizon.invalid}
         </p>
       ) : null}
@@ -637,87 +526,277 @@ function LetturaTrimestrale({ horizon }: { horizon: MacroHorizon }) {
   );
 }
 
-function CardAsset({
+/** I driver dell'asset: una tabella di tre colonne invece di cinque scatole. */
+function TabellaDriver({ drivers }: { drivers: MacroDriver[] }) {
+  return (
+    <div>
+      <PanelLabel>Driver</PanelLabel>
+      <Tab className="mt-1">
+        <tbody>
+          {drivers.map((driver) => {
+            const tono = dirTone(driver.cls);
+            return (
+              <tr key={driver.k}>
+                <td className="ml-sx ml-wrap text-[var(--md-text-2)]">{driver.k}</td>
+                <td
+                  className="font-semibold"
+                  style={{
+                    color:
+                      driver.cls === "fl" || tono === "flat"
+                        ? "var(--md-text)"
+                        : TONE_COLOR[tono],
+                  }}
+                >
+                  {driver.v ?? "—"}
+                </td>
+                <td
+                  className="text-[var(--md-muted)]"
+                  title="Orizzonte del driver: W settimanale, Q trimestrale"
+                >
+                  {driver.hz ?? ""}
+                </td>
+              </tr>
+            );
+          })}
+        </tbody>
+      </Tab>
+    </div>
+  );
+}
+
+/**
+ * LA LETTURA DI UN ASSET — una alla volta, scelta dalla tabella dei bias o dal
+ * segmentato (tavola «Report MD - ricostruzione», opzione 1a). Prima erano tre
+ * schede verticali identiche, 4.340px a 1440 e 9.599 a 390.
+ *
+ * La colonna laterale (confidenza, trimestrale, driver) viene PRIMA nel DOM e
+ * va a destra solo a schermo: il numero della confidenza sta così accanto al
+ * nome dell'asset anche per chi legge in sequenza.
+ */
+function LetturaAsset({
   asset,
-  index,
   natura,
   monitor,
 }: {
   asset: MacroAsset;
-  index: number;
   natura: NaturaBias;
   monitor?: MonitorConfidenza;
 }) {
-  const accent = assetAccentVar(asset.id ?? asset.ticker);
+  const weekly = asset.weekly;
+  /* UNA SOLA lettura per asset: la usano in tre e devono dire la stessa cosa. */
+  const lettura = weekly ? letturaConfidenza(weekly, monitor) : null;
+  const motivo = lettura?.motivi[0];
+  /* Ancorato = il pilastro esiste davvero in questo orizzonte. Un
+     `confPilastro` che punta a un pilastro assente torna al blocco a sé. */
+  const ancorato = Boolean(
+    weekly && motivo?.pilastro && weekly.pillars.some((p) => p.k === motivo.pilastro),
+  );
+  const tone = weekly ? biasTone(weekly.biasLabel, weekly.bias) : "flat";
+
   return (
-    <div className="md-card md-fade overflow-hidden" style={fade(index)}>
-      <div className="h-[3px]" style={{ backgroundColor: accent }} />
-      <div className="flex flex-col gap-4 p-5">
-        <div className="flex flex-wrap items-center gap-2.5">
-          {asset.icon ? (
-            <span className="text-xl" aria-hidden>
-              {asset.icon}
-            </span>
-          ) : null}
-          <h3 className="text-base font-bold">{asset.name ?? "Asset"}</h3>
-          {asset.ticker ? (
-            <span className="md-mono text-xs" style={{ color: accent }}>
-              {asset.ticker}
-            </span>
-          ) : null}
+    <div className="flex flex-col gap-3">
+      <div className="flex flex-wrap items-baseline gap-x-2 gap-y-1">
+        <h3 className="text-base font-semibold text-[var(--md-text)]">
+          {asset.name ?? "Asset"}
+        </h3>
+        {asset.ticker ? (
+          <span className="text-xs text-[var(--md-muted)]">{asset.ticker}</span>
+        ) : null}
+      </div>
+
+      <div className="grid gap-x-8 gap-y-5 lg:grid-cols-[minmax(0,1fr)_260px]">
+        {/* `order-last` sempre, non solo a colonne affiancate: su mobile la
+            settimana viene prima del trimestrale e dei driver. */}
+        <div className="order-last flex min-w-0 flex-col gap-5">
+          {weekly ? <BloccoConfidenza lettura={lettura} mostraMotivo={!ancorato} /> : null}
+          {asset.quarterly ? <LetturaTrimestrale horizon={asset.quarterly} /> : null}
+          {asset.drivers.length > 0 ? <TabellaDriver drivers={asset.drivers} /> : null}
         </div>
 
-        {asset.weekly ? (
-          <LetturaSettimanale
-            horizon={asset.weekly}
-            natura={natura}
-            monitor={monitor}
-          />
-        ) : null}
-        {asset.quarterly ? <LetturaTrimestrale horizon={asset.quarterly} /> : null}
-        {!asset.weekly && !asset.quarterly ? (
-          <p className="text-sm text-[var(--md-muted)]">
-            Nessuna lettura dichiarata per questo asset.
-          </p>
-        ) : null}
-
-        {asset.drivers.length > 0 ? (
-          <div>
-            <PanelLabel>Driver</PanelLabel>
-            <div className="mt-2 grid gap-2 sm:grid-cols-2 xl:grid-cols-5">
-              {asset.drivers.map((driver) => {
-                const dTone = dirTone(driver.cls);
-                return (
-                  <div
-                    key={driver.k}
-                    className="md-card-2 md-card-hover flex flex-col gap-1 p-3"
-                  >
-                    <div className="flex items-center justify-between gap-2">
-                      <span className="text-2xs text-[var(--md-muted)]">{driver.k}</span>
-                      {driver.hz ? (
-                        <MonoChip title="Orizzonte del driver: W settimanale, Q trimestrale">
-                          {driver.hz}
-                        </MonoChip>
-                      ) : null}
-                    </div>
-                    <span
-                      className="md-mono text-sm font-semibold"
-                      style={{
-                        color: driver.cls === "fl" ? "var(--md-text-2)" : TONE_COLOR[dTone],
-                      }}
-                    >
-                      {driver.v ?? "—"}
+        <div className="flex min-w-0 flex-col gap-4">
+          {weekly ? (
+            <>
+              <div className="flex flex-wrap items-baseline justify-between gap-2">
+                <div className="flex items-baseline gap-2">
+                  <PanelLabel>Settimanale</PanelLabel>
+                  {weekly.biasLabel ? (
+                    <span className="text-sm font-semibold text-[var(--md-text)]">
+                      <Glifo tone={tone} /> {weekly.biasLabel}
                     </span>
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-        ) : null}
+                  ) : (
+                    <span className="text-sm text-[var(--md-muted)]">
+                      Bias settimanale non dichiarato.
+                    </span>
+                  )}
+                </div>
+                <span className="text-2xs text-[var(--md-muted)]">{NATURA_TESTO[natura]}</span>
+              </div>
+              <NotaDelGiorno monitor={monitor} motivo={motivo?.testo} />
+              <TabellaPilastri horizon={weekly} motivo={ancorato ? motivo : undefined} />
+              <NotaUnanimita horizon={weekly} />
+              {weekly.edge ? <Voce etichetta="Edge">{weekly.edge}</Voce> : null}
+              {/* L'invalidazione settimanale sta nella tabella dei bias, accanto
+                  alle altre due: qui non si ripete. */}
+              {weekly.narrative ? (
+                <details className="group/narrativa">
+                  <summary className="flex cursor-pointer list-none items-center gap-1.5 text-2xs font-semibold uppercase tracking-[0.06em] text-[var(--md-muted)] hover:text-[var(--md-text)]">
+                    <ChevronRight
+                      className="size-3 transition-transform group-open/narrativa:rotate-90"
+                      aria-hidden
+                    />
+                    Narrativa
+                  </summary>
+                  <p className="mt-1.5 max-w-[80ch] text-sm leading-relaxed text-[var(--md-text-2)]">
+                    {weekly.narrative}
+                  </p>
+                </details>
+              ) : null}
+            </>
+          ) : null}
+          {!weekly && !asset.quarterly ? (
+            <p className="text-sm text-[var(--md-muted)]">
+              Nessuna lettura dichiarata per questo asset.
+            </p>
+          ) : null}
+        </div>
       </div>
     </div>
   );
 }
+
+/** I nomi brevi delle colonne dei pilastri: «Pricing / posizionamento» → «Pricing». */
+function colonneDeiPilastri(assets: MacroAsset[]): string[] {
+  const chiavi: string[] = [];
+  for (const a of assets) {
+    for (const p of a.weekly?.pillars ?? []) if (!chiavi.includes(p.k)) chiavi.push(p.k);
+  }
+  return chiavi;
+}
+
+/**
+ * LA TABELLA DEI BIAS — la risposta della pagina in tre righe: per ogni asset
+ * il bias della settimana, lo stato di oggi, il segno dei pilastri, il regime
+ * trimestrale e la condizione che invalida la lettura. La riga scelta apre la
+ * lettura qui sotto.
+ *
+ * Senza ticker di proposito: il nome basta a riconoscere la riga, e il ticker
+ * accompagna la lettura, dove serve.
+ */
+function TabellaBias({
+  assets,
+  monitor,
+  scelto,
+  onScegli,
+}: {
+  assets: MacroAsset[];
+  monitor?: Record<string, MonitorConfidenza>;
+  scelto: number;
+  onScegli: (indice: number) => void;
+}) {
+  const colonne = colonneDeiPilastri(assets);
+  return (
+    <div>
+      <div className="mb-1 flex flex-wrap items-baseline justify-between gap-2">
+        <PanelLabel>Bias per asset · settimana, pilastri, regime</PanelLabel>
+        <span className="text-2xs text-[var(--md-muted)]">
+          ▲ rialzista · ● neutrale · ▼ ribassista · clic su una riga per la lettura
+        </span>
+      </div>
+      <Tab>
+        <thead>
+          <tr>
+            <th className="ml-sx">Asset</th>
+            <th className="ml-sx">Settimana</th>
+            <th className="ml-sx">Oggi</th>
+            {colonne.map((k) => (
+              <th key={k} className="text-center" title={k}>
+                {k.split(/\s*\/\s*/)[0]}
+              </th>
+            ))}
+            <th className="ml-sx">Trimestrale</th>
+            <th className="ml-sx">Invalidazione</th>
+          </tr>
+        </thead>
+        <tbody>
+          {assets.map((asset, i) => {
+            const w = asset.weekly;
+            const q = asset.quarterly;
+            const stato = asset.id ? monitor?.[asset.id]?.state?.trim() : undefined;
+            return (
+              <tr
+                key={asset.id ?? i}
+                className={cn("cursor-pointer", i === scelto && "ml-scelta")}
+                onClick={() => onScegli(i)}
+              >
+                <td className="ml-sx align-top">
+                  <button
+                    type="button"
+                    aria-pressed={i === scelto}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onScegli(i);
+                    }}
+                    className="font-semibold text-[var(--md-text)] underline-offset-2 hover:underline"
+                  >
+                    {asset.name ?? `Asset ${i + 1}`}
+                  </button>
+                </td>
+                <td className="ml-sx align-top">
+                  {w?.biasLabel ? (
+                    <>
+                      <Glifo tone={biasTone(w.biasLabel, w.bias)} /> {parolaBias(w.biasLabel)}
+                    </>
+                  ) : (
+                    <Vuoto />
+                  )}
+                </td>
+                <td className="ml-sx align-top text-[var(--md-text-2)]">
+                  {stato ? stato.toLowerCase() : <Vuoto />}
+                </td>
+                {colonne.map((k) => {
+                  const p = w?.pillars.find((x) => x.k === k);
+                  if (!p) {
+                    return (
+                      <td key={k} className="text-center align-top">
+                        <Vuoto />
+                      </td>
+                    );
+                  }
+                  const t = dirTone(p.dir);
+                  return (
+                    <td key={k} className="text-center align-top" title={`${k}: ${SEGNO_LABEL[t]}`}>
+                      <Glifo tone={t} />
+                      <span className="sr-only">{SEGNO_LABEL[t]}</span>
+                    </td>
+                  );
+                })}
+                <td className="ml-sx align-top">
+                  {q?.biasLabel ? (
+                    <>
+                      <Glifo tone={biasTone(q.biasLabel, q.bias)} /> {parolaBias(q.biasLabel)}
+                      {q.since ? (
+                        <span className="mt-1 block text-[var(--md-muted)]">dal {q.since}</span>
+                      ) : null}
+                    </>
+                  ) : (
+                    <Vuoto />
+                  )}
+                </td>
+                <td className="ml-sx ml-wrap min-w-[11rem] align-top leading-relaxed text-[var(--md-text-2)]">
+                  {w?.invalid ?? <Vuoto />}
+                </td>
+              </tr>
+            );
+          })}
+        </tbody>
+      </Tab>
+    </div>
+  );
+}
+
+/** Blocco della pagina: filetto sopra, niente scatola. */
+const BLOCCO = "border-t pt-3";
+const FILETTO = { borderColor: "var(--ml-rule)" } as const;
 
 export function AssetsTab({
   payload,
@@ -730,11 +809,12 @@ export function AssetsTab({
   /** Lettura del giorno per asset, dalla colonna `monitor`. Chiave: `id`. */
   monitor?: Record<string, MonitorConfidenza>;
 }) {
+  const [scelto, setScelto] = useState(0);
   const { assets, synthesis, volPanel } = payload;
   const pills = synthesis?.pills ?? [];
   /* Quanti asset mostrano DAVVERO due numeri: la didascalia si stampa solo
      allora, e una volta sola. Si chiede alla stessa funzione che poi decide
-     nella card, così le due cose non possono dissentire. */
+     nella lettura, così le due cose non possono dissentire. */
   const scostamenti = assets.filter((a) => {
     if (!a.weekly) return false;
     const l = letturaConfidenza(a.weekly, a.id ? monitor?.[a.id] : undefined);
@@ -744,16 +824,16 @@ export function AssetsTab({
   const riserve = payload.dataIssues.filter((issue) => !isCriticalIssue(issue.sev));
 
   return (
-    <div className="flex flex-col gap-5">
+    <div className="flex flex-col gap-6">
       {/* ── TESTA: il quadro condiviso dai tre asset ────────────────────── */}
       {pills.length > 0 ? (
-        <div className="md-fade flex flex-col gap-2" style={fade(0)}>
+        <div>
           <PanelLabel>Il quadro, comune ai tre asset</PanelLabel>
-          <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-4">
+          <div className="mt-2 grid grid-cols-2 gap-x-6 gap-y-3 xl:grid-cols-4">
             {pills.map((pill) => (
-              <div key={pill.k} className="md-card-2 px-3.5 py-2.5">
+              <div key={pill.k} className="min-w-0">
                 <PanelLabel>{pill.k}</PanelLabel>
-                <p className="mt-1 text-sm font-medium text-[var(--md-text)]">
+                <p className="mt-0.5 text-sm font-semibold text-[var(--md-text)]">
                   {pill.v ?? "—"}
                 </p>
               </div>
@@ -762,19 +842,11 @@ export function AssetsTab({
         </div>
       ) : null}
 
-      {/* LA DIDASCALIA DELLE DUE MISURE, una volta sola per report.
-          Prima stava dentro ogni card che avesse uno scostamento: identica per
-          oro, petrolio e indici, identica ogni giorno. Una definizione ripetuta
-          tre volte non è enfasi, è arredamento — e l'arredamento insegna a
-          saltare la zona in cui vive. Compare solo se almeno un asset ha
-          davvero due numeri diversi: altrimenti spiegherebbe una cosa che in
-          pagina non c'è. */}
+      {/* LA DIDASCALIA DELLE DUE MISURE, una volta sola per report, e solo se
+          almeno un asset ha davvero due numeri diversi. */}
       {scostamenti > 0 ? (
-        <p
-          className="md-fade border-l-2 pl-3 text-xs leading-relaxed text-[var(--md-muted)]"
-          style={{ ...fade(1), borderColor: "var(--md-border)" }}
-        >
-          <span className="mr-1.5 font-semibold uppercase tracking-wider text-[var(--md-text-2)]">
+        <p className="text-xs leading-relaxed text-[var(--md-muted)]">
+          <span className="mr-1.5 font-semibold uppercase tracking-[0.06em] text-[var(--md-text-2)]">
             Le due confidenze
           </span>
           Dove trovi due numeri non ce n&apos;è uno corretto e uno sbagliato:
@@ -786,56 +858,74 @@ export function AssetsTab({
       ) : null}
 
       {synthesis?.conclusion ? (
-        <div
-          className="md-card md-fade p-5"
-          style={{
-            ...fade(1),
-            borderColor: "color-mix(in oklab, var(--md-info) 35%, var(--md-border))",
-          }}
-        >
+        <div className={BLOCCO} style={FILETTO}>
           <PanelLabel>Verdetto</PanelLabel>
-          <p className="mt-2 text-base font-medium leading-relaxed text-[var(--md-text)]">
+          <p className="mt-1.5 max-w-[80ch] text-base leading-relaxed text-[var(--md-text)] text-pretty">
             {synthesis.conclusion}
           </p>
         </div>
       ) : null}
 
-      {/* ── CORPO: le letture per asset ─────────────────────────────────── */}
+      {/* ── CORPO: la tabella dei bias e UNA lettura alla volta ─────────── */}
       {assets.length > 0 ? (
-        assets.map((asset, i) => (
-          <CardAsset
-            key={asset.id ?? i}
-            asset={asset}
-            index={i + 2}
-            natura={natura}
-            monitor={asset.id ? monitor?.[asset.id] : undefined}
-          />
-        ))
+        <>
+          <div className={BLOCCO} style={FILETTO}>
+            <TabellaBias
+              assets={assets}
+              monitor={monitor}
+              scelto={Math.min(scelto, assets.length - 1)}
+              onScegli={setScelto}
+            />
+          </div>
+          <div className={BLOCCO} style={FILETTO}>
+            {assets.length > 1 ? (
+              <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+                <PanelLabel>Lettura per asset</PanelLabel>
+                <SegmentedControl
+                  label="Asset da leggere"
+                  options={assets.map((a, i) => ({
+                    value: String(i),
+                    label: a.name ?? `Asset ${i + 1}`,
+                  }))}
+                  value={String(Math.min(scelto, assets.length - 1))}
+                  onValueChange={(v) => {
+                    if (v !== null) setScelto(Number(v));
+                  }}
+                />
+              </div>
+            ) : null}
+            {/* Le letture non scelte restano nel documento, nascoste: la
+                ricerca del browser e la stampa le trovano comunque. */}
+            {assets.map((asset, i) => (
+              <div key={asset.id ?? i} hidden={i !== Math.min(scelto, assets.length - 1)}>
+                <LetturaAsset
+                  asset={asset}
+                  natura={natura}
+                  monitor={asset.id ? monitor?.[asset.id] : undefined}
+                />
+              </div>
+            ))}
+          </div>
+        </>
       ) : (
         <SectionEmpty what="Analisi per asset" />
       )}
 
       {/* ── CODA: cosa può rompere la lettura ───────────────────────────── */}
       {synthesis?.risks ? (
-        <div className="md-fade" style={fade(5)}>
-          <Callout label="Radar rischi" color="var(--md-warn)" className="md-card p-5">
+        <div className={BLOCCO} style={FILETTO}>
+          <Voce etichetta="Radar rischi">
             <InlineHtml html={synthesis.risks} />
-          </Callout>
+          </Voce>
         </div>
       ) : null}
 
       {volPanel?.reading ? (
-        <div className="md-fade" style={fade(6)}>
-          <Callout
-            label="Lettura della struttura vol"
-            color="var(--md-info)"
-            className="md-card p-5"
-          >
+        <div className={BLOCCO} style={FILETTO}>
+          <Voce etichetta="Lettura della struttura vol">
             {volPanel.reading}
             {volPanel.asOf ? (
-              <span className="md-mono mt-2 block text-xs text-[var(--md-muted)]">
-                {volPanel.asOf}
-              </span>
+              <span className="mt-2 block text-xs text-[var(--md-muted)]">{volPanel.asOf}</span>
             ) : null}
             {/* I NUMERI stanno nella sezione Volatilità, con il rango storico
                 dall'archivio CBOE: qui c'è solo la prosa del report. */}
@@ -846,12 +936,12 @@ export function AssetsTab({
               Indici e rango storico nella sezione Volatilità
               <ArrowUpRight className="size-3.5" aria-hidden />
             </Link>
-          </Callout>
+          </Voce>
         </div>
       ) : null}
 
       {riserve.length > 0 ? (
-        <details className="md-card md-fade p-4" style={fade(7)}>
+        <details className={BLOCCO} style={FILETTO}>
           <summary className="cursor-pointer text-xs font-semibold text-[var(--md-text-2)]">
             {riserve.length} riserve dichiarate dal report
           </summary>

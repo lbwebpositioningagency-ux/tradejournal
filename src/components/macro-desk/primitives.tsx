@@ -28,6 +28,26 @@ export function ToneArrow({ tone, muted }: { tone: MacroTone; muted?: boolean })
   );
 }
 
+const GLIFO: Record<MacroTone, string> = { up: "▲", down: "▼", flat: "●" };
+
+/**
+ * Glifo del segno (▲ ● ▼): il colore sta SOLO qui, sul glifo, e il neutro è
+ * grigio — non ambra, che nel sistema significa «attenzione». La parola del
+ * segno la mette chi chiama, accanto: il glifo da solo non basta a chi non
+ * distingue i colori, e per questo è `aria-hidden`.
+ */
+export function Glifo({ tone }: { tone: MacroTone }) {
+  return (
+    <span
+      aria-hidden
+      className="font-semibold"
+      style={{ color: tone === "flat" ? "var(--md-muted)" : TONE_COLOR[tone] }}
+    >
+      {GLIFO[tone]}
+    </span>
+  );
+}
+
 /** Etichetta di sezione del terminale (uppercase, tracking largo). */
 export function PanelLabel({ children }: { children: ReactNode }) {
   return (

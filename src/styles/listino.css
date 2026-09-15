@@ -232,12 +232,36 @@
 .ml-tab .ml-sep {
   border-left: 1px solid var(--md-border);
 }
+/* Riga SCELTA (il report aperto nello storico, l'asset letto nella tabella dei
+   bias): fondo appena tinto del colore azione e filo a sinistra. Il testo resta
+   neutro, così il contrasto non dipende dalla tinta (tavola «Report MD -
+   ricostruzione»). Diversa da `ml-ora`, che è ambra e dice «adesso». */
+.ml-tab tr.ml-scelta td {
+  background-color: color-mix(in oklab, var(--md-info) 9%, var(--md-bg));
+}
+.ml-tab tr.ml-scelta td:first-child {
+  box-shadow: inset 2px 0 0 var(--md-info);
+}
+/* Riga del BUCO: un periodo in cui qualcosa doveva arrivare e non è arrivato
+   (i giorni senza report). È una riga dello storico, non un avviso sopra la
+   tabella: il buco si legge dove sarebbero stati i dati. */
+.ml-tab tr.ml-buco td {
+  background-color: color-mix(in oklab, var(--md-warn) 10%, var(--md-bg));
+  color: var(--md-text);
+  white-space: normal;
+}
 /* Una cella che deve andare a capo (prosa breve dentro una tabella). */
 .ml-tab td.ml-wrap {
   white-space: normal;
 }
 /* Tabella che non ci sta: scorre da sola, la pagina non si allarga mai. */
 .ml-scroll {
+  /* `relative` non è decorativo: un elemento assoluto dentro la tabella (un
+     testo `sr-only` in una cella) si posiziona rispetto all'antenato
+     posizionato più vicino, e se quello sta FUORI dal riquadro che scorre
+     l'elemento sfugge all'overflow e allarga la pagina. Misurato il 15/09/2026:
+     il Report a 390 si allargava a 463px per questo. */
+  position: relative;
   overflow-x: auto;
   /* Ombra sul bordo destro solo quando la tabella continua: il primo
      gradiente scorre col contenuto e copre il secondo a fine corsa. */
