@@ -3097,3 +3097,16 @@ famiglia, 0 errori in console, nessuna pagina più larga del viewport. Altezza 3
 (1440) e 5.349 → 3.228 (390). Residuo: la vista Ora a 390 è 4.409px (griglia di 24 colonne e
 due grafici). Gate: typecheck, lint, 2.144 test, build verdi. Schermate in
 `docs/stagionalita/rifacimento/fase4/`.
+
+## 15/09/2026 · Stagionalità, rifacimento fase 5 — verifica finale
+
+Referto in `docs/stagionalita-verifica-finale.md`. Numeri prima = produzione (calcolo vecchio,
+sola lettura), dopo = motore nuovo sulle stesse barre. Prezzi: la curva vecchia partiva già dai
+rendimenti, gli scarti (fino a 1,7 punti) vengono da bisestile e domeniche dell'oro. Indici di
+volatilità: la media dei livelli faceva pesare gli anni di volatilità alta (OVX: massimo
+stagionale da marzo a novembre). Tabelle: cambia solo l'oro (lunedì −0,042% → +0,026%, 5 → 11
+anni su 20 in rialzo; S38 +0,55% → +0,86%). Contrasti e taglie: 0 sotto 11px e 0 sotto 4,5:1 nei
+due temi, anche nei testi SVG; la sonda dei grafici ha trovato e fatto correggere le etichette
+orarie dell'intraday a 8-9px. Voto rubrica design 360: 62,7 → **78,2**. Residui dichiarati nel
+referto (settimana a 390 = 5.042px, tabella per mese che scorre di 138px a 1440, produzione in
+transizione fino al job notturno). Gate: typecheck, lint, 2.144 test, build verdi.

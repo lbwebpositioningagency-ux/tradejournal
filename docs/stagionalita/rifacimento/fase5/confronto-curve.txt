@@ -1,0 +1,39 @@
+┌─────────┬─────────────┬────────────────────────────────────────────────────────┬───────────────────────────────────────────────────────────────────┬────────────────────┐
+│ (index) │ serie       │ vecchio                                                │ nuovo                                                             │ scarto max (punti) │
+├─────────┼─────────────┼────────────────────────────────────────────────────────┼───────────────────────────────────────────────────────────────────┼────────────────────┤
+│ 0       │ 'XAUUSD/20' │ 'fine anno 11,07%'                                     │ 'indice 111,21 (= 11,21%)'                                        │ '0,21'             │
+│ 1       │ 'XAUUSD/15' │ 'fine anno 7,56%'                                      │ 'indice 107,70 (= 7,70%)'                                         │ '0,24'             │
+│ 2       │ 'XAUUSD/10' │ 'fine anno 14,98%'                                     │ 'indice 115,07 (= 15,07%)'                                        │ '0,23'             │
+│ 3       │ 'XAUUSD/5'  │ 'fine anno 17,72%'                                     │ 'indice 117,87 (= 17,87%)'                                        │ '0,37'             │
+│ 4       │ 'XAUUSD/2'  │ 'fine anno 44,21%'                                     │ 'indice 144,70 (= 44,70%)'                                        │ '0,97'             │
+│ 5       │ 'WTI/20'    │ 'fine anno -1,12%'                                     │ 'indice 99,68 (= -0,32%)'                                         │ '0,80'             │
+│ 6       │ 'WTI/15'    │ 'fine anno -3,23%'                                     │ 'indice 96,93 (= -3,07%)'                                         │ '0,59'             │
+│ 7       │ 'WTI/10'    │ 'fine anno 4,30%'                                      │ 'indice 104,43 (= 4,43%)'                                         │ '0,73'             │
+│ 8       │ 'WTI/5'     │ 'fine anno 3,24%'                                      │ 'indice 103,44 (= 3,44%)'                                         │ '0,75'             │
+│ 9       │ 'WTI/2'     │ 'fine anno -11,19%'                                    │ 'indice 89,25 (= -10,75%)'                                        │ '1,66'             │
+│ 10      │ 'GER40/20'  │ 'fine anno 7,84%'                                      │ 'indice 107,84 (= 7,84%)'                                         │ '0,34'             │
+│ 11      │ 'GER40/15'  │ 'fine anno 8,80%'                                      │ 'indice 108,80 (= 8,80%)'                                         │ '0,40'             │
+│ 12      │ 'GER40/10'  │ 'fine anno 8,59%'                                      │ 'indice 108,59 (= 8,59%)'                                         │ '0,58'             │
+│ 13      │ 'GER40/5'   │ 'fine anno 12,29%'                                     │ 'indice 112,29 (= 12,29%)'                                        │ '0,50'             │
+│ 14      │ 'GER40/2'   │ 'fine anno 20,91%'                                     │ 'indice 120,91 (= 20,91%)'                                        │ '1,32'             │
+│ 15      │ 'SPX/20'    │ 'fine anno 8,70%'                                      │ 'indice 108,88 (= 8,88%)'                                         │ '0,46'             │
+│ 16      │ 'SPX/15'    │ 'fine anno 11,82%'                                     │ 'indice 111,96 (= 11,96%)'                                        │ '0,28'             │
+│ 17      │ 'SPX/10'    │ 'fine anno 12,82%'                                     │ 'indice 112,85 (= 12,85%)'                                        │ '0,41'             │
+│ 18      │ 'SPX/5'     │ 'fine anno 12,85%'                                     │ 'indice 112,75 (= 12,75%)'                                        │ '0,30'             │
+│ 19      │ 'SPX/2'     │ 'fine anno 20,06%'                                     │ 'indice 119,80 (= 19,80%)'                                        │ '0,76'             │
+│ 20      │ 'GVZ/20'    │ 'livello medio 17,4–20,7, minimo a mag, massimo a ott' │ 'finestra omessa (anni incompleti)'                               │                    │
+│ 21      │ 'GVZ/15'    │ 'livello medio 16,1–18,3, minimo a gen, massimo a set' │ 'indice 96,9–108,5, minimo a gen, massimo a ott, fine anno 101,4' │                    │
+│ 22      │ 'GVZ/10'    │ 'livello medio 15,0–17,1, minimo a mag, massimo a ott' │ 'indice 98,7–112,7, minimo a mag, massimo a ott, fine anno 104,8' │                    │
+│ 23      │ 'GVZ/5'     │ 'livello medio 15,6–18,4, minimo a ago, massimo a ott' │ 'indice 94,6–112,1, minimo a ago, massimo a ott, fine anno 102,8' │                    │
+│ 24      │ 'GVZ/2'     │ 'livello medio 13,5–21,1, minimo a feb, massimo a ott' │ 'indice 95,9–137,3, minimo a feb, massimo a ott, fine anno 122,8' │                    │
+│ 25      │ 'OVX/20'    │ 'livello medio 34,8–43,0, minimo a giu, massimo a mar' │ 'finestra omessa (anni incompleti)'                               │                    │
+│ 26      │ 'OVX/15'    │ 'livello medio 33,7–42,6, minimo a giu, massimo a mar' │ 'indice 94,4–113,5, minimo a giu, massimo a nov, fine anno 100,2' │                    │
+│ 27      │ 'OVX/10'    │ 'livello medio 34,2–48,7, minimo a ago, massimo a mar' │ 'indice 94,1–116,6, minimo a ago, massimo a nov, fine anno 95,8'  │                    │
+│ 28      │ 'OVX/5'     │ 'livello medio 35,9–46,1, minimo a giu, massimo a nov' │ 'indice 94,8–117,1, minimo a giu, massimo a nov, fine anno 95,6'  │                    │
+│ 29      │ 'OVX/2'     │ 'livello medio 28,4–42,5, minimo a mar, massimo a ott' │ 'indice 88,2–121,2, minimo a mar, massimo a ott, fine anno 91,3'  │                    │
+│ 30      │ 'VIX/20'    │ 'livello medio 18,1–22,0, minimo a giu, massimo a ott' │ 'indice 95,9–111,2, minimo a giu, massimo a ott, fine anno 101,1' │                    │
+│ 31      │ 'VIX/15'    │ 'livello medio 16,6–20,1, minimo a giu, massimo a feb' │ 'indice 91,8–108,2, minimo a giu, massimo a feb, fine anno 98,9'  │                    │
+│ 32      │ 'VIX/10'    │ 'livello medio 16,8–22,0, minimo a ago, massimo a feb' │ 'indice 95,4–120,0, minimo a ago, massimo a feb, fine anno 98,0'  │                    │
+│ 33      │ 'VIX/5'     │ 'livello medio 16,7–22,1, minimo a dic, massimo a feb' │ 'indice 91,2–117,6, minimo a giu, massimo a feb, fine anno 91,9'  │                    │
+│ 34      │ 'VIX/2'     │ 'livello medio 14,6–20,3, minimo a giu, massimo a ott' │ 'indice 97,6–132,9, minimo a giu, massimo a ott, fine anno 109,6' │                    │
+└─────────┴─────────────┴────────────────────────────────────────────────────────┴───────────────────────────────────────────────────────────────────┴────────────────────┘

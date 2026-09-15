@@ -188,11 +188,14 @@ export function HourPathChart({
               tickFormatter={(v: number) =>
                 String(Math.floor(v / 4) % 24).padStart(2, "0")
               }
-              tick={{ ...CHART.axisTick, fontSize: stretto ? 8 : 9 }}
+              /* 11px come ogni asse dell'app (prima 8-9px: sotto il minimo del
+                 sistema). Un'etichetta per ora resta: sotto i 640px si
+                 ruotano, e l'asse si alza per contenerle. */
+              tick={CHART.axisTick}
               interval={0}
               angle={stretto ? -60 : 0}
               textAnchor={stretto ? "end" : "middle"}
-              height={stretto ? 26 : 30}
+              height={stretto ? 34 : 30}
               axisLine={false}
               tickLine={false}
             />
