@@ -65,14 +65,23 @@ function NavLinks({ onNavigate }: { onNavigate?: () => void }) {
             href={href}
             onClick={onNavigate}
             aria-current={active ? "page" : undefined}
+            /* VOCE ATTIVA (tavola Claude Design «Sistema visivo v3 - voce
+               attiva della barra laterale»). Il testo era `--sidebar-primary`
+               sul fondo `--sidebar-primary/15`: testo colorato su un
+               riempimento, il caso che la regola del fondo del sistema vieta —
+               4,06:1 in chiaro, 4,51 in scuro. Ora il testo è foreground e
+               semibold; il colore dell'accento resta dov'è grafica: fondo
+               tinto, filo a sinistra e icona (per un'icona basta 3:1). Vale per
+               ogni accento scelto in Impostazioni, perché il testo non ne
+               dipende più. */
             className={cn(
-              "relative flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium",
+              "relative flex items-center gap-3 rounded-md px-3 py-2 text-sm",
               active
-                ? "bg-sidebar-primary/15 text-sidebar-primary before:absolute before:inset-y-2 before:left-0 before:w-0.5 before:rounded-full before:bg-sidebar-primary"
-                : "text-sidebar-foreground/70 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground",
+                ? "bg-sidebar-primary/15 font-semibold text-sidebar-foreground before:absolute before:inset-y-2 before:left-0 before:w-0.5 before:rounded-full before:bg-sidebar-primary"
+                : "font-medium text-sidebar-foreground/70 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground",
             )}
           >
-            <Icon className="size-4 shrink-0" />
+            <Icon className={cn("size-4 shrink-0", active && "text-sidebar-primary")} />
             {label}
           </Link>
         );

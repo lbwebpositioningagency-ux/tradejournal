@@ -2942,3 +2942,33 @@ branch `audit/design-360`, NON pubblicato come il resto di quel referto): Report
 → **69,8** · Analytics 48,2 → **61,8** · Scorecard 51,6 → **73,9** · Volatilità 62,3 →
 **70,0** (quest'ultimo comprende P0 e sistema v2). Globale con i soli quattro voti
 aggiornati: 57,1 → 60,8, stima parziale.
+
+## Contrasto della voce attiva nella barra laterale (15/09/2026)
+
+Tavola Claude Design «Sistema visivo v3 - voce attiva della barra laterale». La voce
+attiva aveva testo `--sidebar-primary` su fondo `--sidebar-primary/15`: testo colorato
+su un riempimento, il caso che la regola del fondo del sistema vieta. Ora il testo è
+`--sidebar-foreground` semibold; fondo tinto, filo a sinistra e icona restano
+nell'accento (per un'icona basta 3:1). Solo token esistenti, e vale per ogni accento
+di Impostazioni perché il testo non ne dipende più (`components/layout/sidebar.tsx`,
+barra fissa e menu mobile usano lo stesso `NavLinks`).
+
+**Misurato nel DOM (build locale, /dashboard e /macro-desk/report):**
+
+| Tema | Testo voce attiva prima → dopo | Icona attiva | Voci inattive |
+|---|---|---:|---:|
+| Chiaro | 4,06 → **14,60** | 4,06 | 7,22 |
+| Scuro | 4,51 → **14,74** | 4,51 | 8,89 |
+
+Distinguibile dalle inattive per fondo tinto (1,24:1 sulla barra), filo d'accento
+(5,04 / 5,38), icona nell'accento e testo pieno semibold contro testo al 70% medium.
+Stessi valori a 390 nel menu mobile aperto, nei due temi.
+
+**Non è l'ultimo difetto di contrasto dell'app.** Il passaggio di regressione ha
+trovato sulla Dashboard testi sotto 4,5:1 già presenti prima (misurati sulla build
+precedente): «Asia (Tokyo)» e i «—» delle sessioni senza trade a 2,41 in chiaro e 3,36
+in scuro, etichette dei mesi a 11px fra 3,36 e 4,33. Non corretti qui. Report,
+Analytics, Scorecard, Calendario e Radar: 0 testi sotto 4,5:1 nei due temi.
+
+**Verificato:** typecheck ✅ · eslint ✅ · 2170/2170 test ✅ · build ✅ · schermate
+reali a 1440 e 390 nei due temi.
