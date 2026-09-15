@@ -22,6 +22,7 @@
 6. [F4 — Direzione visiva con Claude Design](#6-f4--direzione-visiva-con-claude-design)
 7. [F5 — Piano di miglioramento in tre onde](#7-f5--piano-di-miglioramento)
 8. [Autocritica](#8-autocritica)
+9. [Rivalutazione dopo la ricostruzione del 15/09/2026](#9-rivalutazione-dopo-la-ricostruzione-del-15092026)
 
 ---
 
@@ -700,3 +701,100 @@ Altri due limiti meno gravi:
 
 - La causa dell'errore #418 è **dedotta, non verificata**.
 - I pesi d'uso delle sezioni sono **stimati**. Non ho calcolato quanto si sposta il voto globale cambiandoli. Con voti di sezione compresi fra 41,8 e 69,3, però, nessuna ridistribuzione plausibile lo porta sopra 65.
+
+---
+
+## 9. Rivalutazione dopo la ricostruzione del 15/09/2026
+
+> **Voti delle sezioni ricostruite, con la stessa rubrica del §5.1 e la stessa severità:** Report 41,8 → **69,8** · Analytics 48,2 → **61,8** · Scorecard 51,6 → **73,9** · Volatilità 62,3 → **70,0**. Sotto le stime delle proposte (82, 80, 84): i motivi sono scritti criterio per criterio, e sono misurati.
+
+| | |
+|---|---|
+| Data | 15/09/2026 |
+| Base | `origin/main` @ `288d432` (fasi 1–4 pubblicate: `12adbf6`, `1b57138`, `53c1325`, `288d432`) |
+| Metodo | lo stesso del §3.1: `next build` nel worktree senza `.env.production.local`, `scripts/start-local.mjs` su Postgres Docker locale, dati demo (ultimo report Macro Desk del 21/08, cioè 25 giorni fa), sessione coniata con `AUTH_SECRET` locale, Chrome headless con porta CDP fissa per ogni giro, `prefers-reduced-motion` emulato, misure nel DOM (contrasto oklch → sRGB via canvas) |
+| Prove | 28 schermate in [`design-2609/ricostruzione-1509/`](design-2609/ricostruzione-1509/): 7 pagine × 1440 e 390 × due temi, più le catture delle tavole Claude Design usate |
+| Tavole | «Sistema visivo v3 - tabelle larghe», «Report MD - ricostruzione», «Analytics - ricostruzione» e «… - applicata», «Scorecard - ricostruzione» nel progetto `d3b88e06-…` |
+
+### 9.1 Misure (DOM, stessi strumenti del §3.3)
+
+| Pagina | Altezza 1440 | Altezza 390 | Più larga di 390? | Testi sotto 12px / sotto 11px (1440) | Sotto 4,5:1 nel contenuto | Caratteri | Isole scure |
+|---|---:|---:|---|---|---|---|---:|
+| MD Report (ultimo giornaliero) | 2.889 (prima 1.709 indice + 4.340 dettaglio) | 5.657 (prima 10.079) | no | 49 / **0** | 0 nei due temi | Geist | 0 |
+| MD Report (archivio, settimanale 16/08) | 2.511 | 4.997 | no | 51 / 0 | 0 | Geist | 0 |
+| Analytics | 4.842 (prima 7.083) | 8.477 (prima 11.922) | no | 38 / **0** (prima 141 / 0) | 0 | Geist | 0 |
+| MD Scorecard | 1.014 (prima 1.449) | 1.358 | no | 28 / **0** (prima 74 / 8) | 0 | Geist | 0 |
+| MD Volatilità | 1.517 (prima 1.492) | 1.783 | no | 84 / **0** (prima 101 / 89) | 0 in scuro · 1 in chiaro | Geist | 0 |
+| MD Calendario | 1.460 | 2.169 | no | 67 / 0 | 0 | Geist | 0 |
+| MD Radar | 1.201 | 1.705 | no | 25 / 0 | 0 | Geist | 0 |
+
+**Due residui di contrasto, entrambi fuori dalle pagine ricostruite e presenti prima:**
+
+- la voce attiva della barra laterale («Macro Desk», «Analytics») sta a **4,06:1** in tema chiaro su ogni pagina: testo `--sidebar-primary` su fondo `--sidebar-primary/15`, cioè il caso che la regola del fondo del sistema v2 vieta (`components/layout/sidebar.tsx:71`);
+- un «·» della testata di Volatilità a 4,41:1 in chiaro.
+
+**Pagine rimisurate nel DOM che l'ultimo blocco aveva lasciato fuori** (Scorecard, Calendario del desk, dettaglio report, Radar): 0 testi sotto 11px e 0 testi sotto 4,5:1 nel contenuto, nei due temi e a entrambe le larghezze. L'unico valore sotto soglia è la voce della barra laterale qui sopra.
+
+**Altri fatti misurati:** errore di idratazione #418 sparito da `/macro-desk/report` (0 errori di console in tutte le 28 catture); un id di report inesistente risponde 404; «Escursione vera» da 1.039 a 966px (margine a 1440 da +79 a +152, a 1366 da +5 a +78, a 1280 scorre di 7px nel riquadro); a 390 nessuna pagina supera la larghezza dello schermo, dopo aver trovato e chiuso un `sr-only` che allargava il Report a 463px.
+
+### 9.2 Matrice rivalutata
+
+Solo le sezioni ricostruite o toccate stanotte. Stessi pesi, stesso calcolo, «—» dove il criterio non si applica. **Attenzione:** il voto di Volatilità comprende anche l'effetto dei blocchi P0 e sistema v2 del 14/09 (caratteri, taglie, contrasto), non solo della fase 1 di stanotte.
+
+| Sezione | Peso | C1 ·14 | C2 ·12 | C3 ·12 | C4 ·12 | C5 ·10 | C6 ·10 | C7 ·12 | C8 ·6 | C9 ·7 | C10 ·5 | Calcolo | **Voto** | Prima |
+|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---|---:|---:|
+| S16 MD Report | 6 | 70 | 72 | 72 | 62 | 76 | — | 70 | 78 | 62 | 65 | 6279/90 | **69,8** | 41,8 |
+| S7 Analytics | 8 | 66 | 70 | 68 | 55 | 58 | 56 | 68 | 62 | 45 | 60 | 6183/100 | **61,8** | 48,2 |
+| S17 MD Scorecard | 2 | 80 | 74 | 76 | 70 | 76 | — | 76 | 65 | 70 | 68 | 6652/90 | **73,9** | 51,6 |
+| S11 MD Volatilità | 6 | 72 | 70 | 66 | 80 | 80 | 65 | 70 | 58 | 62 | 65 | 6997/100 | **70,0** | 62,3 |
+
+**Effetto sul globale, stima parziale:** con i soli quattro voti qui sopra aggiornati il globale passa da 57,1 a **60,8** (+367,6 punti pesati). Non è il globale vero: Driver, Calendario, Radar e le pagine dell'app sono cambiati col P0 e col sistema v2 e non sono stati rivalutati.
+
+### 9.3 Ragioni, criterio per criterio
+
+#### S16 · Macro Desk · Report — 69,8 (era 41,8, stima della proposta 1a ~82)
+
+- **C1 70.** Indice e dettaglio sono una pagina: striscia dello stato, quadro, verdetto, tabella dei bias, una lettura alla volta, storico incolonnato a destra → [`macro-desk_report__1440__dark.png`](design-2609/ricostruzione-1509/macro-desk_report__1440__dark.png). Non 90: a 1440×900 la tabella dei bias (la risposta) comincia sotto la piega, spinta da disclaimer e alert critico; la pagina è alta 2.889px, 3,2 viewport contro i 3 del 90.
+- **C3 72.** 0 testi sotto 4,5:1 nel contenuto; colore solo sui glifi del segno; stati del monitoraggio in parola neutra. Non di più: la scheda News non è stata rifatta (`NewsCard`, condivisa col Radar) e porta ancora titoli di gruppo colorati e la striscia a sinistra sulla riga di sintesi; la voce della barra laterale a 4,06:1.
+- **C4 62.** I valori dei driver arrivano come testo dal report e restano col punto decimale («2.41%», «75.6») accanto a numeri all'italiana → [`macro-desk_report__1440__light.png`](design-2609/ricostruzione-1509/macro-desk_report__1440__light.png). Correggerli vuol dire toccare il payload a monte o riscriverne i valori: decisione del proprietario.
+- **C5 76.** Quattro tabelle del listino (bias, pilastri, driver, storico) con riga scelta e riga del buco; nessuna scorre a 1440. A 390 la tabella dei pilastri scorre di 18px nel riquadro, con l'ombra.
+- **C7 70.** Stessa testata, schede e scatola del desk; etichette `PanelLabel` a 0,14em di spaziatura contro lo 0,1em di `.ml-titolo`: due stili per la stessa etichetta. News non ricondotta al sistema.
+- **C8 78. Punto forte.** Il ritardo è lo stato della pagina (aggiornato · in ritardo · archivio) e il buco è una riga dello storico; nessun report, errore con «Riprova» e riferimento, caricamento con la geometria vera; #418 sparito, 404 vero. Non 90: l'errore di caricamento è verificato renderizzando il componente vero fuori dall'app (non si provoca senza toccare il codice), come nel §3.4.
+- **C9 62.** Nessuno sbordo, schede e tabelle che scorrono con segnale; ma 5.657px a 390 sono 6,7 schermate, sopra le 4.000 del 90.
+- **C2 72, C10 65.** Un carattere, 0 testi sotto 11px, ma 49 sotto 12px; «sett.» come marcatore del settimanale è un'abbreviazione.
+
+#### S7 · Analytics — 61,8 (era 48,2, stima della proposta 3a ~80)
+
+- **C1 66.** Sintesi in testa (le cinque metriche pro, nessuna metrica aggiunta), indice fermo, cinque capitoli, pannelli due per riga → [`analytics__1440__light.png`](design-2609/ricostruzione-1509/analytics__1440__light.png). Non 80: 4.842px sono 5,4 viewport; il simulatore, ultimo capitolo, da solo ne occupa uno e mezzo.
+- **C9 45.** 8.477px a 390, 10,9 schermate: meglio delle 14 di prima, ancora molto sopra le 4.000. Scendere davvero richiede la forma a schede su mobile (proposta 3b), che l'incarico escludeva chiedendo una lettura dall'alto in basso → [`analytics__390__dark.png`](design-2609/ricostruzione-1509/analytics__390__dark.png).
+- **C2 70.** Da 141 testi a 11px a 38 sotto 12px e 0 sotto 11px: le note di metodologia sono dietro «Metodo».
+- **C7 68.** Un componente per ogni analisi (`PannelloAnalisi`); restano la legenda Sharpe/Sortino come toggle proprio e i riquadri interni del simulatore in uno stile diverso.
+- **C5 58, C6 56.** Le tabelle e i grafici sono quelli di prima: nessuna scorre da 1280 in su, ma a 1024 il grafico orario scorre di 96px; le tabelle di dettaglio delle fasce sono chiuse sotto il grafico, e un dato chiuso è un dato meno letto.
+- **C3 68.** 0 sotto 4,5:1 nel contenuto («va in perdita» da 4,27 a testo neutro); resta la barra laterale.
+- **C4 55, C8 62, C10 60.** Formati invariati; skeleton con la geometria vera; stati vuoti per pannello già buoni.
+
+#### S17 · Macro Desk · Scorecard — 73,9 (era 51,6, stima della proposta 2a ~84)
+
+- **C1 80.** Dove siamo, il campione («1 di 8») e l'età del report in testa, poi una tabella di consuntivo col totale; 1.014px, un viewport → [`macro-desk_scorecard__1440__light.png`](design-2609/ricostruzione-1509/macro-desk_scorecard__1440__light.png).
+- **C3 76.** Esiti, conteggi, rami e invalidazioni in parola neutra; verde e rosso solo sui valori in EM; 0 sotto 4,5:1 nel contenuto.
+- **C4 70.** Valori in EM con due decimali e segno, date brevi; il segno meno è il trattino e non «−» tipografico.
+- **C5 76, C7 76.** Consuntivo con doppio filetto, settimane dalla più recente, stessa striscia del Report; la verifica a 390 ha trovato righe alte come tre per una nota che andava a capo a ogni parola, corretto.
+- **C8 65.** Stato vuoto e caricamento curati; l'errore di caricamento resta quello generico dell'app.
+- **C9 70.** 1.358px a 390, nessuno sbordo, tabelle che scorrono nel riquadro → [`macro-desk_scorecard__390__dark.png`](design-2609/ricostruzione-1509/macro-desk_scorecard__390__dark.png).
+
+#### S11 · Macro Desk · Volatilità — 70,0 (era 62,3)
+
+- **C2 70, C3 66.** 0 testi sotto 11px (erano 89), un carattere: effetto del P0 e del sistema v2 del 14/09. In chiaro restano il «·» a 4,41:1 e la barra laterale.
+- **C5 80.** Regola v3 delle tabelle larghe: identità su due righe, barra-parola da 40px, prima colonna ferma da 114px → [`macro-desk_volatilita__1440__dark.png`](design-2609/ricostruzione-1509/macro-desk_volatilita__1440__dark.png).
+- **C9 62.** 1.783px a 390, nessuno sbordo; con la prima colonna più stretta restano 210px ai numeri invece di 140.
+
+### 9.4 Perché i voti restano sotto le stime delle proposte
+
+Le proposte del §6 stimavano 82, 80 e 84. La differenza non è arrotondamento:
+
+- **dati che la ricostruzione non poteva toccare** — i valori dei driver del report arrivano come testo col punto decimale (C4 del Report), la prosa lunga dei pilastri impedisce la matrice 1b;
+- **lunghezza su mobile** — Analytics a 390 resta sopra le 4.000px senza la forma a schede;
+- **parti condivise non ricostruite** — la scheda News e `NewsCard` (condivise col Radar), il layout interno del simulatore, la voce attiva della barra laterale a 4,06:1 in chiaro su tutte le pagine;
+- **stati verificati fuori dall'app** — l'errore di caricamento non si provoca senza toccare il codice.
+
+Ognuno di questi punti è un intervento piccolo o una decisione, non un rifacimento: elencati nel resoconto della ricostruzione.
