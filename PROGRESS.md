@@ -3347,3 +3347,27 @@ Resta: la soglia dei 30 trade per migliore e peggiore (fase 2) e l'elezione solo
 disgiunti (fase 4), nella logica. `lib/metrics/confidence.ts` e `group-estimates.ts` restano con i
 loro test; tolto solo il componente di resa `components/reports/estimates.tsx`, sostituito da
 `account-period.tsx` (tre tessere col valore). Analytics non toccata. Nessuna migrazione.
+
+## 16/09/2026 · Analytics › Rischio — «Durata dei drawdown» a una barra per fascia
+
+Richiesta del proprietario: le due barre affiancate per fascia (durata dell'episodio e recupero)
+erano due misure diverse sulla stessa scala, da leggere con la legenda. Ora l'istogramma ha UNA
+barra per fascia, la durata dell'episodio (dal massimo al ritorno sul massimo), in foreground-2
+come i segni del pannello «In corso». Sotto ogni barra il numero di episodi della fascia (12px
+semibold, cifre tabulari; lo zero in muted) e sotto quello la fascia; sotto il grafico il totale
+(«37 episodi chiusi in tutto»). Via la legenda, via l'asse verticale (ripeteva i numeri scritti),
+via le cifre sopra le barre. Il recupero resta nelle celle «Recupero tipico / più lungo» e nella
+tabella degli episodi. Calcolo degli episodi non toccato: `DrawdownBand.recovery` resta nel
+riepilogo, non più disegnato.
+
+Fasce invariate (1–2 · 3–5 · 6–10 · 11–20 · 21–40 · oltre 40). Rimisurate su SIM1 sulla sola
+durata: 12 · 15 · 5 · 2 · 1 · 2 su 37 episodi chiusi (mediana 3, 90° percentile 13, massimo 100).
+La scala che circa raddoppia regge una coda lunga di cui non si conosce la forma sui trade reali;
+ritararla sul seed demo (serie troppo regolari, `docs/DEBITO-TECNICO.md`) vorrebbe dire adattarla
+al generatore.
+
+Tavola CD «Analytics - durata drawdown e correlazione» aggiornata (riquadri 1, 4 e decisioni).
+Misure (capitolo Rischio, SIM1, 1440/390, due temi, sonda del capitolo + sonda dei testi SVG):
+0 testi < 11px, 0 < 4,5:1, 0 errori in console, pagina mai più larga del viewport. Gate:
+typecheck, lint, 2.247 test, build verdi. Nessuna migrazione. Schermate in
+`docs/journal/durata-drawdown-barra/`.
