@@ -67,23 +67,6 @@ const AGGREGATE_COLUMNS = Prisma.sql`
   (COUNT(*) FILTER (WHERE t."rMultiple" < 0))::int         AS "rLossCount"
 `;
 
-/**
- * Il conto intero nel periodo, con gli stessi aggregati e le stesse serie
- * delle righe di breakdown: le stime del conto (win rate, expectancy) e i
- * loro intervalli escono dalla stessa forma, senza una query diversa da
- * tenere allineata. Nessun GROUP BY: una riga sola, anche senza trade.
- */
-export async function getAccountBreakdown(
-  filter: StatsFilter,
-): Promise<BreakdownAggregates> {
-  const rows = await prisma.$queryRaw<BreakdownAggregates[]>(Prisma.sql`
-    SELECT ${AGGREGATE_COLUMNS}
-    ${FROM_TRADES}
-    WHERE ${whereClosedTrades(filter)}
-  `);
-  return rows[0];
-}
-
 export interface StrategyBreakdownRow extends BreakdownAggregates {
   /** Id strategia, oppure null per i trade senza strategia. */
   strategyId: string | null;

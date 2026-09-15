@@ -27,7 +27,6 @@ import {
   winRateInfo,
 } from "@/lib/metrics";
 import { formatNumber } from "@/lib/format-number";
-import { AccountPeriod } from "@/components/reports/account-period";
 import { MetricInfo } from "@/components/metric-info";
 import { EmptyState } from "@/components/empty-state";
 import {
@@ -48,7 +47,6 @@ import {
   type ScoredBucket,
 } from "@/lib/reports";
 import {
-  getAccountBreakdown,
   getBiasAlignmentBreakdown,
   getDirectionAssetBreakdown,
   getHourBreakdown,
@@ -404,10 +402,8 @@ export default async function ReportsPage({
   const filter: StatsFilter = { ...baseFilter, currency: scope.active };
   const currency = scope.active ?? activeAccount?.currency ?? user.baseCurrency;
 
-  const [accountRow, strategies, tags, tagCategories, planAdherence, symbols, directionAssets, months, hours, weekdays, streaks, outcomes, biasRows] =
+  const [strategies, tags, tagCategories, planAdherence, symbols, directionAssets, months, hours, weekdays, streaks, outcomes, biasRows] =
     await Promise.all([
-      // Fase 4: il conto intero, per le stime con intervallo in testa.
-      getAccountBreakdown(filter),
       getStrategyBreakdown(filter),
       getTagBreakdown(filter),
       getTagCategoryBreakdown(filter),
@@ -534,38 +530,6 @@ export default async function ReportsPage({
         />
       ) : (
         <>
-          {/* Fase 4 — le tre misure del conto intero, col solo valore. */}
-          <CollapsibleCard title="Il conto nel periodo" defaultOpen>
-            {(() => {
-              const accountR = avgR(accountRow.rSum, accountRow.rCount);
-              const accountCash = expectancy(accountRow);
-              return (
-                <AccountPeriod
-                  tiles={[
-                    {
-                      label: "Win rate",
-                      value: formatPercent(winRate(accountRow.wins, accountRow.total)),
-                      note: `su ${accountRow.total} trade`,
-                    },
-                    {
-                      label: "Expectancy",
-                      value: accountR !== null ? formatRMultiple(accountR) : "—",
-                      note: `su ${accountRow.rCount} trade con rischio`,
-                    },
-                    {
-                      label: "Attesa per trade",
-                      value:
-                        accountCash !== null
-                          ? formatSignedMoney(accountCash, currency)
-                          : "—",
-                      note: `su ${accountRow.total} trade`,
-                    },
-                  ]}
-                />
-              );
-            })()}
-          </CollapsibleCard>
-
           {/* F27 — su mobile le sezioni sono collassabili (coerente con F26);
               "Per simbolo" aperta di default: è il report #1. */}
           <CollapsibleCard title="Per simbolo" defaultOpen>
