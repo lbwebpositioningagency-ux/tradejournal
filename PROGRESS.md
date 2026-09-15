@@ -2859,3 +2859,36 @@ Calendario, Radar: altezze invariate, nessuna pagina più larga del viewport.
 **Verificato:** typecheck ✅ · eslint ✅ · 2166/2166 test ✅ · build ✅ · schermate
 reali a 1440 e 390 nei due temi (ultimo, archivio) e degli stati resi coi componenti
 veri.
+
+## Ricostruzione, fase 3 — Analytics (15/09/2026)
+
+**Scelta: opzione 3a «Sintesi in testa e indice laterale»**, adattata nella tavola
+Claude Design «Analytics - ricostruzione» (+ «… - applicata» con le decisioni prese in
+implementazione). Scartata 3b (capitoli a schede): accorcia ogni vista ma nasconde il
+resto, e l'incarico chiede una pagina che si legga dall'alto verso il basso.
+
+**Nessuna metrica aggiunta né tolta.** 3a metteva in testa expectancy, max drawdown e
+Ulcer, che in questa pagina non ci sono: in testa salgono invece le cinque «Metriche
+pro» già presenti, in una griglia senza orfani a nessuna larghezza (1 colonna · 2 + 2 +
+la quinta su due colonne · 5 in riga; misurato a 390, 640, 800, 1024, 1279, 1280, 1536).
+
+**Forma.** Capitoli nell'ordine di lettura — Distribuzioni, Rischio, Rolling, Timing,
+Simulatore — con un indice fermo a sinistra da 1024px (schede ferme sotto la barra su
+mobile, capitolo attivo via IntersectionObserver). Componente nuovo del sistema
+`components/analytics/pannello-analisi.tsx` (`PannelloAnalisi` + `Capitolo`): titolo con
+la «i», azioni a destra, una riga di META con i soli dati del periodo sempre visibile,
+il METODO chiuso in fondo. Le card generiche con descrizione e riquadro tratteggiato di
+metodologia non ci sono più. Grafico e tabella affiancati da 1280px in Distribuzioni
+(4:8), Rischio (5:7) e Rolling; Timing un pannello per riga (affiancati, i grafici a 24
+fasce scorrevano anche a 1536). Tabelle di dettaglio delle fasce e statistiche
+aggregate del simulatore chiuse sotto il loro grafico, col numero di righe nel comando.
+«va in perdita» nella concentrazione passa a testo neutro con filo (era 4,27:1).
+
+**Misurato (build locale):** 7.005 → **4.842px a 1440 (−31%)**, 11.510 → **8.477 a 390
+(−26%)**. Nessuna tabella scorre da 1280 in su; a 1024 il grafico orario scorre di 96px
+nel suo riquadro di zoom. 0 testi sotto 11px, 0 sotto 4,5:1 nel contenuto nei due temi,
+nessun errore in console, nessuna pagina più larga del viewport. Skeleton con la
+geometria nuova.
+
+**Verificato:** typecheck ✅ · eslint ✅ · 2166/2166 test ✅ · build ✅ · schermate reali
+a 1440 e 390 nei due temi.

@@ -1,5 +1,4 @@
 import { PageHeader } from "@/components/layout/page-header";
-import { tabClass, tabListClass } from "@/components/layout/tab-nav";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { Suspense } from "react";
@@ -124,18 +123,13 @@ import { formatDurationSec } from "@/lib/dates";
 import { cn } from "@/lib/utils";
 import { MetricInfo } from "@/components/metric-info";
 import { EmptyState } from "@/components/empty-state";
-import { Activity, BarChart3, Crosshair, Target } from "lucide-react";
+import { Activity, BarChart3, ChevronRight, Crosshair, Target } from "lucide-react";
 import { PeriodFilter } from "@/components/filters/period-filter";
 import { CurrencyFilter } from "@/components/filters/currency-filter";
 import { AnalyticsFilters } from "@/components/analytics/analytics-filters";
 import { TargetRTable } from "@/components/analytics/target-r-table";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
+import { Capitolo, PannelloAnalisi } from "@/components/analytics/pannello-analisi";
+import { IndiceCapitoli, type VoceCapitolo } from "@/components/analytics/indice-capitoli";
 
 export const metadata: Metadata = { title: "Analytics" };
 
@@ -147,14 +141,20 @@ export const metadata: Metadata = { title: "Analytics" };
  * denormalizzati dalla pipeline): qui si aggrega e si mostra, non si
  * ricalcola.
  */
-/** Riquadro di sintesi della simulazione: valore grande + contesto. */
-function StatBox({
+/**
+ * Una delle cinque METRICHE PRO della sintesi in testa. Sotto 640px etichetta
+ * e valore stanno sulla stessa riga (la sintesi resta corta su mobile); sopra,
+ * valore sotto l'etichetta. Prima era `StatBox`, un riquadro con bordo dentro
+ * una card.
+ */
+function CellaPro({
   label,
   value,
   sub,
   tone,
   info,
   accountScoped = false,
+  className,
 }: {
   label: string;
   value: string;
@@ -163,29 +163,64 @@ function StatBox({
   info?: React.ComponentProps<typeof MetricInfo>["info"];
   /**
    * true = metrica di CONTO con un filtro strumento/direzione ATTIVO: va
-   * detto sulla card, altrimenti il numero che non si muove sembra un bug e
+   * detto sulla cella, altrimenti il numero che non si muove sembra un bug e
    * non una scelta. Lo decide il chiamante, che conosce i filtri.
    */
   accountScoped?: boolean;
+  className?: string;
 }) {
   return (
-    <div className="rounded-lg border p-3">
+    <div
+      className={cn(
+        "grid grid-cols-[minmax(0,1fr)_auto] items-baseline gap-x-3 bg-card px-4 py-3 sm:block",
+        className,
+      )}
+    >
       <div className="stat-label flex items-center gap-1">
         {label}
         {info ? <MetricInfo info={info} /> : null}
       </div>
       <div
         className={cn(
-          "stat-value mt-1",
+          "text-lg font-semibold tabular-nums sm:mt-1 sm:text-xl",
           tone === "profit" && "text-profit",
           tone === "loss" && "text-loss",
         )}
       >
         {value}
       </div>
-      {sub ? <div className="stat-sub mt-0.5">{sub}</div> : null}
-      {accountScoped ? <AccountScopeNote className="mt-1.5" /> : null}
+      {sub ? (
+        <div className="col-span-2 mt-0.5 text-xs text-muted-foreground">{sub}</div>
+      ) : null}
+      {accountScoped ? <AccountScopeNote className="col-span-2 mt-1.5" /> : null}
     </div>
+  );
+}
+
+/**
+ * Tabella di dettaglio chiusa sotto il suo grafico, con il numero di righe
+ * nel comando: chi apre sa quanto è lunga prima di aprirla.
+ */
+function TabellaChiusa({
+  righe,
+  unita,
+  children,
+}: {
+  righe: number;
+  unita: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <details className="group/tabella border-t pt-2.5">
+      <summary className="flex cursor-pointer list-none items-center gap-1.5 text-xs font-medium text-muted-foreground hover:text-foreground">
+        <ChevronRight
+          className="size-3.5 transition-transform group-open/tabella:rotate-90"
+          aria-hidden
+        />
+        Tabella completa · {righe} {unita}
+      </summary>
+      <div className="mt-2">{children}</div>
+    </details>
   );
 }
 
@@ -594,15 +629,27 @@ export default async function AnalyticsPage({
   const senzaR = coverage.total - coverage.withR;
   const senzaPiano = coverage.withR - coverage.withTargetR;
 
+  /* I capitoli nell'ordine di lettura (tavola «Analytics - ricostruzione»):
+     prima come si distribuiscono i ritorni, poi il rischio, poi come cambia
+     nel tempo e quando, e in fondo il simulatore, che è uno strumento e non
+     una statistica. Le ancore di prima (#distribuzioni, #simulatore, #rolling,
+     #rischio, #timing) restano tutte valide. */
+  const capitoli: VoceCapitolo[] = [
+    { id: "distribuzioni", label: "Distribuzioni", conteggio: 2 },
+    { id: "rischio", label: "Rischio", conteggio: 3 },
+    { id: "rolling", label: "Rolling", conteggio: 2 },
+    { id: "timing", label: "Timing", conteggio: 2 },
+    { id: "simulatore", label: "Simulatore", conteggio: 1 },
+  ];
+  const baseOraria = hourBasis === "close" ? "chiusura" : "apertura";
+
   return (
-    <div className="flex flex-col gap-6">
-      <div className="flex flex-col gap-3">
-        {/* D-03 — il vecchio sottotitolo descriveva solo le prime due card. */}
-        <PageHeader
-          title="Analytics"
-          description={<>Distribuzioni, rolling, rischio e concentrazione · {period.label}</>}
-          actions={
-            <>
+    <div className="flex flex-col gap-4">
+      <PageHeader
+        title="Analytics"
+        description={<>Distribuzioni, rischio, rolling e timing · {period.label}</>}
+        actions={
+          <>
             {currencyScope.multi && (
               <CurrencyFilter
                 currencies={currencyScope.totals.map((t) => t.currency)}
@@ -615,40 +662,12 @@ export default async function AnalyticsPage({
               toKey={period.toKey}
               label={period.label}
             />
-            </>
-          }
-        />
-        <Suspense fallback={<div className="h-9" />}>
-          <AnalyticsFilters
-            symbols={symbols}
-            symbol={symbol}
-            direction={direction}
-          />
-        </Suspense>
-        {/* D-03 — ancore di navigazione interna: la pagina è ~10 card
-            full-width, senza mappa chi cerca il Kelly scorre tutto. */}
-        {coverage.total > 0 ? (
-          <nav aria-label="Sezioni della pagina" className={tabListClass}>
-            {(
-              [
-                ["Distribuzioni", "#distribuzioni"],
-                ["Simulatore", "#simulatore"],
-                ["Rolling", "#rolling"],
-                ["Rischio", "#rischio"],
-                ["Timing", "#timing"],
-              ] as const
-            ).map(([label, anchor]) => (
-              <a
-                key={anchor}
-                href={anchor}
-                className={tabClass(false)}
-              >
-                {label}
-              </a>
-            ))}
-          </nav>
-        ) : null}
-      </div>
+          </>
+        }
+      />
+      <Suspense fallback={<div className="h-9" />}>
+        <AnalyticsFilters symbols={symbols} symbol={symbol} direction={direction} />
+      </Suspense>
 
       {coverage.total === 0 ? (
         <EmptyState
@@ -667,17 +686,12 @@ export default async function AnalyticsPage({
             {senzaR > 0 && (
               <>
                 {" "}
-                <Link
-                  href="/trades?risk=missing"
-                  className="underline underline-offset-2"
-                >
+                <Link href="/trades?risk=missing" className="underline underline-offset-2">
                   {senzaR} senza rischio
                 </Link>
                 : R non calcolabile (N/D)
-                {/* Il conteggio da solo non basta: se fra i trade esclusi c'è
-                    quello più grosso dell'anno, la distribuzione descrive una
-                    minoranza del risultato. Si dichiara anche il DENARO che
-                    resta fuori. */}
+                {/* Il conteggio da solo non basta: si dichiara anche il DENARO
+                    che resta fuori dall'istogramma. */}
                 {coverage.pnlShareWithR !== null && (
                   <>
                     , e con loro{" "}
@@ -694,607 +708,646 @@ export default async function AnalyticsPage({
               ` ${senzaPiano} con rischio ma senza piano completo: fuori dalle fasce per target R.`}
           </p>
 
-          {/* ① Istogramma dell'R realizzato su TUTTI i trade con rischio. */}
-          {/* D-03 — id ancora + scroll-mt per l'header sticky (h-14). */}
-          <Card id="distribuzioni" className="scroll-mt-20">
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2 text-base">
-                Distribuzione dell&apos;R realizzato
-                <MetricInfo info={returnDistributionInfo} />
-              </CardTitle>
-              <CardDescription>
-                Fasce da 0,5R su {coverage.withR}{" "}trade con rischio definito.
-                Colonna BE dedicata per l&apos;R esattamente zero.
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              {histogramPoints.length > 0 ? (
-                <RDistributionChart points={histogramPoints} />
-              ) : (
-                <EmptyState
-                  compact
-                  icon={BarChart3}
-                  title="Nessun trade con rischio definito"
-                  description="Imposta lo stop pianificato o il rischio iniziale per vedere i risultati in R."
-                />
-              )}
-            </CardContent>
-          </Card>
-
-          {/* ② Segmentazione per bucket di target R. */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2 text-base">
-                Ritorni per target R
-                <MetricInfo info={hitRateInfo} />
-              </CardTitle>
-              <CardDescription>
-                Puntare più lontano alza il ritorno per trade riuscito e abbassa
-                l&apos;hit rate: la colonna che decide è l&apos;expectancy.
-                {totals.trades > 0 && (
-                  <>
-                    {" "}
-                    Nel periodo: {totals.trades} trade con piano,{" "}
-                    {totals.hitRate !== null && formatPercent(totals.hitRate)} al
-                    target,{" "}
-                    {totals.expectancyR !== null &&
-                      formatRMultiple(totals.expectancyR)}{" "}
-                    di attesa per trade.
-                  </>
-                )}
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              {totals.trades > 0 ? (
-                <TargetRTable rows={buckets} />
-              ) : (
-                <EmptyState
-                  compact
-                  icon={Target}
-                  title="Nessun trade con target pianificato"
-                  description="Compila stop e target nel piano del trade (o mappali nell'import CSV) per vedere questa analisi."
-                />
-              )}
-            </CardContent>
-          </Card>
-
-          {/* §1 — equity curve simulator (Fase 34, sostituisce il Monte
-              Carlo a bande percentili). */}
-          <Card id="simulatore" className="scroll-mt-20">
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2 text-base">
-                Equity curve simulator
-                <MetricInfo info={equitySimulatorInfo} />
-                {instrumentFilterActive ? (
-                  <AccountScopeNote className="ml-2 inline-block" />
-                ) : null}
-              </CardTitle>
-              <CardDescription>
-                Ogni linea colorata è un percorso possibile con i parametri del
-                form; la linea in grassetto è la media. I campi partono dalle
-                statistiche reali del conto nel periodo, ma sono tuoi: cambiali
-                per vedere come si muove il ventaglio.
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="flex flex-col gap-4">
-              <EquitySimulator
-                defaultStartEquity={
-                  new Decimal(startingEquity).gt(0)
-                    ? new Decimal(startingEquity).toFixed(0)
-                    : "10000"
-                }
-                defaultWinProbability={
-                  simWinProbability !== null
-                    ? new Decimal(simWinProbability).times(100).toFixed(1)
-                    : "50"
-                }
-                defaultWinLossRatio={
-                  simRatio !== null
-                    ? new Decimal(simRatio).toFixed(2)
-                    : "1.5"
-                }
-                currency={currency}
-              />
-
-              {/* Explanation: metodologia dichiarata, in pagina. */}
-              <p className="rounded-md border border-dashed p-3 text-xs text-muted-foreground">
-                <strong className="text-foreground">Come funziona.</strong>{" "}
-                Per ogni trade simulato si estrae un numero casuale: se cade
-                sotto la probabilità di vincita il trade vale +rapporto R,
-                altrimenti −1 R, e l&apos;equity si aggiorna rischiando la
-                quota indicata dell&apos;equity corrente (compounding) o
-                l&apos;importo fisso scelto. Nessun dato storico viene
-                ricampionato: contano solo i tre parametri del form. Serve a
-                vedere la <em>variabilità</em> di un edge — quanto possono
-                divergere futuri con le stesse statistiche — non a prevedere
-                il tuo risultato. I breakeven non sono simulati: i default di
-                probabilità e rapporto win/loss
-                partono dai soli trade vincenti/perdenti con rischio definito
-                (p = R vincenti / (R vincenti + R perdenti), ratio = R medio
-                vincente / R medio perdente), perché nel modello ogni
-                non-vincita perde l&apos;intero rischio. Non è un consiglio
-                finanziario.
-              </p>
-            </CardContent>
-          </Card>
-
-          {/* §2 — rolling Sharpe/Sortino sui RITORNI giornalieri. */}
-          <Card id="rolling" className="scroll-mt-20">
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2 text-base">
-                Sharpe e Sortino rolling
-                <MetricInfo info={rollingRatiosInfo} />
-              </CardTitle>
-              <CardDescription>
-                {dayWindow
-                  ? `Finestra mobile di ${dayWindow} sedute, annualizzata ×√252 (${ratioPoints.length} finestre piene).`
-                  : "Servono almeno 60 sedute nel periodo selezionato."}{" "}
-                Ritorno di una giornata = P&amp;L del giorno ÷ equity a inizio
-                giornata; le sedute senza trade entrano a ritorno 0 e il
-                risk-free è 0. Il calcolo è sull&apos;intero conto, perché
-                l&apos;equity non è di un singolo strumento.
-                {instrumentFilterActive ? (
-                  <AccountScopeNote className="mt-2" />
-                ) : null}
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="flex flex-col gap-4">
-              <Suspense fallback={<div className="h-9" />}>
-                <RollingWindowControl
-                  param="rw"
-                  value={dayWindow ?? DAY_WINDOWS[0]}
-                  options={DAY_WINDOWS}
-                  label="Finestra"
-                  suffix="sedute"
-                  maxAvailable={returnsSeries.length}
-                />
-              </Suspense>
-
-              {ratioPoints.length > 0 ? (
-                <>
-                  <RollingRatioChart points={ratioPoints} />
-                  <MetricRangeStrip rows={ratioRangeRows} />
-                  <FewWindowsNote count={ratioPoints.length} unit="finestre" />
-                  {/* Differenza dichiarata, non lasciata scoprire. */}
-                  <p className="rounded-md border border-dashed p-3 text-xs text-muted-foreground">
-                    Questi due valori{" "}
-                    <strong className="text-foreground">
-                      non coincidono con lo Sharpe e il Sortino della
-                      dashboard
-                    </strong>
-                    : quelli sono calcolati sui P&amp;L giornalieri in valuta e
-                    non sono annualizzati, quindi cambiano se cambia la
-                    dimensione del conto. Qui si parte dai ritorni, che sono
-                    confrontabili fra conti di taglia diversa e con qualunque
-                    altra strategia.
-                  </p>
-                </>
-              ) : (
-                <EmptyState
-                  compact
-                  icon={Activity}
-                  title="Storico troppo corto per una finestra mobile"
-                  description="Servono almeno 60 sedute (giorni feriali dal primo all'ultimo trade del periodo) perché una sola finestra sia piena."
-                />
-              )}
-            </CardContent>
-          </Card>
-
-          {/* §2 — metriche journal su finestra a NUMERO DI TRADE. */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2 text-base">
-                Metriche rolling per finestra di trade
-                <MetricInfo info={rollingTradeInfo} />
-              </CardTitle>
-              <CardDescription>
-                {tradeWindow
-                  ? `Ogni punto riassume i ${tradeWindow} trade fino a quello (${tradePoints.length} punti mostrati).`
-                  : "Servono almeno 50 trade chiusi nel periodo selezionato."}{" "}
-                La finestra è a numero di trade, non a giorni: una pausa
-                dall&apos;operatività non diluisce il dato. Una metrica alla
-                volta, perché win rate, R, valuta e profit factor non stanno
-                sulla stessa scala.
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="flex flex-col gap-4">
-              <Suspense fallback={<div className="h-9" />}>
-                <RollingWindowControl
-                  param="rt"
-                  value={tradeWindow ?? TRADE_WINDOWS[0]}
-                  options={TRADE_WINDOWS}
-                  label="Finestra"
-                  suffix="trade"
-                  maxAvailable={coverage.total}
-                />
-              </Suspense>
-
-              {tradePoints.length > 0 ? (
-                <>
-                  <RollingTradeChart points={tradePoints} currency={currency} />
-                  <MetricRangeStrip rows={tradeRangeRows} />
-                  <FewWindowsNote count={tradePoints.length} unit="finestre" />
-                </>
-              ) : (
-                <EmptyState
-                  compact
-                  icon={Activity}
-                  title="Storico troppo corto per una finestra mobile"
-                  description="Servono almeno 50 trade chiusi: sotto quella soglia la serie mostrerebbe soltanto l'assestamento iniziale."
-                />
-              )}
-            </CardContent>
-          </Card>
-
-          {/* §3 — metriche pro: quattro numeri che rispondono a domande
-              diverse da quelle della dashboard. */}
-          <Card id="rischio" className="scroll-mt-20">
-            <CardHeader>
-              <CardTitle className="text-base">Metriche pro</CardTitle>
-              <CardDescription>
+          {/* ── SINTESI: le cinque metriche pro, in testa ─────────────────────
+              Erano a metà pagina. Salgono in cima perché sono le sole che la
+              pagina riassume in un numero; nessuna metrica nuova. Griglia senza
+              orfani (tavola, riquadro 4): 1 colonna · 2 + 2 + la quinta su due
+              · 5 in riga. */}
+          <section aria-labelledby="sintesi-titolo" className="overflow-hidden rounded-xl border bg-card">
+            <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1 px-4 pt-3">
+              <h2 id="sintesi-titolo" className="stat-label">
+                In sintesi · metriche pro
+              </h2>
+              <p className="text-xs text-muted-foreground">
                 Le metriche di base (Sortino, Calmar, profit factor, payoff,
                 streak) restano in dashboard: qui ci sono quelle che servono a
                 decidere, non a fotografare.
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="flex flex-col gap-4">
-              {/* Cinque riquadri dal 14/09/2026 (uscito il risk of ruin
-                  analitico): tre più due fino a xl, poi una riga sola. */}
-              <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
-                <StatBox
-                  label="Break-even win rate"
-                  value={beWinRate === null ? "—" : formatPercent(beWinRate)}
-                  sub={
-                    proWinRate !== null && beMargin !== null
-                      ? `il tuo è ${formatPercent(proWinRate)} · margine ${
-                          new Decimal(beMargin).gte(0) ? "+" : ""
-                        }${formatPercent(beMargin)}`
-                      : "payoff non calcolabile"
-                  }
-                  tone={
-                    beMargin === null
-                      ? undefined
-                      : new Decimal(beMargin).gt(0)
-                        ? "profit"
-                        : "loss"
-                  }
-                  info={breakEvenWinRateInfo}
-                />
-                <StatBox
-                  label="Regolarità equity (R²)"
-                  value={
-                    equityFit.r2 === null ? "—" : formatPercent(equityFit.r2)
-                  }
-                  sub={
-                    equityFit.slope === null
-                      ? "serie troppo corta"
-                      : `pendenza ${formatMoney(equityFit.slope, currency)} a seduta · ${equityFit.points} sedute`
-                  }
-                  tone={
-                    equityFit.slope === null
-                      ? undefined
-                      : new Decimal(equityFit.slope).gte(0)
-                        ? "profit"
-                        : "loss"
-                  }
-                  info={equityFitInfo}
-                  accountScoped={instrumentFilterActive}
-                />
-                <StatBox
-                  label="Kelly"
-                  value={kelly === null ? "—" : formatPercent(kelly)}
-                  sub={
-                    optF
-                      ? `optimal f ${formatPercent(optF.f)} su ${optF.sampleSize} R · usane una frazione`
-                      : "optimal f: servono 30 trade con rischio"
-                  }
-                  info={kellyInfo}
-                  accountScoped={instrumentFilterActive}
-                />
-                <StatBox
-                  label="VaR giornaliero (95%)"
-                  value={risk === null ? "—" : formatMoney(risk.var, currency)}
-                  sub={
-                    risk === null
-                      ? `servono ${VAR_MIN_OBSERVATIONS} sedute (${returnsSeries.length} nel periodo)`
-                      : risk.varPct !== null
-                        ? `${formatPercent(risk.varPct)} dell'equity · 1 seduta su 20`
-                        : "1 seduta su 20"
-                  }
-                  tone={risk !== null && Number(risk.var) > 0 ? "loss" : undefined}
-                  info={valueAtRiskInfo}
-                  accountScoped={instrumentFilterActive}
-                />
-                <StatBox
-                  label="CVaR giornaliero (95%)"
-                  value={risk === null ? "—" : formatMoney(risk.cvar, currency)}
-                  sub={
-                    risk === null
-                      ? `servono ${VAR_MIN_OBSERVATIONS} sedute (${returnsSeries.length} nel periodo)`
-                      : `media delle ${risk.tailDays} sedute peggiori su ${risk.observations}`
-                  }
-                  tone={risk !== null && Number(risk.cvar) > 0 ? "loss" : undefined}
-                  info={valueAtRiskInfo}
-                  accountScoped={instrumentFilterActive}
-                />
-              </div>
-
-              {/* Ipotesi di Kelly dichiarate accanto al numero. */}
-              <p className="rounded-md border border-dashed p-3 text-xs text-muted-foreground">
-                <strong className="text-foreground">
-                  Kelly e optimal f non sono size consigliate.
-                </strong>{" "}
-                Sono il limite oltre il quale nessuna teoria ti dà ragione.
-                Kelly è una metrica di CONTO: ignora i filtri simbolo/direzione
-                (come le rolling annualizzate) e i breakeven non entrano nel
-                lancio della moneta (p = vincite / (vincite + perdite)).
               </p>
-
-              <p className="text-xs text-muted-foreground">
-                Cerchi la performance per giorno della settimana? Sta in{" "}
-                <Link href="/reports" className="underline underline-offset-2">
-                  Reports
-                </Link>{" "}
-                e non è duplicata qui: stesse colonne, un posto solo.
-              </p>
-            </CardContent>
-          </Card>
-
-          {/* §3 — distribuzione delle lunghezze di streak. */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2 text-base">
-                Distribuzione delle streak
-                <MetricInfo info={streakDistributionInfo} />
-              </CardTitle>
-              <CardDescription>
-                Quante volte è capitata una serie di 2, 3, 5 trade consecutivi
-                dello stesso segno. I breakeven spezzano le serie.
-                {streaks.longestLoss > 0 && expectedLossRun !== null && (
-                  <>
-                    {" "}
-                    La tua serie di perdite più lunga è di{" "}
-                    <strong>{streaks.longestLoss}</strong> trade, contro le{" "}
-                    <strong>
-                      {formatNumber(expectedLossRun, { decimals: 1 })}
-                    </strong>{" "}
-                    che il puro caso produrrebbe su {proAgg.total} trade con
-                    il tuo win rate
-                    {new Decimal(streaks.longestLoss).lte(
-                      new Decimal(expectedLossRun).plus(1),
-                    )
-                      ? ": dentro la norma, non è successo niente al tuo sistema."
-                      : ": più lunga dell'attesa, ma il confronto assume trade indipendenti."}
-                  </>
-                )}
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="flex flex-col gap-3">
-              {streaks.bars.length > 0 ? (
-                <>
-                  <StreakDistributionChart bars={streaks.bars} />
-                  <p className="text-xs text-muted-foreground">
-                    {streaks.winRuns} serie di vincite (la più lunga{" "}
-                    {streaks.longestWin}
-                    {expectedWinRun !== null &&
-                      `, attesa ${formatNumber(expectedWinRun, { decimals: 1 })}`}
-                    ) · {streaks.lossRuns} serie di perdite (la più lunga{" "}
-                    {streaks.longestLoss}).
-                  </p>
-                </>
-              ) : (
-                <EmptyState
-                  compact
-                  icon={Activity}
-                  title="Nessuna serie da mostrare"
-                  description="Servono trade chiusi con esito diverso da breakeven."
-                />
-              )}
-            </CardContent>
-          </Card>
-
-          {/* §3 — concentrazione del profitto. */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2 text-base">
-                Concentrazione del profitto
-                <MetricInfo info={concentrationInfo} />
-              </CardTitle>
-              <CardDescription>
-                Quanta parte del profitto lordo (
-                {formatMoney(profitConcentration.grossProfit, currency)} su{" "}
-                {profitConcentration.winners} trade vincenti) viene dai
-                migliori, e cosa resterebbe togliendoli.
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              {profitConcentration.slices.length > 0 ? (
-                <ConcentrationTable
-                  data={profitConcentration}
-                  currency={currency}
-                />
-              ) : (
-                <EmptyState
-                  compact
-                  icon={Target}
-                  title="Nessun trade vincente nel periodo"
-                  description="La concentrazione si misura sul profitto lordo: senza vincenti non c'è nulla da ripartire."
-                />
-              )}
-            </CardContent>
-          </Card>
-
-          {/* Correlazione fra strategie: le strategie guardate INSIEME. */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2 text-base">
-                Correlazione fra strategie
-                <MetricInfo info={correlationInfo} />
-              </CardTitle>
-              <CardDescription>
-                Quanto si muovono insieme i P&amp;L giornalieri. Rosso = le due
-                vanno bene e male negli stessi giorni, quindi sommarle non
-                riduce il rischio; verde = si alternano, ed è lì che la
-                diversificazione fa il suo lavoro.
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="flex flex-col gap-3">
-              {correlations.keys.length >= 2 ? (
-                <>
-                  <CorrelationMatrixTable matrix={correlations} />
-                  <p className="text-xs text-muted-foreground">
-                    {strategySeries.length} strategie con almeno 10 trade nel
-                    periodo. Nei giorni in cui una strategia non opera il suo
-                    contributo è zero: è un fatto, non un dato mancante. Sotto{" "}
-                    {CORRELATION_MIN_DAYS} giornate comuni la cella resta
-                    vuota.
-                  </p>
-                </>
-              ) : (
-                <EmptyState
-                  compact
-                  icon={Crosshair}
-                  title="Servono almeno due strategie"
-                  description="La correlazione confronta strategie fra loro: assegna una strategia ai trade (almeno 10 per strategia) e questa matrice si popola."
-                />
-              )}
-            </CardContent>
-          </Card>
-
-          {/* §2 — performance per fascia oraria: apertura O chiusura. */}
-          <Card id="timing" className="scroll-mt-20">
-            <CardHeader>
-              <div className="flex flex-wrap items-center justify-between gap-2">
-                <CardTitle className="flex items-center gap-2 text-base">
-                  Performance per fascia oraria
-                  <MetricInfo info={hourPerformanceInfo} />
-                </CardTitle>
-                <HourBasisToggle basis={hourBasis} hrefFor={hourBasisHref} />
-              </div>
-              <CardDescription>
-                Fasce di un&apos;ora sull&apos;orario di{" "}
-                <strong>
-                  {hourBasis === "close" ? "chiusura" : "apertura"}
-                </strong>{" "}
-                del trade, nel tuo fuso ({user.timezone.replace("_", " ")}).{" "}
-                {hourBasis === "close"
-                  ? "Quando esci bene: è una domanda sulla gestione."
-                  : "Quando entri bene: è una domanda sul setup."}
-                {bestHour.best && bestHour.worst && (
-                  <>
-                    {" "}
-                    Migliore <strong>{bestHour.best.label}</strong> (
-                    {formatRMultiple(bestHour.best.avgR!)} su{" "}
-                    {bestHour.best.total} trade) · peggiore{" "}
-                    <strong>{bestHour.worst.label}</strong> (
-                    {formatRMultiple(bestHour.worst.avgR!)} su{" "}
-                    {bestHour.worst.total}). Le fasce con meno di 5 trade non
-                    entrano in questo confronto.
-                  </>
-                )}
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="flex flex-col gap-4">
-              <SegmentPerformanceChart
-                points={hourSegments}
-                currency={currency}
-                ariaLabel={`Performance per fascia oraria di ${
-                  hourBasis === "close" ? "chiusura" : "apertura"
-                }`}
+            </div>
+            <div className="mt-3 grid gap-px border-t bg-border sm:grid-cols-2 xl:grid-cols-5">
+              <CellaPro
+                label="Break-even win rate"
+                value={beWinRate === null ? "—" : formatPercent(beWinRate)}
+                sub={
+                  proWinRate !== null && beMargin !== null
+                    ? `il tuo è ${formatPercent(proWinRate)} · margine ${
+                        new Decimal(beMargin).gte(0) ? "+" : ""
+                      }${formatPercent(beMargin)}`
+                    : "payoff non calcolabile"
+                }
+                tone={
+                  beMargin === null
+                    ? undefined
+                    : new Decimal(beMargin).gt(0)
+                      ? "profit"
+                      : "loss"
+                }
+                info={breakEvenWinRateInfo}
               />
-              <SegmentTable
-                rows={hourSegments.filter((s) => !s.empty)}
-                currency={currency}
-                segmentLabel={`Ora di ${
-                  hourBasis === "close" ? "chiusura" : "apertura"
-                }`}
+              <CellaPro
+                label="Regolarità equity (R²)"
+                value={equityFit.r2 === null ? "—" : formatPercent(equityFit.r2)}
+                sub={
+                  equityFit.slope === null
+                    ? "serie troppo corta"
+                    : `pendenza ${formatMoney(equityFit.slope, currency)} a seduta · ${equityFit.points} sedute`
+                }
+                tone={
+                  equityFit.slope === null
+                    ? undefined
+                    : new Decimal(equityFit.slope).gte(0)
+                      ? "profit"
+                      : "loss"
+                }
+                info={equityFitInfo}
+                accountScoped={instrumentFilterActive}
               />
-            </CardContent>
-          </Card>
-
-          {/* §3 — performance per durata del trade. */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2 text-base">
-                Performance per durata
-                <MetricInfo info={durationPerformanceInfo} />
-              </CardTitle>
-              <CardDescription>
-                Quanto rende il trade al variare di quanto lo tieni aperto
-                (chiusura − apertura). I confini delle fasce sono tarati sulla
-                distribuzione reale dei trade, non fissati a priori.
-                {bestDuration.best && bestDuration.worst && (
-                  <>
-                    {" "}
-                    Migliore <strong>{bestDuration.best.label}</strong> (
-                    {formatRMultiple(bestDuration.best.avgR!)}) · peggiore{" "}
-                    <strong>{bestDuration.worst.label}</strong> (
-                    {formatRMultiple(bestDuration.worst.avgR!)}).
-                  </>
-                )}
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="flex flex-col gap-4">
-              <SegmentPerformanceChart
-                points={durationSegments}
-                currency={currency}
-                ariaLabel="Performance per durata del trade"
+              <CellaPro
+                label="Kelly"
+                value={kelly === null ? "—" : formatPercent(kelly)}
+                sub={
+                  optF
+                    ? `optimal f ${formatPercent(optF.f)} su ${optF.sampleSize} R · usane una frazione`
+                    : "optimal f: servono 30 trade con rischio"
+                }
+                info={kellyInfo}
+                accountScoped={instrumentFilterActive}
               />
-              <SegmentTable
-                rows={durationSegments}
-                currency={currency}
-                segmentLabel="Durata"
+              <CellaPro
+                label="VaR giornaliero (95%)"
+                value={risk === null ? "—" : formatMoney(risk.var, currency)}
+                sub={
+                  risk === null
+                    ? `servono ${VAR_MIN_OBSERVATIONS} sedute (${returnsSeries.length} nel periodo)`
+                    : risk.varPct !== null
+                      ? `${formatPercent(risk.varPct)} dell'equity · 1 seduta su 20`
+                      : "1 seduta su 20"
+                }
+                tone={risk !== null && Number(risk.var) > 0 ? "loss" : undefined}
+                info={valueAtRiskInfo}
+                accountScoped={instrumentFilterActive}
               />
-
-              {/* La lettura d'insieme, che nessuna riga della tabella può
-                  dare: con sette fasce e poche decine di trade per fascia il
-                  rumore è l'ipotesi di partenza. */}
-              <div className="rounded-md border border-dashed p-3">
-                <p className="stat-label flex items-center gap-1">
-                  Durata ed esito
-                  <MetricInfo info={holdingTimeInfo} />
+              <CellaPro
+                label="CVaR giornaliero (95%)"
+                value={risk === null ? "—" : formatMoney(risk.cvar, currency)}
+                sub={
+                  risk === null
+                    ? `servono ${VAR_MIN_OBSERVATIONS} sedute (${returnsSeries.length} nel periodo)`
+                    : `media delle ${risk.tailDays} sedute peggiori su ${risk.observations}`
+                }
+                tone={risk !== null && Number(risk.cvar) > 0 ? "loss" : undefined}
+                info={valueAtRiskInfo}
+                accountScoped={instrumentFilterActive}
+                className="sm:col-span-2 xl:col-span-1"
+              />
+            </div>
+            <details className="group/metodo border-t px-4 py-2.5">
+              <summary className="flex cursor-pointer list-none items-center gap-1.5 text-xs font-medium text-muted-foreground hover:text-foreground">
+                <ChevronRight
+                  className="size-3.5 transition-transform group-open/metodo:rotate-90"
+                  aria-hidden
+                />
+                Metodo · Kelly e optimal f non sono size consigliate
+              </summary>
+              <div className="mt-2 flex max-w-prose flex-col gap-2 text-xs leading-relaxed text-muted-foreground">
+                <p>
+                  <strong className="text-foreground">
+                    Kelly e optimal f non sono size consigliate.
+                  </strong>{" "}
+                  Sono il limite oltre il quale nessuna teoria ti dà ragione.
+                  Kelly è una metrica di CONTO: ignora i filtri simbolo/direzione
+                  (come le rolling annualizzate) e i breakeven non entrano nel
+                  lancio della moneta (p = vincite / (vincite + perdite)).
                 </p>
-                {holding.lowSample ? (
-                  <p className="mt-1 text-sm text-muted-foreground">
-                    Servono {HOLDING_MIN_TRADES} trade direzionali per misurare
-                    la relazione: nel periodo ce ne sono {holding.sample}.
-                  </p>
-                ) : holding.correlation === null ? (
-                  <p className="mt-1 text-sm text-muted-foreground">
-                    Relazione non misurabile: servono sia vincenti sia perdenti,
-                    con durate diverse fra loro.
-                  </p>
-                ) : (
-                  <>
-                    <p
-                      className={cn(
-                        "mt-1 text-lg font-semibold tabular-nums",
-                        Math.abs(Number(holding.correlation)) < 0.2
-                          ? "text-muted-foreground"
-                          : undefined,
-                      )}
-                    >
-                      {formatRatio(holding.correlation)}
-                      <span className="ml-2 text-sm font-normal text-muted-foreground">
-                        su {holding.sample} trade direzionali
-                      </span>
-                    </p>
-                    <p className="mt-1 text-xs text-muted-foreground">
-                      {Math.abs(Number(holding.correlation)) < 0.2
-                        ? "Nessun legame apprezzabile fra quanto tieni un trade e come va a finire."
-                        : Number(holding.correlation) > 0
-                          ? "Tieni più a lungo i trade che vincono. Di solito non è merito dell'attesa: è lo stop che chiude presto i perdenti."
-                          : "Più tieni un trade, peggio tende ad andare."}{" "}
-                      Mediana vincenti{" "}
-                      <strong>{formatDurationSec(holding.medianWinSec)}</strong>{" "}
-                      · perdenti{" "}
-                      <strong>{formatDurationSec(holding.medianLossSec)}</strong>.
-                    </p>
-                  </>
-                )}
+                <p>
+                  Cerchi la performance per giorno della settimana? Sta in{" "}
+                  <Link href="/reports" className="underline underline-offset-2">
+                    Reports
+                  </Link>{" "}
+                  e non è duplicata qui: stesse colonne, un posto solo.
+                </p>
               </div>
-            </CardContent>
-          </Card>
+            </details>
+          </section>
+
+          <div className="lg:grid lg:grid-cols-[168px_minmax(0,1fr)] lg:gap-8">
+            <IndiceCapitoli capitoli={capitoli} />
+
+            <div className="flex min-w-0 flex-col gap-8">
+              {/* ── DISTRIBUZIONI ─────────────────────────────────────────── */}
+              <Capitolo
+                id="distribuzioni"
+                titolo="Distribuzioni"
+                sottotitolo="come si distribuiscono i ritorni in R, e cosa rende puntare più lontano"
+              >
+                <div className="grid gap-4 xl:grid-cols-[minmax(0,4fr)_minmax(0,8fr)]">
+                  {/* ① Istogramma dell'R realizzato su TUTTI i trade con rischio. */}
+                  <PannelloAnalisi
+                    titolo="Distribuzione dell'R realizzato"
+                    info={returnDistributionInfo}
+                    meta={
+                      <>
+                        Fasce da 0,5R su {coverage.withR} trade con rischio
+                        definito. Colonna BE dedicata per l&apos;R esattamente
+                        zero.
+                      </>
+                    }
+                  >
+                    {histogramPoints.length > 0 ? (
+                      <RDistributionChart points={histogramPoints} />
+                    ) : (
+                      <EmptyState
+                        compact
+                        icon={BarChart3}
+                        title="Nessun trade con rischio definito"
+                        description="Imposta lo stop pianificato o il rischio iniziale per vedere i risultati in R."
+                      />
+                    )}
+                  </PannelloAnalisi>
+
+                  {/* ② Segmentazione per bucket di target R. */}
+                  <PannelloAnalisi
+                    titolo="Ritorni per target R"
+                    info={hitRateInfo}
+                    meta={
+                      totals.trades > 0 ? (
+                        <>
+                          Nel periodo: {totals.trades} trade con piano,{" "}
+                          {totals.hitRate !== null && formatPercent(totals.hitRate)} al
+                          target,{" "}
+                          {totals.expectancyR !== null &&
+                            formatRMultiple(totals.expectancyR)}{" "}
+                          di attesa per trade.
+                        </>
+                      ) : undefined
+                    }
+                    metodo={
+                      <p>
+                        Puntare più lontano alza il ritorno per trade riuscito e
+                        abbassa l&apos;hit rate: la colonna che decide è
+                        l&apos;expectancy.
+                      </p>
+                    }
+                  >
+                    {totals.trades > 0 ? (
+                      <TargetRTable rows={buckets} />
+                    ) : (
+                      <EmptyState
+                        compact
+                        icon={Target}
+                        title="Nessun trade con target pianificato"
+                        description="Compila stop e target nel piano del trade (o mappali nell'import CSV) per vedere questa analisi."
+                      />
+                    )}
+                  </PannelloAnalisi>
+                </div>
+              </Capitolo>
+
+              {/* ── RISCHIO ───────────────────────────────────────────────── */}
+              <Capitolo
+                id="rischio"
+                titolo="Rischio"
+                sottotitolo="serie consecutive, concentrazione del profitto, strategie che si muovono insieme"
+              >
+                <div className="grid gap-4 xl:grid-cols-[minmax(0,5fr)_minmax(0,7fr)]">
+                  {/* §3 — distribuzione delle lunghezze di streak. */}
+                  <PannelloAnalisi
+                    titolo="Distribuzione delle streak"
+                    info={streakDistributionInfo}
+                    meta={
+                      streaks.longestLoss > 0 && expectedLossRun !== null ? (
+                        <>
+                          La tua serie di perdite più lunga è di{" "}
+                          <strong className="text-foreground">{streaks.longestLoss}</strong>{" "}
+                          trade, contro le{" "}
+                          <strong className="text-foreground">
+                            {formatNumber(expectedLossRun, { decimals: 1 })}
+                          </strong>{" "}
+                          che il puro caso produrrebbe su {proAgg.total} trade con
+                          il tuo win rate
+                          {new Decimal(streaks.longestLoss).lte(
+                            new Decimal(expectedLossRun).plus(1),
+                          )
+                            ? ": dentro la norma, non è successo niente al tuo sistema."
+                            : ": più lunga dell'attesa, ma il confronto assume trade indipendenti."}
+                        </>
+                      ) : undefined
+                    }
+                    metodo={
+                      <p>
+                        Quante volte è capitata una serie di 2, 3, 5 trade
+                        consecutivi dello stesso segno. I breakeven spezzano le
+                        serie.
+                      </p>
+                    }
+                  >
+                    {streaks.bars.length > 0 ? (
+                      <>
+                        <StreakDistributionChart bars={streaks.bars} />
+                        <p className="text-xs text-muted-foreground">
+                          {streaks.winRuns} serie di vincite (la più lunga{" "}
+                          {streaks.longestWin}
+                          {expectedWinRun !== null &&
+                            `, attesa ${formatNumber(expectedWinRun, { decimals: 1 })}`}
+                          ) · {streaks.lossRuns} serie di perdite (la più lunga{" "}
+                          {streaks.longestLoss}).
+                        </p>
+                      </>
+                    ) : (
+                      <EmptyState
+                        compact
+                        icon={Activity}
+                        title="Nessuna serie da mostrare"
+                        description="Servono trade chiusi con esito diverso da breakeven."
+                      />
+                    )}
+                  </PannelloAnalisi>
+
+                  {/* §3 — concentrazione del profitto. */}
+                  <PannelloAnalisi
+                    titolo="Concentrazione del profitto"
+                    info={concentrationInfo}
+                    meta={
+                      <>
+                        Quanta parte del profitto lordo (
+                        {formatMoney(profitConcentration.grossProfit, currency)} su{" "}
+                        {profitConcentration.winners} trade vincenti) viene dai
+                        migliori, e cosa resterebbe togliendoli.
+                      </>
+                    }
+                  >
+                    {profitConcentration.slices.length > 0 ? (
+                      <ConcentrationTable data={profitConcentration} currency={currency} />
+                    ) : (
+                      <EmptyState
+                        compact
+                        icon={Target}
+                        title="Nessun trade vincente nel periodo"
+                        description="La concentrazione si misura sul profitto lordo: senza vincenti non c'è nulla da ripartire."
+                      />
+                    )}
+                  </PannelloAnalisi>
+                </div>
+
+                {/* Correlazione fra strategie: le strategie guardate INSIEME. */}
+                <PannelloAnalisi
+                  className="mt-4"
+                  titolo="Correlazione fra strategie"
+                  info={correlationInfo}
+                  meta={
+                    correlations.keys.length >= 2 ? (
+                      <>
+                        {strategySeries.length} strategie con almeno 10 trade nel
+                        periodo · rosso = vanno bene e male negli stessi giorni,
+                        verde = si alternano.
+                      </>
+                    ) : undefined
+                  }
+                  metodo={
+                    <>
+                      <p>
+                        Quanto si muovono insieme i P&amp;L giornalieri. Rosso = le
+                        due vanno bene e male negli stessi giorni, quindi sommarle
+                        non riduce il rischio; verde = si alternano, ed è lì che la
+                        diversificazione fa il suo lavoro.
+                      </p>
+                      <p>
+                        Nei giorni in cui una strategia non opera il suo contributo
+                        è zero: è un fatto, non un dato mancante. Sotto{" "}
+                        {CORRELATION_MIN_DAYS} giornate comuni la cella resta vuota.
+                      </p>
+                    </>
+                  }
+                >
+                  {correlations.keys.length >= 2 ? (
+                    <CorrelationMatrixTable matrix={correlations} />
+                  ) : (
+                    <EmptyState
+                      compact
+                      icon={Crosshair}
+                      title="Servono almeno due strategie"
+                      description="La correlazione confronta strategie fra loro: assegna una strategia ai trade (almeno 10 per strategia) e questa matrice si popola."
+                    />
+                  )}
+                </PannelloAnalisi>
+              </Capitolo>
+
+              {/* ── ROLLING ───────────────────────────────────────────────── */}
+              <Capitolo
+                id="rolling"
+                titolo="Rolling"
+                sottotitolo="come cambiano i ratio sulle sedute e le metriche su finestre di trade"
+              >
+                <div className="grid gap-4 xl:grid-cols-2">
+                  {/* §2 — rolling Sharpe/Sortino sui RITORNI giornalieri. */}
+                  <PannelloAnalisi
+                    titolo="Sharpe e Sortino rolling"
+                    info={rollingRatiosInfo}
+                    azioni={
+                      <Suspense fallback={<div className="h-9" />}>
+                        <RollingWindowControl
+                          param="rw"
+                          value={dayWindow ?? DAY_WINDOWS[0]}
+                          options={DAY_WINDOWS}
+                          label="Finestra"
+                          suffix="sedute"
+                          maxAvailable={returnsSeries.length}
+                        />
+                      </Suspense>
+                    }
+                    meta={
+                      <>
+                        {dayWindow
+                          ? `Finestra mobile di ${dayWindow} sedute, annualizzata ×√252 (${ratioPoints.length} finestre piene).`
+                          : "Servono almeno 60 sedute nel periodo selezionato."}
+                        {instrumentFilterActive ? <AccountScopeNote className="mt-2" /> : null}
+                      </>
+                    }
+                    metodo={
+                      <>
+                        <p>
+                          Ritorno di una giornata = P&amp;L del giorno ÷ equity a
+                          inizio giornata; le sedute senza trade entrano a ritorno
+                          0 e il risk-free è 0. Il calcolo è sull&apos;intero
+                          conto, perché l&apos;equity non è di un singolo
+                          strumento.
+                        </p>
+                        <p>
+                          Questi due valori{" "}
+                          <strong className="text-foreground">
+                            non coincidono con lo Sharpe e il Sortino della
+                            dashboard
+                          </strong>
+                          : quelli sono calcolati sui P&amp;L giornalieri in valuta
+                          e non sono annualizzati, quindi cambiano se cambia la
+                          dimensione del conto. Qui si parte dai ritorni, che sono
+                          confrontabili fra conti di taglia diversa e con
+                          qualunque altra strategia.
+                        </p>
+                      </>
+                    }
+                  >
+                    {ratioPoints.length > 0 ? (
+                      <>
+                        <RollingRatioChart points={ratioPoints} />
+                        <MetricRangeStrip rows={ratioRangeRows} />
+                        <FewWindowsNote count={ratioPoints.length} unit="finestre" />
+                      </>
+                    ) : (
+                      <EmptyState
+                        compact
+                        icon={Activity}
+                        title="Storico troppo corto per una finestra mobile"
+                        description="Servono almeno 60 sedute (giorni feriali dal primo all'ultimo trade del periodo) perché una sola finestra sia piena."
+                      />
+                    )}
+                  </PannelloAnalisi>
+
+                  {/* §2 — metriche journal su finestra a NUMERO DI TRADE. */}
+                  <PannelloAnalisi
+                    titolo="Metriche rolling per finestra di trade"
+                    info={rollingTradeInfo}
+                    azioni={
+                      <Suspense fallback={<div className="h-9" />}>
+                        <RollingWindowControl
+                          param="rt"
+                          value={tradeWindow ?? TRADE_WINDOWS[0]}
+                          options={TRADE_WINDOWS}
+                          label="Finestra"
+                          suffix="trade"
+                          maxAvailable={coverage.total}
+                        />
+                      </Suspense>
+                    }
+                    meta={
+                      tradeWindow
+                        ? `Ogni punto riassume i ${tradeWindow} trade fino a quello (${tradePoints.length} punti mostrati).`
+                        : "Servono almeno 50 trade chiusi nel periodo selezionato."
+                    }
+                    metodo={
+                      <p>
+                        La finestra è a numero di trade, non a giorni: una pausa
+                        dall&apos;operatività non diluisce il dato. Una metrica
+                        alla volta, perché win rate, R, valuta e profit factor non
+                        stanno sulla stessa scala.
+                      </p>
+                    }
+                  >
+                    {tradePoints.length > 0 ? (
+                      <>
+                        <RollingTradeChart points={tradePoints} currency={currency} />
+                        <MetricRangeStrip rows={tradeRangeRows} />
+                        <FewWindowsNote count={tradePoints.length} unit="finestre" />
+                      </>
+                    ) : (
+                      <EmptyState
+                        compact
+                        icon={Activity}
+                        title="Storico troppo corto per una finestra mobile"
+                        description="Servono almeno 50 trade chiusi: sotto quella soglia la serie mostrerebbe soltanto l'assestamento iniziale."
+                      />
+                    )}
+                  </PannelloAnalisi>
+                </div>
+              </Capitolo>
+
+              {/* ── TIMING ────────────────────────────────────────────────── */}
+              <Capitolo
+                id="timing"
+                titolo="Timing"
+                sottotitolo="quando entri e quanto tieni aperto il trade"
+              >
+                {/* Un pannello per riga: affiancati, i grafici a 24 fasce orarie
+                    scorrevano in orizzontale anche a 1536px (misurato). La
+                    tabella di dettaglio di ciascuno è chiusa sotto il grafico: il
+                    grafico porta la stessa serie, la tabella aggiunge win rate,
+                    PF e P&L per fascia a chi la apre (tavola «Analytics -
+                    ricostruzione»). */}
+                <div className="flex flex-col gap-4">
+                  {/* §2 — performance per fascia oraria: apertura O chiusura. */}
+                  <PannelloAnalisi
+                    titolo="Performance per fascia oraria"
+                    info={hourPerformanceInfo}
+                    azioni={<HourBasisToggle basis={hourBasis} hrefFor={hourBasisHref} />}
+                    meta={
+                      <>
+                        Fasce di un&apos;ora sull&apos;orario di{" "}
+                        <strong className="text-foreground">{baseOraria}</strong> del
+                        trade, nel tuo fuso ({user.timezone.replace("_", " ")}).{" "}
+                        {hourBasis === "close"
+                          ? "Quando esci bene: è una domanda sulla gestione."
+                          : "Quando entri bene: è una domanda sul setup."}
+                        {bestHour.best && bestHour.worst && (
+                          <>
+                            {" "}
+                            Migliore <strong className="text-foreground">{bestHour.best.label}</strong> (
+                            {formatRMultiple(bestHour.best.avgR!)} su{" "}
+                            {bestHour.best.total} trade) · peggiore{" "}
+                            <strong className="text-foreground">{bestHour.worst.label}</strong> (
+                            {formatRMultiple(bestHour.worst.avgR!)} su{" "}
+                            {bestHour.worst.total}). Le fasce con meno di 5 trade
+                            non entrano in questo confronto.
+                          </>
+                        )}
+                      </>
+                    }
+                  >
+                    <SegmentPerformanceChart
+                      points={hourSegments}
+                      currency={currency}
+                      ariaLabel={`Performance per fascia oraria di ${baseOraria}`}
+                    />
+                    <TabellaChiusa righe={hourSegments.filter((s) => !s.empty).length} unita="fasce">
+                      <SegmentTable
+                        rows={hourSegments.filter((s) => !s.empty)}
+                        currency={currency}
+                        segmentLabel={`Ora di ${baseOraria}`}
+                      />
+                    </TabellaChiusa>
+                  </PannelloAnalisi>
+
+                  {/* §3 — performance per durata del trade. */}
+                  <PannelloAnalisi
+                    titolo="Performance per durata"
+                    info={durationPerformanceInfo}
+                    meta={
+                      bestDuration.best && bestDuration.worst ? (
+                        <>
+                          Migliore <strong className="text-foreground">{bestDuration.best.label}</strong> (
+                          {formatRMultiple(bestDuration.best.avgR!)}) · peggiore{" "}
+                          <strong className="text-foreground">{bestDuration.worst.label}</strong> (
+                          {formatRMultiple(bestDuration.worst.avgR!)}).
+                        </>
+                      ) : undefined
+                    }
+                    metodo={
+                      <p>
+                        Quanto rende il trade al variare di quanto lo tieni aperto
+                        (chiusura − apertura). I confini delle fasce sono tarati
+                        sulla distribuzione reale dei trade, non fissati a priori.
+                      </p>
+                    }
+                  >
+                    <SegmentPerformanceChart
+                      points={durationSegments}
+                      currency={currency}
+                      ariaLabel="Performance per durata del trade"
+                    />
+                    <TabellaChiusa righe={durationSegments.length} unita="fasce">
+                      <SegmentTable rows={durationSegments} currency={currency} segmentLabel="Durata" />
+                    </TabellaChiusa>
+
+                    {/* La lettura d'insieme, che nessuna riga della tabella può
+                        dare: con sette fasce e poche decine di trade per fascia
+                        il rumore è l'ipotesi di partenza. */}
+                    <div className="border-t pt-3">
+                      <p className="stat-label flex items-center gap-1">
+                        Durata ed esito
+                        <MetricInfo info={holdingTimeInfo} />
+                      </p>
+                      {holding.lowSample ? (
+                        <p className="mt-1 text-sm text-muted-foreground">
+                          Servono {HOLDING_MIN_TRADES} trade direzionali per misurare
+                          la relazione: nel periodo ce ne sono {holding.sample}.
+                        </p>
+                      ) : holding.correlation === null ? (
+                        <p className="mt-1 text-sm text-muted-foreground">
+                          Relazione non misurabile: servono sia vincenti sia
+                          perdenti, con durate diverse fra loro.
+                        </p>
+                      ) : (
+                        <>
+                          <p
+                            className={cn(
+                              "mt-1 text-lg font-semibold tabular-nums",
+                              Math.abs(Number(holding.correlation)) < 0.2
+                                ? "text-muted-foreground"
+                                : undefined,
+                            )}
+                          >
+                            {formatRatio(holding.correlation)}
+                            <span className="ml-2 text-sm font-normal text-muted-foreground">
+                              su {holding.sample} trade direzionali
+                            </span>
+                          </p>
+                          <p className="mt-1 text-xs text-muted-foreground">
+                            {Math.abs(Number(holding.correlation)) < 0.2
+                              ? "Nessun legame apprezzabile fra quanto tieni un trade e come va a finire."
+                              : Number(holding.correlation) > 0
+                                ? "Tieni più a lungo i trade che vincono. Di solito non è merito dell'attesa: è lo stop che chiude presto i perdenti."
+                                : "Più tieni un trade, peggio tende ad andare."}{" "}
+                            Mediana vincenti{" "}
+                            <strong>{formatDurationSec(holding.medianWinSec)}</strong>{" "}
+                            · perdenti{" "}
+                            <strong>{formatDurationSec(holding.medianLossSec)}</strong>.
+                          </p>
+                        </>
+                      )}
+                    </div>
+                  </PannelloAnalisi>
+                </div>
+              </Capitolo>
+
+              {/* ── SIMULATORE ────────────────────────────────────────────── */}
+              <Capitolo
+                id="simulatore"
+                titolo="Simulatore"
+                sottotitolo="uno strumento, non una statistica: percorsi possibili con i parametri del form"
+              >
+                {/* §1 — equity curve simulator (Fase 34, sostituisce il Monte
+                    Carlo a bande percentili). */}
+                <PannelloAnalisi
+                  titolo="Equity curve simulator"
+                  info={equitySimulatorInfo}
+                  meta={
+                    <>
+                      Ogni linea colorata è un percorso possibile con i parametri
+                      del form; la linea in grassetto è la media. I campi partono
+                      dalle statistiche reali del conto nel periodo, ma sono tuoi:
+                      cambiali per vedere come si muove il ventaglio.
+                      {instrumentFilterActive ? <AccountScopeNote className="mt-2" /> : null}
+                    </>
+                  }
+                  metodo={
+                    <p>
+                      <strong className="text-foreground">Come funziona.</strong>{" "}
+                      Per ogni trade simulato si estrae un numero casuale: se cade
+                      sotto la probabilità di vincita il trade vale +rapporto R,
+                      altrimenti −1 R, e l&apos;equity si aggiorna rischiando la
+                      quota indicata dell&apos;equity corrente (compounding) o
+                      l&apos;importo fisso scelto. Nessun dato storico viene
+                      ricampionato: contano solo i tre parametri del form. Serve a
+                      vedere la <em>variabilità</em> di un edge — quanto possono
+                      divergere futuri con le stesse statistiche — non a prevedere
+                      il tuo risultato. I breakeven non sono simulati: i default di
+                      probabilità e rapporto win/loss partono dai soli trade
+                      vincenti/perdenti con rischio definito (p = R vincenti / (R
+                      vincenti + R perdenti), ratio = R medio vincente / R medio
+                      perdente), perché nel modello ogni non-vincita perde
+                      l&apos;intero rischio. Non è un consiglio finanziario.
+                    </p>
+                  }
+                >
+                  <EquitySimulator
+                    defaultStartEquity={
+                      new Decimal(startingEquity).gt(0)
+                        ? new Decimal(startingEquity).toFixed(0)
+                        : "10000"
+                    }
+                    defaultWinProbability={
+                      simWinProbability !== null
+                        ? new Decimal(simWinProbability).times(100).toFixed(1)
+                        : "50"
+                    }
+                    defaultWinLossRatio={
+                      simRatio !== null ? new Decimal(simRatio).toFixed(2) : "1.5"
+                    }
+                    currency={currency}
+                  />
+                </PannelloAnalisi>
+              </Capitolo>
+            </div>
+          </div>
         </>
       )}
     </div>

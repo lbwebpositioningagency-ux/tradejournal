@@ -63,7 +63,9 @@ export function ConcentrationTable({
               >
                 {formatMoney(slice.netWithout, currency)}
                 {slice.flipsToLoss && (
-                  <span className="ml-2 rounded-full bg-loss/10 px-2 py-0.5 text-xs font-normal text-loss">
+                  /* Testo neutro con il filo: sul fondo tinto il rosso scendeva a
+                     4,27:1. Il colore del segno resta sulla cifra accanto. */
+                  <span className="ml-2 rounded-full border border-loss/40 px-2 py-0.5 text-xs font-normal text-foreground">
                     va in perdita
                   </span>
                 )}

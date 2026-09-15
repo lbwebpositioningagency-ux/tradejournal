@@ -1,6 +1,7 @@
 "use client";
 
 import { useId, useState } from "react";
+import { ChevronRight } from "lucide-react";
 import {
   Area,
   ComposedChart,
@@ -914,13 +915,24 @@ function AggregateStats({
     },
   ];
 
+  /* CHIUSE di default (ricostruzione di Analytics, 15/09/2026): la risposta del
+     simulatore sta nei quattro numeri e negli scenari qui sopra; le medie su
+     tutte le linee sono il dettaglio di chi vuole scavare. Le cifre restano nel
+     documento, dietro un clic, e non spingono giù il resto della pagina. */
   return (
-    <div className="flex flex-col gap-2">
-      <div className="stat-label flex items-center gap-1">
+    <details className="group/aggregati flex flex-col gap-2 border-t pt-3">
+      <summary className="stat-label flex cursor-pointer list-none items-center gap-1.5 hover:text-foreground">
+        <ChevronRight
+          className="size-3.5 transition-transform group-open/aggregati:rotate-90"
+          aria-hidden
+        />
         Statistiche aggregate (tutte le linee)
+      </summary>
+      <div className="mt-2 flex items-center gap-1 text-xs text-muted-foreground">
+        Che cosa misurano
         <MetricInfo info={aggregateStatsInfo} />
       </div>
-      <div className="grid gap-4 md:grid-cols-3">
+      <div className="mt-2 grid gap-4 md:grid-cols-3">
         {groups.map((group) => (
           <div key={group.title} className="flex flex-col gap-2">
             <div className="text-xs font-medium text-muted-foreground">
@@ -932,6 +944,6 @@ function AggregateStats({
           </div>
         ))}
       </div>
-    </div>
+    </details>
   );
 }
