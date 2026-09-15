@@ -3226,3 +3226,19 @@ lo stesso minimo per gruppo degli intervalli della fase 4.
 Misure (build locale, 1440/390, due temi: Reports, Reports su due settimane, Analytics, Dashboard
 anche su un periodo breve): 0 testi < 11px, 0 < 4,5:1, 0 errori. Gate: typecheck, lint, 2.196 test,
 build verdi. Schermate in `docs/journal/fase2-estremi/`.
+
+## 15/09/2026 · Journal fase 3 — etichetta del report periodico
+
+Il report periodico aperto su mese, trimestre o anno scriveva ancora «Nessun trade chiuso in questa
+settimana» e «Scope valuta: … su ENTRAMBE le settimane». Ora le due frasi passano da
+`REPORT_IN_THIS_LABELS` e `REPORT_BOTH_LABELS` (`lib/report-period.ts`, forme scritte per intero
+per genere ed elisione: «in quest'anno», «entrambi i trimestri»). Stesso difetto fuori dalla pagina:
+l'aiuto dei tag «errore» nel form del trade e il suggerimento della categoria parlavano di «report
+settimanale» / «report del venerdì»: ora «report periodico». Export CSV e PDF già corretti (usano
+le etichette del periodo). Test `report-period-labels.test.ts`: tutte le forme presenti, nessuna
+forma non settimanale che dica «settimana», nessuna frase scritta a mano nella pagina e negli export.
+
+Verificato nell'HTML: mese 07/2026 «su entrambi i mesi», trimestre vuoto «in questo trimestre», anno
+vuoto «in quest'anno», settimana vuota «in questa settimana». Misure a 1440/390 nei due temi: 0 testi
+< 11px, 0 < 4,5:1, 0 errori. Gate (dopo il rebase su 8437b65): typecheck, lint, 2.211 test, build verdi. Schermate in
+`docs/journal/fase3-etichette/`.

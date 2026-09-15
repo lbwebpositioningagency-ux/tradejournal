@@ -201,7 +201,8 @@ export function TagPicker({
       <p className="text-xs text-muted-foreground">
         La categoria vale per il tag, non per il singolo trade. I tag{" "}
         <span className={CATEGORY_CLASS.MISTAKE}>errore</span> alimentano la
-        sezione «errori della settimana» del report del venerdì.
+        sezione «errori taggati» del report periodico (settimana, mese,
+        trimestre o anno).
       </p>
     </div>
   );

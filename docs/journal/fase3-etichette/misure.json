@@ -1,0 +1,242 @@
+[
+  {
+    "pagina": "/reports",
+    "larghezza": 1440,
+    "tema": "light",
+    "file": "reports__1440__light.png",
+    "h1": "Reports",
+    "altezza": 2813,
+    "innerWidth": 1440,
+    "scrollWidth": 1440,
+    "sbordi": [],
+    "sotto12": 1,
+    "piccoli": 0,
+    "esempiPiccoli": [],
+    "bassoContrasto": 0,
+    "esempiBassi": [],
+    "famiglie": [
+      "Geist"
+    ],
+    "erroriConsole": []
+  },
+  {
+    "pagina": "/reports/settimana?r=mese&w=2026-07-01",
+    "larghezza": 1440,
+    "tema": "light",
+    "file": "reports_settimana_r_mese_w_2026-07-01__1440__light.png",
+    "h1": "Report periodico",
+    "altezza": 900,
+    "innerWidth": 1440,
+    "scrollWidth": 1440,
+    "sbordi": [],
+    "sotto12": 5,
+    "piccoli": 0,
+    "esempiPiccoli": [],
+    "bassoContrasto": 0,
+    "esempiBassi": [],
+    "famiglie": [
+      "Geist"
+    ],
+    "erroriConsole": []
+  },
+  {
+    "pagina": "/reports/settimana?r=anno&w=2027-01-01",
+    "larghezza": 1440,
+    "tema": "light",
+    "file": "reports_settimana_r_anno_w_2027-01-01__1440__light.png",
+    "h1": "Report periodico",
+    "altezza": 900,
+    "innerWidth": 1440,
+    "scrollWidth": 1440,
+    "sbordi": [],
+    "sotto12": 1,
+    "piccoli": 0,
+    "esempiPiccoli": [],
+    "bassoContrasto": 0,
+    "esempiBassi": [],
+    "famiglie": [
+      "Geist"
+    ],
+    "erroriConsole": []
+  },
+  {
+    "pagina": "/reports",
+    "larghezza": 390,
+    "tema": "light",
+    "file": "reports__390__light.png",
+    "h1": "Reports",
+    "altezza": 1368,
+    "innerWidth": 390,
+    "scrollWidth": 390,
+    "sbordi": [],
+    "sotto12": 0,
+    "piccoli": 0,
+    "esempiPiccoli": [],
+    "bassoContrasto": 0,
+    "esempiBassi": [],
+    "famiglie": [
+      "Geist"
+    ],
+    "erroriConsole": []
+  },
+  {
+    "pagina": "/reports/settimana?r=mese&w=2026-07-01",
+    "larghezza": 390,
+    "tema": "light",
+    "file": "reports_settimana_r_mese_w_2026-07-01__390__light.png",
+    "h1": "Report periodico",
+    "altezza": 1011,
+    "innerWidth": 390,
+    "scrollWidth": 390,
+    "sbordi": [],
+    "sotto12": 4,
+    "piccoli": 0,
+    "esempiPiccoli": [],
+    "bassoContrasto": 0,
+    "esempiBassi": [],
+    "famiglie": [
+      "Geist"
+    ],
+    "erroriConsole": []
+  },
+  {
+    "pagina": "/reports/settimana?r=anno&w=2027-01-01",
+    "larghezza": 390,
+    "tema": "light",
+    "file": "reports_settimana_r_anno_w_2027-01-01__390__light.png",
+    "h1": "Report periodico",
+    "altezza": 900,
+    "innerWidth": 390,
+    "scrollWidth": 390,
+    "sbordi": [],
+    "sotto12": 0,
+    "piccoli": 0,
+    "esempiPiccoli": [],
+    "bassoContrasto": 0,
+    "esempiBassi": [],
+    "famiglie": [
+      "Geist"
+    ],
+    "erroriConsole": []
+  },
+  {
+    "pagina": "/reports",
+    "larghezza": 1440,
+    "tema": "dark",
+    "file": "reports__1440__dark.png",
+    "h1": "Reports",
+    "altezza": 2813,
+    "innerWidth": 1440,
+    "scrollWidth": 1440,
+    "sbordi": [],
+    "sotto12": 1,
+    "piccoli": 0,
+    "esempiPiccoli": [],
+    "bassoContrasto": 0,
+    "esempiBassi": [],
+    "famiglie": [
+      "Geist"
+    ],
+    "erroriConsole": []
+  },
+  {
+    "pagina": "/reports/settimana?r=mese&w=2026-07-01",
+    "larghezza": 1440,
+    "tema": "dark",
+    "file": "reports_settimana_r_mese_w_2026-07-01__1440__dark.png",
+    "h1": "Report periodico",
+    "altezza": 900,
+    "innerWidth": 1440,
+    "scrollWidth": 1440,
+    "sbordi": [],
+    "sotto12": 5,
+    "piccoli": 0,
+    "esempiPiccoli": [],
+    "bassoContrasto": 0,
+    "esempiBassi": [],
+    "famiglie": [
+      "Geist"
+    ],
+    "erroriConsole": []
+  },
+  {
+    "pagina": "/reports/settimana?r=anno&w=2027-01-01",
+    "larghezza": 1440,
+    "tema": "dark",
+    "file": "reports_settimana_r_anno_w_2027-01-01__1440__dark.png",
+    "h1": "Report periodico",
+    "altezza": 900,
+    "innerWidth": 1440,
+    "scrollWidth": 1440,
+    "sbordi": [],
+    "sotto12": 1,
+    "piccoli": 0,
+    "esempiPiccoli": [],
+    "bassoContrasto": 0,
+    "esempiBassi": [],
+    "famiglie": [
+      "Geist"
+    ],
+    "erroriConsole": []
+  },
+  {
+    "pagina": "/reports",
+    "larghezza": 390,
+    "tema": "dark",
+    "file": "reports__390__dark.png",
+    "h1": "Reports",
+    "altezza": 1368,
+    "innerWidth": 390,
+    "scrollWidth": 390,
+    "sbordi": [],
+    "sotto12": 0,
+    "piccoli": 0,
+    "esempiPiccoli": [],
+    "bassoContrasto": 0,
+    "esempiBassi": [],
+    "famiglie": [
+      "Geist"
+    ],
+    "erroriConsole": []
+  },
+  {
+    "pagina": "/reports/settimana?r=mese&w=2026-07-01",
+    "larghezza": 390,
+    "tema": "dark",
+    "file": "reports_settimana_r_mese_w_2026-07-01__390__dark.png",
+    "h1": "Report periodico",
+    "altezza": 1011,
+    "innerWidth": 390,
+    "scrollWidth": 390,
+    "sbordi": [],
+    "sotto12": 4,
+    "piccoli": 0,
+    "esempiPiccoli": [],
+    "bassoContrasto": 0,
+    "esempiBassi": [],
+    "famiglie": [
+      "Geist"
+    ],
+    "erroriConsole": []
+  },
+  {
+    "pagina": "/reports/settimana?r=anno&w=2027-01-01",
+    "larghezza": 390,
+    "tema": "dark",
+    "file": "reports_settimana_r_anno_w_2027-01-01__390__dark.png",
+    "h1": "Report periodico",
+    "altezza": 900,
+    "innerWidth": 390,
+    "scrollWidth": 390,
+    "sbordi": [],
+    "sotto12": 0,
+    "piccoli": 0,
+    "esempiPiccoli": [],
+    "bassoContrasto": 0,
+    "esempiBassi": [],
+    "famiglie": [
+      "Geist"
+    ],
+    "erroriConsole": []
+  }
+]

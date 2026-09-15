@@ -16,6 +16,8 @@ import {
   isReportRange,
   nextStart,
   previousStart,
+  REPORT_BOTH_LABELS,
+  REPORT_IN_THIS_LABELS,
   REPORT_PREVIOUS_LABELS,
   REPORT_RANGES,
   REPORT_RANGE_LABELS,
@@ -261,7 +263,7 @@ export default async function WeeklyReportPage({
         <CardContent className="flex flex-col gap-5">
           {agg.total === 0 ? (
             <p className="text-sm text-muted-foreground">
-              Nessun trade chiuso in questa settimana.
+              Nessun trade chiuso {REPORT_IN_THIS_LABELS[range]}.
             </p>
           ) : (
             <>
@@ -399,7 +401,7 @@ export default async function WeeklyReportPage({
                 Generato dalle stesse formule testate dell&apos;app (niente
                 stime, niente AI): ogni numero è riconciliabile coi Reports.
                 {scope.multi
-                  ? " Scope valuta: " + currency + " su ENTRAMBE le settimane " +
+                  ? ` Scope valuta: ${currency} su ${REPORT_BOTH_LABELS[range]} ` +
                     "(confronto a parità di valuta, mai somme cross-valuta)."
                   : ""}
               </p>

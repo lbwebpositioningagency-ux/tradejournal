@@ -31,6 +31,27 @@ export const REPORT_PREVIOUS_LABELS: Record<ReportRange, string> = {
   anno: "anno precedente",
 };
 
+/**
+ * «In questa settimana», «in questo mese»… Il report era nato settimanale e
+ * due frasi lo erano rimaste: aprendo un mese o un anno dicevano ancora
+ * «settimana». Articoli e dimostrativi cambiano col genere e con l'elisione,
+ * quindi le forme sono scritte per intero, non costruite.
+ */
+export const REPORT_IN_THIS_LABELS: Record<ReportRange, string> = {
+  settimana: "in questa settimana",
+  mese: "in questo mese",
+  trimestre: "in questo trimestre",
+  anno: "in quest'anno",
+};
+
+/** Il periodo corrente e il precedente insieme, per la nota sulla valuta. */
+export const REPORT_BOTH_LABELS: Record<ReportRange, string> = {
+  settimana: "entrambe le settimane",
+  mese: "entrambi i mesi",
+  trimestre: "entrambi i trimestri",
+  anno: "entrambi gli anni",
+};
+
 export function isReportRange(value: unknown): value is ReportRange {
   return (REPORT_RANGES as readonly unknown[]).includes(value);
 }

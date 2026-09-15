@@ -137,7 +137,7 @@ export const TAG_CATEGORY_LABELS: Record<TagCategory, string> = {
 /** Riga di aiuto sotto al menu: cosa cambia scegliendo una categoria. */
 export const TAG_CATEGORY_HINTS: Record<TagCategory, string> = {
   SETUP: "il tipo di operazione (breakout, pullback…)",
-  MISTAKE: "un errore commesso — alimenta il costo degli errori nel report settimanale",
+  MISTAKE: "un errore commesso — alimenta il costo degli errori nel report periodico",
   EMOTION: "lo stato emotivo (disciplina, tilt…)",
   CUSTOM: "nessuna delle precedenti",
 };
