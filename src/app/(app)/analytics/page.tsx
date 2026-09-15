@@ -129,7 +129,6 @@ import { CurrencyFilter } from "@/components/filters/currency-filter";
 import { AnalyticsFilters } from "@/components/analytics/analytics-filters";
 import { TargetRTable } from "@/components/analytics/target-r-table";
 import { Capitolo, PannelloAnalisi } from "@/components/analytics/pannello-analisi";
-import { IndiceCapitoli, type VoceCapitolo } from "@/components/analytics/indice-capitoli";
 
 export const metadata: Metadata = { title: "Analytics" };
 
@@ -629,18 +628,6 @@ export default async function AnalyticsPage({
   const senzaR = coverage.total - coverage.withR;
   const senzaPiano = coverage.withR - coverage.withTargetR;
 
-  /* I capitoli nell'ordine di lettura (tavola «Analytics - ricostruzione»):
-     prima come si distribuiscono i ritorni, poi il rischio, poi come cambia
-     nel tempo e quando, e in fondo il simulatore, che è uno strumento e non
-     una statistica. Le ancore di prima (#distribuzioni, #simulatore, #rolling,
-     #rischio, #timing) restano tutte valide. */
-  const capitoli: VoceCapitolo[] = [
-    { id: "distribuzioni", label: "Distribuzioni", conteggio: 2 },
-    { id: "rischio", label: "Rischio", conteggio: 3 },
-    { id: "rolling", label: "Rolling", conteggio: 2 },
-    { id: "timing", label: "Timing", conteggio: 2 },
-    { id: "simulatore", label: "Simulatore", conteggio: 1 },
-  ];
   const baseOraria = hourBasis === "close" ? "chiusura" : "apertura";
 
   return (
@@ -830,17 +817,18 @@ export default async function AnalyticsPage({
             </details>
           </section>
 
-          <div className="lg:grid lg:grid-cols-[168px_minmax(0,1fr)] lg:gap-8">
-            <IndiceCapitoli capitoli={capitoli} />
-
-            <div className="flex min-w-0 flex-col gap-8">
+          {/* Nessun indice dei capitoli (15/09/2026, tavola «Analytics -
+              ricostruzione - applicata», decisione 3): la colonna ferma a
+              sinistra toglieva larghezza a grafici e tabelle. I capitoli
+              restano come titoli. */}
+          <div className="flex min-w-0 flex-col gap-8">
               {/* ── DISTRIBUZIONI ─────────────────────────────────────────── */}
               <Capitolo
                 id="distribuzioni"
                 titolo="Distribuzioni"
                 sottotitolo="come si distribuiscono i ritorni in R, e cosa rende puntare più lontano"
               >
-                <div className="grid gap-4 xl:grid-cols-[minmax(0,4fr)_minmax(0,8fr)]">
+                <div className="flex flex-col gap-4">
                   {/* ① Istogramma dell'R realizzato su TUTTI i trade con rischio. */}
                   <PannelloAnalisi
                     titolo="Distribuzione dell'R realizzato"
@@ -909,7 +897,7 @@ export default async function AnalyticsPage({
                 titolo="Rischio"
                 sottotitolo="serie consecutive, concentrazione del profitto, strategie che si muovono insieme"
               >
-                <div className="grid gap-4 xl:grid-cols-[minmax(0,5fr)_minmax(0,7fr)]">
+                <div className="flex flex-col gap-4">
                   {/* §3 — distribuzione delle lunghezze di streak. */}
                   <PannelloAnalisi
                     titolo="Distribuzione delle streak"
@@ -1038,7 +1026,7 @@ export default async function AnalyticsPage({
                 titolo="Rolling"
                 sottotitolo="come cambiano i ratio sulle sedute e le metriche su finestre di trade"
               >
-                <div className="grid gap-4 xl:grid-cols-2">
+                <div className="flex flex-col gap-4">
                   {/* §2 — rolling Sharpe/Sortino sui RITORNI giornalieri. */}
                   <PannelloAnalisi
                     titolo="Sharpe e Sortino rolling"
@@ -1157,12 +1145,10 @@ export default async function AnalyticsPage({
                 titolo="Timing"
                 sottotitolo="quando entri e quanto tieni aperto il trade"
               >
-                {/* Un pannello per riga: affiancati, i grafici a 24 fasce orarie
-                    scorrevano in orizzontale anche a 1536px (misurato). La
-                    tabella di dettaglio di ciascuno è chiusa sotto il grafico: il
-                    grafico porta la stessa serie, la tabella aggiunge win rate,
-                    PF e P&L per fascia a chi la apre (tavola «Analytics -
-                    ricostruzione»). */}
+                {/* La tabella di dettaglio di ciascun pannello è chiusa sotto il
+                    grafico: il grafico porta la stessa serie, la tabella aggiunge
+                    win rate, PF e P&L per fascia a chi la apre (tavola
+                    «Analytics - ricostruzione - applicata», decisione 1). */}
                 <div className="flex flex-col gap-4">
                   {/* §2 — performance per fascia oraria: apertura O chiusura. */}
                   <PannelloAnalisi
@@ -1346,7 +1332,6 @@ export default async function AnalyticsPage({
                   />
                 </PannelloAnalisi>
               </Capitolo>
-            </div>
           </div>
         </>
       )}

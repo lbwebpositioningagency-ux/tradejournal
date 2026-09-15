@@ -2972,3 +2972,37 @@ Analytics, Scorecard, Calendario e Radar: 0 testi sotto 4,5:1 nei due temi.
 
 **Verificato:** typecheck ✅ · eslint ✅ · 2170/2170 test ✅ · build ✅ · schermate
 reali a 1440 e 390 nei due temi.
+
+## Analytics a piena larghezza, senza indice (15/09/2026)
+
+Decisione del proprietario, registrata come «decisione 3» nella tavola Claude Design
+«Analytics - ricostruzione - applicata»: si preferiscono grafici grandi a una pagina
+corta.
+
+- **Via l'indice dei capitoli** in ogni forma: la colonna ferma a sinistra da 1024px e
+  le schede ferme sotto la barra su mobile. `components/analytics/indice-capitoli.tsx`
+  è cancellato, non nascosto; i capitoli restano come titoli col loro filo.
+- **Ogni pannello a piena larghezza, uno sotto l'altro**, in tutti e cinque i capitoli:
+  nessuna coppia affiancata e nessuna proporzione 4:8 o 5:7. Nessuna metrica e nessun
+  contenuto aggiunto o tolto; le tabelle chiuse sotto il loro grafico restano chiuse.
+- Skeleton con la nuova geometria (sintesi, poi pannelli impilati, niente colonna
+  dell'indice); ancore a `scroll-mt-20` perché sotto la barra non ci sono più schede.
+
+**Misurato (build locale, DOM):**
+
+| | Prima | Dopo |
+|---|---:|---:|
+| Altezza a 1440 | 4.842 | **5.944** (+1.102) |
+| Altezza a 390 | 8.477 | **8.425** (−52, via le schede) |
+| Grafici a 1440 | 283 · 363 · 442 · 442 · 934 · 934 · 934 | **1.134** tutti |
+| Grafici a 1280 | 230 · 296 · 362 · 362 · 774 · 774 · 774 | **974** tutti |
+| Grafici a 1024 | 518 tutti | **718** tutti |
+
+Guadagno a 1440: Distribuzione dell'R +851px, Streak +771, i due Rolling +692 ciascuno,
+Fascia oraria, Durata e Simulatore +200. Nessuna tabella scorre a 1440, 1280 e 1024; a
+1024 hanno smesso di scorrere i pannelli Fascia oraria (96px) e Durata (20px). A 390
+scorre ancora la Correlazione (124px): lì la larghezza non è cambiata. 0 testi sotto
+11px, 0 sotto 4,5:1, nessun errore in console, nessuna pagina più larga del viewport.
+
+**Verificato:** typecheck ✅ · eslint ✅ · 2170/2170 test ✅ · build ✅ · schermate
+reali a 1440 e 390 nei due temi · controllo a 1280.

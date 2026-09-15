@@ -4,8 +4,9 @@ import { cn } from "@/lib/utils";
 
 /**
  * Skeleton di Analytics con la GEOMETRIA della pagina: filtri, sintesi delle
- * cinque metriche (stessa griglia senza orfani), indice a sinistra da 1024px e
- * pannelli due per riga da 1280px. Prima erano quattro card-grafico impilate.
+ * cinque metriche (stessa griglia senza orfani), poi un capitolo con i suoi
+ * pannelli a piena larghezza, uno sotto l'altro. Niente colonna dell'indice:
+ * dal 15/09/2026 la pagina non ce l'ha più.
  */
 export default function AnalyticsLoading() {
   return (
@@ -25,21 +26,15 @@ export default function AnalyticsLoading() {
           ))}
         </div>
       </div>
-      <div className="lg:grid lg:grid-cols-[168px_minmax(0,1fr)] lg:gap-8">
-        <div className="hidden flex-col gap-2 lg:flex">
-          {[0, 1, 2, 3, 4].map((i) => (
-            <Skeleton key={i} className="h-7 w-full" />
-          ))}
-        </div>
-        <div className="grid gap-4 xl:grid-cols-2">
-          {[0, 1, 2, 3].map((i) => (
-            <div key={i} className="rounded-xl border p-4">
-              <Skeleton className="h-4 w-48" />
-              <Skeleton className="mt-2 h-3 w-64 max-w-full" />
-              <Skeleton className="mt-4 h-56 w-full" />
-            </div>
-          ))}
-        </div>
+      <div className="flex flex-col gap-4 border-t pt-3">
+        <Skeleton className="h-6 w-40" />
+        {[0, 1, 2].map((i) => (
+          <div key={i} className="rounded-xl border p-4">
+            <Skeleton className="h-4 w-48" />
+            <Skeleton className="mt-2 h-3 w-64 max-w-full" />
+            <Skeleton className="mt-4 h-56 w-full" />
+          </div>
+        ))}
       </div>
     </div>
   );

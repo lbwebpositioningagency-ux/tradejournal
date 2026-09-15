@@ -43,7 +43,7 @@ export function PannelloAnalisi({
     <div
       id={id}
       className={cn(
-        "flex min-w-0 scroll-mt-28 flex-col gap-4 rounded-xl border bg-card p-4",
+        "flex min-w-0 scroll-mt-20 flex-col gap-4 rounded-xl border bg-card p-4",
         className,
       )}
     >
@@ -102,7 +102,7 @@ export function Capitolo({
     <section
       id={id}
       aria-labelledby={`${id}-titolo`}
-      className="scroll-mt-28 border-t border-[var(--rule)] pt-3"
+      className="scroll-mt-20 border-t border-[var(--rule)] pt-3"
     >
       <div className="mb-3 flex flex-wrap items-baseline gap-x-3 gap-y-1">
         <h2 id={`${id}-titolo`} className="text-xl font-semibold tracking-tight">
