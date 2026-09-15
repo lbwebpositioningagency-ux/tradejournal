@@ -1,0 +1,178 @@
+[
+  {
+    "pagina": "/reports?period=all",
+    "larghezza": 1440,
+    "tema": "dark",
+    "file": "reports_period_all__1440__dark.png",
+    "h1": "Reports",
+    "altezza": 3769,
+    "innerWidth": 1440,
+    "scrollWidth": 1440,
+    "sbordi": [],
+    "sotto12": 5,
+    "piccoli": 0,
+    "esempiPiccoli": [],
+    "bassoContrasto": 1,
+    "esempiBassi": [
+      "4.41 11px «Demo»"
+    ],
+    "famiglie": [
+      "Geist"
+    ],
+    "erroriConsole": []
+  },
+  {
+    "pagina": "/reports?period=custom&from=2026-07-01&to=2026-07-15",
+    "larghezza": 1440,
+    "tema": "dark",
+    "file": "reports_period_custom_from_2026-07-01_to_2026-07-15__1440__dark.png",
+    "h1": "Reports",
+    "altezza": 2790,
+    "innerWidth": 1440,
+    "scrollWidth": 1440,
+    "sbordi": [],
+    "sotto12": 5,
+    "piccoli": 0,
+    "esempiPiccoli": [],
+    "bassoContrasto": 1,
+    "esempiBassi": [
+      "4.41 11px «Demo»"
+    ],
+    "famiglie": [
+      "Geist"
+    ],
+    "erroriConsole": []
+  },
+  {
+    "pagina": "/reports?period=all",
+    "larghezza": 390,
+    "tema": "dark",
+    "file": "reports_period_all__390__dark.png",
+    "h1": "Reports",
+    "altezza": 1808,
+    "innerWidth": 390,
+    "scrollWidth": 390,
+    "sbordi": [],
+    "sotto12": 4,
+    "piccoli": 0,
+    "esempiPiccoli": [],
+    "bassoContrasto": 1,
+    "esempiBassi": [
+      "4.41 11px «Demo»"
+    ],
+    "famiglie": [
+      "Geist"
+    ],
+    "erroriConsole": []
+  },
+  {
+    "pagina": "/reports?period=custom&from=2026-07-01&to=2026-07-15",
+    "larghezza": 390,
+    "tema": "dark",
+    "file": "reports_period_custom_from_2026-07-01_to_2026-07-15__390__dark.png",
+    "h1": "Reports",
+    "altezza": 1808,
+    "innerWidth": 390,
+    "scrollWidth": 390,
+    "sbordi": [],
+    "sotto12": 4,
+    "piccoli": 0,
+    "esempiPiccoli": [],
+    "bassoContrasto": 1,
+    "esempiBassi": [
+      "4.41 11px «Demo»"
+    ],
+    "famiglie": [
+      "Geist"
+    ],
+    "erroriConsole": []
+  },
+  {
+    "pagina": "/reports?period=all",
+    "larghezza": 1440,
+    "tema": "light",
+    "file": "reports_period_all__1440__light.png",
+    "h1": "Reports",
+    "altezza": 3769,
+    "innerWidth": 1440,
+    "scrollWidth": 1440,
+    "sbordi": [],
+    "sotto12": 5,
+    "piccoli": 0,
+    "esempiPiccoli": [],
+    "bassoContrasto": 1,
+    "esempiBassi": [
+      "4.20 11px «Demo»"
+    ],
+    "famiglie": [
+      "Geist"
+    ],
+    "erroriConsole": []
+  },
+  {
+    "pagina": "/reports?period=custom&from=2026-07-01&to=2026-07-15",
+    "larghezza": 1440,
+    "tema": "light",
+    "file": "reports_period_custom_from_2026-07-01_to_2026-07-15__1440__light.png",
+    "h1": "Reports",
+    "altezza": 2790,
+    "innerWidth": 1440,
+    "scrollWidth": 1440,
+    "sbordi": [],
+    "sotto12": 5,
+    "piccoli": 0,
+    "esempiPiccoli": [],
+    "bassoContrasto": 1,
+    "esempiBassi": [
+      "4.20 11px «Demo»"
+    ],
+    "famiglie": [
+      "Geist"
+    ],
+    "erroriConsole": []
+  },
+  {
+    "pagina": "/reports?period=all",
+    "larghezza": 390,
+    "tema": "light",
+    "file": "reports_period_all__390__light.png",
+    "h1": "Reports",
+    "altezza": 1808,
+    "innerWidth": 390,
+    "scrollWidth": 390,
+    "sbordi": [],
+    "sotto12": 4,
+    "piccoli": 0,
+    "esempiPiccoli": [],
+    "bassoContrasto": 1,
+    "esempiBassi": [
+      "4.20 11px «Demo»"
+    ],
+    "famiglie": [
+      "Geist"
+    ],
+    "erroriConsole": []
+  },
+  {
+    "pagina": "/reports?period=custom&from=2026-07-01&to=2026-07-15",
+    "larghezza": 390,
+    "tema": "light",
+    "file": "reports_period_custom_from_2026-07-01_to_2026-07-15__390__light.png",
+    "h1": "Reports",
+    "altezza": 1808,
+    "innerWidth": 390,
+    "scrollWidth": 390,
+    "sbordi": [],
+    "sotto12": 4,
+    "piccoli": 0,
+    "esempiPiccoli": [],
+    "bassoContrasto": 1,
+    "esempiBassi": [
+      "4.20 11px «Demo»"
+    ],
+    "famiglie": [
+      "Geist"
+    ],
+    "erroriConsole": []
+  }
+]

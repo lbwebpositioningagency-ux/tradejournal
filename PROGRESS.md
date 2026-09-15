@@ -3330,3 +3330,20 @@ chiusi, ne servono 20» e «Il più lungo chiuso finora: 58 sedute».
 Misure (capitolo Rischio, 1440/390, due temi, tutto lo storico e gen–set 2025): 0 testi < 11px,
 0 < 4,5:1, 0 errori, nessuna pagina più larga del viewport. Gate: typecheck, lint, 2.247 test, build
 verdi. Nessuna migrazione. Schermate in `docs/journal/fase5-drawdown-in-corso/`.
+
+## 16/09/2026 · Reports — via gli intervalli di confidenza dalle celle
+
+Richiesta del proprietario: le righe aggiunte dalla fase 4 sotto ogni valore rendevano le tabelle
+illeggibili. Tolte da tutte le tabelle di Reports (per simbolo, strategia, tag, categoria di tag,
+piano rispettato, direzione e asset class, mese, bias × esecuzione — le otto passano tutte da
+`BreakdownTable`) e da «Il conto nel periodo»: niente più intervallo, esito del confronto («sopra il
+pareggio», «distinta da zero», «non si distingue») né «servono ~N trade». Tolta anche la cella
+tratteggiata del campione insufficiente sotto 30 trade: le celle tornano al solo valore, come prima
+della fase 4, a qualunque campione. La colonna «Attesa per trade» resta, col solo valore. Le card
+mobile tornano al layout di prima, con l'attesa aggiunta. Sotto i grafici per ora e per giorno le
+righe migliore/peggiore non scrivono più gli estremi dell'intervallo.
+
+Resta: la soglia dei 30 trade per migliore e peggiore (fase 2) e l'elezione solo con intervalli
+disgiunti (fase 4), nella logica. `lib/metrics/confidence.ts` e `group-estimates.ts` restano con i
+loro test; tolto solo il componente di resa `components/reports/estimates.tsx`, sostituito da
+`account-period.tsx` (tre tessere col valore). Analytics non toccata. Nessuna migrazione.

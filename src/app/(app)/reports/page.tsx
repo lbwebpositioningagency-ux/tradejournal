@@ -12,25 +12,22 @@ import {
   type TagCategory,
 } from "@/lib/constants";
 import {
+  avgR,
   avgRInfo,
   avgWinLossR,
   avgWinLossRInfo,
-  confidenceInfo,
   currentStreak,
-  groupEstimates,
+  expectancy,
+  expectancyInfo,
   netPnlInfo,
   profitFactor,
   profitFactorInfo,
   streaksInfo,
+  winRate,
   winRateInfo,
 } from "@/lib/metrics";
 import { formatNumber } from "@/lib/format-number";
-import {
-  AccountEstimates,
-  EstimateCell,
-  InsufficientSample,
-  estimateInline,
-} from "@/components/reports/estimates";
+import { AccountPeriod } from "@/components/reports/account-period";
 import { MetricInfo } from "@/components/metric-info";
 import { EmptyState } from "@/components/empty-state";
 import {
@@ -95,30 +92,33 @@ export const metadata: Metadata = { title: "Reports" };
  * Metriche di riga derivate dagli aggregati SQL (tutte Decimal-safe).
  *
  * Fase 60 — set di colonne standard delle tabelle di breakdown:
- * Trade · Win % · Avg Win/Loss · PF · Expectancy · Net P&L. L'"Attesa/trade"
- * in valuta è stata rimossa: diceva la stessa cosa dell'Expectancy con
- * un'unità che non regge il confronto fra conti in valute diverse.
- * Nessuna formula vive qui: winRate/avgWinLossR/profitFactor/avgR stanno in
+ * Trade · Win % · Avg Win/Loss · PF · Expectancy · Net P&L; la fase 4 ha
+ * aggiunto «Attesa per trade» in valuta (sicura: ogni vista è già ristretta a
+ * una valuta sola). Nessuna formula vive qui: winRate/avgWinLossR/profitFactor/avgR stanno in
  * src/lib/metrics e sono le stesse di ogni altra tabella.
  */
 function rowMetrics(row: BreakdownAggregates) {
+  // Ogni cella mostra il SOLO valore. Gli intervalli di confidenza della fase 4
+  // sono stati tolti dalle tabelle (16/09/2026): il calcolo resta in
+  // metrics/confidence.ts e governa ancora l'elezione di migliore e peggiore.
+  const expectancyR = avgR(row.rSum, row.rCount);
+  const cash = expectancy(row);
   return {
+    winRate: formatPercent(winRate(row.wins, row.total)),
     avgWinLoss: formatRatio(avgWinLossR(row)),
     profitFactor: formatProfitFactor(
       profitFactor(row.winSum, row.lossSum),
       row.wins,
     ),
-    // Fase 4: win rate, expectancy in R e attesa in valuta con l'intervallo
-    // al 95% (metrics/group-estimates.ts). Sotto 30 trade restano solo n e
-    // P&L totale.
-    estimates: groupEstimates(row),
+    expectancyR: expectancyR !== null ? formatRMultiple(expectancyR) : "—",
+    expectancyCash: cash !== null ? formatCash(cash) : "—",
   };
 }
 
-/** Formattatori delle stime: gli stessi per celle, card ed estremi. */
-const formatRateEstimate = (v: string) => formatPercent(v);
-const formatREstimate = (v: string) => formatRMultiple(v);
-const formatCashEstimate = (v: string) => formatNumber(v, { decimals: 2, sign: true });
+const formatCash = (v: string) => formatNumber(v, { decimals: 2, sign: true });
+
+/** L'attesa per trade in valuta: la stessa formula dell'Expectancy in valuta. */
+const cashExpectancyInfo = { ...expectancyInfo, label: "Attesa per trade" };
 
 function BreakdownTable({
   rows,
@@ -141,7 +141,6 @@ function BreakdownTable({
       <ul className="flex flex-col gap-2 md:hidden">
         {rows.map((row) => {
           const m = rowMetrics(row.aggregates);
-          const e = m.estimates;
           const body = (
             <>
               <span className="flex items-center justify-between gap-2">
@@ -157,30 +156,25 @@ function BreakdownTable({
                   {formatSignedMoney(row.aggregates.netPnl, currency)}
                 </span>
               </span>
-              <span className="text-xs tabular-nums text-muted-foreground">
-                {row.aggregates.total} trade ({row.aggregates.wins}W/
-                {row.aggregates.losses}L
-                {row.aggregates.breakevens > 0
-                  ? `/${row.aggregates.breakevens}BE`
-                  : ""}
-                )
-              </span>
-              {e.lowSample ? (
-                <InsufficientSample n={e.n} className="self-start" />
-              ) : (
-                <span className="grid grid-cols-[auto_minmax(0,1fr)] gap-x-2.5 gap-y-0.5 text-xs tabular-nums text-[var(--foreground-2)]">
-                  <span className="text-muted-foreground">Win</span>
-                  <span>{estimateInline(e.winRate, "rate", formatRateEstimate)}</span>
-                  <span className="text-muted-foreground">Expectancy</span>
-                  <span>{estimateInline(e.expectancyR, "mean", formatREstimate, "trade con rischio")}</span>
-                  <span className="text-muted-foreground">Attesa {currency}</span>
-                  <span>{estimateInline(e.expectancyCash, "mean", formatCashEstimate)}</span>
-                  <span className="text-muted-foreground">PF · W/L</span>
-                  <span>
-                    {m.profitFactor} · {m.avgWinLoss}
-                  </span>
+              <span className="flex flex-wrap items-center gap-x-3 gap-y-0.5 text-xs tabular-nums text-muted-foreground">
+                <span>
+                  {row.aggregates.total} trade ({row.aggregates.wins}W/
+                  {row.aggregates.losses}L
+                  {row.aggregates.breakevens > 0
+                    ? `/${row.aggregates.breakevens}BE`
+                    : ""}
+                  )
                 </span>
-              )}
+                <span>Win {m.winRate}</span>
+                <span>Avg W/L {m.avgWinLoss}</span>
+              </span>
+              <span className="flex flex-wrap items-center gap-x-3 gap-y-0.5 text-xs tabular-nums text-muted-foreground">
+                <span>PF {m.profitFactor}</span>
+                <span>Expectancy {m.expectancyR}</span>
+                <span>
+                  Attesa {m.expectancyCash} {currency}
+                </span>
+              </span>
             </>
           );
           const itemClass =
@@ -231,7 +225,7 @@ function BreakdownTable({
             </TableHead>
             <TableHead className="text-right">
               <span className="inline-flex items-center gap-1">
-                Attesa per trade <MetricInfo info={confidenceInfo} />
+                Attesa per trade <MetricInfo info={cashExpectancyInfo} />
               </span>
             </TableHead>
             <TableHead className="text-right">
@@ -244,11 +238,10 @@ function BreakdownTable({
         <TableBody>
           {rows.map((row) => {
             const m = rowMetrics(row.aggregates);
-            const e = m.estimates;
             return (
               <TableRow
                 key={row.key}
-                className={cn("align-top", row.href ? "relative" : undefined)}
+                className={row.href ? "relative" : undefined}
               >
                 <TableCell className="font-medium">
                   {row.href ? (
@@ -270,36 +263,19 @@ function BreakdownTable({
                     )
                   </span>
                 </TableCell>
-                {e.lowSample ? (
-                  /* Campione insufficiente come stato: una cella sola al
-                     posto delle cinque stime, n e soglia scritti. */
-                  <TableCell colSpan={5}>
-                    <InsufficientSample n={e.n} />
-                  </TableCell>
-                ) : (
-                  <>
-                    <TableCell className="text-right tabular-nums">
-                      <EstimateCell estimate={e.winRate} kind="rate" format={formatRateEstimate} />
-                    </TableCell>
-                    <TableCell className="text-right tabular-nums">
-                      {m.avgWinLoss}
-                    </TableCell>
-                    <TableCell className="text-right tabular-nums">
-                      {m.profitFactor}
-                    </TableCell>
-                    <TableCell className="text-right tabular-nums">
-                      <EstimateCell
-                        estimate={e.expectancyR}
-                        kind="mean"
-                        format={formatREstimate}
-                        insufficientLabel="trade con rischio"
-                      />
-                    </TableCell>
-                    <TableCell className="text-right tabular-nums">
-                      <EstimateCell estimate={e.expectancyCash} kind="mean" format={formatCashEstimate} />
-                    </TableCell>
-                  </>
-                )}
+                <TableCell className="text-right tabular-nums">{m.winRate}</TableCell>
+                <TableCell className="text-right tabular-nums">
+                  {m.avgWinLoss}
+                </TableCell>
+                <TableCell className="text-right tabular-nums">
+                  {m.profitFactor}
+                </TableCell>
+                <TableCell className="text-right tabular-nums">
+                  {m.expectancyR}
+                </TableCell>
+                <TableCell className="text-right tabular-nums">
+                  {m.expectancyCash}
+                </TableCell>
                 <TableCell
                   className={cn(
                     "text-right font-medium tabular-nums",
@@ -332,10 +308,11 @@ function BestWorstLine({
   const { best, worst, overlapping } = extremes;
   // Fase 4: si elegge sull'ATTESA PER TRADE, e solo con intervalli al 95%
   // disgiunti. Sotto 30 trade una fascia resta nel grafico, più chiara, ma
-  // non ha stima e non entra nel confronto (fase 2).
+  // non ha stima e non entra nel confronto (fase 2). Gli intervalli decidono
+  // l'elezione ma non si scrivono in pagina.
   const perTrade = (p: ScoredBucket) =>
-    p.mean?.value && p.mean.interval
-      ? `${formatSignedMoney(p.mean.value, currency)} per trade, intervallo ${formatCashEstimate(p.mean.interval.lower)} – ${formatCashEstimate(p.mean.interval.upper)}, su ${p.trades} trade`
+    p.mean?.value
+      ? `${formatSignedMoney(p.mean.value, currency)} per trade su ${p.trades} trade`
       : `${p.trades} trade`;
   const rest =
     extremes.withTrades > extremes.eligible
@@ -348,8 +325,8 @@ function BestWorstLine({
         <span className="font-medium text-foreground">{overlapping.high.label}</span>,{" "}
         {perTrade(overlapping.high)}) e la più bassa (
         <span className="font-medium text-foreground">{overlapping.low.label}</span>,{" "}
-        {perTrade(overlapping.low)}) hanno intervalli che si sovrappongono: non si
-        distinguono. Confronto fra le {extremes.eligible} fasce con almeno{" "}
+        {perTrade(overlapping.low)}) non si distinguono con questi trade. Confronto
+        fra le {extremes.eligible} fasce con almeno{" "}
         {EXTREME_MIN_TRADES} trade.{rest}
       </p>
     );
@@ -369,8 +346,7 @@ function BestWorstLine({
       <span className="font-medium text-foreground">{best.label}</span> ({perTrade(best)})
       {" · peggiore "}
       <span className="font-medium text-foreground">{worst.label}</span> ({perTrade(worst)}).
-      Eletti fra le {extremes.eligible} fasce con almeno {EXTREME_MIN_TRADES} trade, con
-      intervalli che non si toccano.{rest}
+      Eletti fra le {extremes.eligible} fasce con almeno {EXTREME_MIN_TRADES} trade.{rest}
     </p>
   );
 }
@@ -558,31 +534,33 @@ export default async function ReportsPage({
         />
       ) : (
         <>
-          {/* Fase 4 — le tre stime del conto con il loro intervallo al 95%
-              (tavola «Analytics - fase 4 - intervalli di confidenza»). */}
-          <CollapsibleCard
-            title="Il conto nel periodo"
-            titleExtra={<MetricInfo info={confidenceInfo} />}
-            defaultOpen
-          >
-            <p className="mb-3 text-xs text-muted-foreground">
-              {accountRow.total}{" "}trade chiusi. Ogni stima con il suo intervallo al 95%:
-              dentro l&apos;intervallo cade il valore vero, dati questi trade. Sotto{" "}
-              {EXTREME_MIN_TRADES} trade niente stime né intervalli, in tutte le tabelle.
-            </p>
+          {/* Fase 4 — le tre misure del conto intero, col solo valore. */}
+          <CollapsibleCard title="Il conto nel periodo" defaultOpen>
             {(() => {
-              const accountEstimates = groupEstimates(accountRow);
+              const accountR = avgR(accountRow.rSum, accountRow.rCount);
+              const accountCash = expectancy(accountRow);
               return (
-                <AccountEstimates
-                  estimates={accountEstimates}
-                  formatPercent={formatRateEstimate}
-                  formatR={formatREstimate}
-                  formatMoney={(v) => formatSignedMoney(v, currency)}
-                  breakEvenLabel={
-                    accountEstimates.breakEven === null
-                      ? null
-                      : formatPercent(accountEstimates.breakEven)
-                  }
+                <AccountPeriod
+                  tiles={[
+                    {
+                      label: "Win rate",
+                      value: formatPercent(winRate(accountRow.wins, accountRow.total)),
+                      note: `su ${accountRow.total} trade`,
+                    },
+                    {
+                      label: "Expectancy",
+                      value: accountR !== null ? formatRMultiple(accountR) : "—",
+                      note: `su ${accountRow.rCount} trade con rischio`,
+                    },
+                    {
+                      label: "Attesa per trade",
+                      value:
+                        accountCash !== null
+                          ? formatSignedMoney(accountCash, currency)
+                          : "—",
+                      note: `su ${accountRow.total} trade`,
+                    },
+                  ]}
                 />
               );
             })()}
