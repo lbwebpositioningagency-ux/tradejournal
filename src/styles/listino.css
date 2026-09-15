@@ -262,6 +262,18 @@
   z-index: 1;
   background-color: var(--md-bg);
 }
+/* Sistema v3 (tavola «Sistema visivo v3 - tabelle larghe»): dopo il padding
+   cedono, in quest'ordine, l'identità su una riga e la barra-parola. Misurato
+   su «Escursione vera» (15 colonne): 1.039px → ~964; prima colonna ferma da
+   184 a 112px. A 1440 il margine passa da +79 a ~+154, a 1366 da +5 a ~+80;
+   sotto ~1286px di viewport la tabella scorre nel suo riquadro. */
+.ml-tab:has(> thead th:nth-child(13)) .ml-strumento-id {
+  display: inline-grid;
+  row-gap: 1px;
+}
+.ml-tab:has(> thead th:nth-child(13)) .ml-spark {
+  width: 40px;
+}
 
 /* ── barra-parola ────────────────────────────────────────────────────────
    La storia di un valore compressa alla dimensione di una parola: 56px

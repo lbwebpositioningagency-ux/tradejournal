@@ -240,8 +240,13 @@ export function Strumento({
   accento?: string;
   contesto?: boolean;
 }) {
+  /* Nome e «sotto» (ticker, contesto) stanno in due contenitori separati: su
+     una riga nelle tabelle normali, su due righe nelle tabelle larghe, dove
+     la regola `.ml-tab` a 13+ colonne di listino.css li impila. È la prima
+     colonna, ferma durante lo scorrimento: più è stretta, più numeri restano
+     visibili accanto al nome. */
   return (
-    <span className="inline-flex items-baseline gap-2">
+    <span className="ml-strumento inline-flex items-baseline gap-2">
       {accento ? (
         <span
           aria-hidden
@@ -249,15 +254,21 @@ export function Strumento({
           style={{ background: accento }}
         />
       ) : null}
-      <span className="font-semibold">{nome}</span>
-      {ticker ? (
-        <span className="text-2xs text-[var(--md-muted)]">{ticker}</span>
-      ) : null}
-      {contesto ? (
-        <span className="text-2xs uppercase tracking-[0.06em] text-[var(--md-muted)]">
-          contesto
-        </span>
-      ) : null}
+      <span className="ml-strumento-id inline-flex items-baseline gap-2">
+        <span className="font-semibold">{nome}</span>
+        {ticker || contesto ? (
+          <span className="ml-strumento-sotto inline-flex items-baseline gap-2">
+            {ticker ? (
+              <span className="text-2xs text-[var(--md-muted)]">{ticker}</span>
+            ) : null}
+            {contesto ? (
+              <span className="text-2xs uppercase tracking-[0.06em] text-[var(--md-muted)]">
+                contesto
+              </span>
+            ) : null}
+          </span>
+        ) : null}
+      </span>
     </span>
   );
 }

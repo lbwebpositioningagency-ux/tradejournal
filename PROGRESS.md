@@ -2783,3 +2783,33 @@ formattazione artigianale. Legenda multi-selezione Sharpe/Sortino di Analytics
 
 **Verificato:** typecheck ✅ · eslint ✅ · **2154/2154 test** ✅ · build ✅ ·
 schermate reali a 1440 e 390 nei due temi su 16 pagine, prima e dopo.
+
+## Ricostruzione, fase 1 — regressioni aperte (15/09/2026)
+
+**Tabelle larghe, regola v3** (tavola Claude Design «Sistema visivo v3 - tabelle
+larghe»). Misurato prima di toccare: su `ba99bd4` «Escursione vera» (15 colonne,
+non 19) chiedeva 1.039px; il riquadro a 1440 ne offre 1.118, quindi sbordo 0 ma
+margine +79, a 1366 +5, a 1280 −81. A guidare la larghezza erano la prima colonna
+(184px: nome, ticker ed etichetta «contesto» su una riga) e la barra-parola del
+rango (56px), non le cifre. La regola resta riconosciuta dal CSS
+(`.ml-tab:has(> thead th:nth-child(13))`) e cede in quest'ordine: padding 8 → 6px
+(già v2), identità su due righe (`Strumento` ora separa nome e «sotto»), barra-parola
+56 → 40px, poi scorrimento nel riquadro con prima colonna ferma. Il minimo di 11px
+non cede.
+
+Misurato dopo (build locale, DOM): 966px; margine a 1536 +248, 1440 **+152**, 1366
+**+78**, a 1280 scorre di 7px dentro il riquadro; prima colonna ferma 184 → 114px
+(a 390 lascia ai numeri 210px invece di 140). Riga da 27 a 42px, pagina 1.481 →
+1.517px. Altre tabelle del desk rimisurate a 1536/1440/1366/1280/390 e invariate:
+nessun'altra `.ml-tab` arriva a 13 colonne (Listino 12, Struttura 9, Dal report 5,
+Settimane della Scorecard 8, Calendario 6); la Stagionalità non usa `.ml-tab`.
+Nessuna pagina più larga del viewport. Volatilità: 0 testi sotto 11px nei due temi.
+
+**Cron COT disattivato.** Tolta la sola voce `/api/cot-sync` dai `crons` di
+`vercel.json`: rotta, job, tabella `CotWeek` e `scripts/cot-sync-once.ts` restano,
+e il commento della rotta dice come riattivarlo. Resta un solo cron
+(`/api/seasonality-sync`). Nessuna pagina legge `CotWeek` (grep su `src`: solo
+`lib/cot-sync.ts`, il suo test e la rotta).
+
+**Verificato:** typecheck ✅ · eslint ✅ · 2154/2154 test ✅ · build ✅ · schermate
+reali di Volatilità a 1440 e 390 nei due temi.

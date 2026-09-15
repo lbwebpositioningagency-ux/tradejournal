@@ -13,8 +13,12 @@ import { isAuthorizedMacroRequest } from "@/lib/macro-desk";
 export const maxDuration = 300;
 
 /**
- * GET /api/cot-sync — job settimanale COT, invocato dal Vercel Cron (sabato
- * mattina, vedi vercel.json) o a mano per la verifica.
+ * GET /api/cot-sync — job settimanale COT. Dal 15/09/2026 NON è più
+ * pianificato in vercel.json: nessuna pagina legge `CotWeek` (censimento del
+ * 14/09) e lo slot cron serviva libero. Rotta, tabella e script restano: si
+ * lancia a mano con `scripts/cot-sync-once.ts` o con una GET autenticata, e
+ * per riattivarlo basta rimettere la voce `{"path":"/api/cot-sync",
+ * "schedule":"0 5 * * 6"}` nei `crons`.
  *
  * Protetta da `Authorization: Bearer <CRON_SECRET>`: è l'header che Vercel
  * aggiunge da sé alle invocazioni cron quando l'env var CRON_SECRET esiste
