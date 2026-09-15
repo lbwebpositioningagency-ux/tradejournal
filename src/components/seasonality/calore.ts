@@ -1,69 +1,71 @@
-/**
- * CALORE della griglia anni × periodo — quanto è tinta ogni casella.
- *
- * Storia breve, perché è la terza resa della stessa griglia:
- * - fino al 14/09/2026 ogni casella era un riquadro tinto fino al 52%: fra il 90
- *   e il 98% risultava colorato pieno, un muro di rettangoli;
- * - il 15/09/2026 (giro 5) il colore è diventato un accento sulla sola cifra, dal
- *   75° percentile: tre caselle su quattro senza colore, e la griglia aveva perso
- *   la lettura d'insieme che una heatmap deve dare;
- * - dal 16/09/2026 (giro 6, tavola «Sistema visivo v3 - Stagionalità, heatmap
- *   tenue», taratura P) il colore torna su TUTTE le caselle, tenue e graduale.
- *
- * La scala è PROPORZIONALE allo scarto e satura al 95° percentile dello scarto
- * della griglia stessa, in cinque passi: passo = ⌈5 · min(1, |scarto| / p95)⌉.
- * Tarata sulla distribuzione reale e non su valori fissi, vale uguale per l'oro,
- * il VIX e le ore dell'S&P. Misurato su 44 combinazioni strumento × profondità:
- * ai passi 1-2 finisce fra il 60 e l'89% delle caselle, al passo 5 fra il 5 e il
- * 15% — la maggior parte leggera, decisi solo gli estremi. I quinti della
- * distribuzione (taratura Q, scartata) coloravano deciso due caselle su cinque
- * per costruzione.
- *
- * Le percentuali di tinta per passo sono token del sistema (`--heat-1…5` in
- * `globals.css`, diverse per tema), il colore è quello del segno
- * (`--md-up`/`--md-down`, compresa la coppia daltonica): qui si decide solo il passo.
- */
-
-export type PassoCalore = 1 | 2 | 3 | 4 | 5;
-
-export const PASSI_CALORE = 5;
-export const QUANTILE_SATURAZIONE = 0.95;
+import type { SeasonalityKind } from "@/generated/prisma/client";
 
 /**
- * Scarto assoluto oltre il quale la tinta è piena: il 95° percentile degli
- * scarti. Senza valori, o con tutti gli scarti a zero, restituisce 0: nessuna
- * casella si tinge, invece di tingerle tutte per una divisione per zero.
+ * COLORE delle caselle della griglia anni × periodo.
+ *
+ * Questo è il modello ORIGINALE, ripristinato il 17/09/2026 su richiesta del
+ * proprietario: tinta PIENA sulla casella, nel colore del segno, con intensità
+ * proporzionale al valore. Nel mezzo erano passate due rese che non hanno
+ * funzionato — il colore come accento sulla sola cifra (15/09, il 76% delle
+ * caselle restava grigio) e la heatmap tenue a cinque passi (16/09, troppo
+ * pallida) — e sono state tolte entrambe.
+ *
+ * Due regole, identiche a quelle del modello originale:
+ *
+ * 1. SCALA ROBUSTA: l'intensità è normalizzata sul 90° percentile degli scarti
+ *    assoluti della griglia, non sul massimo. Con il massimo un ottobre 2008
+ *    (−16,9%) schiaccerebbe le altre duecentoquaranta caselle su una tinta
+ *    indistinguibile.
+ * 2. TETTO DI OPACITÀ: la tinta va dal 12% al 52% del colore del segno sopra la
+ *    card. Il 52% non è estetica ma contrasto, e si misura: con la palette di
+ *    oggi la cifra in testo primario regge 7,44:1 in chiaro e 5,61:1 in scuro
+ *    alla tinta piena, su tutte e tre le coppie di colori (il tetto a cui il
+ *    testo primario resta sopra 4,5:1 sarebbe 73% e 61%). Il test
+ *    `calore.test.ts` rifà il conto leggendo i token da `globals.css`.
+ *
+ * Lo scarto è dallo zero per i rendimenti e dalla mediana della finestra per i
+ * livelli di volatilità: un VIX a 20 non è «positivo».
  */
-export function saturazioneCalore(scarti: readonly number[]): number {
+
+/** Sotto questa intensità la casella resta neutra: una tinta all'1% è rumore. */
+export const INTENSITA_MINIMA = 0.02;
+export const OPACITA_MIN = 12;
+export const OPACITA_MAX = 52;
+export const QUANTILE_SCALA = 0.9;
+
+/**
+ * Scala robusta di una griglia: 90° percentile degli scarti assoluti. Senza
+ * valori (o con tutti gli scarti a zero) vale 0 e nessuna casella si tinge,
+ * invece di tingerle tutte per una divisione per zero.
+ */
+export function scalaRobusta(scarti: readonly number[]): number {
   const abs = scarti
     .filter((v) => Number.isFinite(v))
     .map((v) => Math.abs(v))
     .sort((a, b) => a - b);
   if (abs.length === 0) return 0;
-  return abs[Math.min(abs.length - 1, Math.floor(abs.length * QUANTILE_SATURAZIONE))];
+  return abs[Math.min(abs.length - 1, Math.floor(abs.length * QUANTILE_SCALA))] || 0;
+}
+
+/** Intensità 0-1 di una casella sulla scala della sua griglia. */
+export function intensitaCella(scarto: number, scala: number): number {
+  if (!Number.isFinite(scarto) || !Number.isFinite(scala) || scala <= 0) return 0;
+  return Math.min(1, Math.abs(scarto) / scala);
 }
 
 /**
- * Passo di una casella; `null` = nessuna tinta (scarto nullo o non finito, o
- * griglia senza scala). Uno scarto minimo prende comunque il passo 1: la
- * griglia si legge come mappa anche dove i valori sono piccoli.
+ * Fondo della casella: token del segno (che porta già la coppia daltonica
+ * scelta in Impostazioni) miscelato sulla card. `undefined` = nessuna tinta.
  */
-export function passoCalore(scarto: number, saturazione: number): PassoCalore | null {
-  if (!Number.isFinite(scarto) || scarto === 0) return null;
-  if (!Number.isFinite(saturazione) || saturazione <= 0) return null;
-  const t = Math.min(1, Math.abs(scarto) / saturazione);
-  return Math.max(1, Math.ceil(PASSI_CALORE * t - 1e-9)) as PassoCalore;
+export function fondoCella(scarto: number, scala: number): string | undefined {
+  const intensita = intensitaCella(scarto, scala);
+  if (intensita < INTENSITA_MINIMA) return undefined;
+  const colore = scarto > 0 ? "var(--md-up)" : "var(--md-down)";
+  const pct = Math.round(OPACITA_MIN + intensita * (OPACITA_MAX - OPACITA_MIN));
+  return `color-mix(in oklab, ${colore} ${pct}%, var(--md-bg))`;
 }
 
-/**
- * Attributi della casella per `listino.css` (blocco `.ml-griglia`): la classe
- * dice il segno, `data-calore` il passo. Colori e cifre li disegna il sistema.
- */
-export function attributiCalore(
-  scarto: number,
-  saturazione: number,
-): { className?: string; "data-calore"?: PassoCalore } {
-  const passo = passoCalore(scarto, saturazione);
-  if (passo === null) return {};
-  return { className: scarto > 0 ? "ml-su" : "ml-giu", "data-calore": passo };
+/** Lo scarto che decide il colore, nella stessa unità che la casella mostra. */
+export function scartoDi(value: number, kind: SeasonalityKind, riferimento: number): number {
+  return kind === "LEVEL" ? value - riferimento : value;
 }

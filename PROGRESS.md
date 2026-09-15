@@ -3475,3 +3475,46 @@ l'arrotondamento per eccesso (stessa formula intera in SQL e in `tradesForPercen
 note sotto la tabella, che si scrivono dai dati e non citavano il 30%. Su SIM1, 307 vincenti:
 76,75 → 77 trade. `top30Pct` rinominato `top25Pct` in query e modulo; test aggiornati (il caso di
 virgola mobile ora è il 7% di 100, che in floating point darebbe 8). Nessuna migrazione.
+
+## 17/09/2026 · Stagionalità — la griglia torna al colore pieno del riferimento, grafico −25%
+
+Il proprietario ha giudicato illeggibili le due rese del 15 e del 16/09 e ha chiesto di tornare al
+modello precedente allo scongelamento. Il riferimento non è la memoria ma il tag
+`stagionalita-pre-rifacimento` (commit 40934a0) con `docs/stagionalita-stato-precedente.md` e le
+quattro schermate in `docs/stagionalita/stato-precedente/`: le misure sotto sono lette a pixel da
+quelle immagini e dal DOM delle build.
+
+| | Tag | 16/09 (tenue) | Oggi |
+|---|---|---|---|
+| Glifi delle cifre | 11px (mono 12) | 9px (Geist 12) | **10px (Geist 14)** |
+| Passo riga · cella | 30 · 28px | 25 · 24px | **30 · 28px** |
+| Colonna (oro mese, 1440) | 77px | 50px | **80px** |
+| Prima colonna | 132px | 88px | **128px** |
+| Tabella a 1440 | ~1052px | 686px | **1118px** (tutto il pannello) |
+| Tinta | piena 12→52% | tenue, max 28% | **piena 12→52%** |
+| Sintesi | 4 righe come le celle | fascia a 11px | **stessa taglia delle celle, 94px** |
+
+- **Colore ripristinato** (`calore.ts` riscritto): scala robusta al 90° percentile della griglia,
+  opacità 12→52% del colore del segno sopra la card, cifre in testo primario peso 500. Contrasti
+  misurati alla tinta piena: **7,44:1 in chiaro, 5,61:1 in scuro** su tutte e tre le coppie P&L
+  (il tetto a cui il testo primario regge AA sarebbe 73% e 61%: il 52% del modello originale ci sta
+  dentro, quindi la tinta non è stata toccata). Il test rifà il conto leggendo i token da
+  `globals.css`. Tolti i token `--heat-1…5` della heatmap tenue.
+- **Tipografia**: resta Geist (il riferimento usava Inter + JetBrains Mono), ma sale di un gradino
+  della scala, a 14px: a 12px Geist rende glifi di 9px, a 14px di 10-11px come il mono del tag.
+- **Larghezza**: tabella al 100% con la colonna degli anni a 8rem e l'avanzo spartito fra le colonne
+  dei dati (senza le percentuali il browser regalava tutto alla prima colonna: 341px sull'oro,
+  466px sul VIX). Tetto di 6rem per colonna, così sessione e giorno non diventano caselle vuote.
+- **Sintesi**: Media (tinta, semibold), StDev, In rialzo e Anni alla stessa taglia delle celle sotto
+  il doppio filetto. «In ricalcolo» torna a due parole in una casella sola.
+- **Grafico dell'indice**: area di disegno −25%, 848 → **636px** da md in su (riquadro 944 → 732) e
+  374 → **280px** a 390 (560 → 466). Oro **48,92** px per punto d'indice (era 67,84), S&P 45,43,
+  VIX 22,71; a 390 oro 20,00. Regola di scala invariata.
+
+Tavola CD «Sistema visivo v3 - Stagionalità, ritorno alla tinta piena» (giro 8): confronto affiancato
+tag / tenue / ripristino sui dati veri dell'oro, nei due temi.
+
+Misure (build locale; oro mese/settimana/sessione, S&P ora, VIX mese/giorno; 1440, 1280, 390; due
+temi): 0 testi < 11px, contrasto minimo 4,76 (il triangolo del campione basso, che è grafica),
+0 errori in console, nessuna pagina più larga del viewport. Gate: typecheck, lint, test, build verdi.
+Nessuna migrazione. Schermate in `docs/stagionalita/tinta-piena/`.

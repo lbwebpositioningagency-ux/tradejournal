@@ -587,12 +587,12 @@ export default async function StagionalitaPage({
                   numero falso.
                 </Callout>
               ) : pathSeries.length > 0 ? (
-                /* Altezza del riquadro (16/09/2026): l'area di disegno raddoppia a
-                   partire da md, 424 → 848px (riquadro 520 → 944: legenda e
-                   striscia restano uguali). Sotto md sale da 234 a 374px di
-                   disegno (420 → 560), non al doppio: a 390 il grafico intero,
-                   legenda e striscia comprese, sta ancora in una schermata. */
-                <div className="mt-2 h-[560px] w-full md:h-[944px]">
+                /* Altezza del riquadro. Il 16/09/2026 l'area di disegno era
+                   raddoppiata (424 → 848px da md in su); il 17/09 scende di un
+                   quarto perché il grafico non entrava in una schermata:
+                   848 → 636px di disegno (riquadro 944 → 732) e 374 → 280px a
+                   390 (560 → 466). La regola di scala non cambia. */
+                <div className="mt-2 h-[466px] w-full md:h-[732px]">
                   {/* Rimontato a ogni cambio di strumento, finestra o vista:
                       all'apertura è accesa solo la finestra selezionata. */}
                   <SeasonalPathChart

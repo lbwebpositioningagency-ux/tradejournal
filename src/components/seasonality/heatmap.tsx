@@ -14,7 +14,12 @@ import {
   positiveLabel,
   unitFor,
 } from "@/components/seasonality/format";
-import { attributiCalore, saturazioneCalore } from "@/components/seasonality/calore";
+import {
+  OPACITA_MAX,
+  fondoCella,
+  scalaRobusta,
+  scartoDi,
+} from "@/components/seasonality/calore";
 import { Titolo } from "@/components/macro-desk/listino/primitive";
 import { LowSampleMark } from "@/components/seasonality/low-sample";
 import { sampleQuality } from "@/lib/seasonality/stats";
@@ -31,11 +36,19 @@ import { formatInteger, formatNumber } from "@/lib/format-number";
  * Ricalcolarle a schermo su ciò che si vede sarebbe più facile ma
  * produrrebbe due verità diverse per lo stesso numero.
  *
- * Resa del giro 6 della tavola «Sistema visivo v3 - Stagionalità, heatmap
- * tenue» (16/09/2026): heatmap tenue su tutte le caselle (`calore.ts`, colori e
- * dosi nel sistema), colonne uguali larghe quanto il contenuto, sintesi a due
- * livelli, anno in corso su una riga sola, ricalcolo detto una volta.
+ * COLORE (17/09/2026): torna il modello originale, tinta piena e graduata
+ * (`calore.ts`). Resta tutto ciò che è stato costruito dopo: tipografia e token
+ * del sistema, anno in corso distinto, sintesi in blocco, colonna degli anni
+ * ferma, «%» fuori dalle caselle, legenda della scala e nota in fondo.
+ *
+ * LARGHEZZA: la griglia usa la larghezza della pagina — le colonne vanno da
+ * quanto serve alla cifra più lunga (misurata in `ch`) fino a 7,5rem, oltre le
+ * quali si fermano per non diventare caselle enormi e vuote.
  */
+
+/** Larghezza massima di una colonna: oltre, la griglia si ferma e resta a sinistra. */
+const COLONNA_MAX_REM = 6;
+
 export function SeasonalityHeatmap({
   data,
   kind,
@@ -69,18 +82,19 @@ export function SeasonalityHeatmap({
   const byYearBucket = new Map<string, (typeof data.cells)[number]>();
   for (const c of data.cells) byYearBucket.set(`${c.year}-${c.bucket}`, c);
 
-  /* Lo scarto che decide la tinta è quello che la casella MOSTRA: il
+  /* Lo scarto che decide il colore è quello che la casella MOSTRA: il
      rendimento in percentuale per i prezzi, la distanza dalla mediana della
      finestra per i livelli (un VIX a 20 non è «positivo»). */
-  const scarto = (v: number) => (kind === "LEVEL" ? v - windowMedian : logToPercent(v));
+  const scarto = (v: number) =>
+    kind === "LEVEL" ? scartoDi(v, kind, windowMedian) : logToPercent(v);
 
   /* Scala sulle sole caselle piene degli anni completi: l'anno in corso e i
-     periodi con pochi giorni non devono spostare la saturazione. La riga della
-     media ha la sua: dodici medie non si confrontano con duecento mesi singoli. */
-  const saturazione = saturazioneCalore(
+     periodi con pochi giorni non devono spostarla. La riga della media ha la
+     sua: dodici medie non si confrontano con duecento mesi singoli. */
+  const scala = scalaRobusta(
     data.cells.filter((c) => c.year !== data.currentYear && !c.partial).map((c) => scarto(c.value)),
   );
-  const saturazioneMedia = saturazioneCalore(summary.map((s) => scarto(s.mean)));
+  const scalaMedia = scalaRobusta(summary.map((s) => scarto(s.mean)));
 
   const summaryByBucket = new Map(summary.map((s) => [s.bucket, s]));
   const conSintesi = summary.length > 0;
@@ -90,7 +104,8 @@ export function SeasonalityHeatmap({
      caselle portano il solo conteggio; altrimenti conteggio e denominatore
      stanno in colonna, uno sopra l'altro. */
   const occorrenze = summary.map((s) => s.rawCount ?? s.n);
-  const denominatoreUnico = occorrenze.length > 0 && occorrenze.every((n) => n === occorrenze[0]) ? occorrenze[0] : null;
+  const denominatoreUnico =
+    occorrenze.length > 0 && occorrenze.every((n) => n === occorrenze[0]) ? occorrenze[0] : null;
   const conteggio = (s: BucketView) => {
     const n = s.rawCount ?? s.n;
     return Number.isFinite(s.positiveShare) && n > 0 ? Math.round(s.positiveShare * n) : null;
@@ -103,14 +118,15 @@ export function SeasonalityHeatmap({
     !(anni.every((n) => n === lookbackYears) && sampleQuality(lookbackYears) === "ok");
 
   /* Larghezza delle colonne sul contenuto reale, in `ch` (cifre tabulari: un
-     carattere = una cifra). Le intestazioni in maiuscoletto a 11px sono un po'
-     più larghe di una cifra; la fascia di sintesi a 11px un po' meno. */
+     carattere = una cifra): è il MINIMO, poi la griglia si stira fino a
+     COLONNA_MAX_REM per colonna. Le intestazioni in maiuscoletto a 11px sono un
+     po' più larghe di una cifra. */
   const lunghezze: number[] = [];
   for (const c of data.cells) lunghezze.push(formatCasella(c.value, kind, cellDecimals).length);
   for (const s of summary) {
     lunghezze.push(formatCasella(s.mean, kind, sintesiDecimals).length);
-    lunghezze.push(Math.ceil((formatStdev(s.stdev, kind, unit, sintesiDecimals).length * 11) / 12));
-    lunghezze.push(Math.ceil((formatInteger(s.rawCount ?? s.n).length * 11) / 12));
+    lunghezze.push(formatStdev(s.stdev, kind, unit, sintesiDecimals).length);
+    lunghezze.push(formatInteger(s.rawCount ?? s.n).length);
   }
   for (const b of axis.buckets) lunghezze.push(Math.ceil(axis.short(b).length * 1.1));
   const colonna = Math.max(3, ...lunghezze);
@@ -123,10 +139,13 @@ export function SeasonalityHeatmap({
     );
   }
 
-  const saturazioneTesto =
+  const scalaTesto =
     kind === "LEVEL"
-      ? `±${formatNumber(saturazione, { decimals: 1 })} dalla mediana`
-      : `±${formatNumber(saturazione, { decimals: cellDecimals })}%`;
+      ? `±${formatNumber(scala, { decimals: 1 })} dalla mediana`
+      : `±${formatNumber(scala, { decimals: cellDecimals })}%`;
+  /* Campioni della legenda: la stessa funzione delle caselle, agli stessi
+     livelli di intensità che si vedono in griglia. */
+  const livelli = [1, 0.75, 0.5, 0.25];
 
   return (
     <div className="flex flex-col gap-2">
@@ -143,18 +162,18 @@ export function SeasonalityHeatmap({
                 ? " della settimana"
                 : ", media delle osservazioni di quell’anno"}
           </span>
-          {saturazione > 0 ? (
+          {scala > 0 ? (
             <span className="ml-scala" aria-hidden="true">
               <span>{kind === "LEVEL" ? "sotto" : "giù"}</span>
-              {[5, 4, 3, 2, 1].map((p) => (
-                <i key={`g${p}`} className="ml-giu" data-calore={p} />
+              {livelli.map((l) => (
+                <i key={`g${l}`} style={{ backgroundColor: fondoCella(-l * scala, scala) }} />
               ))}
               <b />
-              {[1, 2, 3, 4, 5].map((p) => (
-                <i key={`s${p}`} className="ml-su" data-calore={p} />
+              {[...livelli].reverse().map((l) => (
+                <i key={`s${l}`} style={{ backgroundColor: fondoCella(l * scala, scala) }} />
               ))}
               <span>{kind === "LEVEL" ? "sopra" : "su"}</span>
-              <span className="text-[var(--md-muted)]">piena da {saturazioneTesto}</span>
+              <span className="text-[var(--md-muted)]">piena da {scalaTesto}</span>
             </span>
           ) : null}
         </div>
@@ -163,15 +182,31 @@ export function SeasonalityHeatmap({
       {/* La griglia scorre DENTRO il suo contenitore, il documento non scorre
           mai in orizzontale (regola F27). */}
       <div className="ml-scroll">
-        <table className="ml-griglia" style={{ "--ml-col": `${colonna}ch` } as CSSProperties}>
+        <table
+          className="ml-griglia"
+          style={
+            {
+              "--ml-col": `${colonna}ch`,
+              maxWidth: `calc(${axis.buckets.length} * ${COLONNA_MAX_REM}rem + 12rem)`,
+            } as CSSProperties
+          }
+        >
           <caption className="sr-only">
             Valore per periodo e per anno, con media, deviazione standard e
             conteggio dei casi in rialzo in fondo.
           </caption>
+          {/* La colonna degli anni resta alla sua larghezza e lo spazio in più
+              si spartisce fra le colonne dei dati: senza le percentuali il
+              browser regalava tutto l'avanzo alla prima colonna (341px sull'oro
+              a 1440, 466px sul VIX). */}
           <colgroup>
-            <col />
+            <col className="ml-col-anni" />
             {axis.buckets.map((b) => (
-              <col key={b} className="ml-col" />
+              <col
+                key={b}
+                className="ml-col"
+                style={{ width: `${(100 / axis.buckets.length).toFixed(3)}%` }}
+              />
             ))}
           </colgroup>
           <thead>
@@ -233,7 +268,12 @@ export function SeasonalityHeatmap({
                       );
                     }
                     return (
-                      <td key={b} title={titolo} {...attributiCalore(scarto(cell.value), saturazione)}>
+                      <td
+                        key={b}
+                        className="ml-cella"
+                        title={titolo}
+                        style={{ backgroundColor: fondoCella(scarto(cell.value), scala) }}
+                      >
                         {formatCasella(cell.value, kind, cellDecimals)}
                       </td>
                     );
@@ -252,7 +292,11 @@ export function SeasonalityHeatmap({
                   const s = summaryByBucket.get(b);
                   if (!s) return <td key={b} className="ml-vuota">—</td>;
                   return (
-                    <td key={b} {...attributiCalore(scarto(s.mean), saturazioneMedia)}>
+                    <td
+                      key={b}
+                      className="ml-cella"
+                      style={{ backgroundColor: fondoCella(scarto(s.mean), scalaMedia) }}
+                    >
                       {formatCasella(s.mean, kind, sintesiDecimals)}
                     </td>
                   );
@@ -260,20 +304,20 @@ export function SeasonalityHeatmap({
               </tr>
               <SintesiRiga
                 label="StDev"
-                className="ml-sintesi-2 ml-sintesi-apre"
+                className="ml-sintesi ml-sintesi-apre"
                 buckets={axis.buckets}
                 values={summaryByBucket}
                 render={(s) => formatStdev(s.stdev, kind, unit, sintesiDecimals)}
               />
               {frequenzeInRicalcolo ? (
-                <tr className="ml-sintesi-2 ml-sintesi-chiude">
+                <tr className="ml-sintesi">
                   <th scope="row">{positiveLabel(kind)}</th>
                   <td
                     colSpan={axis.buckets.length}
                     className="ml-ricalcolo"
                     title="In archivio c'è ancora la quota del calcolo precedente, contata sugli anni: il conteggio sulle occorrenze arriva col prossimo ricalcolo notturno."
                   >
-                    in ricalcolo · il conteggio sulle occorrenze arriva col giro notturno
+                    in ricalcolo
                   </td>
                 </tr>
               ) : (
@@ -282,11 +326,13 @@ export function SeasonalityHeatmap({
                     <>
                       {positiveLabel(kind)}{" "}
                       <span className="ml-sintesi-den">
-                        {denominatoreUnico !== null ? `su ${formatInteger(denominatoreUnico)}` : `${axis.rawUnit} su`}
+                        {denominatoreUnico !== null
+                          ? `su ${formatInteger(denominatoreUnico)}`
+                          : `${axis.rawUnit} su`}
                       </span>
                     </>
                   }
-                  className="ml-sintesi-2 ml-sintesi-chiude"
+                  className="ml-sintesi"
                   buckets={axis.buckets}
                   values={summaryByBucket}
                   render={(s) => {
@@ -307,7 +353,7 @@ export function SeasonalityHeatmap({
               {anniDaMostrare ? (
                 <SintesiRiga
                   label="Anni"
-                  className="ml-anni"
+                  className="ml-sintesi"
                   buckets={axis.buckets}
                   values={summaryByBucket}
                   render={(s) => (
@@ -325,11 +371,12 @@ export function SeasonalityHeatmap({
 
       <p className="text-2xs leading-relaxed text-[var(--md-muted)]">
         Valori in {UNIT_LABEL[unit]}{kind === "LEVEL" ? "" : " (senza il simbolo nelle caselle)"}.
-        La tinta cresce con lo scarto{kind === "LEVEL" ? " dalla mediana della finestra" : " da zero"} in
-        cinque passi ed è piena dal 95° percentile di questa griglia ({saturazioneTesto}); le cifre più
-        scure segnano i due passi più forti. L&apos;anno in corso, su fondo grigio, è in griglia ma fuori
-        da ogni media — le finestre usano solo anni solari completi. Le caselle senza tinta in grigio
-        hanno troppo pochi giorni di quotazione per essere un periodo pieno.
+        Il colore riempie la casella nel verso del segno e cresce con lo scarto
+        {kind === "LEVEL" ? " dalla mediana della finestra" : " da zero"}, fino alla tinta piena
+        ({OPACITA_MAX}% del colore) dal 90° percentile di questa griglia in su ({scalaTesto}).
+        L&apos;anno in corso, su fondo grigio, è in griglia ma fuori da ogni media — le finestre usano
+        solo anni solari completi. Le caselle in grigio hanno troppo pochi giorni di quotazione per
+        essere un periodo pieno.
         {conSintesi && !anniDaMostrare ? ` Tutte le colonne contano ${lookbackYears} anni.` : ""}
         {granularity === "WEEK"
           ? " Le settimane sono ISO: quella a cavallo di capodanno appartiene per intero a uno solo dei due anni."
@@ -350,7 +397,6 @@ function SintesiRiga({
   render,
 }: {
   label: ReactNode;
-  /** `ml-sintesi-2 …` dentro la fascia, `ml-anni` fuori (sulla card). */
   className: string;
   buckets: number[];
   values: Map<number, BucketView>;

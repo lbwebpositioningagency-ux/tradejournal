@@ -141,9 +141,10 @@
      cambiano: stanno in metrics/monthly-returns.ts.
      Il testo NON è il token P&L: sono i due token qui sotto, misurati su ogni
      gradino di ogni coppia (theme-contrast.test.ts).
-     DA NON CONFONDERE con `--heat-1…5` più sotto: quelle sono DOSI in
-     percentuale della griglia anni × periodo della Stagionalità (taratura a
-     cinque passi, decisa a parte), non colori, e non entrano qui. */
+     Questi sono gli UNICI token --heat-*: le dosi in percentuale della griglia
+     anni × periodo della Stagionalità (--heat-1…5, taratura a cinque passi)
+     sono state tolte il 17/09/2026 col ritorno alla tinta piena, che si calcola
+     dal valore in `components/seasonality/calore.ts` e non da un token. */
   --heat-profit-1: oklch(0.92 0.075 158);
   --heat-profit-2: oklch(0.84 0.13 158);
   --heat-profit-3: oklch(0.74 0.173 158); /* cifra 9.05 · secondario 5.01 */
@@ -166,19 +167,6 @@
      barre-parola: grafica, non testo. */
   --rule: oklch(0.837 0.016 257);
   --track: oklch(0.951 0.006 255);
-  /* SCALA DI CALORE della griglia anni × periodo (Stagionalità, 16/09/2026,
-     tavola «Sistema visivo v3 - Stagionalità, heatmap tenue», taratura P):
-     quanto del colore del segno entra nel fondo della card, per passo 1→5
-     (`color-mix(in oklab, segno p%, card)`, passo da `calore.ts`). Non sono
-     colori ma dosi: il colore resta --profit/--loss con la coppia daltonica.
-     Cifre in --foreground-2 ai passi 1-3 e in --foreground ai passi 4-5:
-     contrasto minimo calcolato 6,79 (passo 3, blu su rosso incluse le coppie
-     daltoniche), 12,00 alla tinta piena. */
-  --heat-1: 6%;
-  --heat-2: 10%;
-  --heat-3: 15%;
-  --heat-4: 21%;
-  --heat-5: 28%;
   /* DATI CATEGORICI: identificano un asset o una finestra, non giudicano.
      Mai per stati o segni. Tutti ≥ 4,5 su card anche come testo; il 15 anni
      è stato scurito di un gradino di luminosità (4,27 → 4,6 su card). */
@@ -260,13 +248,6 @@
   --foreground-2: oklch(0.763 0.031 258); /* 9,32 bg · 8,45 card */
   --rule: oklch(0.328 0.035 262);
   --track: oklch(0.222 0.025 264);
-  /* Sul fondo scuro la stessa dose si vede meno: passi più alti. Cifre come in
-     chiaro; minimo calcolato 6,03 (passo 3), 8,48 alla tinta piena. */
-  --heat-1: 9%;
-  --heat-2: 14%;
-  --heat-3: 20%;
-  --heat-4: 27%;
-  --heat-5: 35%;
   --data-gold: oklch(0.807 0.133 91);
   --data-oil: oklch(0.71 0.132 55);
   --data-idx: oklch(0.721 0.131 274);
@@ -728,11 +709,6 @@
      --foreground-2: oklch(0.413 0.029 256);
     --rule: oklch(0.837 0.016 257);
     --track: oklch(0.951 0.006 255);
-    --heat-1: 6%;
-    --heat-2: 10%;
-    --heat-3: 15%;
-    --heat-4: 21%;
-    --heat-5: 28%;
     --data-gold: oklch(0.548 0.106 89);
     --data-oil: oklch(0.535 0.13 50);
     --data-idx: oklch(0.438 0.142 269);
