@@ -217,6 +217,92 @@ export function drawdownDurationSummary(
   };
 }
 
+// ── L'episodio in corso contro la storia (fase 5) ───────────────────────
+
+/**
+ * Dove sta il drawdown IN CORSO rispetto agli episodi già chiusi: «sei a 40
+ * sedute sotto il massimo, più lungo dell'85% dei tuoi episodi».
+ *
+ * Solo il fatto e la sua posizione, nessun verdetto e nessun consiglio: un
+ * episodio lungo non dice che il sistema si è rotto, dice dove cade nella tua
+ * distribuzione.
+ *
+ * - Stessa soglia della distribuzione: sotto 20 episodi chiusi nessuna quota,
+ *   perché «più lungo del 60%» di cinque episodi vuol dire «più lungo di
+ *   tre».
+ * - L'episodio in corso resta FUORI dal confronto: si confronta con i chiusi,
+ *   e la sua durata è un minimo che può solo crescere.
+ * - Quota = episodi chiusi STRETTAMENTE più corti (o meno profondi) sul totale
+ *   dei chiusi: a pari durata non si è «più lunghi».
+ */
+export interface CurrentEpisodePosition {
+  episode: DrawdownEpisode;
+  /** Episodi chiusi con cui si confronta (già filtrati per profondità). */
+  closedCount: number;
+  lowSample: boolean;
+  /** Quota 0-1 (4 decimali) di chiusi più corti; null sotto campione. */
+  durationShare: string | null;
+  /**
+   * Quota 0-1 di chiusi meno profondi (in % del massimo); null sotto campione
+   * o se la profondità in % non è definita (massimo ≤ 0).
+   */
+  depthShare: string | null;
+  /** Durata del chiuso più lungo, per dire «più lungo di tutti» con il numero. */
+  longestClosed: number | null;
+  /** L'episodio in corso è già più lungo di ogni chiuso. */
+  longerThanAll: boolean;
+}
+
+export function currentEpisodePosition(
+  summary: Pick<DrawdownDurationSummary, "closed" | "open">,
+): CurrentEpisodePosition | null {
+  const episode = summary.open;
+  if (!episode) return null;
+  const closed = summary.closed;
+  const closedCount = closed.length;
+  const lowSample = closedCount < DRAWDOWN_EPISODES_MIN;
+  const longestClosed =
+    closedCount === 0 ? null : Math.max(...closed.map((e) => e.durationSessions));
+
+  const share = (count: number, total: number) =>
+    new Decimal(count).div(total).toFixed(4);
+
+  let depthShare: string | null = null;
+  if (!lowSample && episode.depthPct !== null) {
+    const withPct = closed.filter((e) => e.depthPct !== null);
+    if (withPct.length >= DRAWDOWN_EPISODES_MIN) {
+      const shallower = withPct.filter((e) =>
+        new Decimal(e.depthPct!).lt(episode.depthPct!),
+      ).length;
+      depthShare = share(shallower, withPct.length);
+    }
+  }
+
+  return {
+    episode,
+    closedCount,
+    lowSample,
+    durationShare: lowSample
+      ? null
+      : share(
+          closed.filter((e) => e.durationSessions < episode.durationSessions).length,
+          closedCount,
+        ),
+    depthShare,
+    longestClosed,
+    longerThanAll: longestClosed !== null && episode.durationSessions > longestClosed,
+  };
+}
+
+export const currentDrawdownInfo: MetricInfoData = {
+  label: "Drawdown in corso",
+  description:
+    "Da quante sedute l'equity è sotto il suo ultimo massimo e dove cade questa durata fra gli episodi già chiusi: «più lungo dell'85%» vuol dire che 85 episodi chiusi su 100 sono finiti prima. È una posizione nella tua storia, non un segnale: non dice né che il sistema si è rotto né che sta per riprendersi.",
+  formula:
+    "Quota = episodi chiusi strettamente più corti ÷ episodi chiusi · stessa soglia di profondità del pannello · minimo 20 episodi chiusi",
+  note: "La durata in corso è un minimo: può solo crescere. La serie si ferma all'ultima seduta con trade del periodo.",
+};
+
 export const drawdownDurationInfo: MetricInfoData = {
   label: "Durata dei drawdown",
   description:

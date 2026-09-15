@@ -1,0 +1,350 @@
+[
+  {
+    "pagina": "/analytics?rw=120",
+    "larghezza": 1440,
+    "tema": "light",
+    "file": "analytics_rw_120__1440__light.png",
+    "altezza": 6868,
+    "innerWidth": 1440,
+    "scrollWidth": 1440,
+    "rischio": {
+      "top": 1179,
+      "h": 2011
+    },
+    "piccoli": [],
+    "bassi": [],
+    "sbordi": [
+      0,
+      0,
+      0,
+      0,
+      0
+    ],
+    "testoDurata": [
+      "Durata dei drawdown",
+      "Distribuzione delle streak",
+      "Concentrazione del profitto",
+      "Correlazione fra strategie"
+    ],
+    "erroriConsole": []
+  },
+  {
+    "pagina": "/analytics?period=all",
+    "larghezza": 1440,
+    "tema": "light",
+    "file": "analytics_period_all__1440__light.png",
+    "altezza": 6868,
+    "innerWidth": 1440,
+    "scrollWidth": 1440,
+    "rischio": {
+      "top": 1179,
+      "h": 2011
+    },
+    "piccoli": [],
+    "bassi": [],
+    "sbordi": [
+      0,
+      0,
+      0,
+      0,
+      0
+    ],
+    "testoDurata": [
+      "Durata dei drawdown",
+      "Distribuzione delle streak",
+      "Concentrazione del profitto",
+      "Correlazione fra strategie"
+    ],
+    "erroriConsole": []
+  },
+  {
+    "pagina": "/analytics?period=custom&from=2025-01-01&to=2025-09-30",
+    "larghezza": 1440,
+    "tema": "light",
+    "file": "analytics_period_custom_from_2025-01-01_to_2025-09-30__1440__light.png",
+    "altezza": 7047,
+    "innerWidth": 1440,
+    "scrollWidth": 1440,
+    "rischio": {
+      "top": 1179,
+      "h": 2190
+    },
+    "piccoli": [],
+    "bassi": [],
+    "sbordi": [
+      0,
+      0,
+      0,
+      0,
+      0
+    ],
+    "testoDurata": [
+      "Durata dei drawdown",
+      "Distribuzione delle streak",
+      "Concentrazione del profitto",
+      "Correlazione fra strategie"
+    ],
+    "erroriConsole": []
+  },
+  {
+    "pagina": "/analytics?rw=120",
+    "larghezza": 390,
+    "tema": "light",
+    "file": "analytics_rw_120__390__light.png",
+    "altezza": 9757,
+    "innerWidth": 390,
+    "scrollWidth": 390,
+    "rischio": {
+      "top": 1826,
+      "h": 2580
+    },
+    "piccoli": [],
+    "bassi": [],
+    "sbordi": [
+      0,
+      316,
+      0,
+      0,
+      252
+    ],
+    "testoDurata": [
+      "Durata dei drawdown",
+      "Distribuzione delle streak",
+      "Concentrazione del profitto",
+      "Correlazione fra strategie"
+    ],
+    "erroriConsole": []
+  },
+  {
+    "pagina": "/analytics?period=all",
+    "larghezza": 390,
+    "tema": "light",
+    "file": "analytics_period_all__390__light.png",
+    "altezza": 9757,
+    "innerWidth": 390,
+    "scrollWidth": 390,
+    "rischio": {
+      "top": 1826,
+      "h": 2580
+    },
+    "piccoli": [],
+    "bassi": [],
+    "sbordi": [
+      0,
+      316,
+      0,
+      0,
+      252
+    ],
+    "testoDurata": [
+      "Durata dei drawdown",
+      "Distribuzione delle streak",
+      "Concentrazione del profitto",
+      "Correlazione fra strategie"
+    ],
+    "erroriConsole": []
+  },
+  {
+    "pagina": "/analytics?period=custom&from=2025-01-01&to=2025-09-30",
+    "larghezza": 390,
+    "tema": "light",
+    "file": "analytics_period_custom_from_2025-01-01_to_2025-09-30__390__light.png",
+    "altezza": 9992,
+    "innerWidth": 390,
+    "scrollWidth": 390,
+    "rischio": {
+      "top": 1846,
+      "h": 2811
+    },
+    "piccoli": [],
+    "bassi": [],
+    "sbordi": [
+      0,
+      316,
+      0,
+      0,
+      252
+    ],
+    "testoDurata": [
+      "Durata dei drawdown",
+      "Distribuzione delle streak",
+      "Concentrazione del profitto",
+      "Correlazione fra strategie"
+    ],
+    "erroriConsole": []
+  },
+  {
+    "pagina": "/analytics?rw=120",
+    "larghezza": 1440,
+    "tema": "dark",
+    "file": "analytics_rw_120__1440__dark.png",
+    "altezza": 6868,
+    "innerWidth": 1440,
+    "scrollWidth": 1440,
+    "rischio": {
+      "top": 1179,
+      "h": 2011
+    },
+    "piccoli": [],
+    "bassi": [],
+    "sbordi": [
+      0,
+      0,
+      0,
+      0,
+      0
+    ],
+    "testoDurata": [
+      "Durata dei drawdown",
+      "Distribuzione delle streak",
+      "Concentrazione del profitto",
+      "Correlazione fra strategie"
+    ],
+    "erroriConsole": []
+  },
+  {
+    "pagina": "/analytics?period=all",
+    "larghezza": 1440,
+    "tema": "dark",
+    "file": "analytics_period_all__1440__dark.png",
+    "altezza": 6868,
+    "innerWidth": 1440,
+    "scrollWidth": 1440,
+    "rischio": {
+      "top": 1179,
+      "h": 2011
+    },
+    "piccoli": [],
+    "bassi": [],
+    "sbordi": [
+      0,
+      0,
+      0,
+      0,
+      0
+    ],
+    "testoDurata": [
+      "Durata dei drawdown",
+      "Distribuzione delle streak",
+      "Concentrazione del profitto",
+      "Correlazione fra strategie"
+    ],
+    "erroriConsole": []
+  },
+  {
+    "pagina": "/analytics?period=custom&from=2025-01-01&to=2025-09-30",
+    "larghezza": 1440,
+    "tema": "dark",
+    "file": "analytics_period_custom_from_2025-01-01_to_2025-09-30__1440__dark.png",
+    "altezza": 7047,
+    "innerWidth": 1440,
+    "scrollWidth": 1440,
+    "rischio": {
+      "top": 1179,
+      "h": 2190
+    },
+    "piccoli": [],
+    "bassi": [],
+    "sbordi": [
+      0,
+      0,
+      0,
+      0,
+      0
+    ],
+    "testoDurata": [
+      "Durata dei drawdown",
+      "Distribuzione delle streak",
+      "Concentrazione del profitto",
+      "Correlazione fra strategie"
+    ],
+    "erroriConsole": []
+  },
+  {
+    "pagina": "/analytics?rw=120",
+    "larghezza": 390,
+    "tema": "dark",
+    "file": "analytics_rw_120__390__dark.png",
+    "altezza": 9757,
+    "innerWidth": 390,
+    "scrollWidth": 390,
+    "rischio": {
+      "top": 1826,
+      "h": 2580
+    },
+    "piccoli": [],
+    "bassi": [],
+    "sbordi": [
+      0,
+      316,
+      0,
+      0,
+      252
+    ],
+    "testoDurata": [
+      "Durata dei drawdown",
+      "Distribuzione delle streak",
+      "Concentrazione del profitto",
+      "Correlazione fra strategie"
+    ],
+    "erroriConsole": []
+  },
+  {
+    "pagina": "/analytics?period=all",
+    "larghezza": 390,
+    "tema": "dark",
+    "file": "analytics_period_all__390__dark.png",
+    "altezza": 9757,
+    "innerWidth": 390,
+    "scrollWidth": 390,
+    "rischio": {
+      "top": 1826,
+      "h": 2580
+    },
+    "piccoli": [],
+    "bassi": [],
+    "sbordi": [
+      0,
+      316,
+      0,
+      0,
+      252
+    ],
+    "testoDurata": [
+      "Durata dei drawdown",
+      "Distribuzione delle streak",
+      "Concentrazione del profitto",
+      "Correlazione fra strategie"
+    ],
+    "erroriConsole": []
+  },
+  {
+    "pagina": "/analytics?period=custom&from=2025-01-01&to=2025-09-30",
+    "larghezza": 390,
+    "tema": "dark",
+    "file": "analytics_period_custom_from_2025-01-01_to_2025-09-30__390__dark.png",
+    "altezza": 9992,
+    "innerWidth": 390,
+    "scrollWidth": 390,
+    "rischio": {
+      "top": 1846,
+      "h": 2811
+    },
+    "piccoli": [],
+    "bassi": [],
+    "sbordi": [
+      0,
+      316,
+      0,
+      0,
+      252
+    ],
+    "testoDurata": [
+      "Durata dei drawdown",
+      "Distribuzione delle streak",
+      "Concentrazione del profitto",
+      "Correlazione fra strategie"
+    ],
+    "erroriConsole": []
+  }
+]

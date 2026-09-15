@@ -117,6 +117,11 @@ export {
   type Extremes,
 } from "./extremes";
 export {
+  currentEpisodePosition,
+  currentDrawdownInfo,
+  type CurrentEpisodePosition,
+} from "./drawdown-episodes";
+export {
   drawdownEpisodes,
   drawdownDurationSummary,
   drawdownDurationInfo,

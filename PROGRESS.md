@@ -3310,3 +3310,23 @@ insufficiente. Misure a 1440/390 nei due temi (Reports, Reports su due settimane
 che segue un'espressione a inizio riga e contiene un'entità (`&apos;`, `&amp;`) perde lo spazio
 iniziale nella build («17trade») — spazio esplicito `{" "}`. Gate (dopo il rebase su e1c5730): typecheck,
 lint, 2.239 test, build verdi. Nessuna migrazione. Schermate in `docs/journal/fase4-intervalli/`.
+
+## 15/09/2026 · Journal fase 5 — drawdown in corso contro la tua storia (P2)
+
+Tavola Claude Design «Analytics - fase 5 - drawdown in corso». `currentEpisodePosition` in
+`lib/metrics/drawdown-episodes.ts`: l'episodio aperto confrontato coi chiusi della stessa soglia di
+profondità — quota dei chiusi strettamente più corti e dei meno profondi, il chiuso più lungo, «più
+lungo di tutti». Stessa soglia della distribuzione (20 episodi chiusi): sotto, nessuna quota.
+L'episodio in corso resta fuori dai conteggi.
+
+Nel pannello «Durata dei drawdown» la riga «In corso» diventa un riquadro: il fatto (sedute sotto il
+massimo, profondità, fino all'ultima seduta con trade), la posizione («più lungo del 51% dei 37
+episodi chiusi · più profondo del 57%» su SIM1), una striscia a scala logaritmica delle durate
+(aria-hidden, descrizione sr-only) e la frase «una posizione nella tua storia, non un segnale».
+Nessun verdetto, nessun consiglio, nessun colore d'allarme. Sotto campione (SIM1 fino al 30/09/2025:
+53 sedute, 11 chiusi): riquadro tratteggiato «Confronto con la storia non disponibile · 11 episodi
+chiusi, ne servono 20» e «Il più lungo chiuso finora: 58 sedute».
+
+Misure (capitolo Rischio, 1440/390, due temi, tutto lo storico e gen–set 2025): 0 testi < 11px,
+0 < 4,5:1, 0 errori, nessuna pagina più larga del viewport. Gate: typecheck, lint, 2.247 test, build
+verdi. Nessuna migrazione. Schermate in `docs/journal/fase5-drawdown-in-corso/`.

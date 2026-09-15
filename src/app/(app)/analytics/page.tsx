@@ -42,6 +42,7 @@ import {
   correlationInfo,
   CORRELATION_MIN_DAYS,
   EXTREME_MIN_TRADES,
+  currentEpisodePosition,
   drawdownDurationInfo,
   drawdownDurationSummary,
   drawdownEpisodes,
@@ -69,6 +70,7 @@ import {
   CorrelationPairsTable,
 } from "@/components/analytics/correlation-matrix";
 import { DrawdownEpisodesTable } from "@/components/analytics/drawdown-episodes-table";
+import { CurrentDrawdown } from "@/components/analytics/current-drawdown";
 import { SegmentedNav } from "@/components/ui/segmented";
 import {
   DAY_WINDOWS,
@@ -604,6 +606,9 @@ export default async function AnalyticsPage({
     drawdownEpisodes(returnsSeries, seriesEquity),
     depthFilter.minPct,
   );
+  // Fase 5: l'episodio in corso contro i chiusi della stessa soglia; null se
+  // nessun episodio è aperto (o se non supera la soglia di profondità).
+  const ddCurrent = currentEpisodePosition(ddSummary);
   const depthHref = (key: DrawdownDepthKey) => {
     const query = new URLSearchParams();
     for (const [k, value] of Object.entries(params)) {
@@ -1080,18 +1085,15 @@ export default async function AnalyticsPage({
                           <DrawdownDurationChart bands={ddSummary.bands} />
                         )}
 
-                        {ddSummary.open && (
-                          <p className="text-xs text-[var(--foreground-2)]">
-                            In corso: {ddSummary.open.durationSessions} sedute sotto il
-                            massimo
-                            {ddSummary.open.peakDay
-                              ? ` del ${ddSummary.open.peakDay.split("-").reverse().join("/")}`
-                              : " di inizio periodo"}
-                            {ddSummary.open.depthPct !== null &&
-                              ` (${formatPercent(`-${ddSummary.open.depthPct}`)} nel punto più basso)`}
-                            . Non entra nei conteggi: la sua durata è solo un minimo.
-                          </p>
-                        )}
+                        {/* Fase 5 — l'episodio in corso contro la storia
+                            (tavola «Analytics - fase 5 - drawdown in corso»). */}
+                        {ddCurrent ? (
+                          <CurrentDrawdown
+                            position={ddCurrent}
+                            closedDurations={ddSummary.closed.map((e) => e.durationSessions)}
+                            lastDay={returnsSeries.at(-1)?.day ?? null}
+                          />
+                        ) : null}
 
                         {ddSummary.lowSample ? (
                           <DrawdownEpisodesTable
