@@ -140,7 +140,10 @@
      gradino) il valore è il massimo disponibile. Le soglie di intensità non
      cambiano: stanno in metrics/monthly-returns.ts.
      Il testo NON è il token P&L: sono i due token qui sotto, misurati su ogni
-     gradino di ogni coppia (theme-contrast.test.ts). */
+     gradino di ogni coppia (theme-contrast.test.ts).
+     DA NON CONFONDERE con `--heat-1…5` più sotto: quelle sono DOSI in
+     percentuale della griglia anni × periodo della Stagionalità (taratura a
+     cinque passi, decisa a parte), non colori, e non entrano qui. */
   --heat-profit-1: oklch(0.92 0.075 158);
   --heat-profit-2: oklch(0.84 0.13 158);
   --heat-profit-3: oklch(0.74 0.173 158); /* cifra 9.05 · secondario 5.01 */
