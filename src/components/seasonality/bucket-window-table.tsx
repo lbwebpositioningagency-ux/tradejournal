@@ -344,6 +344,9 @@ export function BucketWindowTable({
         ({axis.rawUnit}), come il campione; media, mediana, StDev e banda sugli anni. Le frequenze sono
         conteggi storici, non probabilità. {meanHelp(kind)} Ogni colonna «{meanLabel(kind)}» porta il suo n
         nel tooltip.
+        {granularity === "WEEK"
+          ? " La settimana 53 esiste solo in alcuni anni (tre su venti) ed è esclusa dal calcolo: il suo campione non sarebbe confrontabile con quello delle altre cinquantadue."
+          : ""}
         {notaEstremi ? ` ${notaEstremi}` : ""}
       </p>
     </div>

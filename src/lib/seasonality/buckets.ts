@@ -232,6 +232,29 @@ export const WEEKDAY_LABELS: Record<number, string> = {
 };
 
 /** Filtro del drill: tutto l'anno oppure dentro un singolo mese. */
+/**
+ * LA SETTIMANA ISO 53 È ESCLUSA (17/09/2026, richiesta del proprietario).
+ *
+ * Esiste solo negli anni in cui il 1° gennaio è giovedì (o mercoledì in un anno
+ * bisestile): su una finestra di vent'anni capita tre volte. Il bucket risultava
+ * una riga con tre osservazioni su venti, celle vuote nella griglia e statistiche
+ * non confrontabili con le altre cinquantadue — una media su 3 anni accanto a
+ * medie su 20.
+ *
+ * L'esclusione è a monte, nel CALCOLO: le osservazioni di quella settimana non
+ * entrano né nelle statistiche né nelle caselle della griglia; la resa non fa che
+ * elencare i bucket qui sotto, che sono 1-52 e senza buchi.
+ */
+export const SETTIMANA_ESCLUSA = 53;
+
+/** I bucket della vista Settimana: 1-52, la 53 esclusa. */
+export const WEEK_BUCKETS: readonly number[] = Array.from({ length: 52 }, (_, i) => i + 1);
+
+/** Falso per la settimana esclusa: unico punto in cui si decide. */
+export function settimanaInclusa(week: number): boolean {
+  return week !== SETTIMANA_ESCLUSA;
+}
+
 export const SCOPE_ALL = "ALL";
 
 export function monthScope(month: number): string {

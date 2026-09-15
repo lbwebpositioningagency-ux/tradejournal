@@ -3518,3 +3518,31 @@ Misure (build locale; oro mese/settimana/sessione, S&P ora, VIX mese/giorno; 144
 temi): 0 testi < 11px, contrasto minimo 4,76 (il triangolo del campione basso, che è grafica),
 0 errori in console, nessuna pagina più larga del viewport. Gate: typecheck, lint, test, build verdi.
 Nessuna migrazione. Schermate in `docs/stagionalita/tinta-piena/`.
+
+## 17/09/2026 · Stagionalità, vista Settimana — via la settimana 53
+
+La settimana ISO 53 esiste solo quando il 1° gennaio è giovedì (o mercoledì in un anno bisestile):
+tre volte su venti anni. Produceva una riga con tre osservazioni contro venti, celle quasi tutte
+vuote nella griglia e statistiche non confrontabili con le altre cinquantadue.
+
+- **Esclusa dal calcolo, non nascosta alla resa.** Unica definizione in `lib/seasonality/buckets.ts`
+  (`SETTIMANA_ESCLUSA`, `WEEK_BUCKETS` 1-52, `settimanaInclusa`). In `precompute.ts` il filtro sta
+  dove nascono le osservazioni settimanali, quindi la 53 non entra né nelle statistiche, né nelle
+  caselle della griglia (`SeasonalityYearBucketObs`), né nelle righe di ampiezza. La vista elenca i
+  bucket 1-52: numerazione contigua, nessun buco.
+- **Dichiarata** in due punti della vista: nota della griglia e nota di metodo sotto la tabella
+  («esiste solo in alcuni anni (tre su venti) ed è esclusa dal calcolo: il suo campione non sarebbe
+  confrontabile con quello delle altre cinquantadue»).
+- **Righe vecchie in archivio**: il job cancella e riscrive per strumento, quindi le righe con
+  bucket 53 spariscono al primo giro notturno; fino a quel momento restano nel database ma la pagina
+  non le legge, perché elenca i bucket 1-52.
+- **Il 29 febbraio, per confronto, NON è un caso analogo** (verificato, non toccato): non è mai un
+  bucket. Nel calendario dell'indice (`lib/seasonality/indice.ts`) l'anno è di 365 giorni e il 29
+  febbraio condivide la posizione 59 con il 28; nella vista Giorno i bucket sono i giorni della
+  settimana lunedì-venerdì, quindi il 29 febbraio entra come un qualunque giorno del suo weekday.
+  Non esiste una riga «29 febbraio» con campione piccolo.
+
+Misure: griglia a 52 colonne su oro, S&P e VIX, a 1440, 1280 e 390 nei due temi; 0 testi < 11px,
+0 errori in console, nessuna pagina più larga del viewport. Gate: typecheck, lint, test (aggiornati
+quelli che contavano 53 settimane), build verdi. Nessuna migrazione. Schermate in
+`docs/stagionalita/settimana-53/`.

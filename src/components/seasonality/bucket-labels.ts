@@ -4,6 +4,7 @@ import {
   MONTH_LABELS_SHORT,
   WEEKDAY_BUCKETS,
   WEEKDAY_LABELS,
+  WEEK_BUCKETS,
   hourLabel,
   weekLabel,
 } from "@/lib/seasonality/buckets";
@@ -31,7 +32,8 @@ export interface BucketAxis {
   rawUnit: string;
 }
 
-const WEEK_BUCKETS = Array.from({ length: 53 }, (_, i) => i + 1);
+/* I bucket della settimana vengono da `lib/seasonality/buckets.ts`: la 53 è
+   esclusa a monte, nel calcolo, e qui non c'è niente da nascondere. */
 const MONTH_BUCKETS = Array.from({ length: 12 }, (_, i) => i + 1);
 const HOUR_BUCKETS = Array.from({ length: 24 }, (_, i) => i);
 const SESSION_BUCKETS = SESSIONS.map((_, i) => i);
@@ -52,7 +54,7 @@ export const BUCKET_AXIS: Record<
     rawUnit: "mesi",
   },
   WEEK: {
-    buckets: WEEK_BUCKETS,
+    buckets: [...WEEK_BUCKETS],
     label: (b) => `Settimana ${b}`,
     short: weekLabel,
     columnName: "Settimana ISO",

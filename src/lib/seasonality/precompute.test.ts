@@ -437,7 +437,7 @@ function dailySeries(
 }
 
 describe("precomputeDaily — settimana ISO", () => {
-  it("produce 53 bucket settimanali, con la 53 più rara", () => {
+  it("produce 52 bucket settimanali senza buchi: la 53 è esclusa dal calcolo", () => {
     const out = precomputeDaily({
       instrument: "SPX",
       kind: "RETURN",
@@ -448,15 +448,15 @@ describe("precomputeDaily — settimana ISO", () => {
       (s) => s.granularity === "WEEK" && s.lookbackYears === 20 && !s.detrended,
     );
     const buckets = settimane.map((s) => s.bucket).sort((a, b) => a - b);
-    expect(buckets[0]).toBe(1);
-    expect(buckets[buckets.length - 1]).toBe(53);
+    expect(buckets).toEqual(Array.from({ length: 52 }, (_, i) => i + 1));
+    expect(settimane.find((s) => s.bucket === 53)).toBeUndefined();
+    expect(settimane.find((s) => s.bucket === 52)!.n).toBe(20);
 
-    const s52 = settimane.find((s) => s.bucket === 52)!;
-    const s53 = settimane.find((s) => s.bucket === 53)!;
-    // La 53 esiste solo in alcuni anni: campione più piccolo, non assente.
-    expect(s52.n).toBe(20);
-    expect(s53.n).toBeGreaterThan(0);
-    expect(s53.n).toBeLessThan(s52.n);
+    // E nemmeno una casella della griglia: l'esclusione è a monte, non una
+    // riga nascosta alla resa.
+    expect(out.observations.some((o) => o.granularity === "WEEK" && o.bucket === 53)).toBe(false);
+    expect(out.observations.filter((o) => o.granularity === "WEEK" && o.bucket === 52).length)
+      .toBeGreaterThan(20);
   });
 
   it("riconosce una settimana stagionalmente forte", () => {

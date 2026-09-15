@@ -379,7 +379,7 @@ export function SeasonalityHeatmap({
         essere un periodo pieno.
         {conSintesi && !anniDaMostrare ? ` Tutte le colonne contano ${lookbackYears} anni.` : ""}
         {granularity === "WEEK"
-          ? " Le settimane sono ISO: quella a cavallo di capodanno appartiene per intero a uno solo dei due anni."
+          ? " Le settimane sono ISO: quella a cavallo di capodanno appartiene per intero a uno solo dei due anni. La settimana 53 esiste solo in alcuni anni ed è esclusa dal calcolo: il suo campione non sarebbe confrontabile con quello delle altre."
           : ""}
         {granularity === "WEEKDAY"
           ? " Ogni casella è la media dei giorni di quel tipo in quell’anno."

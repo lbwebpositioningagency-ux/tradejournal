@@ -1,5 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
+  SETTIMANA_ESCLUSA,
+  WEEK_BUCKETS,
   dayOfYear,
   isoWeek,
   isoWeekYear,
@@ -9,6 +11,7 @@ import {
   scopeMonth,
   sessionBucket,
   sessionOfHour,
+  settimanaInclusa,
   zonedParts,
 } from "@/lib/seasonality/buckets";
 
@@ -186,5 +189,24 @@ describe("scope del drill", () => {
     expect(scopeMonth("M13")).toBeNull();
     expect(scopeMonth("M00")).toBeNull();
     expect(scopeMonth("gennaio")).toBeNull();
+  });
+});
+
+describe("settimana 53 — esclusa dalla vista Settimana", () => {
+  it("i bucket sono 1-52, senza buchi e senza la 53", () => {
+    expect(WEEK_BUCKETS.length).toBe(52);
+    expect([...WEEK_BUCKETS]).toEqual(Array.from({ length: 52 }, (_, i) => i + 1));
+    expect(WEEK_BUCKETS).not.toContain(SETTIMANA_ESCLUSA);
+  });
+
+  it("settimanaInclusa è falso solo per la 53", () => {
+    for (let w = 1; w <= 52; w += 1) expect(settimanaInclusa(w)).toBe(true);
+    expect(settimanaInclusa(53)).toBe(false);
+  });
+
+  it("la 53 resta calcolabile come data ISO: è esclusa dalle statistiche, non dal calendario", () => {
+    // Serve ancora a `isoWeeksInYear` e all'adiacenza fra settimane.
+    expect(isoWeeksInYear(2020)).toBe(53);
+    expect(isoWeek(2020, 12, 31)).toBe(53);
   });
 });

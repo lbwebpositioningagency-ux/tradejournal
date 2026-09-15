@@ -40,9 +40,11 @@ import { describeSample, quantileSorted } from "@/lib/seasonality/stats";
 import {
   SCOPE_ALL,
   WEEKDAY_BUCKETS,
+  WEEK_BUCKETS,
   isoWeekday,
   monthScope,
   scopeAmpiezza,
+  settimanaInclusa,
 } from "@/lib/seasonality/buckets";
 import {
   anniCompleti,
@@ -204,9 +206,6 @@ function weekKeyDate(isoYear: number, week: number): string {
   return monday.toISOString().slice(0, 10);
 }
 
-/** Tutte le settimane ISO possibili: la 53 non esiste ogni anno, e il bucket
- * semplicemente avrà `n` più basso — come il 29 febbraio. */
-const WEEK_BUCKETS = Array.from({ length: 53 }, (_, i) => i + 1);
 const MONTH_BUCKETS = Array.from({ length: 12 }, (_, i) => i + 1);
 
 interface Observation {
@@ -497,10 +496,14 @@ export function precomputeDaily(opts: {
     ? monthlyLogReturns(bars)
     : monthlyMeanLevels(bars);
 
-  // ── Osservazioni SETTIMANALI ISO (heatmap e bucket WEEK) ────────────────
-  const weeklyObs: WeeklyObservation[] = isReturn
+  /* ── Osservazioni SETTIMANALI ISO (heatmap e bucket WEEK) ────────────────
+     La settimana 53 si toglie QUI, una volta: così non entra né nelle
+     statistiche né nelle caselle della griglia né nell'ampiezza, e non resta
+     una riga nascosta a valle (`buckets.ts`, `settimanaInclusa`). */
+  const weeklyObs: WeeklyObservation[] = (isReturn
     ? weeklyLogReturns(bars)
-    : weeklyMeanLevels(bars);
+    : weeklyMeanLevels(bars)
+  ).filter((w) => settimanaInclusa(w.week));
 
   // ── Osservazioni giornaliere (bucket WEEKDAY) ────────────────────────────
   const dailyObs: Observation[] = isReturn
@@ -593,7 +596,7 @@ export function precomputeDaily(opts: {
   // ── Ampiezza massimo-minimo: solo prezzi, solo dove ci sono massimo e minimo ──
   const ampiezze = {
     MONTH: isReturn ? ampiezzeMensili(bars) : [],
-    WEEK: isReturn ? ampiezzeSettimanali(bars) : [],
+    WEEK: isReturn ? ampiezzeSettimanali(bars).filter((a) => settimanaInclusa(a.bucket)) : [],
     WEEKDAY: isReturn ? ampiezzeGiornaliere(bars) : [],
   };
 
@@ -639,8 +642,8 @@ export function precomputeDaily(opts: {
         }),
       );
 
-      // WEEK — 53 bucket ISO. La 53 non esiste in tutti gli anni: quel
-      // bucket avrà `n` più basso, ed è corretto che sia così.
+      // WEEK — 52 bucket ISO. La 53 esiste solo in alcuni anni (tre su venti) e
+      // dal 17/09/2026 è esclusa a monte: le sue osservazioni non arrivano qui.
       stats.push(
         ...statsForBuckets({
           instrument,
@@ -650,7 +653,7 @@ export function precomputeDaily(opts: {
           lookbackYears: lookback,
           detrended,
           observations: weekWindow,
-          buckets: WEEK_BUCKETS,
+          buckets: [...WEEK_BUCKETS],
           bucketOf: (o) => o.month,
         }),
       );
@@ -823,7 +826,7 @@ function statsAmpiezza(opts: {
       granularity: "WEEK",
       scope: scopeAmpiezza(),
       observations: osserva(opts.ampiezze.WEEK),
-      buckets: WEEK_BUCKETS,
+      buckets: [...WEEK_BUCKETS],
     }),
     ...statsForBuckets({
       ...comune,
