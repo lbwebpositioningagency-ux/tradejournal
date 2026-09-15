@@ -627,6 +627,44 @@ export function DashboardView({ data }: { data: DashboardData }) {
         ? "> 100%"
         : formatPercent(data.ulcer)
       : "—";
+  // Expectancy in valuta E in R nello stesso riquadro. L'R non si ricalcola:
+  // `data.expectancyR` è rSum/rCount, già pronto da page.tsx — finora lo
+  // leggeva solo la vista "R", che SOSTITUIVA la valuta invece di affiancarla.
+  //
+  // I due numeri non stanno sullo stesso campione: la valuta è su tutti i
+  // trade chiusi del periodo, l'R sui soli trade con rischio pianificato. I
+  // segni possono quindi divergere davvero, e ciascuno porta il proprio
+  // colore: a dire quale è quale sono il corpo (20px contro 14px) e il
+  // suffisso ("USD"/"%" contro "R"), mai il colore.
+  //
+  // Il secondario è sempre l'unità che NON è già nel valore grande, così il
+  // riquadro mostra entrambi in ogni vista del selettore in testata.
+  const expectancySecondary: { text: string; source: string } | null = (() => {
+    if (masked || data.expectancy === null || data.expectancyR === null) {
+      return null;
+    }
+    return inR
+      ? {
+          text: formatSignedMoney(data.expectancy, data.currency),
+          source: data.expectancy,
+        }
+      : { text: formatRMultiple(data.expectancyR), source: data.expectancyR };
+  })();
+  // Il colore del valore grande segue ciò che c'è DAVVERO dentro: in vista R
+  // è l'R, altrove la valuta. Con la vista R e nessun trade a rischio il
+  // valore è un trattino, e un trattino non si colora.
+  const expectancyPrimarySource = inR ? data.expectancyR : data.expectancy;
+  // La copertura si dichiara SOLO quando i campioni divergono: con tutti i
+  // trade a rischio definito, "R su 213 di 213" sarebbe rumore. Quando manca
+  // del tutto, il riquadro dice perché invece di mostrare la sola valuta e
+  // lasciar credere a un guasto.
+  const expectancySub = masked
+    ? "Attesa media per trade"
+    : data.expectancyR === null
+      ? "Attesa media per trade · R assente: nessun trade con rischio pianificato"
+      : data.rCount < data.totalTrades
+        ? `Attesa per trade · R su ${data.rCount} di ${data.totalTrades}`
+        : "Attesa media per trade";
   // Importo di una giornata coerente col toggle: in R è già la somma R del
   // giorno (dayData = daysR), altrimenti valuta/percentuale via money().
   const dayAmount = (value: string, signed = true) =>
@@ -804,13 +842,40 @@ export function DashboardView({ data }: { data: DashboardData }) {
             className={cn("max-lg:order-7", extraMetricCls)}
             label="Expectancy"
             info={expectancyInfo}
-            value={data.expectancy !== null ? money(data.expectancy, data.expectancyR) : "—"}
-            valueClass={
-              masked || data.expectancy === null
-                ? undefined
-                : pnlColorClass(data.expectancy)
+            value={
+              data.expectancy !== null ? (
+                <span className="flex items-baseline gap-2">
+                  <span
+                    className={cn(
+                      "truncate",
+                      masked || expectancyPrimarySource === null
+                        ? undefined
+                        : pnlColorClass(expectancyPrimarySource),
+                    )}
+                  >
+                    {money(data.expectancy, data.expectancyR)}
+                  </span>
+                  {expectancySecondary ? (
+                    <>
+                      <span className="text-sm font-normal text-muted-foreground">
+                        ·
+                      </span>
+                      <span
+                        className={cn(
+                          "shrink-0 text-sm font-semibold",
+                          pnlColorClass(expectancySecondary.source),
+                        )}
+                      >
+                        {expectancySecondary.text}
+                      </span>
+                    </>
+                  ) : null}
+                </span>
+              ) : (
+                "—"
+              )
             }
-            sub="Attesa media per trade"
+            sub={expectancySub}
           />
         ) : null}
         {show("max-drawdown") && !hideExtraMetrics ? (
