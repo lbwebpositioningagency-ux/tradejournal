@@ -28,7 +28,12 @@ export function ToneArrow({ tone, muted }: { tone: MacroTone; muted?: boolean })
   );
 }
 
-const GLIFO: Record<MacroTone, string> = { up: "▲", down: "▼", flat: "●" };
+export const GLIFO: Record<MacroTone, string> = { up: "▲", down: "▼", flat: "●" };
+
+/** Il punto ambra di ciò che chiede attenzione (ritardo, buco nell'archivio). */
+export function PuntoAttenzione() {
+  return <span aria-hidden className="inline-block size-2 shrink-0 rounded-full bg-warning" />;
+}
 
 /**
  * Glifo del segno (▲ ● ▼): il colore sta SOLO qui, sul glifo, e il neutro è

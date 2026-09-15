@@ -3,9 +3,9 @@ import { PageHeaderSkeleton } from "@/components/page-skeleton";
 
 /**
  * Caricamento della pagina Report con la GEOMETRIA della pagina vera: striscia
- * dello stato in tre celle, l'archivio in riga (etichette e colonne dei
- * giorni), schede, quadro e tabella dei bias a righe da 28px, tutto a piena
- * larghezza. Dal 15/09/2026 non c'è più la colonna dello storico a destra.
+ * dello stato in tre celle, schede, quadro e tabella dei bias a righe da
+ * 28px, tutto a piena larghezza. Dal 15/09/2026 l'archivio non occupa più
+ * spazio nella pagina (è una tendina in testata): niente colonna, niente riga.
  */
 export function ReportSkeleton() {
   return (
@@ -19,12 +19,6 @@ export function ReportSkeleton() {
                 <Skeleton className="h-3 w-20" />
                 <Skeleton className="h-5 w-44" />
               </div>
-            ))}
-          </div>
-          <div className="flex gap-1.5 overflow-hidden border-b border-border pb-1">
-            <Skeleton className="h-[5.75rem] w-16 shrink-0" />
-            {Array.from({ length: 16 }, (_, i) => (
-              <Skeleton key={i} className="h-[5.75rem] w-11 shrink-0" />
             ))}
           </div>
           <Skeleton className="h-9 w-40" />

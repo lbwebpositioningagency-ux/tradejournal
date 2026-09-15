@@ -3242,3 +3242,34 @@ Verificato nell'HTML: mese 07/2026 «su entrambi i mesi», trimestre vuoto «in 
 vuoto «in quest'anno», settimana vuota «in questa settimana». Misure a 1440/390 nei due temi: 0 testi
 < 11px, 0 < 4,5:1, 0 errori. Gate (dopo il rebase su 8437b65): typecheck, lint, 2.211 test, build verdi. Schermate in
 `docs/journal/fase3-etichette/`.
+
+## 15/09/2026 · Report MD, l'archivio esce dalla pagina: una tendina in testata
+
+Correzione del lavoro del pomeriggio: il proprietario non vuole alcun elenco d'archivio nella
+pagina, né colonna né riga. L'archivio diventa un **menu a tendina**, deciso in Claude Design
+(tavola «Report MD - ricostruzione», riquadri 10–14; 5–9 segnati come superati).
+
+- Il comando sta nella **testata**, fra «‹ precedente» e «successivo ›», e porta la data del
+  report aperto: «Report del 21/08 ▾». A tendina chiusa nella pagina non c'è nulla dell'archivio.
+- È il `DropdownMenu` del sistema (`ui/dropdown-menu.tsx`, Radix), nessun componente locale:
+  Invio/Spazio/↓ aprono, frecce e iniziali scorrono, Invio apre il report, Esc chiude e rimette il
+  fuoco sul comando, clic fuori chiude. Le voci sono link veri.
+- Dentro, dall'alto: «Archivio dei report · 20 report», il buco «22/08 → oggi · nessun report · 25
+  giorni» in ambra, poi una voce per report (data, tipo in parola, tre segni), il report aperto
+  tinto con il filo blu; «…» e il report aperto più vecchio in coda; in fondo «Solo il bias
+  dichiarato» e la voce verso la Scorecard. Parole del bias nell'etichetta di ogni voce.
+- `archivio-report.tsx` prepara le voci lato server (niente parser del payload nel client);
+  `menu-archivio.tsx` è la tendina; `archivio-scorre.tsx` e le regole `.ml-archivio` di
+  `listino.css` cancellate; `PuntoAttenzione` e `GLIFO` in `primitives.tsx`. Il contenuto della
+  tendina vive in un portale fuori da `.md-listino`: usa i token dell'app, non i `--md-*`.
+  I colori dei glifi hanno `!`: la voce col fuoco tinge di accent-foreground tutti i discendenti.
+- Scheletro di caricamento senza la riga; guida «L'archivio sta nella testata». Striscia di stato e
+  contenuti del report invariati.
+
+Misure (DOM, build locale, due temi): pagina 3.000 → 2.858px a 1440 (−142), 6.092 → 5.930 a 390
+(−162). Il corpo del report resta 1.118px a 1440 e 324 a 390: era già a tutta larghezza dal
+pomeriggio, lo spazio liberato è verticale (la riga di 127/146px più il suo intervallo). Tendina
+344px, alta 702 a 1440×900 e 650 a 390, scorre dentro di sé. 0 testi < 11px e < 4,5:1 a tendina
+chiusa e aperta. Prova: dall'ultimo report, da tastiera (1440 scuro) si apre il 19/08 e col mouse
+(390 chiaro) il settimanale del 16/08; nella tendina del report d'archivio la voce aperta è
+quella giusta. Schermate in `docs/macro-desk/report-tendina-1509/`. Nessuna migrazione.

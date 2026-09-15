@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { renderToStaticMarkup } from "react-dom/server";
 import type { StatoReport, VoceArchivio } from "@/lib/macro-desk-stato-report";
-import { ArchivioReport } from "./archivio-report";
+import { ArchivioReport, vociArchivio } from "./archivio-report";
 
 const voce = (id: string, giorno: string, type: VoceArchivio["type"] = "DAILY"): VoceArchivio => ({
   id,
@@ -16,54 +16,53 @@ const voce = (id: string, giorno: string, type: VoceArchivio["type"] = "DAILY"):
 const righe = [voce("d21", "21"), voce("d19", "19"), voce("w16", "16", "WEEKLY")];
 const ritardo: StatoReport = { tipo: "in_ritardo", eta: "25 giorni fa", giorni: 25, mancaDal: "22/08" };
 
-/** Il tag `<a>` che porta al report `id`, qualunque sia l'ordine degli attributi. */
-function linkA(html: string, id: string): string {
-  return (html.match(/<a\b[^>]*>/g) ?? []).find((a) => a.includes(`href="/macro-desk/${id}"`)) ?? "";
-}
-
-describe("archivio in riga del Report", () => {
-  it("ogni report è un link al suo dettaglio, e quello aperto è segnato", () => {
+describe("archivio in tendina del Report", () => {
+  it("a tendina chiusa la pagina mostra solo il comando, con la data del report aperto", () => {
     const html = renderToStaticMarkup(
-      <ArchivioReport righe={righe} fuoriFinestra={null} sceltoId="d19" buco={null} />,
+      <ArchivioReport righe={righe} fuoriFinestra={null} sceltoId="d19" buco={ritardo} giorno="19/08" />,
     );
-    for (const r of righe) expect(linkA(html, r.id)).not.toBe("");
-    expect((html.match(/aria-current="page"/g) ?? []).length).toBe(1);
-    expect(linkA(html, "d19")).toContain('aria-current="page"');
-    expect(html).toContain("3 report · sett. = settimanale");
-  });
-
-  it("il buco resta visibile quando l'ultimo giornaliero è in ritardo", () => {
-    const html = renderToStaticMarkup(
-      <ArchivioReport righe={righe} fuoriFinestra={null} sceltoId="d21" buco={ritardo} />,
-    );
-    expect(html).toContain("22/08 → oggi");
-    expect(html).toContain("nessun report · 25 giorni");
-    // nel DOM il buco precede il report più recente: a schermo sta alla sua destra
-    expect(html.indexOf("22/08 → oggi")).toBeLessThan(html.indexOf('href="/macro-desk/d21"'));
-  });
-
-  it("senza ritardo non c'è riga del buco", () => {
-    const html = renderToStaticMarkup(
-      <ArchivioReport righe={righe} fuoriFinestra={null} sceltoId="d21" buco={{ tipo: "aggiornato", eta: "3 ore fa" }} />,
-    );
+    expect(html).toContain("Report del 19/08");
+    expect(html).toContain('aria-haspopup="menu"');
+    expect(html).toContain('aria-expanded="false"');
+    // nessuna voce, nessun buco, nessun rimando: l'elenco esiste solo aperto
+    expect(html).not.toContain('href="/macro-desk/');
     expect(html).not.toContain("→ oggi");
+    expect(html).not.toContain("Scorecard");
+    expect(html).not.toContain("Archivio dei report<");
   });
 
-  it("il report aperto fuori dalla finestra va in coda dopo «…»", () => {
-    const vecchio = voce("d02", "02");
-    const html = renderToStaticMarkup(
-      <ArchivioReport righe={righe} fuoriFinestra={vecchio} sceltoId="d02" buco={null} />,
-    );
-    expect(html.indexOf("…")).toBeLessThan(html.indexOf('href="/macro-desk/d02"'));
-    expect(linkA(html, "d02")).toContain('aria-current="page"');
+  it("una voce per report, e solo quello aperto è segnato", () => {
+    const { voci } = vociArchivio({ righe, fuoriFinestra: null, sceltoId: "d19", buco: null });
+    expect(voci.map((v) => v.id)).toEqual(["d21", "d19", "w16"]);
+    expect(voci.filter((v) => v.scelta).map((v) => v.id)).toEqual(["d19"]);
+  });
+
+  it("il tipo è in parola e il settimanale si distingue", () => {
+    const { voci } = vociArchivio({ righe, fuoriFinestra: null, sceltoId: "d21", buco: null });
+    expect(voci[0]).toMatchObject({ giorno: "21/08", tipo: "giornaliero", settimanale: false });
+    expect(voci[2]).toMatchObject({ giorno: "16/08", tipo: "settimanale", settimanale: true });
+  });
+
+  it("il buco entra nella tendina solo quando l'ultimo giornaliero è in ritardo", () => {
+    expect(vociArchivio({ righe, fuoriFinestra: null, sceltoId: "d21", buco: ritardo }).buco).toEqual({
+      mancaDal: "22/08",
+      giorni: 25,
+    });
+    expect(
+      vociArchivio({ righe, fuoriFinestra: null, sceltoId: "d21", buco: { tipo: "aggiornato", eta: "3 ore fa" } }).buco,
+    ).toBeNull();
+  });
+
+  it("il report aperto fuori dalla finestra torna a parte, segnato", () => {
+    const { voci, fuori } = vociArchivio({ righe, fuoriFinestra: voce("d02", "02"), sceltoId: "d02", buco: null });
+    expect(voci.some((v) => v.scelta)).toBe(false);
+    expect(fuori).toMatchObject({ id: "d02", scelta: true });
   });
 
   it("i segni hanno la parola per chi non vede i glifi, e solo il bias dichiarato", () => {
-    const html = renderToStaticMarkup(
-      <ArchivioReport righe={righe} fuoriFinestra={null} sceltoId="d21" buco={null} />,
-    );
-    expect(html).toContain("Report settimanale del 16/08 · oro neutro, petrolio ribasso, indici rialzo");
-    expect(html).not.toMatch(/confiden/i);
-    expect(html).not.toContain("Storico");
+    const { voci } = vociArchivio({ righe, fuoriFinestra: null, sceltoId: "d21", buco: null });
+    expect(voci[2].toni).toEqual(["flat", "down", "up"]);
+    expect(voci[2].etichetta).toBe("Report settimanale del 16/08 · oro neutro, petrolio ribasso, indici rialzo");
+    expect(JSON.stringify(voci)).not.toMatch(/confiden/i);
   });
 });

@@ -1,0 +1,290 @@
+{
+  "risultati": [
+    {
+      "larghezza": 1440,
+      "tema": "dark",
+      "file": [
+        "chiusa__1440__dark.png",
+        "aperta__1440__dark.png"
+      ],
+      "altezza": 2858,
+      "corpo": 1118,
+      "sw": 1440,
+      "piccoliChiusa": 0,
+      "bassiChiusa": 0,
+      "esempiBassiChiusa": [],
+      "url": "/macro-desk/report",
+      "stato": "Stato · in ritardo",
+      "comando": "Report del 21/08",
+      "trig": {
+        "x": 1157,
+        "y": 150,
+        "w": 143,
+        "h": 28
+      },
+      "inTestata": true,
+      "linkReportInPagina": 1,
+      "linkReportVicini": 1,
+      "bucoInPagina": false,
+      "archivioInPagina": false,
+      "aperta": {
+        "espansa": "true",
+        "menu": {
+          "x": 955,
+          "y": 182,
+          "w": 344,
+          "h": 702,
+          "destra": 141,
+          "sh": 820,
+          "ch": 702
+        },
+        "voci": 21,
+        "aperto": "Report giornaliero del 21/08 · oro neutro, petrolio neutro, indici rialzo",
+        "buco": "22/08 → oggi\n\nnessun report · 25 giorni",
+        "scorecard": true,
+        "notaBias": true,
+        "fuoco": "voce: Report giornaliero del 21/08 · oro neutro, petrolio neutro, indici rialzo"
+      },
+      "piccoliAperta": 0,
+      "bassiAperta": 0,
+      "esempiBassiAperta": [],
+      "esempiPiccoliAperta": [],
+      "dopoFreccia": "voce: Report giornaliero del 19/08 · oro neutro, petrolio neutro, indici rialzo",
+      "dopoEsc": {
+        "espansa": "false",
+        "menu": false,
+        "fuoco": "comando"
+      },
+      "apertaMouse": "true",
+      "dopoFuori": {
+        "espansa": "false",
+        "menu": false
+      },
+      "errori": []
+    },
+    {
+      "larghezza": 1440,
+      "tema": "light",
+      "file": [
+        "chiusa__1440__light.png",
+        "aperta__1440__light.png"
+      ],
+      "altezza": 2858,
+      "corpo": 1118,
+      "sw": 1440,
+      "piccoliChiusa": 0,
+      "bassiChiusa": 0,
+      "esempiBassiChiusa": [],
+      "url": "/macro-desk/report",
+      "stato": "Stato · in ritardo",
+      "comando": "Report del 21/08",
+      "trig": {
+        "x": 1157,
+        "y": 150,
+        "w": 143,
+        "h": 28
+      },
+      "inTestata": true,
+      "linkReportInPagina": 1,
+      "linkReportVicini": 1,
+      "bucoInPagina": false,
+      "archivioInPagina": false,
+      "aperta": {
+        "espansa": "true",
+        "menu": {
+          "x": 955,
+          "y": 182,
+          "w": 344,
+          "h": 702,
+          "destra": 141,
+          "sh": 820,
+          "ch": 702
+        },
+        "voci": 21,
+        "aperto": "Report giornaliero del 21/08 · oro neutro, petrolio neutro, indici rialzo",
+        "buco": "22/08 → oggi\n\nnessun report · 25 giorni",
+        "scorecard": true,
+        "notaBias": true,
+        "fuoco": "voce: Report giornaliero del 21/08 · oro neutro, petrolio neutro, indici rialzo"
+      },
+      "piccoliAperta": 0,
+      "bassiAperta": 0,
+      "esempiBassiAperta": [],
+      "esempiPiccoliAperta": [],
+      "dopoFreccia": "voce: Report giornaliero del 19/08 · oro neutro, petrolio neutro, indici rialzo",
+      "dopoEsc": {
+        "espansa": "false",
+        "menu": false,
+        "fuoco": "comando"
+      },
+      "apertaMouse": "true",
+      "dopoFuori": {
+        "espansa": "false",
+        "menu": false
+      },
+      "errori": []
+    },
+    {
+      "larghezza": 390,
+      "tema": "dark",
+      "file": [
+        "chiusa__390__dark.png",
+        "aperta__390__dark.png"
+      ],
+      "altezza": 5930,
+      "corpo": 324,
+      "sw": 390,
+      "piccoliChiusa": 0,
+      "bassiChiusa": 0,
+      "esempiBassiChiusa": [],
+      "url": "/macro-desk/report",
+      "stato": "Stato · in ritardo",
+      "comando": "Report del 21/08",
+      "trig": {
+        "x": 102,
+        "y": 202,
+        "w": 143,
+        "h": 28
+      },
+      "inTestata": true,
+      "linkReportInPagina": 1,
+      "linkReportVicini": 1,
+      "bucoInPagina": false,
+      "archivioInPagina": false,
+      "aperta": {
+        "espansa": "true",
+        "menu": {
+          "x": 16,
+          "y": 234,
+          "w": 344,
+          "h": 650,
+          "destra": 30,
+          "sh": 820,
+          "ch": 650
+        },
+        "voci": 21,
+        "aperto": "Report giornaliero del 21/08 · oro neutro, petrolio neutro, indici rialzo",
+        "buco": "22/08 → oggi\n\nnessun report · 25 giorni",
+        "scorecard": true,
+        "notaBias": true,
+        "fuoco": "voce: Report giornaliero del 21/08 · oro neutro, petrolio neutro, indici rialzo"
+      },
+      "piccoliAperta": 0,
+      "bassiAperta": 0,
+      "esempiBassiAperta": [],
+      "esempiPiccoliAperta": [],
+      "dopoFreccia": "voce: Report giornaliero del 19/08 · oro neutro, petrolio neutro, indici rialzo",
+      "dopoEsc": {
+        "espansa": "false",
+        "menu": false,
+        "fuoco": "comando"
+      },
+      "apertaMouse": "true",
+      "dopoFuori": {
+        "espansa": "false",
+        "menu": false
+      },
+      "errori": []
+    },
+    {
+      "larghezza": 390,
+      "tema": "light",
+      "file": [
+        "chiusa__390__light.png",
+        "aperta__390__light.png"
+      ],
+      "altezza": 5930,
+      "corpo": 324,
+      "sw": 390,
+      "piccoliChiusa": 0,
+      "bassiChiusa": 0,
+      "esempiBassiChiusa": [],
+      "url": "/macro-desk/report",
+      "stato": "Stato · in ritardo",
+      "comando": "Report del 21/08",
+      "trig": {
+        "x": 102,
+        "y": 202,
+        "w": 143,
+        "h": 28
+      },
+      "inTestata": true,
+      "linkReportInPagina": 1,
+      "linkReportVicini": 1,
+      "bucoInPagina": false,
+      "archivioInPagina": false,
+      "aperta": {
+        "espansa": "true",
+        "menu": {
+          "x": 16,
+          "y": 234,
+          "w": 344,
+          "h": 650,
+          "destra": 30,
+          "sh": 820,
+          "ch": 650
+        },
+        "voci": 21,
+        "aperto": "Report giornaliero del 21/08 · oro neutro, petrolio neutro, indici rialzo",
+        "buco": "22/08 → oggi\n\nnessun report · 25 giorni",
+        "scorecard": true,
+        "notaBias": true,
+        "fuoco": "voce: Report giornaliero del 21/08 · oro neutro, petrolio neutro, indici rialzo"
+      },
+      "piccoliAperta": 0,
+      "bassiAperta": 0,
+      "esempiBassiAperta": [],
+      "esempiPiccoliAperta": [],
+      "dopoFreccia": "voce: Report giornaliero del 19/08 · oro neutro, petrolio neutro, indici rialzo",
+      "dopoEsc": {
+        "espansa": "false",
+        "menu": false,
+        "fuoco": "comando"
+      },
+      "apertaMouse": "true",
+      "dopoFuori": {
+        "espansa": "false",
+        "menu": false
+      },
+      "errori": []
+    }
+  ],
+  "passi": [
+    {
+      "w": 1440,
+      "tema": "dark",
+      "modo": "tastiera",
+      "prima": {
+        "url": "/macro-desk/report",
+        "stato": "Stato · in ritardo",
+        "comando": "Report del 21/08"
+      },
+      "scelta": "voce: Report giornaliero del 19/08 · oro neutro, petrolio neutro, indici rialzo",
+      "dopo": {
+        "url": "/macro-desk/cmszqadhu000004l8dajyovz2",
+        "stato": "Stato · archivio",
+        "comando": "Report del 19/08"
+      },
+      "apertoNellaTendina": "Report giornaliero del 19/08 · oro neutro, petrolio neutro, indici rialzo",
+      "file": "da-report-precedente__1440__dark.png"
+    },
+    {
+      "w": 390,
+      "tema": "light",
+      "modo": "mouse",
+      "prima": {
+        "url": "/macro-desk/report",
+        "stato": "Stato · in ritardo",
+        "comando": "Report del 21/08"
+      },
+      "scelta": "Report settimanale del 16/08 · oro neutro, petrolio neutro, indici rialzo",
+      "dopo": {
+        "url": "/macro-desk/cmswx1rme000004icwvynq54m",
+        "stato": "Stato · archivio",
+        "comando": "Report del 16/08"
+      },
+      "apertoNellaTendina": "Report settimanale del 16/08 · oro neutro, petrolio neutro, indici rialzo",
+      "file": "da-report-precedente__390__light.png"
+    }
+  ]
+}

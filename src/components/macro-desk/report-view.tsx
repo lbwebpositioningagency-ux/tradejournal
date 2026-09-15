@@ -27,8 +27,8 @@ import { MacroReportDetail } from "./report-detail";
 import { RigaRevisione } from "./riga-revisione";
 import type { NaturaBias } from "./report-tabs";
 import { GuidaReport } from "./guide-sezioni";
-import { ArchivioReport, PuntoAttenzione } from "./archivio-report";
-import { PanelLabel } from "./primitives";
+import { ArchivioReport } from "./archivio-report";
+import { PanelLabel, PuntoAttenzione } from "./primitives";
 
 /**
  * LA PAGINA REPORT — indice e dettaglio sono la stessa pagina (ricostruzione
@@ -43,10 +43,12 @@ import { PanelLabel } from "./primitives";
  *
  * Il corpo del report prende TUTTA la larghezza della scatola (15/09/2026
  * pomeriggio, riquadri 5–9 della tavola): la colonna «Storico» a destra ne
- * toglieva 352px e stringeva tabelle e lettura. L'archivio è ora una riga
- * sotto la striscia dello stato (`archivio-report.tsx`). Solo la prosa
- * continua ha una misura di lettura (80ch); tabelle, quadro e lettura per
- * asset usano tutto lo spazio.
+ * toglieva 352px e stringeva tabelle e lettura. La sera stessa anche la riga
+ * d'archivio che l'aveva sostituita è uscita dalla pagina (riquadri 10–14):
+ * l'archivio è una tendina nella testata, fra il report precedente e il
+ * successivo (`archivio-report.tsx`), e sotto la striscia dello stato viene
+ * subito il report. Solo la prosa continua ha una misura di lettura (80ch);
+ * tabelle, quadro e lettura per asset usano tutto lo spazio.
  *
  * Con la larghezza è salita anche la taglia, di un gradino della scala del
  * sistema: prosa 12 → 14 e 14 → 16, verdetto 16 → 20, nome dell'asset 16 →
@@ -205,12 +207,19 @@ function StrisciaStato({
 
 /* ── testata ────────────────────────────────────────────────────────────── */
 
+/**
+ * I tre comandi della testata: report precedente, la tendina dell'archivio
+ * con la data del report aperto, report successivo. Si leggono come una
+ * sequenza di date.
+ */
 function NavigazioneReport({
   precedente,
   successivo,
+  archivio,
 }: {
   precedente: VoceArchivio | null;
   successivo: VoceArchivio | null;
+  archivio: React.ReactNode;
 }) {
   const classe = buttonVariants({ variant: "outline", size: "sm" });
   const spento = cn(classe, "pointer-events-none text-muted-foreground");
@@ -231,6 +240,7 @@ function NavigazioneReport({
           precedente
         </span>
       )}
+      {archivio}
       {successivo ? (
         <Link
           href={`/macro-desk/${successivo.id}`}
@@ -292,7 +302,21 @@ export async function PaginaReport({
         title="Report"
         badge={<Badge variant="outline">{TIPO_REPORT[report.type]}</Badge>}
         description={DESCRIZIONE}
-        actions={<NavigazioneReport precedente={precedente} successivo={successivo} />}
+        actions={
+          <NavigazioneReport
+            precedente={precedente}
+            successivo={successivo}
+            archivio={
+              <ArchivioReport
+                righe={righe}
+                fuoriFinestra={fuoriFinestra}
+                sceltoId={id}
+                buco={buco}
+                giorno={giornoBreve(report.reportDate)}
+              />
+            }
+          />
+        }
       >
         <GuidaReport />
       </PageHeader>
@@ -306,7 +330,6 @@ export async function PaginaReport({
             generato={formatDateTime(report.generatedAt, user.timezone)}
             stato={stato}
           />
-          <ArchivioReport righe={righe} fuoriFinestra={fuoriFinestra} sceltoId={id} buco={buco} />
           <RigaRevisione revisione={revisione} timezone={user.timezone} />
           <MacroReportDetail
             payload={payload}
