@@ -37,10 +37,16 @@ import {
   breakEvenWinRateInfo,
   concentration,
   concentrationInfo,
+  aggregateStrategySeries,
+  correlationAvailability,
   correlationEligible,
   correlationMatrix,
   correlationInfo,
-  CORRELATION_MIN_DAYS,
+  CORRELATION_GRAINS,
+  CORRELATION_MIN_OBSERVATIONS,
+  CORRELATION_UNITS,
+  DEFAULT_CORRELATION_GRAIN,
+  type CorrelationGrain,
   EXTREME_MIN_TRADES,
   currentEpisodePosition,
   drawdownDurationInfo,
@@ -68,7 +74,9 @@ import { ConcentrationTable } from "@/components/analytics/concentration-table";
 import {
   CorrelationMatrixTable,
   CorrelationPairsTable,
+  CorrelationUnavailable,
 } from "@/components/analytics/correlation-matrix";
+import { todayKeyInZone } from "@/lib/dates";
 import { DrawdownEpisodesTable } from "@/components/analytics/drawdown-episodes-table";
 import { CurrentDrawdown } from "@/components/analytics/current-drawdown";
 import { SegmentedNav } from "@/components/ui/segmented";
@@ -627,32 +635,48 @@ export default async function AnalyticsPage({
     null,
   );
 
-  /* Matrice di correlazione fra strategie: le righe SQL diventano una serie
-     per strategia con il suo calendario. Entrano le strategie con almeno
-     CORRELATION_MIN_DAYS giorni operati: sotto, nessuna loro coppia può avere
-     abbastanza giorni in comune, e sarebbero righe di celle vuote. Le escluse
-     si nominano in pagina, non spariscono. */
-  const allStrategySeries = (() => {
-    const byStrategy = new Map<
-      string,
-      { key: string; label: string; byDay: Map<string, string>; trades: number }
-    >();
-    for (const row of strategyDays) {
-      const entry = byStrategy.get(row.strategyId) ?? {
-        key: row.strategyId,
-        label: row.strategyName,
-        byDay: new Map<string, string>(),
-        trades: 0,
-      };
-      entry.byDay.set(row.day, row.netPnl);
-      entry.trades += row.trades;
-      byStrategy.set(row.strategyId, entry);
+  /* Matrice di correlazione fra strategie (rev. 16/09/2026): i P&L
+     giornalieri per strategia (SQL) si sommano per SETTIMANA o per MESE,
+     scelti nell'URL (`cg`, default settimana, parsing lenient). Entrano solo
+     i periodi interi dentro l'intervallo: senza fine esplicita, fino a oggi,
+     così il periodo in corso resta fuori finché non è finito. Si calcolano
+     entrambi i periodi: quando quello scelto non ha coppie sopra soglia la
+     pagina indica l'altro, se lì qualcosa si calcola. */
+  const corrGrain: CorrelationGrain =
+    CORRELATION_GRAINS.find((g) => g.key === params.cg)?.key ?? DEFAULT_CORRELATION_GRAIN;
+  const corrOtherGrain: CorrelationGrain = corrGrain === "week" ? "month" : "week";
+  const corrUnits = CORRELATION_UNITS[corrGrain];
+  const corrMin = CORRELATION_MIN_OBSERVATIONS[corrGrain];
+  const todayKey = todayKeyInZone(user.timezone);
+  const corrRange = {
+    fromKey: period.fromKey,
+    toKey: period.toKey !== undefined && period.toKey < todayKey ? period.toKey : todayKey,
+  };
+  const correlationFor = (grain: CorrelationGrain) => {
+    const aggregated = aggregateStrategySeries(strategyDays, grain, corrRange);
+    const all = correlationMatrix(aggregated.series, grain);
+    return { aggregated, all, availability: correlationAvailability(all) };
+  };
+  const corr = correlationFor(corrGrain);
+  const corrOther = correlationFor(corrOtherGrain);
+  // Nella heatmap le strategie con almeno `corrMin` periodi operati: sotto,
+  // nessuna loro coppia arriva alla soglia. Le escluse si nominano.
+  const strategySeries = corr.aggregated.series.filter((s) => correlationEligible(s, corrGrain));
+  const excludedStrategies = corr.aggregated.series.filter(
+    (s) => !correlationEligible(s, corrGrain),
+  );
+  const correlations = correlationMatrix(strategySeries, corrGrain);
+  const corrOtherUsable = [...corrOther.all.pairs.values()].filter((p) => !p.lowSample).length;
+  const corrHref = (grain: CorrelationGrain) => {
+    const query = new URLSearchParams();
+    for (const [k, value] of Object.entries(params)) {
+      if (typeof value === "string" && k !== "cg") query.set(k, value);
     }
-    return [...byStrategy.values()].sort((a, b) => b.trades - a.trades);
-  })();
-  const strategySeries = allStrategySeries.filter(correlationEligible);
-  const excludedStrategies = allStrategySeries.filter((s) => !correlationEligible(s));
-  const correlations = correlationMatrix(strategySeries);
+    if (grain !== DEFAULT_CORRELATION_GRAIN) query.set("cg", grain);
+    const qs = query.toString();
+    return `/analytics${qs ? `?${qs}` : ""}#rischio`;
+  };
+  const corrOperated = corrGrain === "week" ? "operate" : "operati";
 
   // Durata contro esito su TUTTI i trade insieme: la tabella per fascia dice
   // quanto rende ogni bucket, questa riga dice se fra i bucket ci sia un
@@ -1201,22 +1225,50 @@ export default async function AnalyticsPage({
                   className="mt-4"
                   titolo="Correlazione fra strategie"
                   info={correlationInfo}
+                  azioni={
+                    <SegmentedNav
+                      label="Periodo di aggregazione"
+                      scroll={false}
+                      items={CORRELATION_GRAINS.map((g) => ({
+                        key: g.key,
+                        href: corrHref(g.key),
+                        label: g.label,
+                        active: g.key === corrGrain,
+                      }))}
+                    />
+                  }
                   meta={
                     <>
-                      {strategySeries.length}{" "}
-                      {strategySeries.length === 1 ? "strategia" : "strategie"}
-                      {` con almeno ${CORRELATION_MIN_DAYS} giorni operati nel periodo. `}
-                      Ogni cella:
-                      coefficiente sui P&amp;L giornalieri e giorni in cui le due
-                      strategie hanno operato insieme.
-                      {excludedStrategies.length > 0 && (
+                      Coefficiente sui P&amp;L sommati per {corrUnits.one}, calcolato
+                      sulle {corrUnits.many} in cui le due strategie hanno operato
+                      entrambe: ogni cella dice quante sono.
+                      {corr.availability.usable && (
                         <>
                           {" "}
-                          Fuori perché operate meno di {CORRELATION_MIN_DAYS} giorni:{" "}
-                          {excludedStrategies
-                            .map((s) => `${s.label} (${s.byDay.size})`)
-                            .join(", ")}
-                          .
+                          {strategySeries.length}{" "}
+                          {strategySeries.length === 1 ? "strategia" : "strategie"} con almeno{" "}
+                          {corrMin} {corrUnits.many} {corrOperated} nel periodo.
+                          {excludedStrategies.length > 0 && (
+                            <>
+                              {" "}
+                              Fuori perché operate meno di{" "}
+                              {corrMin} {corrUnits.many}:{" "}
+                              {excludedStrategies
+                                .map((s) => `${s.label} (${s.byPeriod.size})`)
+                                .join(", ")}
+                              .
+                            </>
+                          )}
+                        </>
+                      )}
+                      {corr.aggregated.partialPeriods > 0 && (
+                        <>
+                          {" "}
+                          {corr.aggregated.partialPeriods}{" "}
+                          {corr.aggregated.partialPeriods === 1
+                            ? `${corrUnits.one} ${corrGrain === "week" ? "tagliata" : "tagliato"}`
+                            : `${corrUnits.many} ${corrGrain === "week" ? "tagliate" : "tagliati"}`}{" "}
+                          dal periodo selezionato, o non ancora {corrGrain === "week" ? "finite" : "finiti"}, fuori dal calcolo.
                         </>
                       )}
                     </>
@@ -1224,39 +1276,77 @@ export default async function AnalyticsPage({
                   metodo={
                     <>
                       <p>
-                        Il campione di una coppia sono i giorni in cui{" "}
-                        <strong className="text-foreground">entrambe</strong> hanno
-                        operato: solo lì possono perdere o guadagnare insieme. Sotto{" "}
-                        {CORRELATION_MIN_DAYS}{" "}giorni in comune la cella non mostra un
-                        numero. Il coefficiente si calcola invece su tutti i giorni in
-                        cui almeno una ha operato, con zero per quella ferma: il P&amp;L
-                        del conto è la somma dei due, zero compreso.
+                        <strong className="text-foreground">Periodi.</strong>{" "}Settimana di
+                        calendario, dal lunedì al venerdì (un trade chiuso nel weekend resta
+                        nella sua settimana); mese di calendario. Conta il giorno di chiusura
+                        nel tuo fuso. Entrano solo i periodi interi dentro l&apos;intervallo
+                        selezionato: una settimana o un mese tagliati dal filtro, o non ancora
+                        finiti, sommano meno sedute degli altri e restano fuori.
+                      </p>
+                      <p>
+                        <strong className="text-foreground">Periodi senza attività: esclusi.</strong>{" "}
+                        Il coefficiente si calcola solo sui periodi in cui{" "}
+                        <strong className="text-foreground">entrambe</strong>{" "}hanno operato.
+                        Quelli in cui ne opera una sola non entrano con uno zero: lo zero è
+                        un&apos;assenza, non un risultato, e legherebbe il numero a quando si
+                        opera invece che a come va. Così le osservazioni del calcolo sono le
+                        stesse contate dalla soglia e dalla banda di rumore.
+                      </p>
+                      <p>
+                        <strong className="text-foreground">Soglia: {CORRELATION_MIN_OBSERVATIONS.week} settimane
+                        o {CORRELATION_MIN_OBSERVATIONS.month} mesi in comune.</strong>{" "}
+                        L&apos;incertezza di una correlazione dipende da quante osservazioni
+                        ci sono, non da quanto dura ognuna: con 30 una correlazione nulla
+                        oscilla di ±0,36, e una vera di 0,5 si riconosce otto volte su
+                        dieci. Per il mese vuol dire due anni e mezzo di operatività
+                        congiunta. Sotto soglia la cella non mostra un numero.
                       </p>
                       <p>
                         La tinta tiene il segno: le due che si muovono insieme (tinta
-                        perdita) moltiplicano il rischio, quelle che si compensano
-                        (tinta profitto) lo riducono. Un valore dentro la banda di
-                        rumore ±1,96/√giorni in comune — ±0,36 con 30 giorni, ±0,20 con
-                        100 — non si distingue da zero e resta neutro: con i giorni che
-                        ci sono non si può dire.
+                        perdita) moltiplicano il rischio, quelle che si compensano (tinta
+                        profitto) lo riducono. Un valore dentro la banda di rumore
+                        ±1,96/√periodi in comune — ±0,36 con 30, ±0,25 con 60 — non si
+                        distingue da zero e resta neutro.
                       </p>
                     </>
                   }
                 >
-                  {correlations.keys.length >= 2 ? (
+                  {corr.availability.closest === null ? (
+                    <EmptyState
+                      compact
+                      icon={Crosshair}
+                      title="Servono almeno due strategie con storia"
+                      description={`La correlazione confronta strategie fra loro: servono almeno due strategie operate in ${corrUnits.many} intere del periodo.`}
+                    />
+                  ) : !corr.availability.usable ? (
+                    <>
+                      <CorrelationUnavailable
+                        grain={corrGrain}
+                        closest={corr.availability.closest}
+                        labels={corr.all.labels}
+                        periods={corr.aggregated.periods}
+                        alternative={
+                          corrOtherUsable > 0
+                            ? {
+                                label: CORRELATION_GRAINS.find((g) => g.key === corrOtherGrain)!.label,
+                                href: corrHref(corrOtherGrain),
+                                usable: corrOtherUsable,
+                                total: corrOther.all.pairs.size,
+                              }
+                            : null
+                        }
+                      />
+                      <TabellaChiusa righe={corr.all.pairs.size} unita="coppie">
+                        <CorrelationPairsTable matrix={corr.all} />
+                      </TabellaChiusa>
+                    </>
+                  ) : (
                     <>
                       <CorrelationMatrixTable matrix={correlations} />
                       <TabellaChiusa righe={correlations.pairs.size} unita="coppie">
                         <CorrelationPairsTable matrix={correlations} />
                       </TabellaChiusa>
                     </>
-                  ) : (
-                    <EmptyState
-                      compact
-                      icon={Crosshair}
-                      title="Servono almeno due strategie con storia"
-                      description={`La correlazione confronta strategie fra loro: servono almeno due strategie operate ${CORRELATION_MIN_DAYS} giorni ciascuna nel periodo.`}
-                    />
                   )}
                 </PannelloAnalisi>
               </Capitolo>

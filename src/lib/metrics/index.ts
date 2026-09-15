@@ -78,13 +78,19 @@ export { sharpeRatio, sharpeInfo } from "./sharpe";
 export { sqn, sqnInfo, SQN_MIN_TRADES } from "./sqn";
 export { calmarRatio, calmarInfo, coveredDays, CALMAR_MIN_DAYS } from "./calmar";
 export {
+  aggregateStrategySeries,
+  correlationAvailability,
   correlationMatrix,
   correlationEligible,
   correlationTone,
   correlationInfo,
   pairKey,
-  CORRELATION_MIN_DAYS,
+  CORRELATION_GRAINS,
+  CORRELATION_MIN_OBSERVATIONS,
   CORRELATION_TONE_LABELS,
+  CORRELATION_UNITS,
+  DEFAULT_CORRELATION_GRAIN,
+  type CorrelationGrain,
   type CorrelationMatrix,
   type CorrelationPair,
   type CorrelationSeries,

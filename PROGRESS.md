@@ -3371,3 +3371,35 @@ Misure (capitolo Rischio, SIM1, 1440/390, due temi, sonda del capitolo + sonda d
 0 testi < 11px, 0 < 4,5:1, 0 errori in console, pagina mai più larga del viewport. Gate:
 typecheck, lint, 2.247 test, build verdi. Nessuna migrazione. Schermate in
 `docs/journal/durata-drawdown-barra/`.
+
+## 16/09/2026 · Correlazione fra strategie per settimana e per mese
+
+Tavola Claude Design «Analytics - durata drawdown e correlazione», riquadri 3, 4, 6, 7 e decisioni.
+Sui giorni due strategie avevano 28–46 giorni in comune su 19 mesi: troppo poco. Ora la correlazione
+si calcola sui P&L sommati per **settimana** (predefinita) o per **mese**, scelti col segmentato
+condiviso (`SegmentedNav`, `cg` nell'URL). Il calcolo giornaliero è sparito.
+
+- **Periodi**: settimana di calendario lunedì–venerdì (un trade chiuso nel weekend resta nella sua
+  settimana; su SIM1 nessuno), mese di calendario, sul giorno di chiusura nel fuso utente. Entrano solo
+  i periodi interi dentro l'intervallo selezionato; senza fine esplicita l'intervallo arriva a oggi,
+  quindi il periodo in corso resta fuori. La meta dice quanti periodi ha tolto.
+- **Periodi senza attività: esclusi.** Il coefficiente usa solo i periodi in cui operano entrambe, così
+  calcolo, soglia e banda di rumore contano le stesse osservazioni. Misura SIM1 (settimana), esclusi →
+  zero sull'unione: 0,04→0,03 · 0,10→0,07 · 0,08→0,06 · −0,05→−0,04 · 0,05→0,01 · 0,39→0,28. Su SIM1
+  lo zero schiaccia verso zero (ferme insieme 0–2 settimane su 82), la lettura non cambia. Sul mese le
+  due scelte coincidono (ogni strategia opera tutti i 19 mesi).
+- **Soglia 30 settimane / 30 mesi in comune.** Uguali di proposito: l'incertezza di r dipende dal numero
+  di osservazioni (banda ±0,36 a 30; potenza 80% su ρ = 0,5, Fisher ≈ 29), non dalla durata.
+- **SIM1**: settimana 6 coppie su 6 sopra soglia (54–63 in comune), cinque nel rumore, Mean reversion ×
+  Pullback EMA 0,39 «insieme». Mese 0 su 6 (19 mesi in comune): **non calcolabile**, e lo resta.
+- **Stato «non calcolabile»** di prima classe (`CorrelationUnavailable`): riquadro tratteggiato con la
+  frase, la coppia con più periodi in comune e quanti ne mancano, traccia «19 di 30 mesi», link al
+  periodo che si calcola; la tabella completa resta chiusa sotto.
+- Tabella completa: periodi in comune, escluse con una sola attiva, correlazione, rumore, lettura.
+  Metodo riscritto. `lib/metrics/correlation.ts` riscritto con test (periodi, parziali, esclusione,
+  soglie, disponibilità): 28 test.
+
+Misure (pannello con tabella e metodo aperti, 1440/390, due temi, settimana e mese): 0 testi < 11px,
+0 < 4,5:1, 0 errori, nessuna pagina più larga del viewport; a 390 scorre solo la tabella completa nel
+suo contenitore. Gate: typecheck, lint, 2.258 test, build verdi. Nessuna migrazione. Schermate in
+`docs/analytics/correlazione-periodi/`.

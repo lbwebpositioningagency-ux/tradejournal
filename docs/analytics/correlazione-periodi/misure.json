@@ -1,0 +1,182 @@
+[
+  {
+    "nome": "settimana",
+    "w": 1168,
+    "tema": "dark",
+    "file": "correlazione_settimana__1440__dark.png",
+    "errori": [],
+    "testi": 85,
+    "piccoli": [],
+    "bassi": [],
+    "sbordi": [],
+    "pagina": 1440,
+    "vw": 1440,
+    "x": 248,
+    "y": 2753,
+    "h": 1034.5,
+    "stato": "heatmap",
+    "celle": [
+      "0,0460 sett. in comune",
+      "0,1063 sett. in comune",
+      "-0,0557 sett. in comune",
+      "0,0863 sett. in comune",
+      "0,0554 sett. in comune",
+      "0,3957 sett. in comune"
+    ]
+  },
+  {
+    "nome": "mese",
+    "w": 1168,
+    "tema": "dark",
+    "file": "correlazione_mese__1440__dark.png",
+    "errori": [],
+    "testi": 61,
+    "piccoli": [],
+    "bassi": [],
+    "sbordi": [],
+    "pagina": 1440,
+    "vw": 1440,
+    "x": 248,
+    "y": 2753,
+    "h": 941,
+    "stato": "non calcolabile",
+    "celle": []
+  },
+  {
+    "nome": "settimana",
+    "w": 358,
+    "tema": "dark",
+    "file": "correlazione_settimana__390__dark.png",
+    "errori": [],
+    "testi": 79,
+    "piccoli": [],
+    "bassi": [],
+    "sbordi": [
+      252
+    ],
+    "pagina": 390,
+    "vw": 390,
+    "x": 16,
+    "y": 3905,
+    "h": 1451.5,
+    "stato": "heatmap",
+    "celle": [
+      "0,0460 sett. in comune",
+      "0,1063 sett. in comune",
+      "-0,0557 sett. in comune",
+      "0,0863 sett. in comune",
+      "0,0554 sett. in comune",
+      "0,3957 sett. in comune"
+    ]
+  },
+  {
+    "nome": "mese",
+    "w": 358,
+    "tema": "dark",
+    "file": "correlazione_mese__390__dark.png",
+    "errori": [],
+    "testi": 61,
+    "piccoli": [],
+    "bassi": [],
+    "sbordi": [
+      252
+    ],
+    "pagina": 390,
+    "vw": 390,
+    "x": 16,
+    "y": 3905,
+    "h": 1510,
+    "stato": "non calcolabile",
+    "celle": []
+  },
+  {
+    "nome": "settimana",
+    "w": 1168,
+    "tema": "light",
+    "file": "correlazione_settimana__1440__light.png",
+    "errori": [],
+    "testi": 85,
+    "piccoli": [],
+    "bassi": [],
+    "sbordi": [],
+    "pagina": 1440,
+    "vw": 1440,
+    "x": 248,
+    "y": 2753,
+    "h": 1034.5,
+    "stato": "heatmap",
+    "celle": [
+      "0,0460 sett. in comune",
+      "0,1063 sett. in comune",
+      "-0,0557 sett. in comune",
+      "0,0863 sett. in comune",
+      "0,0554 sett. in comune",
+      "0,3957 sett. in comune"
+    ]
+  },
+  {
+    "nome": "mese",
+    "w": 1168,
+    "tema": "light",
+    "file": "correlazione_mese__1440__light.png",
+    "errori": [],
+    "testi": 61,
+    "piccoli": [],
+    "bassi": [],
+    "sbordi": [],
+    "pagina": 1440,
+    "vw": 1440,
+    "x": 248,
+    "y": 2753,
+    "h": 941,
+    "stato": "non calcolabile",
+    "celle": []
+  },
+  {
+    "nome": "settimana",
+    "w": 358,
+    "tema": "light",
+    "file": "correlazione_settimana__390__light.png",
+    "errori": [],
+    "testi": 79,
+    "piccoli": [],
+    "bassi": [],
+    "sbordi": [
+      252
+    ],
+    "pagina": 390,
+    "vw": 390,
+    "x": 16,
+    "y": 3905,
+    "h": 1451.5,
+    "stato": "heatmap",
+    "celle": [
+      "0,0460 sett. in comune",
+      "0,1063 sett. in comune",
+      "-0,0557 sett. in comune",
+      "0,0863 sett. in comune",
+      "0,0554 sett. in comune",
+      "0,3957 sett. in comune"
+    ]
+  },
+  {
+    "nome": "mese",
+    "w": 358,
+    "tema": "light",
+    "file": "correlazione_mese__390__light.png",
+    "errori": [],
+    "testi": 61,
+    "piccoli": [],
+    "bassi": [],
+    "sbordi": [
+      252
+    ],
+    "pagina": 390,
+    "vw": 390,
+    "x": 16,
+    "y": 3905,
+    "h": 1510,
+    "stato": "non calcolabile",
+    "celle": []
+  }
+]
