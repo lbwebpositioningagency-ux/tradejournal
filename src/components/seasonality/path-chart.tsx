@@ -58,7 +58,9 @@ const MONTH_NAMES = [
 
 /**
  * Parte del riquadro che NON è area di disegno: asse X, striscia di selezione
- * e margini. Misurata il 15/09/2026: 484px di riquadro → 424 di disegno, 214 → 154.
+ * e margini. Misurata il 15/09/2026: 484px di riquadro → 424 di disegno.
+ * Dal 16/09/2026 il riquadro è alto il doppio (pagina): 908 → 848 da md in su,
+ * 434 → 374 a 390px; la regola di scala qui sotto non cambia.
  */
 const FUORI_DAL_DISEGNO_PX = 60;
 

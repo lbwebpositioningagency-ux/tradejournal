@@ -63,6 +63,11 @@
   --md-border: var(--border);
   --ml-rule: var(--rule);
   --ml-track: var(--track);
+  --ml-heat-1: var(--heat-1);
+  --ml-heat-2: var(--heat-2);
+  --ml-heat-3: var(--heat-3);
+  --ml-heat-4: var(--heat-4);
+  --ml-heat-5: var(--heat-5);
   --md-text: var(--foreground);
   --md-text-2: var(--foreground-2);
   --md-muted: var(--muted-foreground);
@@ -364,29 +369,41 @@
 }
 
 /* ── griglia anni × periodo (Stagionalità) ───────────────────────────────
-   Tavola «Sistema visivo v3 - Stagionalità e grafico con banda», giro 5, via A.
-   Fondo neutro e cifre tabulari; il colore è un ACCENTO sulla cifra, solo
-   sulle caselle notevoli (`accento.ts`: 75° e 90° percentile dello scarto
-   della griglia). Nessun fondo tinto: prima fra il 90 e il 98% delle caselle
-   era un riquadro colorato e il colore non distingueva più niente.
-   Contrasti delle cifre accentate su --md-bg (card): verde 5,07 · rosso 5,12
-   in chiaro, 8,68 · 5,08 in scuro; ordinarie in testo secondario 8,71 · 8,46. */
+   Tavola «Sistema visivo v3 - Stagionalità, heatmap tenue», giro 6, taratura P
+   (16/09/2026). Heatmap TENUE: ogni casella è velata del colore del segno in
+   proporzione allo scarto, in cinque passi (`calore.ts`, satura al 95°
+   percentile della griglia); la dose di colore per passo è un token del
+   sistema (--heat-1…5, diverso per tema). Cifre in testo secondario ai passi
+   1-3 e in testo primario ai passi 4-5: il contrasto più debole cade al passo 3
+   e non alla tinta piena. Prima (giro 5) il colore era un accento sulla sola
+   cifra e tre caselle su quattro restavano grigie; prima ancora ogni casella
+   era un riquadro tinto fino al 52%.
+   Colonne UGUALI e larghe quanto il contenuto: il componente misura in `ch` la
+   cifra più lunga della griglia e la passa in --ml-col; la tabella non si
+   stira più a tutta larghezza. */
 .ml-griglia {
+  --ml-col: 5ch;
   border-collapse: collapse;
+  width: max-content;
   font-family: var(--font-geist-sans), system-ui, sans-serif;
   font-size: 12px;
   line-height: 16px;
   font-variant-numeric: tabular-nums lining-nums;
   font-feature-settings: "tnum" 1, "lnum" 1;
 }
+.ml-griglia col.ml-col {
+  width: calc(var(--ml-col) + 10px);
+}
+/* Il filo fra le caselle è del colore della card: fra due tinte si legge la
+   casella, sul fondo neutro sparisce e la griglia resta un foglio. */
 .ml-griglia th,
 .ml-griglia td {
-  padding: 6px 7px;
+  padding: 4px 5px;
   text-align: right;
   white-space: nowrap;
   font-weight: 400;
   color: var(--md-text-2);
-  border-bottom: 1px solid var(--md-border);
+  border: 1px solid var(--md-bg);
 }
 .ml-griglia thead th {
   font-size: 11px;
@@ -422,17 +439,21 @@
   border-bottom: 0;
 }
 /* Anno in corso: fondo traccia per tutta la riga e filetto «adesso» a
-   sinistra; nessun accento sulle cifre, perché è fuori da ogni media. */
+   sinistra; nessuna tinta, perché è fuori da ogni media. «in corso» sta sulla
+   stessa riga dell'anno: a capo la riga era alta 42,5px contro 29 e rompeva il
+   ritmo della griglia. */
 .ml-griglia tbody tr.ml-in-corso > * {
   background-color: var(--ml-track);
+  border-color: var(--ml-track);
 }
 .ml-griglia tbody tr.ml-in-corso > th:first-child {
+  background-color: var(--ml-track);
+  border-right-color: var(--ml-rule);
   box-shadow: inset 2px 0 0 var(--md-warn);
 }
 .ml-griglia .ml-griglia-nota {
-  display: block;
+  margin-left: 6px;
   font-size: 11px;
-  line-height: 14px;
   font-weight: 500;
   letter-spacing: 0;
   text-transform: none;
@@ -449,35 +470,120 @@
   color: var(--md-text-2);
   font-style: italic;
 }
-/* Sintesi: il doppio filetto dei consuntivi (come `ml-totale`) e le etichette
-   in maiuscoletto, così non si leggono come un altro anno. */
-.ml-griglia tfoot tr:first-child > * {
+/* SINTESI a due livelli. Primo: la riga Media, sotto il doppio filetto dei
+   consuntivi, in semibold e tinta con la stessa scala (sulle sue dodici medie):
+   è la riga che si confronta con gli anni. Secondo: StDev, In rialzo e, solo
+   quando servono, gli anni, in una fascia su --md-surface-2 a 11px e senza fili
+   fra le righe — si leggono come note della colonna, non come altri anni. Prima
+   erano quattro righe alte come gli anni, 133px. */
+.ml-griglia tfoot tr.ml-media > * {
   border-top: 3px double var(--ml-rule);
-}
-.ml-griglia tfoot th {
-  font-size: 11px;
+  padding-block: 5px;
   font-weight: 600;
+  color: var(--md-text);
+}
+.ml-griglia tfoot tr.ml-media > th {
+  font-size: 11px;
   letter-spacing: 0.04em;
   text-transform: uppercase;
   color: var(--md-muted);
 }
-.ml-griglia td.ml-media {
-  font-weight: 600;
+.ml-griglia tfoot tr.ml-sintesi-2 > * {
+  padding-block: 1px;
+  font-size: 11px;
+  line-height: 14px;
+  color: var(--md-text-2);
+  background-color: var(--md-surface-2);
+  border-color: var(--md-surface-2);
+}
+.ml-griglia tfoot tr.ml-sintesi-2 > th:first-child {
+  font-weight: 500;
+  background-color: var(--md-surface-2);
+  border-right-color: var(--ml-rule);
+}
+.ml-griglia tfoot tr.ml-sintesi-apre > * {
+  padding-top: 5px;
+}
+.ml-griglia tfoot tr.ml-sintesi-chiude > * {
+  padding-bottom: 5px;
+}
+.ml-griglia .ml-sintesi-den {
+  font-weight: 400;
+}
+/* Gli anni compaiono solo quando avvertono (colonne con anni diversi, o
+   pochi): stanno FUORI dalla fascia, sulla card, perché il triangolo del
+   campione basso è tarato lì — sulla fascia l'ambra scendeva a 4,33:1 in
+   chiaro e il rosso a 4,30:1 in scuro (misurato il 16/09/2026). */
+.ml-griglia tfoot tr.ml-anni > * {
+  padding-block: 3px;
+  font-size: 11px;
+  line-height: 14px;
+  color: var(--md-text-2);
+}
+/* «1.206 su 2.401» in colonna: cinque caratteri di larghezza invece di
+   quattordici, quando i denominatori cambiano da colonna a colonna. */
+.ml-griglia .ml-frazione {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: flex-end;
+}
+/* In ricalcolo: detto una volta, in una casella che attraversa la riga. */
+.ml-griglia tfoot td.ml-ricalcolo {
+  text-align: left;
+  white-space: normal;
+}
+
+/* LA SCALA DI CALORE. Il segno sceglie il colore (--md-up/--md-down, con la
+   coppia daltonica), il passo la dose (--ml-heat-N), il fondo resta la card.
+   Ai passi 4-5 la cifra passa al testo primario. Vale anche per i campioni
+   della legenda (`.ml-scala`). */
+:is(.ml-griglia td, .ml-scala i).ml-su {
+  --ml-segno: var(--md-up);
+}
+:is(.ml-griglia td, .ml-scala i).ml-giu {
+  --ml-segno: var(--md-down);
+}
+:is(.ml-griglia td, .ml-scala i)[data-calore="1"] {
+  background-color: color-mix(in oklab, var(--ml-segno) var(--ml-heat-1), var(--md-bg));
+}
+:is(.ml-griglia td, .ml-scala i)[data-calore="2"] {
+  background-color: color-mix(in oklab, var(--ml-segno) var(--ml-heat-2), var(--md-bg));
+}
+:is(.ml-griglia td, .ml-scala i)[data-calore="3"] {
+  background-color: color-mix(in oklab, var(--ml-segno) var(--ml-heat-3), var(--md-bg));
+}
+:is(.ml-griglia td, .ml-scala i)[data-calore="4"] {
+  background-color: color-mix(in oklab, var(--ml-segno) var(--ml-heat-4), var(--md-bg));
   color: var(--md-text);
 }
-/* L'accento: il colore del segno del sistema (compresa la coppia daltonica
-   scelta in Impostazioni) e, per il forte, il peso. Stessa specificità della
-   riga Media e scritto DOPO: una media notevole prende il colore del segno.
-   (Misurato il 15/09/2026: con `tfoot td.ml-media` più specifico la riga
-   Media restava tutta in testo primario.) */
-.ml-griglia td.ml-acc-su {
-  color: var(--md-up);
+:is(.ml-griglia td, .ml-scala i)[data-calore="5"] {
+  background-color: color-mix(in oklab, var(--ml-segno) var(--ml-heat-5), var(--md-bg));
+  color: var(--md-text);
 }
-.ml-griglia td.ml-acc-giu {
-  color: var(--md-down);
+/* Legenda accanto al titolo: cinque passi per segno ai lati dello zero. */
+.ml-scala {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  font-size: 11px;
+  line-height: 16px;
+  color: var(--md-text-2);
+  font-variant-numeric: tabular-nums;
 }
-.ml-griglia td.ml-acc-forte {
-  font-weight: 600;
+.ml-scala i {
+  display: block;
+  width: 12px;
+  height: 12px;
+}
+.ml-scala b {
+  display: block;
+  width: 1px;
+  height: 14px;
+  margin-inline: 2px;
+  background-color: var(--ml-rule);
+}
+.ml-scala span {
+  margin-inline: 3px;
 }
 
 /* ── icona informativa ───────────────────────────────────────────────────

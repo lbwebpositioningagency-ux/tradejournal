@@ -3431,3 +3431,38 @@ temi, sonda del capitolo + sonda dei testi SVG): 0 testi < 11px, 0 < 4,5:1, 0 er
 pagina mai più larga del viewport. A 390 la pastiglia «va in perdita» scende sotto la cifra
 (flex che va a capo) invece di spezzarsi fuori dalla cella. Gate: typecheck, lint, 2.251 test, build
 verdi. Nessuna migrazione. Schermate in `docs/journal/concentrazione-percentuali/`.
+
+## 16/09/2026 · Stagionalità — heatmap tenue nella griglia anni × periodo, grafico dell'indice ad altezza doppia
+
+**Griglia.** Il colore torna su tutte le caselle, tenue e graduale (giro 5: accento sulla sola cifra,
+24% di caselle colorate). Due tarature confrontate in Claude Design sui dati veri dell'oro a 20 anni,
+nei due temi (tavola «Sistema visivo v3 - Stagionalità, heatmap tenue»): **scelta P, proporzionale**,
+cinque passi, piena dal 95° percentile dello scarto della griglia (`calore.ts`); scartata Q (quinti),
+che colorava deciso due caselle su cinque per costruzione. Su 44 strumento × profondità ai passi 1–2
+finisce il 60–89% delle caselle, al passo 5 il 5–15%.
+
+- **Token nuovi** `--heat-1…5` in `globals.css` (dosi di colore, non colori): chiaro 6/10/15/21/28%,
+  scuro 9/14/20/27/35%, anche nel blocco di stampa; alias `--ml-heat-N` nel listino. Fondo =
+  `color-mix(in oklab, segno, card)`, segno = `--md-up/--md-down` con la coppia daltonica.
+- **Cifre** in testo secondario ai passi 1–3, primario ai passi 4–5. Contrasto misurato in pagina:
+  cifra più debole 7,09 chiaro · 6,02 scuro (passo 3), sulla tinta piena 13,14 · 8,43; calcolato con
+  le coppie daltoniche ≥ 6,79 · 6,03 (test in `listino-leggibilita.test.ts`).
+- **Colonne** uguali, larghe quanto la cifra più lunga della griglia (in `ch`), niente tabella stirata:
+  oro mese 1118 → 686px a 1440 (colonne 77–88 → 50px), ore S&P 2325 → 1665px, settimane 3249 → 2757px.
+- **Sintesi a due livelli**: riga Media tinta sotto il doppio filetto; StDev e In rialzo in una fascia
+  a 11px; il denominatore sale nell'etichetta quando è uguale in ogni colonna («In rialzo su 20»),
+  altrimenti conteggio e occorrenze in colonna; la riga Anni solo se gli anni differiscono o sono
+  pochi, fuori dalla fascia (sulla fascia il triangolo del campione basso scendeva a 4,30:1).
+  Oro mese 133 → 70px. «In ricalcolo» diventa una casella sola che attraversa la riga.
+- **Anno in corso** su una riga: 42,5 → 25px, come le altre. Righe 29 → 25px.
+- Tolti `accento.ts` e `minWidthRem`/`stretch` di `BUCKET_AXIS`. Nessun dato né calcolo toccato.
+
+**Grafico dell'indice.** Riquadro 520 → 944px da md in su: disegno 424 → 848px; oro 32,62 → 67,84 px
+per punto, S&P 26,50 → 60,57, VIX 12,11 → 30,29. A 390 riquadro 420 → 560px, disegno 234 → 374px
+(oro 16,71 → 26,71): il doppio pieno avrebbe portato il blocco a 654px, oltre una schermata. Regola di
+scala invariata. Tavola «Sistema visivo v3 - Stagionalità, grafico dell'indice ad altezza doppia».
+
+Misure (build locale, oro mese/settimana/sessione, S&P ora, VIX mese/giorno, 1440/1280/390, due
+temi): 0 testi < 11px, contrasto minimo 4,76 (icona del campione basso), 0 errori in console, pagina
+mai più larga del viewport. Gate: typecheck, lint, test, build verdi. Nessuna migrazione. Schermate in
+`docs/stagionalita/heatmap-tenue/`.

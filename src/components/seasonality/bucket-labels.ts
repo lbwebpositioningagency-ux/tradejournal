@@ -29,10 +29,6 @@ export interface BucketAxis {
   /** Unità del CAMPIONE: la stessa del bucket — mesi, settimane, giorni,
    * sessioni, ore. «Gennaio · 20 mesi» dice da solo cosa è stato contato. */
   rawUnit: string;
-  /** Larghezza minima della heatmap: 53 settimane non stanno in 46rem. */
-  minWidthRem: number;
-  /** La griglia va stirata a tutta larghezza? No con poche colonne. */
-  stretch: boolean;
 }
 
 const WEEK_BUCKETS = Array.from({ length: 53 }, (_, i) => i + 1);
@@ -54,8 +50,6 @@ export const BUCKET_AXIS: Record<
     columnName: "Mese",
     plural: "mesi",
     rawUnit: "mesi",
-    minWidthRem: 58,
-    stretch: true,
   },
   WEEK: {
     buckets: WEEK_BUCKETS,
@@ -64,9 +58,6 @@ export const BUCKET_AXIS: Record<
     columnName: "Settimana ISO",
     plural: "settimane",
     rawUnit: "settimane",
-    // 53 colonne: la griglia scorre dentro il suo contenitore, il documento no.
-    minWidthRem: 150,
-    stretch: true,
   },
   WEEKDAY: {
     buckets: [...WEEKDAY_BUCKETS],
@@ -75,8 +66,6 @@ export const BUCKET_AXIS: Record<
     columnName: "Giorno",
     plural: "giorni",
     rawUnit: "giorni",
-    minWidthRem: 36,
-    stretch: false,
   },
   SESSION: {
     buckets: SESSION_BUCKETS,
@@ -85,8 +74,6 @@ export const BUCKET_AXIS: Record<
     columnName: "Sessione",
     plural: "sessioni",
     rawUnit: "sessioni",
-    minWidthRem: 36,
-    stretch: false,
   },
   HOUR: {
     buckets: HOUR_BUCKETS,
@@ -95,8 +82,6 @@ export const BUCKET_AXIS: Record<
     columnName: "Ora",
     plural: "ore",
     rawUnit: "ore",
-    minWidthRem: 88,
-    stretch: true,
   },
 };
 

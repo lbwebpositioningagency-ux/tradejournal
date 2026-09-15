@@ -1,0 +1,6628 @@
+[
+  {
+    "pagina": "/macro-desk/stagionalita?s=XAUUSD",
+    "larghezza": 1440,
+    "tema": "light",
+    "file": "macro-desk_stagionalita_s_XAUUSD__1440__light.png",
+    "innerWidth": 1440,
+    "scrollWidth": 1440,
+    "altezza": 3264,
+    "griglia": {
+      "larghezzaTabella": 685.8,
+      "larghezzaContenitore": 1118,
+      "scorre": 0,
+      "colonne": 12,
+      "primaColonna": 87.6,
+      "colonnaMin": 49.8,
+      "colonnaMax": 49.8,
+      "rigaCorpo": 25,
+      "rigaInCorso": 25,
+      "sintesiAltezza": 70,
+      "sintesiRighe": [
+        "Media 28",
+        "StDev 21",
+        "In rialzo su 20 21"
+      ],
+      "inRicalcolo": 0,
+      "caselle": 249,
+      "tinte": {
+        "neutra": 9,
+        "su4": 17,
+        "su1": 36,
+        "su5": 15,
+        "su3": 27,
+        "giù1": 50,
+        "su2": 37,
+        "giù2": 28,
+        "giù3": 19,
+        "giù4": 6,
+        "giù5": 5
+      },
+      "piccoli": 0,
+      "contrasti": {
+        "testa·TH": {
+          "min": 5.2,
+          "esempio": "Anno",
+          "px": 11
+        },
+        "in corso·TH": {
+          "min": 7.56,
+          "esempio": "in corso",
+          "px": 11
+        },
+        "in corso·TD": {
+          "min": 7.56,
+          "esempio": "-3,7",
+          "px": 12
+        },
+        "corpo·TH": {
+          "min": 19.45,
+          "esempio": "2006",
+          "px": 12
+        },
+        "corpo·TD·su4": {
+          "min": 14.63,
+          "esempio": "+6,6",
+          "px": 12
+        },
+        "corpo·TD·su1": {
+          "min": 8.05,
+          "esempio": "+1,4",
+          "px": 12
+        },
+        "corpo·TD·su5": {
+          "min": 13.21,
+          "esempio": "+12,1",
+          "px": 12
+        },
+        "corpo·TD·su3": {
+          "min": 7.1,
+          "esempio": "+6,3",
+          "px": 12
+        },
+        "corpo·TD·giù1": {
+          "min": 8.03,
+          "esempio": "-0,7",
+          "px": 12
+        },
+        "corpo·TD·su2": {
+          "min": 7.63,
+          "esempio": "+3,7",
+          "px": 12
+        },
+        "corpo·TD·giù2": {
+          "min": 7.6,
+          "esempio": "-2,7",
+          "px": 12
+        },
+        "corpo·TD·giù3": {
+          "min": 7.09,
+          "esempio": "-4,6",
+          "px": 12
+        },
+        "corpo·TD·giù4": {
+          "min": 14.52,
+          "esempio": "-7,3",
+          "px": 12
+        },
+        "corpo·TD·giù5": {
+          "min": 13.14,
+          "esempio": "-11,2",
+          "px": 12
+        },
+        "sintesi·TH": {
+          "min": 5.2,
+          "esempio": "Media",
+          "px": 11
+        },
+        "sintesi·TD·su5": {
+          "min": 13.21,
+          "esempio": "+3,49",
+          "px": 12
+        },
+        "sintesi·TD·su2": {
+          "min": 17.02,
+          "esempio": "+0,74",
+          "px": 12
+        },
+        "sintesi·TD·su1": {
+          "min": 17.95,
+          "esempio": "+0,60",
+          "px": 12
+        },
+        "sintesi·TD·su3": {
+          "min": 15.83,
+          "esempio": "+1,70",
+          "px": 12
+        },
+        "sintesi·TD·giù1": {
+          "min": 17.92,
+          "esempio": "-0,24",
+          "px": 12
+        },
+        "sintesi·TD": {
+          "min": 7.93,
+          "esempio": "12",
+          "px": 11
+        }
+      }
+    },
+    "grafico": {
+      "contenitore": 944,
+      "riquadro": 908,
+      "disegno": 848,
+      "pxPerPunto": 67.84,
+      "tick": [
+        112,
+        111.5,
+        111,
+        110.5,
+        110,
+        109.5,
+        109,
+        108.5,
+        108,
+        107.5,
+        107,
+        106.5,
+        106,
+        105.5,
+        105,
+        104.5,
+        104,
+        103.5,
+        103,
+        102.5,
+        102,
+        101.5,
+        101,
+        100.5,
+        100,
+        99.5
+      ],
+      "sezioneTop": 609,
+      "sezioneAltezza": 1096,
+      "graficoBottom": 1648
+    },
+    "sbordi": [],
+    "testiSotto11": [],
+    "erroriConsole": []
+  },
+  {
+    "pagina": "/macro-desk/stagionalita?s=XAUUSD&t=settimana",
+    "larghezza": 1440,
+    "tema": "light",
+    "file": "macro-desk_stagionalita_s_XAUUSD_t_settimana__1440__light.png",
+    "innerWidth": 1440,
+    "scrollWidth": 1440,
+    "altezza": 5062,
+    "griglia": {
+      "larghezzaTabella": 2757,
+      "larghezzaContenitore": 1118,
+      "scorre": 1639,
+      "colonne": 53,
+      "primaColonna": 118.4,
+      "colonnaMin": 49.8,
+      "colonnaMax": 49.8,
+      "rigaCorpo": 25,
+      "rigaInCorso": 25,
+      "sintesiAltezza": 105,
+      "sintesiRighe": [
+        "Media 28",
+        "StDev 21",
+        "In rialzo settimane su 35",
+        "Anni 21"
+      ],
+      "inRicalcolo": 0,
+      "caselle": 1081,
+      "tinte": {
+        "neutra": 38,
+        "su1": 206,
+        "su2": 154,
+        "su3": 117,
+        "giù3": 68,
+        "giù2": 117,
+        "su5": 56,
+        "giù1": 182,
+        "giù4": 45,
+        "su4": 52,
+        "giù5": 46
+      },
+      "piccoli": 0,
+      "contrasti": {
+        "testa·TH": {
+          "min": 5.2,
+          "esempio": "Anno",
+          "px": 11
+        },
+        "in corso·TH": {
+          "min": 7.56,
+          "esempio": "in corso",
+          "px": 11
+        },
+        "in corso·TD": {
+          "min": 7.56,
+          "esempio": "-1,9",
+          "px": 12
+        },
+        "in corso·TD·grigia": {
+          "min": 7.56,
+          "esempio": "-1,4",
+          "px": 12
+        },
+        "corpo·TH": {
+          "min": 19.45,
+          "esempio": "2006",
+          "px": 12
+        },
+        "corpo·TD·su1": {
+          "min": 8.05,
+          "esempio": "+0,1",
+          "px": 12
+        },
+        "corpo·TD·su2": {
+          "min": 7.63,
+          "esempio": "+1,0",
+          "px": 12
+        },
+        "corpo·TD·su3": {
+          "min": 7.1,
+          "esempio": "+2,5",
+          "px": 12
+        },
+        "corpo·TD·giù3": {
+          "min": 7.09,
+          "esempio": "-2,5",
+          "px": 12
+        },
+        "corpo·TD·giù2": {
+          "min": 7.6,
+          "esempio": "-1,5",
+          "px": 12
+        },
+        "corpo·TD·su5": {
+          "min": 13.21,
+          "esempio": "+4,7",
+          "px": 12
+        },
+        "corpo·TD·giù1": {
+          "min": 8.03,
+          "esempio": "-0,2",
+          "px": 12
+        },
+        "corpo·TD·giù4": {
+          "min": 14.52,
+          "esempio": "-3,6",
+          "px": 12
+        },
+        "corpo·TD·su4": {
+          "min": 14.63,
+          "esempio": "+3,7",
+          "px": 12
+        },
+        "corpo·TD·grigia": {
+          "min": 5.2,
+          "esempio": "—",
+          "px": 12
+        },
+        "corpo·TD·giù5": {
+          "min": 13.14,
+          "esempio": "-4,5",
+          "px": 12
+        },
+        "sintesi·TH": {
+          "min": 5.2,
+          "esempio": "Media",
+          "px": 11
+        },
+        "sintesi·TD·su4": {
+          "min": 14.63,
+          "esempio": "+0,77",
+          "px": 12
+        },
+        "sintesi·TD·su5": {
+          "min": 13.21,
+          "esempio": "+1,28",
+          "px": 12
+        },
+        "sintesi·TD·su1": {
+          "min": 17.95,
+          "esempio": "+0,20",
+          "px": 12
+        },
+        "sintesi·TD·su2": {
+          "min": 17.02,
+          "esempio": "+0,27",
+          "px": 12
+        },
+        "sintesi·TD·su3": {
+          "min": 15.83,
+          "esempio": "+0,45",
+          "px": 12
+        },
+        "sintesi·TD·giù3": {
+          "min": 15.81,
+          "esempio": "-0,44",
+          "px": 12
+        },
+        "sintesi·TD·giù1": {
+          "min": 17.92,
+          "esempio": "-0,11",
+          "px": 12
+        },
+        "sintesi·TD·giù2": {
+          "min": 16.96,
+          "esempio": "-0,37",
+          "px": 12
+        },
+        "sintesi·TD·giù5": {
+          "min": 13.14,
+          "esempio": "-0,97",
+          "px": 12
+        },
+        "sintesi·TD·giù4": {
+          "min": 14.52,
+          "esempio": "-0,64",
+          "px": 12
+        },
+        "sintesi·TD": {
+          "min": 5.13,
+          "esempio": "Campione molto",
+          "px": 11
+        }
+      }
+    },
+    "grafico": {
+      "contenitore": 944,
+      "riquadro": 908,
+      "disegno": 848,
+      "pxPerPunto": 67.84,
+      "tick": [
+        112,
+        111.5,
+        111,
+        110.5,
+        110,
+        109.5,
+        109,
+        108.5,
+        108,
+        107.5,
+        107,
+        106.5,
+        106,
+        105.5,
+        105,
+        104.5,
+        104,
+        103.5,
+        103,
+        102.5,
+        102,
+        101.5,
+        101,
+        100.5,
+        100,
+        99.5
+      ],
+      "sezioneTop": 609,
+      "sezioneAltezza": 1096,
+      "graficoBottom": 1648
+    },
+    "sbordi": [],
+    "testiSotto11": [],
+    "erroriConsole": []
+  },
+  {
+    "pagina": "/macro-desk/stagionalita?s=XAUUSD&t=sessione",
+    "larghezza": 1440,
+    "tema": "light",
+    "file": "macro-desk_stagionalita_s_XAUUSD_t_sessione__1440__light.png",
+    "innerWidth": 1440,
+    "scrollWidth": 1440,
+    "altezza": 3057,
+    "griglia": {
+      "larghezzaTabella": 373.2,
+      "larghezzaContenitore": 1118,
+      "scorre": 0,
+      "colonne": 4,
+      "primaColonna": 109.4,
+      "colonnaMin": 65.7,
+      "colonnaMax": 65.7,
+      "rigaCorpo": 25,
+      "rigaInCorso": 25,
+      "sintesiAltezza": 84,
+      "sintesiRighe": [
+        "Media 28",
+        "StDev 21",
+        "In rialzo sessioni su 35"
+      ],
+      "inRicalcolo": 0,
+      "caselle": 84,
+      "tinte": {
+        "neutra": 4,
+        "su2": 18,
+        "giù4": 7,
+        "su1": 17,
+        "giù1": 20,
+        "su3": 4,
+        "giù2": 6,
+        "giù3": 2,
+        "giù5": 6
+      },
+      "piccoli": 0,
+      "contrasti": {
+        "testa·TH": {
+          "min": 5.2,
+          "esempio": "Anno",
+          "px": 11
+        },
+        "in corso·TH": {
+          "min": 7.56,
+          "esempio": "in corso",
+          "px": 11
+        },
+        "in corso·TD": {
+          "min": 7.56,
+          "esempio": "-0,012",
+          "px": 12
+        },
+        "corpo·TH": {
+          "min": 19.45,
+          "esempio": "2006",
+          "px": 12
+        },
+        "corpo·TD·su2": {
+          "min": 7.63,
+          "esempio": "+0,007",
+          "px": 12
+        },
+        "corpo·TD·giù4": {
+          "min": 14.52,
+          "esempio": "-0,016",
+          "px": 12
+        },
+        "corpo·TD·su1": {
+          "min": 8.05,
+          "esempio": "+0,003",
+          "px": 12
+        },
+        "corpo·TD·giù1": {
+          "min": 8.03,
+          "esempio": "-0,000",
+          "px": 12
+        },
+        "corpo·TD·su3": {
+          "min": 7.1,
+          "esempio": "+0,012",
+          "px": 12
+        },
+        "corpo·TD·giù2": {
+          "min": 7.6,
+          "esempio": "-0,006",
+          "px": 12
+        },
+        "corpo·TD·giù3": {
+          "min": 7.09,
+          "esempio": "-0,010",
+          "px": 12
+        },
+        "corpo·TD·giù5": {
+          "min": 13.14,
+          "esempio": "-0,031",
+          "px": 12
+        },
+        "sintesi·TH": {
+          "min": 5.2,
+          "esempio": "Media",
+          "px": 11
+        },
+        "sintesi·TD·su3": {
+          "min": 15.83,
+          "esempio": "+0,0058",
+          "px": 12
+        },
+        "sintesi·TD·giù1": {
+          "min": 17.92,
+          "esempio": "-0,0026",
+          "px": 12
+        },
+        "sintesi·TD·su1": {
+          "min": 17.95,
+          "esempio": "+0,0007",
+          "px": 12
+        },
+        "sintesi·TD·giù5": {
+          "min": 13.14,
+          "esempio": "-0,0143",
+          "px": 12
+        },
+        "sintesi·TD": {
+          "min": 7.93,
+          "esempio": "4.819",
+          "px": 11
+        }
+      }
+    },
+    "grafico": {
+      "contenitore": 944,
+      "riquadro": 908,
+      "disegno": 848,
+      "pxPerPunto": 67.84,
+      "tick": [
+        112,
+        111.5,
+        111,
+        110.5,
+        110,
+        109.5,
+        109,
+        108.5,
+        108,
+        107.5,
+        107,
+        106.5,
+        106,
+        105.5,
+        105,
+        104.5,
+        104,
+        103.5,
+        103,
+        102.5,
+        102,
+        101.5,
+        101,
+        100.5,
+        100,
+        99.5
+      ],
+      "sezioneTop": 609,
+      "sezioneAltezza": 1096,
+      "graficoBottom": 1648
+    },
+    "sbordi": [],
+    "testiSotto11": [],
+    "erroriConsole": []
+  },
+  {
+    "pagina": "/macro-desk/stagionalita?s=SPX&t=ora",
+    "larghezza": 1440,
+    "tema": "light",
+    "file": "macro-desk_stagionalita_s_SPX_t_ora__1440__light.png",
+    "innerWidth": 1440,
+    "scrollWidth": 1440,
+    "altezza": 3771,
+    "griglia": {
+      "larghezzaTabella": 1665.1,
+      "larghezzaContenitore": 1118,
+      "scorre": 547,
+      "colonne": 24,
+      "primaColonna": 87.6,
+      "colonnaMin": 65.7,
+      "colonnaMax": 65.7,
+      "rigaCorpo": 25,
+      "rigaInCorso": 25,
+      "sintesiAltezza": 105,
+      "sintesiRighe": [
+        "Media 28",
+        "StDev 21",
+        "In rialzo ore su 35",
+        "Anni 21"
+      ],
+      "inRicalcolo": 0,
+      "caselle": 329,
+      "tinte": {
+        "neutra": 56,
+        "giù1": 62,
+        "su4": 10,
+        "giù2": 19,
+        "su1": 63,
+        "giù4": 9,
+        "su2": 40,
+        "su5": 22,
+        "su3": 26,
+        "giù3": 10,
+        "giù5": 12
+      },
+      "piccoli": 0,
+      "contrasti": {
+        "testa·TH": {
+          "min": 5.2,
+          "esempio": "Anno",
+          "px": 11
+        },
+        "in corso·TH": {
+          "min": 7.56,
+          "esempio": "in corso",
+          "px": 11
+        },
+        "in corso·TD·grigia": {
+          "min": 7.56,
+          "esempio": "-0,043",
+          "px": 12
+        },
+        "in corso·TD": {
+          "min": 7.56,
+          "esempio": "-0,001",
+          "px": 12
+        },
+        "corpo·TH": {
+          "min": 19.45,
+          "esempio": "2011",
+          "px": 12
+        },
+        "corpo·TD·grigia": {
+          "min": 5.2,
+          "esempio": "+0,038",
+          "px": 12
+        },
+        "corpo·TD·giù1": {
+          "min": 8.03,
+          "esempio": "-0,003",
+          "px": 12
+        },
+        "corpo·TD·su4": {
+          "min": 14.63,
+          "esempio": "+0,021",
+          "px": 12
+        },
+        "corpo·TD·giù2": {
+          "min": 7.6,
+          "esempio": "-0,007",
+          "px": 12
+        },
+        "corpo·TD·su1": {
+          "min": 8.05,
+          "esempio": "+0,004",
+          "px": 12
+        },
+        "corpo·TD·giù4": {
+          "min": 14.52,
+          "esempio": "-0,018",
+          "px": 12
+        },
+        "corpo·TD·su2": {
+          "min": 7.63,
+          "esempio": "+0,006",
+          "px": 12
+        },
+        "corpo·TD·su5": {
+          "min": 13.21,
+          "esempio": "+0,026",
+          "px": 12
+        },
+        "corpo·TD·su3": {
+          "min": 7.1,
+          "esempio": "+0,014",
+          "px": 12
+        },
+        "corpo·TD·giù3": {
+          "min": 7.09,
+          "esempio": "-0,015",
+          "px": 12
+        },
+        "corpo·TD·giù5": {
+          "min": 13.14,
+          "esempio": "-0,022",
+          "px": 12
+        },
+        "sintesi·TH": {
+          "min": 5.2,
+          "esempio": "Media",
+          "px": 11
+        },
+        "sintesi·TD·su2": {
+          "min": 17.02,
+          "esempio": "+0,0070",
+          "px": 12
+        },
+        "sintesi·TD·su1": {
+          "min": 17.95,
+          "esempio": "+0,0000",
+          "px": 12
+        },
+        "sintesi·TD·giù1": {
+          "min": 17.92,
+          "esempio": "-0,0006",
+          "px": 12
+        },
+        "sintesi·TD·su4": {
+          "min": 14.63,
+          "esempio": "+0,0154",
+          "px": 12
+        },
+        "sintesi·TD·giù5": {
+          "min": 13.14,
+          "esempio": "-0,0236",
+          "px": 12
+        },
+        "sintesi·TD·giù4": {
+          "min": 14.52,
+          "esempio": "-0,0146",
+          "px": 12
+        },
+        "sintesi·TD·giù2": {
+          "min": 16.96,
+          "esempio": "-0,0090",
+          "px": 12
+        },
+        "sintesi·TD": {
+          "min": 4.76,
+          "esempio": "Campione basso",
+          "px": 11
+        }
+      }
+    },
+    "grafico": {
+      "contenitore": 944,
+      "riquadro": 908,
+      "disegno": 848,
+      "pxPerPunto": 60.57,
+      "tick": [
+        113,
+        112,
+        111,
+        110,
+        109,
+        108,
+        107,
+        106,
+        105,
+        104,
+        103,
+        102,
+        101,
+        100,
+        99
+      ],
+      "sezioneTop": 633,
+      "sezioneAltezza": 1096,
+      "graficoBottom": 1672
+    },
+    "sbordi": [],
+    "testiSotto11": [],
+    "erroriConsole": []
+  },
+  {
+    "pagina": "/macro-desk/stagionalita?s=VIX&t=giorno",
+    "larghezza": 1440,
+    "tema": "light",
+    "file": "macro-desk_stagionalita_s_VIX_t_giorno__1440__light.png",
+    "innerWidth": 1440,
+    "scrollWidth": 1440,
+    "altezza": 3019,
+    "griglia": {
+      "larghezzaTabella": 383,
+      "larghezzaContenitore": 1118,
+      "scorre": 0,
+      "colonne": 5,
+      "primaColonna": 133.1,
+      "colonnaMin": 49.8,
+      "colonnaMax": 49.8,
+      "rigaCorpo": 25,
+      "rigaInCorso": 25,
+      "sintesiAltezza": 84,
+      "sintesiRighe": [
+        "Livello medio 28",
+        "StDev 21",
+        "Sopra mediana giorni su 35"
+      ],
+      "inRicalcolo": 0,
+      "caselle": 105,
+      "tinte": {
+        "neutra": 5,
+        "giù1": 21,
+        "giù2": 26,
+        "su3": 6,
+        "su1": 4,
+        "su5": 12,
+        "su4": 3,
+        "giù4": 5,
+        "giù3": 14,
+        "su2": 9
+      },
+      "piccoli": 0,
+      "contrasti": {
+        "testa·TH": {
+          "min": 5.2,
+          "esempio": "Anno",
+          "px": 11
+        },
+        "in corso·TH": {
+          "min": 7.56,
+          "esempio": "in corso",
+          "px": 11
+        },
+        "in corso·TD": {
+          "min": 7.56,
+          "esempio": "18,3",
+          "px": 12
+        },
+        "corpo·TH": {
+          "min": 19.45,
+          "esempio": "2006",
+          "px": 12
+        },
+        "corpo·TD·giù1": {
+          "min": 8.03,
+          "esempio": "19,1",
+          "px": 12
+        },
+        "corpo·TD·giù2": {
+          "min": 7.6,
+          "esempio": "14,4",
+          "px": 12
+        },
+        "corpo·TD·su3": {
+          "min": 7.1,
+          "esempio": "24,8",
+          "px": 12
+        },
+        "corpo·TD·su1": {
+          "min": 8.05,
+          "esempio": "19,6",
+          "px": 12
+        },
+        "corpo·TD·su5": {
+          "min": 13.21,
+          "esempio": "33,1",
+          "px": 12
+        },
+        "corpo·TD·su4": {
+          "min": 14.63,
+          "esempio": "29,1",
+          "px": 12
+        },
+        "corpo·TD·giù4": {
+          "min": 14.52,
+          "esempio": "11,0",
+          "px": 12
+        },
+        "corpo·TD·giù3": {
+          "min": 7.09,
+          "esempio": "12,7",
+          "px": 12
+        },
+        "corpo·TD·su2": {
+          "min": 7.63,
+          "esempio": "22,9",
+          "px": 12
+        },
+        "sintesi·TH": {
+          "min": 5.2,
+          "esempio": "Livello medio",
+          "px": 11
+        },
+        "sintesi·TD·su5": {
+          "min": 13.21,
+          "esempio": "19,68",
+          "px": 12
+        },
+        "sintesi·TD·su1": {
+          "min": 17.95,
+          "esempio": "19,45",
+          "px": 12
+        },
+        "sintesi·TD·giù1": {
+          "min": 17.92,
+          "esempio": "19,39",
+          "px": 12
+        },
+        "sintesi·TD": {
+          "min": 7.93,
+          "esempio": "1.010",
+          "px": 11
+        },
+        "sintesi·TD·giù2": {
+          "min": 16.96,
+          "esempio": "19,33",
+          "px": 12
+        }
+      }
+    },
+    "grafico": {
+      "contenitore": 944,
+      "riquadro": 908,
+      "disegno": 848,
+      "pxPerPunto": 30.29,
+      "tick": [
+        116,
+        114,
+        112,
+        110,
+        108,
+        106,
+        104,
+        102,
+        100,
+        98,
+        96,
+        94,
+        92,
+        90,
+        88
+      ],
+      "sezioneTop": 607,
+      "sezioneAltezza": 1096,
+      "graficoBottom": 1646
+    },
+    "sbordi": [],
+    "testiSotto11": [],
+    "erroriConsole": []
+  },
+  {
+    "pagina": "/macro-desk/stagionalita?s=VIX",
+    "larghezza": 1440,
+    "tema": "light",
+    "file": "macro-desk_stagionalita_s_VIX__1440__light.png",
+    "innerWidth": 1440,
+    "scrollWidth": 1440,
+    "altezza": 3262,
+    "griglia": {
+      "larghezzaTabella": 716.6,
+      "larghezzaContenitore": 1118,
+      "scorre": 0,
+      "colonne": 12,
+      "primaColonna": 118.5,
+      "colonnaMin": 49.8,
+      "colonnaMax": 49.8,
+      "rigaCorpo": 25,
+      "rigaInCorso": 25,
+      "sintesiAltezza": 70,
+      "sintesiRighe": [
+        "Livello medio 28",
+        "StDev 21",
+        "Sopra mediana su 20 21"
+      ],
+      "inRicalcolo": 0,
+      "caselle": 249,
+      "tinte": {
+        "neutra": 9,
+        "giù1": 41,
+        "su1": 29,
+        "su5": 19,
+        "giù2": 53,
+        "giù3": 42,
+        "su2": 18,
+        "su3": 19,
+        "su4": 7,
+        "giù4": 12
+      },
+      "piccoli": 0,
+      "contrasti": {
+        "testa·TH": {
+          "min": 5.2,
+          "esempio": "Anno",
+          "px": 11
+        },
+        "in corso·TH": {
+          "min": 7.56,
+          "esempio": "in corso",
+          "px": 11
+        },
+        "in corso·TD": {
+          "min": 7.56,
+          "esempio": "15,9",
+          "px": 12
+        },
+        "corpo·TH": {
+          "min": 19.45,
+          "esempio": "2006",
+          "px": 12
+        },
+        "corpo·TD·giù1": {
+          "min": 8.03,
+          "esempio": "16,8",
+          "px": 12
+        },
+        "corpo·TD·su1": {
+          "min": 8.05,
+          "esempio": "21,7",
+          "px": 12
+        },
+        "corpo·TD·su5": {
+          "min": 13.21,
+          "esempio": "52,4",
+          "px": 12
+        },
+        "corpo·TD·giù2": {
+          "min": 7.6,
+          "esempio": "15,3",
+          "px": 12
+        },
+        "corpo·TD·giù3": {
+          "min": 7.09,
+          "esempio": "11,3",
+          "px": 12
+        },
+        "corpo·TD·su2": {
+          "min": 7.63,
+          "esempio": "22,2",
+          "px": 12
+        },
+        "corpo·TD·su3": {
+          "min": 7.1,
+          "esempio": "25,6",
+          "px": 12
+        },
+        "corpo·TD·su4": {
+          "min": 14.63,
+          "esempio": "29,3",
+          "px": 12
+        },
+        "corpo·TD·giù4": {
+          "min": 14.52,
+          "esempio": "11,1",
+          "px": 12
+        },
+        "sintesi·TH": {
+          "min": 5.2,
+          "esempio": "Livello medio",
+          "px": 11
+        },
+        "sintesi·TD·giù2": {
+          "min": 16.96,
+          "esempio": "18,82",
+          "px": 12
+        },
+        "sintesi·TD·su1": {
+          "min": 17.95,
+          "esempio": "19,49",
+          "px": 12
+        },
+        "sintesi·TD·su5": {
+          "min": 13.21,
+          "esempio": "21,47",
+          "px": 12
+        },
+        "sintesi·TD·giù1": {
+          "min": 17.92,
+          "esempio": "19,27",
+          "px": 12
+        },
+        "sintesi·TD·giù5": {
+          "min": 13.14,
+          "esempio": "17,50",
+          "px": 12
+        },
+        "sintesi·TD·su3": {
+          "min": 15.83,
+          "esempio": "20,42",
+          "px": 12
+        },
+        "sintesi·TD": {
+          "min": 7.93,
+          "esempio": "10",
+          "px": 11
+        }
+      }
+    },
+    "grafico": {
+      "contenitore": 944,
+      "riquadro": 908,
+      "disegno": 848,
+      "pxPerPunto": 30.29,
+      "tick": [
+        116,
+        114,
+        112,
+        110,
+        108,
+        106,
+        104,
+        102,
+        100,
+        98,
+        96,
+        94,
+        92,
+        90,
+        88
+      ],
+      "sezioneTop": 607,
+      "sezioneAltezza": 1096,
+      "graficoBottom": 1646
+    },
+    "sbordi": [],
+    "testiSotto11": [],
+    "erroriConsole": []
+  },
+  {
+    "pagina": "/macro-desk/stagionalita?s=XAUUSD",
+    "larghezza": 390,
+    "tema": "light",
+    "file": "macro-desk_stagionalita_s_XAUUSD__390__light.png",
+    "innerWidth": 390,
+    "scrollWidth": 390,
+    "altezza": 3457,
+    "griglia": {
+      "larghezzaTabella": 685.8,
+      "larghezzaContenitore": 324,
+      "scorre": 362,
+      "colonne": 12,
+      "primaColonna": 87.6,
+      "colonnaMin": 49.8,
+      "colonnaMax": 49.8,
+      "rigaCorpo": 25,
+      "rigaInCorso": 25,
+      "sintesiAltezza": 70,
+      "sintesiRighe": [
+        "Media 28",
+        "StDev 21",
+        "In rialzo su 20 21"
+      ],
+      "inRicalcolo": 0,
+      "caselle": 249,
+      "tinte": {
+        "neutra": 9,
+        "su4": 17,
+        "su1": 36,
+        "su5": 15,
+        "su3": 27,
+        "giù1": 50,
+        "su2": 37,
+        "giù2": 28,
+        "giù3": 19,
+        "giù4": 6,
+        "giù5": 5
+      },
+      "piccoli": 0,
+      "contrasti": {
+        "testa·TH": {
+          "min": 5.2,
+          "esempio": "Anno",
+          "px": 11
+        },
+        "in corso·TH": {
+          "min": 7.56,
+          "esempio": "in corso",
+          "px": 11
+        },
+        "in corso·TD": {
+          "min": 7.56,
+          "esempio": "-3,7",
+          "px": 12
+        },
+        "corpo·TH": {
+          "min": 19.45,
+          "esempio": "2006",
+          "px": 12
+        },
+        "corpo·TD·su4": {
+          "min": 14.63,
+          "esempio": "+6,6",
+          "px": 12
+        },
+        "corpo·TD·su1": {
+          "min": 8.05,
+          "esempio": "+1,4",
+          "px": 12
+        },
+        "corpo·TD·su5": {
+          "min": 13.21,
+          "esempio": "+12,1",
+          "px": 12
+        },
+        "corpo·TD·su3": {
+          "min": 7.1,
+          "esempio": "+6,3",
+          "px": 12
+        },
+        "corpo·TD·giù1": {
+          "min": 8.03,
+          "esempio": "-0,7",
+          "px": 12
+        },
+        "corpo·TD·su2": {
+          "min": 7.63,
+          "esempio": "+3,7",
+          "px": 12
+        },
+        "corpo·TD·giù2": {
+          "min": 7.6,
+          "esempio": "-2,7",
+          "px": 12
+        },
+        "corpo·TD·giù3": {
+          "min": 7.09,
+          "esempio": "-4,6",
+          "px": 12
+        },
+        "corpo·TD·giù4": {
+          "min": 14.52,
+          "esempio": "-7,3",
+          "px": 12
+        },
+        "corpo·TD·giù5": {
+          "min": 13.14,
+          "esempio": "-11,2",
+          "px": 12
+        },
+        "sintesi·TH": {
+          "min": 5.2,
+          "esempio": "Media",
+          "px": 11
+        },
+        "sintesi·TD·su5": {
+          "min": 13.21,
+          "esempio": "+3,49",
+          "px": 12
+        },
+        "sintesi·TD·su2": {
+          "min": 17.02,
+          "esempio": "+0,74",
+          "px": 12
+        },
+        "sintesi·TD·su1": {
+          "min": 17.95,
+          "esempio": "+0,60",
+          "px": 12
+        },
+        "sintesi·TD·su3": {
+          "min": 15.83,
+          "esempio": "+1,70",
+          "px": 12
+        },
+        "sintesi·TD·giù1": {
+          "min": 17.92,
+          "esempio": "-0,24",
+          "px": 12
+        },
+        "sintesi·TD": {
+          "min": 7.93,
+          "esempio": "12",
+          "px": 11
+        }
+      }
+    },
+    "grafico": {
+      "contenitore": 560,
+      "riquadro": 434,
+      "disegno": 374,
+      "pxPerPunto": 26.71,
+      "tick": [
+        112,
+        110,
+        108,
+        106,
+        104,
+        102,
+        100,
+        98
+      ],
+      "sezioneTop": 760,
+      "sezioneAltezza": 874,
+      "graficoBottom": 1477
+    },
+    "sbordi": [],
+    "testiSotto11": [],
+    "erroriConsole": []
+  },
+  {
+    "pagina": "/macro-desk/stagionalita?s=XAUUSD&t=settimana",
+    "larghezza": 390,
+    "tema": "light",
+    "file": "macro-desk_stagionalita_s_XAUUSD_t_settimana__390__light.png",
+    "innerWidth": 390,
+    "scrollWidth": 390,
+    "altezza": 5272,
+    "griglia": {
+      "larghezzaTabella": 2757,
+      "larghezzaContenitore": 324,
+      "scorre": 2433,
+      "colonne": 53,
+      "primaColonna": 118.4,
+      "colonnaMin": 49.8,
+      "colonnaMax": 49.8,
+      "rigaCorpo": 25,
+      "rigaInCorso": 25,
+      "sintesiAltezza": 105,
+      "sintesiRighe": [
+        "Media 28",
+        "StDev 21",
+        "In rialzo settimane su 35",
+        "Anni 21"
+      ],
+      "inRicalcolo": 0,
+      "caselle": 1081,
+      "tinte": {
+        "neutra": 38,
+        "su1": 206,
+        "su2": 154,
+        "su3": 117,
+        "giù3": 68,
+        "giù2": 117,
+        "su5": 56,
+        "giù1": 182,
+        "giù4": 45,
+        "su4": 52,
+        "giù5": 46
+      },
+      "piccoli": 0,
+      "contrasti": {
+        "testa·TH": {
+          "min": 5.2,
+          "esempio": "Anno",
+          "px": 11
+        },
+        "in corso·TH": {
+          "min": 7.56,
+          "esempio": "in corso",
+          "px": 11
+        },
+        "in corso·TD": {
+          "min": 7.56,
+          "esempio": "-1,9",
+          "px": 12
+        },
+        "in corso·TD·grigia": {
+          "min": 7.56,
+          "esempio": "-1,4",
+          "px": 12
+        },
+        "corpo·TH": {
+          "min": 19.45,
+          "esempio": "2006",
+          "px": 12
+        },
+        "corpo·TD·su1": {
+          "min": 8.05,
+          "esempio": "+0,1",
+          "px": 12
+        },
+        "corpo·TD·su2": {
+          "min": 7.63,
+          "esempio": "+1,0",
+          "px": 12
+        },
+        "corpo·TD·su3": {
+          "min": 7.1,
+          "esempio": "+2,5",
+          "px": 12
+        },
+        "corpo·TD·giù3": {
+          "min": 7.09,
+          "esempio": "-2,5",
+          "px": 12
+        },
+        "corpo·TD·giù2": {
+          "min": 7.6,
+          "esempio": "-1,5",
+          "px": 12
+        },
+        "corpo·TD·su5": {
+          "min": 13.21,
+          "esempio": "+4,7",
+          "px": 12
+        },
+        "corpo·TD·giù1": {
+          "min": 8.03,
+          "esempio": "-0,2",
+          "px": 12
+        },
+        "corpo·TD·giù4": {
+          "min": 14.52,
+          "esempio": "-3,6",
+          "px": 12
+        },
+        "corpo·TD·su4": {
+          "min": 14.63,
+          "esempio": "+3,7",
+          "px": 12
+        },
+        "corpo·TD·grigia": {
+          "min": 5.2,
+          "esempio": "—",
+          "px": 12
+        },
+        "corpo·TD·giù5": {
+          "min": 13.14,
+          "esempio": "-4,5",
+          "px": 12
+        },
+        "sintesi·TH": {
+          "min": 5.2,
+          "esempio": "Media",
+          "px": 11
+        },
+        "sintesi·TD·su4": {
+          "min": 14.63,
+          "esempio": "+0,77",
+          "px": 12
+        },
+        "sintesi·TD·su5": {
+          "min": 13.21,
+          "esempio": "+1,28",
+          "px": 12
+        },
+        "sintesi·TD·su1": {
+          "min": 17.95,
+          "esempio": "+0,20",
+          "px": 12
+        },
+        "sintesi·TD·su2": {
+          "min": 17.02,
+          "esempio": "+0,27",
+          "px": 12
+        },
+        "sintesi·TD·su3": {
+          "min": 15.83,
+          "esempio": "+0,45",
+          "px": 12
+        },
+        "sintesi·TD·giù3": {
+          "min": 15.81,
+          "esempio": "-0,44",
+          "px": 12
+        },
+        "sintesi·TD·giù1": {
+          "min": 17.92,
+          "esempio": "-0,11",
+          "px": 12
+        },
+        "sintesi·TD·giù2": {
+          "min": 16.96,
+          "esempio": "-0,37",
+          "px": 12
+        },
+        "sintesi·TD·giù5": {
+          "min": 13.14,
+          "esempio": "-0,97",
+          "px": 12
+        },
+        "sintesi·TD·giù4": {
+          "min": 14.52,
+          "esempio": "-0,64",
+          "px": 12
+        },
+        "sintesi·TD": {
+          "min": 5.13,
+          "esempio": "Campione molto",
+          "px": 11
+        }
+      }
+    },
+    "grafico": {
+      "contenitore": 560,
+      "riquadro": 434,
+      "disegno": 374,
+      "pxPerPunto": 26.71,
+      "tick": [
+        112,
+        110,
+        108,
+        106,
+        104,
+        102,
+        100,
+        98
+      ],
+      "sezioneTop": 760,
+      "sezioneAltezza": 874,
+      "graficoBottom": 1477
+    },
+    "sbordi": [],
+    "testiSotto11": [],
+    "erroriConsole": []
+  },
+  {
+    "pagina": "/macro-desk/stagionalita?s=XAUUSD&t=sessione",
+    "larghezza": 390,
+    "tema": "light",
+    "file": "macro-desk_stagionalita_s_XAUUSD_t_sessione__390__light.png",
+    "innerWidth": 390,
+    "scrollWidth": 390,
+    "altezza": 3428,
+    "griglia": {
+      "larghezzaTabella": 373.2,
+      "larghezzaContenitore": 324,
+      "scorre": 49,
+      "colonne": 4,
+      "primaColonna": 109.4,
+      "colonnaMin": 65.7,
+      "colonnaMax": 65.7,
+      "rigaCorpo": 25,
+      "rigaInCorso": 25,
+      "sintesiAltezza": 84,
+      "sintesiRighe": [
+        "Media 28",
+        "StDev 21",
+        "In rialzo sessioni su 35"
+      ],
+      "inRicalcolo": 0,
+      "caselle": 84,
+      "tinte": {
+        "neutra": 4,
+        "su2": 18,
+        "giù4": 7,
+        "su1": 17,
+        "giù1": 20,
+        "su3": 4,
+        "giù2": 6,
+        "giù3": 2,
+        "giù5": 6
+      },
+      "piccoli": 0,
+      "contrasti": {
+        "testa·TH": {
+          "min": 5.2,
+          "esempio": "Anno",
+          "px": 11
+        },
+        "in corso·TH": {
+          "min": 7.56,
+          "esempio": "in corso",
+          "px": 11
+        },
+        "in corso·TD": {
+          "min": 7.56,
+          "esempio": "-0,012",
+          "px": 12
+        },
+        "corpo·TH": {
+          "min": 19.45,
+          "esempio": "2006",
+          "px": 12
+        },
+        "corpo·TD·su2": {
+          "min": 7.63,
+          "esempio": "+0,007",
+          "px": 12
+        },
+        "corpo·TD·giù4": {
+          "min": 14.52,
+          "esempio": "-0,016",
+          "px": 12
+        },
+        "corpo·TD·su1": {
+          "min": 8.05,
+          "esempio": "+0,003",
+          "px": 12
+        },
+        "corpo·TD·giù1": {
+          "min": 8.03,
+          "esempio": "-0,000",
+          "px": 12
+        },
+        "corpo·TD·su3": {
+          "min": 7.1,
+          "esempio": "+0,012",
+          "px": 12
+        },
+        "corpo·TD·giù2": {
+          "min": 7.6,
+          "esempio": "-0,006",
+          "px": 12
+        },
+        "corpo·TD·giù3": {
+          "min": 7.09,
+          "esempio": "-0,010",
+          "px": 12
+        },
+        "corpo·TD·giù5": {
+          "min": 13.14,
+          "esempio": "-0,031",
+          "px": 12
+        },
+        "sintesi·TH": {
+          "min": 5.2,
+          "esempio": "Media",
+          "px": 11
+        },
+        "sintesi·TD·su3": {
+          "min": 15.83,
+          "esempio": "+0,0058",
+          "px": 12
+        },
+        "sintesi·TD·giù1": {
+          "min": 17.92,
+          "esempio": "-0,0026",
+          "px": 12
+        },
+        "sintesi·TD·su1": {
+          "min": 17.95,
+          "esempio": "+0,0007",
+          "px": 12
+        },
+        "sintesi·TD·giù5": {
+          "min": 13.14,
+          "esempio": "-0,0143",
+          "px": 12
+        },
+        "sintesi·TD": {
+          "min": 7.93,
+          "esempio": "4.819",
+          "px": 11
+        }
+      }
+    },
+    "grafico": {
+      "contenitore": 560,
+      "riquadro": 434,
+      "disegno": 374,
+      "pxPerPunto": 26.71,
+      "tick": [
+        112,
+        110,
+        108,
+        106,
+        104,
+        102,
+        100,
+        98
+      ],
+      "sezioneTop": 776,
+      "sezioneAltezza": 874,
+      "graficoBottom": 1494
+    },
+    "sbordi": [],
+    "testiSotto11": [],
+    "erroriConsole": []
+  },
+  {
+    "pagina": "/macro-desk/stagionalita?s=SPX&t=ora",
+    "larghezza": 390,
+    "tema": "light",
+    "file": "macro-desk_stagionalita_s_SPX_t_ora__390__light.png",
+    "innerWidth": 390,
+    "scrollWidth": 390,
+    "altezza": 4148,
+    "griglia": {
+      "larghezzaTabella": 1665.1,
+      "larghezzaContenitore": 324,
+      "scorre": 1341,
+      "colonne": 24,
+      "primaColonna": 87.6,
+      "colonnaMin": 65.7,
+      "colonnaMax": 65.7,
+      "rigaCorpo": 25,
+      "rigaInCorso": 25,
+      "sintesiAltezza": 105,
+      "sintesiRighe": [
+        "Media 28",
+        "StDev 21",
+        "In rialzo ore su 35",
+        "Anni 21"
+      ],
+      "inRicalcolo": 0,
+      "caselle": 329,
+      "tinte": {
+        "neutra": 56,
+        "giù1": 62,
+        "su4": 10,
+        "giù2": 19,
+        "su1": 63,
+        "giù4": 9,
+        "su2": 40,
+        "su5": 22,
+        "su3": 26,
+        "giù3": 10,
+        "giù5": 12
+      },
+      "piccoli": 0,
+      "contrasti": {
+        "testa·TH": {
+          "min": 5.2,
+          "esempio": "Anno",
+          "px": 11
+        },
+        "in corso·TH": {
+          "min": 7.56,
+          "esempio": "in corso",
+          "px": 11
+        },
+        "in corso·TD·grigia": {
+          "min": 7.56,
+          "esempio": "-0,043",
+          "px": 12
+        },
+        "in corso·TD": {
+          "min": 7.56,
+          "esempio": "-0,001",
+          "px": 12
+        },
+        "corpo·TH": {
+          "min": 19.45,
+          "esempio": "2011",
+          "px": 12
+        },
+        "corpo·TD·grigia": {
+          "min": 5.2,
+          "esempio": "+0,038",
+          "px": 12
+        },
+        "corpo·TD·giù1": {
+          "min": 8.03,
+          "esempio": "-0,003",
+          "px": 12
+        },
+        "corpo·TD·su4": {
+          "min": 14.63,
+          "esempio": "+0,021",
+          "px": 12
+        },
+        "corpo·TD·giù2": {
+          "min": 7.6,
+          "esempio": "-0,007",
+          "px": 12
+        },
+        "corpo·TD·su1": {
+          "min": 8.05,
+          "esempio": "+0,004",
+          "px": 12
+        },
+        "corpo·TD·giù4": {
+          "min": 14.52,
+          "esempio": "-0,018",
+          "px": 12
+        },
+        "corpo·TD·su2": {
+          "min": 7.63,
+          "esempio": "+0,006",
+          "px": 12
+        },
+        "corpo·TD·su5": {
+          "min": 13.21,
+          "esempio": "+0,026",
+          "px": 12
+        },
+        "corpo·TD·su3": {
+          "min": 7.1,
+          "esempio": "+0,014",
+          "px": 12
+        },
+        "corpo·TD·giù3": {
+          "min": 7.09,
+          "esempio": "-0,015",
+          "px": 12
+        },
+        "corpo·TD·giù5": {
+          "min": 13.14,
+          "esempio": "-0,022",
+          "px": 12
+        },
+        "sintesi·TH": {
+          "min": 5.2,
+          "esempio": "Media",
+          "px": 11
+        },
+        "sintesi·TD·su2": {
+          "min": 17.02,
+          "esempio": "+0,0070",
+          "px": 12
+        },
+        "sintesi·TD·su1": {
+          "min": 17.95,
+          "esempio": "+0,0000",
+          "px": 12
+        },
+        "sintesi·TD·giù1": {
+          "min": 17.92,
+          "esempio": "-0,0006",
+          "px": 12
+        },
+        "sintesi·TD·su4": {
+          "min": 14.63,
+          "esempio": "+0,0154",
+          "px": 12
+        },
+        "sintesi·TD·giù5": {
+          "min": 13.14,
+          "esempio": "-0,0236",
+          "px": 12
+        },
+        "sintesi·TD·giù4": {
+          "min": 14.52,
+          "esempio": "-0,0146",
+          "px": 12
+        },
+        "sintesi·TD·giù2": {
+          "min": 16.96,
+          "esempio": "-0,0090",
+          "px": 12
+        },
+        "sintesi·TD": {
+          "min": 4.76,
+          "esempio": "Campione basso",
+          "px": 11
+        }
+      }
+    },
+    "grafico": {
+      "contenitore": 560,
+      "riquadro": 434,
+      "disegno": 374,
+      "pxPerPunto": 23.38,
+      "tick": [
+        114,
+        112,
+        110,
+        108,
+        106,
+        104,
+        102,
+        100,
+        98
+      ],
+      "sezioneTop": 818,
+      "sezioneAltezza": 874,
+      "graficoBottom": 1536
+    },
+    "sbordi": [],
+    "testiSotto11": [],
+    "erroriConsole": []
+  },
+  {
+    "pagina": "/macro-desk/stagionalita?s=VIX&t=giorno",
+    "larghezza": 390,
+    "tema": "light",
+    "file": "macro-desk_stagionalita_s_VIX_t_giorno__390__light.png",
+    "innerWidth": 390,
+    "scrollWidth": 390,
+    "altezza": 3332,
+    "griglia": {
+      "larghezzaTabella": 383,
+      "larghezzaContenitore": 324,
+      "scorre": 59,
+      "colonne": 5,
+      "primaColonna": 133.1,
+      "colonnaMin": 49.8,
+      "colonnaMax": 49.8,
+      "rigaCorpo": 25,
+      "rigaInCorso": 25,
+      "sintesiAltezza": 84,
+      "sintesiRighe": [
+        "Livello medio 28",
+        "StDev 21",
+        "Sopra mediana giorni su 35"
+      ],
+      "inRicalcolo": 0,
+      "caselle": 105,
+      "tinte": {
+        "neutra": 5,
+        "giù1": 21,
+        "giù2": 26,
+        "su3": 6,
+        "su1": 4,
+        "su5": 12,
+        "su4": 3,
+        "giù4": 5,
+        "giù3": 14,
+        "su2": 9
+      },
+      "piccoli": 0,
+      "contrasti": {
+        "testa·TH": {
+          "min": 5.2,
+          "esempio": "Anno",
+          "px": 11
+        },
+        "in corso·TH": {
+          "min": 7.56,
+          "esempio": "in corso",
+          "px": 11
+        },
+        "in corso·TD": {
+          "min": 7.56,
+          "esempio": "18,3",
+          "px": 12
+        },
+        "corpo·TH": {
+          "min": 19.45,
+          "esempio": "2006",
+          "px": 12
+        },
+        "corpo·TD·giù1": {
+          "min": 8.03,
+          "esempio": "19,1",
+          "px": 12
+        },
+        "corpo·TD·giù2": {
+          "min": 7.6,
+          "esempio": "14,4",
+          "px": 12
+        },
+        "corpo·TD·su3": {
+          "min": 7.1,
+          "esempio": "24,8",
+          "px": 12
+        },
+        "corpo·TD·su1": {
+          "min": 8.05,
+          "esempio": "19,6",
+          "px": 12
+        },
+        "corpo·TD·su5": {
+          "min": 13.21,
+          "esempio": "33,1",
+          "px": 12
+        },
+        "corpo·TD·su4": {
+          "min": 14.63,
+          "esempio": "29,1",
+          "px": 12
+        },
+        "corpo·TD·giù4": {
+          "min": 14.52,
+          "esempio": "11,0",
+          "px": 12
+        },
+        "corpo·TD·giù3": {
+          "min": 7.09,
+          "esempio": "12,7",
+          "px": 12
+        },
+        "corpo·TD·su2": {
+          "min": 7.63,
+          "esempio": "22,9",
+          "px": 12
+        },
+        "sintesi·TH": {
+          "min": 5.2,
+          "esempio": "Livello medio",
+          "px": 11
+        },
+        "sintesi·TD·su5": {
+          "min": 13.21,
+          "esempio": "19,68",
+          "px": 12
+        },
+        "sintesi·TD·su1": {
+          "min": 17.95,
+          "esempio": "19,45",
+          "px": 12
+        },
+        "sintesi·TD·giù1": {
+          "min": 17.92,
+          "esempio": "19,39",
+          "px": 12
+        },
+        "sintesi·TD": {
+          "min": 7.93,
+          "esempio": "1.010",
+          "px": 11
+        },
+        "sintesi·TD·giù2": {
+          "min": 16.96,
+          "esempio": "19,33",
+          "px": 12
+        }
+      }
+    },
+    "grafico": {
+      "contenitore": 560,
+      "riquadro": 434,
+      "disegno": 374,
+      "pxPerPunto": 10.69,
+      "tick": [
+        120,
+        115,
+        110,
+        105,
+        100,
+        95,
+        90,
+        85
+      ],
+      "sezioneTop": 812,
+      "sezioneAltezza": 907,
+      "graficoBottom": 1529
+    },
+    "sbordi": [],
+    "testiSotto11": [],
+    "erroriConsole": []
+  },
+  {
+    "pagina": "/macro-desk/stagionalita?s=VIX",
+    "larghezza": 390,
+    "tema": "light",
+    "file": "macro-desk_stagionalita_s_VIX__390__light.png",
+    "innerWidth": 390,
+    "scrollWidth": 390,
+    "altezza": 3558,
+    "griglia": {
+      "larghezzaTabella": 716.6,
+      "larghezzaContenitore": 324,
+      "scorre": 393,
+      "colonne": 12,
+      "primaColonna": 118.5,
+      "colonnaMin": 49.8,
+      "colonnaMax": 49.8,
+      "rigaCorpo": 25,
+      "rigaInCorso": 25,
+      "sintesiAltezza": 70,
+      "sintesiRighe": [
+        "Livello medio 28",
+        "StDev 21",
+        "Sopra mediana su 20 21"
+      ],
+      "inRicalcolo": 0,
+      "caselle": 249,
+      "tinte": {
+        "neutra": 9,
+        "giù1": 41,
+        "su1": 29,
+        "su5": 19,
+        "giù2": 53,
+        "giù3": 42,
+        "su2": 18,
+        "su3": 19,
+        "su4": 7,
+        "giù4": 12
+      },
+      "piccoli": 0,
+      "contrasti": {
+        "testa·TH": {
+          "min": 5.2,
+          "esempio": "Anno",
+          "px": 11
+        },
+        "in corso·TH": {
+          "min": 7.56,
+          "esempio": "in corso",
+          "px": 11
+        },
+        "in corso·TD": {
+          "min": 7.56,
+          "esempio": "15,9",
+          "px": 12
+        },
+        "corpo·TH": {
+          "min": 19.45,
+          "esempio": "2006",
+          "px": 12
+        },
+        "corpo·TD·giù1": {
+          "min": 8.03,
+          "esempio": "16,8",
+          "px": 12
+        },
+        "corpo·TD·su1": {
+          "min": 8.05,
+          "esempio": "21,7",
+          "px": 12
+        },
+        "corpo·TD·su5": {
+          "min": 13.21,
+          "esempio": "52,4",
+          "px": 12
+        },
+        "corpo·TD·giù2": {
+          "min": 7.6,
+          "esempio": "15,3",
+          "px": 12
+        },
+        "corpo·TD·giù3": {
+          "min": 7.09,
+          "esempio": "11,3",
+          "px": 12
+        },
+        "corpo·TD·su2": {
+          "min": 7.63,
+          "esempio": "22,2",
+          "px": 12
+        },
+        "corpo·TD·su3": {
+          "min": 7.1,
+          "esempio": "25,6",
+          "px": 12
+        },
+        "corpo·TD·su4": {
+          "min": 14.63,
+          "esempio": "29,3",
+          "px": 12
+        },
+        "corpo·TD·giù4": {
+          "min": 14.52,
+          "esempio": "11,1",
+          "px": 12
+        },
+        "sintesi·TH": {
+          "min": 5.2,
+          "esempio": "Livello medio",
+          "px": 11
+        },
+        "sintesi·TD·giù2": {
+          "min": 16.96,
+          "esempio": "18,82",
+          "px": 12
+        },
+        "sintesi·TD·su1": {
+          "min": 17.95,
+          "esempio": "19,49",
+          "px": 12
+        },
+        "sintesi·TD·su5": {
+          "min": 13.21,
+          "esempio": "21,47",
+          "px": 12
+        },
+        "sintesi·TD·giù1": {
+          "min": 17.92,
+          "esempio": "19,27",
+          "px": 12
+        },
+        "sintesi·TD·giù5": {
+          "min": 13.14,
+          "esempio": "17,50",
+          "px": 12
+        },
+        "sintesi·TD·su3": {
+          "min": 15.83,
+          "esempio": "20,42",
+          "px": 12
+        },
+        "sintesi·TD": {
+          "min": 7.93,
+          "esempio": "10",
+          "px": 11
+        }
+      }
+    },
+    "grafico": {
+      "contenitore": 560,
+      "riquadro": 434,
+      "disegno": 374,
+      "pxPerPunto": 10.69,
+      "tick": [
+        120,
+        115,
+        110,
+        105,
+        100,
+        95,
+        90,
+        85
+      ],
+      "sezioneTop": 812,
+      "sezioneAltezza": 907,
+      "graficoBottom": 1529
+    },
+    "sbordi": [],
+    "testiSotto11": [],
+    "erroriConsole": []
+  },
+  {
+    "pagina": "/macro-desk/stagionalita?s=XAUUSD",
+    "larghezza": 1280,
+    "tema": "light",
+    "file": "macro-desk_stagionalita_s_XAUUSD__1280__light.png",
+    "innerWidth": 1280,
+    "scrollWidth": 1280,
+    "altezza": 3281,
+    "griglia": {
+      "larghezzaTabella": 685.8,
+      "larghezzaContenitore": 958,
+      "scorre": 0,
+      "colonne": 12,
+      "primaColonna": 87.6,
+      "colonnaMin": 49.8,
+      "colonnaMax": 49.8,
+      "rigaCorpo": 25,
+      "rigaInCorso": 25,
+      "sintesiAltezza": 70,
+      "sintesiRighe": [
+        "Media 28",
+        "StDev 21",
+        "In rialzo su 20 21"
+      ],
+      "inRicalcolo": 0,
+      "caselle": 249,
+      "tinte": {
+        "neutra": 9,
+        "su4": 17,
+        "su1": 36,
+        "su5": 15,
+        "su3": 27,
+        "giù1": 50,
+        "su2": 37,
+        "giù2": 28,
+        "giù3": 19,
+        "giù4": 6,
+        "giù5": 5
+      },
+      "piccoli": 0,
+      "contrasti": {
+        "testa·TH": {
+          "min": 5.2,
+          "esempio": "Anno",
+          "px": 11
+        },
+        "in corso·TH": {
+          "min": 7.56,
+          "esempio": "in corso",
+          "px": 11
+        },
+        "in corso·TD": {
+          "min": 7.56,
+          "esempio": "-3,7",
+          "px": 12
+        },
+        "corpo·TH": {
+          "min": 19.45,
+          "esempio": "2006",
+          "px": 12
+        },
+        "corpo·TD·su4": {
+          "min": 14.63,
+          "esempio": "+6,6",
+          "px": 12
+        },
+        "corpo·TD·su1": {
+          "min": 8.05,
+          "esempio": "+1,4",
+          "px": 12
+        },
+        "corpo·TD·su5": {
+          "min": 13.21,
+          "esempio": "+12,1",
+          "px": 12
+        },
+        "corpo·TD·su3": {
+          "min": 7.1,
+          "esempio": "+6,3",
+          "px": 12
+        },
+        "corpo·TD·giù1": {
+          "min": 8.03,
+          "esempio": "-0,7",
+          "px": 12
+        },
+        "corpo·TD·su2": {
+          "min": 7.63,
+          "esempio": "+3,7",
+          "px": 12
+        },
+        "corpo·TD·giù2": {
+          "min": 7.6,
+          "esempio": "-2,7",
+          "px": 12
+        },
+        "corpo·TD·giù3": {
+          "min": 7.09,
+          "esempio": "-4,6",
+          "px": 12
+        },
+        "corpo·TD·giù4": {
+          "min": 14.52,
+          "esempio": "-7,3",
+          "px": 12
+        },
+        "corpo·TD·giù5": {
+          "min": 13.14,
+          "esempio": "-11,2",
+          "px": 12
+        },
+        "sintesi·TH": {
+          "min": 5.2,
+          "esempio": "Media",
+          "px": 11
+        },
+        "sintesi·TD·su5": {
+          "min": 13.21,
+          "esempio": "+3,49",
+          "px": 12
+        },
+        "sintesi·TD·su2": {
+          "min": 17.02,
+          "esempio": "+0,74",
+          "px": 12
+        },
+        "sintesi·TD·su1": {
+          "min": 17.95,
+          "esempio": "+0,60",
+          "px": 12
+        },
+        "sintesi·TD·su3": {
+          "min": 15.83,
+          "esempio": "+1,70",
+          "px": 12
+        },
+        "sintesi·TD·giù1": {
+          "min": 17.92,
+          "esempio": "-0,24",
+          "px": 12
+        },
+        "sintesi·TD": {
+          "min": 7.93,
+          "esempio": "12",
+          "px": 11
+        }
+      }
+    },
+    "grafico": {
+      "contenitore": 944,
+      "riquadro": 872,
+      "disegno": 812,
+      "pxPerPunto": 64.96,
+      "tick": [
+        112,
+        111.5,
+        111,
+        110.5,
+        110,
+        109.5,
+        109,
+        108.5,
+        108,
+        107.5,
+        107,
+        106.5,
+        106,
+        105.5,
+        105,
+        104.5,
+        104,
+        103.5,
+        103,
+        102.5,
+        102,
+        101.5,
+        101,
+        100.5,
+        100,
+        99.5
+      ],
+      "sezioneTop": 609,
+      "sezioneAltezza": 1096,
+      "graficoBottom": 1648
+    },
+    "sbordi": [],
+    "testiSotto11": [],
+    "erroriConsole": []
+  },
+  {
+    "pagina": "/macro-desk/stagionalita?s=XAUUSD&t=settimana",
+    "larghezza": 1280,
+    "tema": "light",
+    "file": "macro-desk_stagionalita_s_XAUUSD_t_settimana__1280__light.png",
+    "innerWidth": 1280,
+    "scrollWidth": 1280,
+    "altezza": 5079,
+    "griglia": {
+      "larghezzaTabella": 2757,
+      "larghezzaContenitore": 958,
+      "scorre": 1799,
+      "colonne": 53,
+      "primaColonna": 118.4,
+      "colonnaMin": 49.8,
+      "colonnaMax": 49.8,
+      "rigaCorpo": 25,
+      "rigaInCorso": 25,
+      "sintesiAltezza": 105,
+      "sintesiRighe": [
+        "Media 28",
+        "StDev 21",
+        "In rialzo settimane su 35",
+        "Anni 21"
+      ],
+      "inRicalcolo": 0,
+      "caselle": 1081,
+      "tinte": {
+        "neutra": 38,
+        "su1": 206,
+        "su2": 154,
+        "su3": 117,
+        "giù3": 68,
+        "giù2": 117,
+        "su5": 56,
+        "giù1": 182,
+        "giù4": 45,
+        "su4": 52,
+        "giù5": 46
+      },
+      "piccoli": 0,
+      "contrasti": {
+        "testa·TH": {
+          "min": 5.2,
+          "esempio": "Anno",
+          "px": 11
+        },
+        "in corso·TH": {
+          "min": 7.56,
+          "esempio": "in corso",
+          "px": 11
+        },
+        "in corso·TD": {
+          "min": 7.56,
+          "esempio": "-1,9",
+          "px": 12
+        },
+        "in corso·TD·grigia": {
+          "min": 7.56,
+          "esempio": "-1,4",
+          "px": 12
+        },
+        "corpo·TH": {
+          "min": 19.45,
+          "esempio": "2006",
+          "px": 12
+        },
+        "corpo·TD·su1": {
+          "min": 8.05,
+          "esempio": "+0,1",
+          "px": 12
+        },
+        "corpo·TD·su2": {
+          "min": 7.63,
+          "esempio": "+1,0",
+          "px": 12
+        },
+        "corpo·TD·su3": {
+          "min": 7.1,
+          "esempio": "+2,5",
+          "px": 12
+        },
+        "corpo·TD·giù3": {
+          "min": 7.09,
+          "esempio": "-2,5",
+          "px": 12
+        },
+        "corpo·TD·giù2": {
+          "min": 7.6,
+          "esempio": "-1,5",
+          "px": 12
+        },
+        "corpo·TD·su5": {
+          "min": 13.21,
+          "esempio": "+4,7",
+          "px": 12
+        },
+        "corpo·TD·giù1": {
+          "min": 8.03,
+          "esempio": "-0,2",
+          "px": 12
+        },
+        "corpo·TD·giù4": {
+          "min": 14.52,
+          "esempio": "-3,6",
+          "px": 12
+        },
+        "corpo·TD·su4": {
+          "min": 14.63,
+          "esempio": "+3,7",
+          "px": 12
+        },
+        "corpo·TD·grigia": {
+          "min": 5.2,
+          "esempio": "—",
+          "px": 12
+        },
+        "corpo·TD·giù5": {
+          "min": 13.14,
+          "esempio": "-4,5",
+          "px": 12
+        },
+        "sintesi·TH": {
+          "min": 5.2,
+          "esempio": "Media",
+          "px": 11
+        },
+        "sintesi·TD·su4": {
+          "min": 14.63,
+          "esempio": "+0,77",
+          "px": 12
+        },
+        "sintesi·TD·su5": {
+          "min": 13.21,
+          "esempio": "+1,28",
+          "px": 12
+        },
+        "sintesi·TD·su1": {
+          "min": 17.95,
+          "esempio": "+0,20",
+          "px": 12
+        },
+        "sintesi·TD·su2": {
+          "min": 17.02,
+          "esempio": "+0,27",
+          "px": 12
+        },
+        "sintesi·TD·su3": {
+          "min": 15.83,
+          "esempio": "+0,45",
+          "px": 12
+        },
+        "sintesi·TD·giù3": {
+          "min": 15.81,
+          "esempio": "-0,44",
+          "px": 12
+        },
+        "sintesi·TD·giù1": {
+          "min": 17.92,
+          "esempio": "-0,11",
+          "px": 12
+        },
+        "sintesi·TD·giù2": {
+          "min": 16.96,
+          "esempio": "-0,37",
+          "px": 12
+        },
+        "sintesi·TD·giù5": {
+          "min": 13.14,
+          "esempio": "-0,97",
+          "px": 12
+        },
+        "sintesi·TD·giù4": {
+          "min": 14.52,
+          "esempio": "-0,64",
+          "px": 12
+        },
+        "sintesi·TD": {
+          "min": 5.13,
+          "esempio": "Campione molto",
+          "px": 11
+        }
+      }
+    },
+    "grafico": {
+      "contenitore": 944,
+      "riquadro": 872,
+      "disegno": 812,
+      "pxPerPunto": 64.96,
+      "tick": [
+        112,
+        111.5,
+        111,
+        110.5,
+        110,
+        109.5,
+        109,
+        108.5,
+        108,
+        107.5,
+        107,
+        106.5,
+        106,
+        105.5,
+        105,
+        104.5,
+        104,
+        103.5,
+        103,
+        102.5,
+        102,
+        101.5,
+        101,
+        100.5,
+        100,
+        99.5
+      ],
+      "sezioneTop": 609,
+      "sezioneAltezza": 1096,
+      "graficoBottom": 1648
+    },
+    "sbordi": [],
+    "testiSotto11": [],
+    "erroriConsole": []
+  },
+  {
+    "pagina": "/macro-desk/stagionalita?s=XAUUSD&t=sessione",
+    "larghezza": 1280,
+    "tema": "light",
+    "file": "macro-desk_stagionalita_s_XAUUSD_t_sessione__1280__light.png",
+    "innerWidth": 1280,
+    "scrollWidth": 1280,
+    "altezza": 3075,
+    "griglia": {
+      "larghezzaTabella": 373.2,
+      "larghezzaContenitore": 958,
+      "scorre": 0,
+      "colonne": 4,
+      "primaColonna": 109.4,
+      "colonnaMin": 65.7,
+      "colonnaMax": 65.7,
+      "rigaCorpo": 25,
+      "rigaInCorso": 25,
+      "sintesiAltezza": 84,
+      "sintesiRighe": [
+        "Media 28",
+        "StDev 21",
+        "In rialzo sessioni su 35"
+      ],
+      "inRicalcolo": 0,
+      "caselle": 84,
+      "tinte": {
+        "neutra": 4,
+        "su2": 18,
+        "giù4": 7,
+        "su1": 17,
+        "giù1": 20,
+        "su3": 4,
+        "giù2": 6,
+        "giù3": 2,
+        "giù5": 6
+      },
+      "piccoli": 0,
+      "contrasti": {
+        "testa·TH": {
+          "min": 5.2,
+          "esempio": "Anno",
+          "px": 11
+        },
+        "in corso·TH": {
+          "min": 7.56,
+          "esempio": "in corso",
+          "px": 11
+        },
+        "in corso·TD": {
+          "min": 7.56,
+          "esempio": "-0,012",
+          "px": 12
+        },
+        "corpo·TH": {
+          "min": 19.45,
+          "esempio": "2006",
+          "px": 12
+        },
+        "corpo·TD·su2": {
+          "min": 7.63,
+          "esempio": "+0,007",
+          "px": 12
+        },
+        "corpo·TD·giù4": {
+          "min": 14.52,
+          "esempio": "-0,016",
+          "px": 12
+        },
+        "corpo·TD·su1": {
+          "min": 8.05,
+          "esempio": "+0,003",
+          "px": 12
+        },
+        "corpo·TD·giù1": {
+          "min": 8.03,
+          "esempio": "-0,000",
+          "px": 12
+        },
+        "corpo·TD·su3": {
+          "min": 7.1,
+          "esempio": "+0,012",
+          "px": 12
+        },
+        "corpo·TD·giù2": {
+          "min": 7.6,
+          "esempio": "-0,006",
+          "px": 12
+        },
+        "corpo·TD·giù3": {
+          "min": 7.09,
+          "esempio": "-0,010",
+          "px": 12
+        },
+        "corpo·TD·giù5": {
+          "min": 13.14,
+          "esempio": "-0,031",
+          "px": 12
+        },
+        "sintesi·TH": {
+          "min": 5.2,
+          "esempio": "Media",
+          "px": 11
+        },
+        "sintesi·TD·su3": {
+          "min": 15.83,
+          "esempio": "+0,0058",
+          "px": 12
+        },
+        "sintesi·TD·giù1": {
+          "min": 17.92,
+          "esempio": "-0,0026",
+          "px": 12
+        },
+        "sintesi·TD·su1": {
+          "min": 17.95,
+          "esempio": "+0,0007",
+          "px": 12
+        },
+        "sintesi·TD·giù5": {
+          "min": 13.14,
+          "esempio": "-0,0143",
+          "px": 12
+        },
+        "sintesi·TD": {
+          "min": 7.93,
+          "esempio": "4.819",
+          "px": 11
+        }
+      }
+    },
+    "grafico": {
+      "contenitore": 944,
+      "riquadro": 872,
+      "disegno": 812,
+      "pxPerPunto": 64.96,
+      "tick": [
+        112,
+        111.5,
+        111,
+        110.5,
+        110,
+        109.5,
+        109,
+        108.5,
+        108,
+        107.5,
+        107,
+        106.5,
+        106,
+        105.5,
+        105,
+        104.5,
+        104,
+        103.5,
+        103,
+        102.5,
+        102,
+        101.5,
+        101,
+        100.5,
+        100,
+        99.5
+      ],
+      "sezioneTop": 609,
+      "sezioneAltezza": 1096,
+      "graficoBottom": 1648
+    },
+    "sbordi": [],
+    "testiSotto11": [],
+    "erroriConsole": []
+  },
+  {
+    "pagina": "/macro-desk/stagionalita?s=SPX&t=ora",
+    "larghezza": 1280,
+    "tema": "light",
+    "file": "macro-desk_stagionalita_s_SPX_t_ora__1280__light.png",
+    "innerWidth": 1280,
+    "scrollWidth": 1280,
+    "altezza": 3789,
+    "griglia": {
+      "larghezzaTabella": 1665.1,
+      "larghezzaContenitore": 958,
+      "scorre": 707,
+      "colonne": 24,
+      "primaColonna": 87.6,
+      "colonnaMin": 65.7,
+      "colonnaMax": 65.7,
+      "rigaCorpo": 25,
+      "rigaInCorso": 25,
+      "sintesiAltezza": 105,
+      "sintesiRighe": [
+        "Media 28",
+        "StDev 21",
+        "In rialzo ore su 35",
+        "Anni 21"
+      ],
+      "inRicalcolo": 0,
+      "caselle": 329,
+      "tinte": {
+        "neutra": 56,
+        "giù1": 62,
+        "su4": 10,
+        "giù2": 19,
+        "su1": 63,
+        "giù4": 9,
+        "su2": 40,
+        "su5": 22,
+        "su3": 26,
+        "giù3": 10,
+        "giù5": 12
+      },
+      "piccoli": 0,
+      "contrasti": {
+        "testa·TH": {
+          "min": 5.2,
+          "esempio": "Anno",
+          "px": 11
+        },
+        "in corso·TH": {
+          "min": 7.56,
+          "esempio": "in corso",
+          "px": 11
+        },
+        "in corso·TD·grigia": {
+          "min": 7.56,
+          "esempio": "-0,043",
+          "px": 12
+        },
+        "in corso·TD": {
+          "min": 7.56,
+          "esempio": "-0,001",
+          "px": 12
+        },
+        "corpo·TH": {
+          "min": 19.45,
+          "esempio": "2011",
+          "px": 12
+        },
+        "corpo·TD·grigia": {
+          "min": 5.2,
+          "esempio": "+0,038",
+          "px": 12
+        },
+        "corpo·TD·giù1": {
+          "min": 8.03,
+          "esempio": "-0,003",
+          "px": 12
+        },
+        "corpo·TD·su4": {
+          "min": 14.63,
+          "esempio": "+0,021",
+          "px": 12
+        },
+        "corpo·TD·giù2": {
+          "min": 7.6,
+          "esempio": "-0,007",
+          "px": 12
+        },
+        "corpo·TD·su1": {
+          "min": 8.05,
+          "esempio": "+0,004",
+          "px": 12
+        },
+        "corpo·TD·giù4": {
+          "min": 14.52,
+          "esempio": "-0,018",
+          "px": 12
+        },
+        "corpo·TD·su2": {
+          "min": 7.63,
+          "esempio": "+0,006",
+          "px": 12
+        },
+        "corpo·TD·su5": {
+          "min": 13.21,
+          "esempio": "+0,026",
+          "px": 12
+        },
+        "corpo·TD·su3": {
+          "min": 7.1,
+          "esempio": "+0,014",
+          "px": 12
+        },
+        "corpo·TD·giù3": {
+          "min": 7.09,
+          "esempio": "-0,015",
+          "px": 12
+        },
+        "corpo·TD·giù5": {
+          "min": 13.14,
+          "esempio": "-0,022",
+          "px": 12
+        },
+        "sintesi·TH": {
+          "min": 5.2,
+          "esempio": "Media",
+          "px": 11
+        },
+        "sintesi·TD·su2": {
+          "min": 17.02,
+          "esempio": "+0,0070",
+          "px": 12
+        },
+        "sintesi·TD·su1": {
+          "min": 17.95,
+          "esempio": "+0,0000",
+          "px": 12
+        },
+        "sintesi·TD·giù1": {
+          "min": 17.92,
+          "esempio": "-0,0006",
+          "px": 12
+        },
+        "sintesi·TD·su4": {
+          "min": 14.63,
+          "esempio": "+0,0154",
+          "px": 12
+        },
+        "sintesi·TD·giù5": {
+          "min": 13.14,
+          "esempio": "-0,0236",
+          "px": 12
+        },
+        "sintesi·TD·giù4": {
+          "min": 14.52,
+          "esempio": "-0,0146",
+          "px": 12
+        },
+        "sintesi·TD·giù2": {
+          "min": 16.96,
+          "esempio": "-0,0090",
+          "px": 12
+        },
+        "sintesi·TD": {
+          "min": 4.76,
+          "esempio": "Campione basso",
+          "px": 11
+        }
+      }
+    },
+    "grafico": {
+      "contenitore": 944,
+      "riquadro": 908,
+      "disegno": 848,
+      "pxPerPunto": 60.57,
+      "tick": [
+        113,
+        112,
+        111,
+        110,
+        109,
+        108,
+        107,
+        106,
+        105,
+        104,
+        103,
+        102,
+        101,
+        100,
+        99
+      ],
+      "sezioneTop": 633,
+      "sezioneAltezza": 1096,
+      "graficoBottom": 1672
+    },
+    "sbordi": [],
+    "testiSotto11": [],
+    "erroriConsole": []
+  },
+  {
+    "pagina": "/macro-desk/stagionalita?s=VIX&t=giorno",
+    "larghezza": 1280,
+    "tema": "light",
+    "file": "macro-desk_stagionalita_s_VIX_t_giorno__1280__light.png",
+    "innerWidth": 1280,
+    "scrollWidth": 1280,
+    "altezza": 3080,
+    "griglia": {
+      "larghezzaTabella": 383,
+      "larghezzaContenitore": 958,
+      "scorre": 0,
+      "colonne": 5,
+      "primaColonna": 133.1,
+      "colonnaMin": 49.8,
+      "colonnaMax": 49.8,
+      "rigaCorpo": 25,
+      "rigaInCorso": 25,
+      "sintesiAltezza": 84,
+      "sintesiRighe": [
+        "Livello medio 28",
+        "StDev 21",
+        "Sopra mediana giorni su 35"
+      ],
+      "inRicalcolo": 0,
+      "caselle": 105,
+      "tinte": {
+        "neutra": 5,
+        "giù1": 21,
+        "giù2": 26,
+        "su3": 6,
+        "su1": 4,
+        "su5": 12,
+        "su4": 3,
+        "giù4": 5,
+        "giù3": 14,
+        "su2": 9
+      },
+      "piccoli": 0,
+      "contrasti": {
+        "testa·TH": {
+          "min": 5.2,
+          "esempio": "Anno",
+          "px": 11
+        },
+        "in corso·TH": {
+          "min": 7.56,
+          "esempio": "in corso",
+          "px": 11
+        },
+        "in corso·TD": {
+          "min": 7.56,
+          "esempio": "18,3",
+          "px": 12
+        },
+        "corpo·TH": {
+          "min": 19.45,
+          "esempio": "2006",
+          "px": 12
+        },
+        "corpo·TD·giù1": {
+          "min": 8.03,
+          "esempio": "19,1",
+          "px": 12
+        },
+        "corpo·TD·giù2": {
+          "min": 7.6,
+          "esempio": "14,4",
+          "px": 12
+        },
+        "corpo·TD·su3": {
+          "min": 7.1,
+          "esempio": "24,8",
+          "px": 12
+        },
+        "corpo·TD·su1": {
+          "min": 8.05,
+          "esempio": "19,6",
+          "px": 12
+        },
+        "corpo·TD·su5": {
+          "min": 13.21,
+          "esempio": "33,1",
+          "px": 12
+        },
+        "corpo·TD·su4": {
+          "min": 14.63,
+          "esempio": "29,1",
+          "px": 12
+        },
+        "corpo·TD·giù4": {
+          "min": 14.52,
+          "esempio": "11,0",
+          "px": 12
+        },
+        "corpo·TD·giù3": {
+          "min": 7.09,
+          "esempio": "12,7",
+          "px": 12
+        },
+        "corpo·TD·su2": {
+          "min": 7.63,
+          "esempio": "22,9",
+          "px": 12
+        },
+        "sintesi·TH": {
+          "min": 5.2,
+          "esempio": "Livello medio",
+          "px": 11
+        },
+        "sintesi·TD·su5": {
+          "min": 13.21,
+          "esempio": "19,68",
+          "px": 12
+        },
+        "sintesi·TD·su1": {
+          "min": 17.95,
+          "esempio": "19,45",
+          "px": 12
+        },
+        "sintesi·TD·giù1": {
+          "min": 17.92,
+          "esempio": "19,39",
+          "px": 12
+        },
+        "sintesi·TD": {
+          "min": 7.93,
+          "esempio": "1.010",
+          "px": 11
+        },
+        "sintesi·TD·giù2": {
+          "min": 16.96,
+          "esempio": "19,33",
+          "px": 12
+        }
+      }
+    },
+    "grafico": {
+      "contenitore": 944,
+      "riquadro": 908,
+      "disegno": 848,
+      "pxPerPunto": 30.29,
+      "tick": [
+        116,
+        114,
+        112,
+        110,
+        108,
+        106,
+        104,
+        102,
+        100,
+        98,
+        96,
+        94,
+        92,
+        90,
+        88
+      ],
+      "sezioneTop": 651,
+      "sezioneAltezza": 1113,
+      "graficoBottom": 1690
+    },
+    "sbordi": [],
+    "testiSotto11": [],
+    "erroriConsole": []
+  },
+  {
+    "pagina": "/macro-desk/stagionalita?s=VIX",
+    "larghezza": 1280,
+    "tema": "light",
+    "file": "macro-desk_stagionalita_s_VIX__1280__light.png",
+    "innerWidth": 1280,
+    "scrollWidth": 1280,
+    "altezza": 3323,
+    "griglia": {
+      "larghezzaTabella": 716.6,
+      "larghezzaContenitore": 958,
+      "scorre": 0,
+      "colonne": 12,
+      "primaColonna": 118.5,
+      "colonnaMin": 49.8,
+      "colonnaMax": 49.8,
+      "rigaCorpo": 25,
+      "rigaInCorso": 25,
+      "sintesiAltezza": 70,
+      "sintesiRighe": [
+        "Livello medio 28",
+        "StDev 21",
+        "Sopra mediana su 20 21"
+      ],
+      "inRicalcolo": 0,
+      "caselle": 249,
+      "tinte": {
+        "neutra": 9,
+        "giù1": 41,
+        "su1": 29,
+        "su5": 19,
+        "giù2": 53,
+        "giù3": 42,
+        "su2": 18,
+        "su3": 19,
+        "su4": 7,
+        "giù4": 12
+      },
+      "piccoli": 0,
+      "contrasti": {
+        "testa·TH": {
+          "min": 5.2,
+          "esempio": "Anno",
+          "px": 11
+        },
+        "in corso·TH": {
+          "min": 7.56,
+          "esempio": "in corso",
+          "px": 11
+        },
+        "in corso·TD": {
+          "min": 7.56,
+          "esempio": "15,9",
+          "px": 12
+        },
+        "corpo·TH": {
+          "min": 19.45,
+          "esempio": "2006",
+          "px": 12
+        },
+        "corpo·TD·giù1": {
+          "min": 8.03,
+          "esempio": "16,8",
+          "px": 12
+        },
+        "corpo·TD·su1": {
+          "min": 8.05,
+          "esempio": "21,7",
+          "px": 12
+        },
+        "corpo·TD·su5": {
+          "min": 13.21,
+          "esempio": "52,4",
+          "px": 12
+        },
+        "corpo·TD·giù2": {
+          "min": 7.6,
+          "esempio": "15,3",
+          "px": 12
+        },
+        "corpo·TD·giù3": {
+          "min": 7.09,
+          "esempio": "11,3",
+          "px": 12
+        },
+        "corpo·TD·su2": {
+          "min": 7.63,
+          "esempio": "22,2",
+          "px": 12
+        },
+        "corpo·TD·su3": {
+          "min": 7.1,
+          "esempio": "25,6",
+          "px": 12
+        },
+        "corpo·TD·su4": {
+          "min": 14.63,
+          "esempio": "29,3",
+          "px": 12
+        },
+        "corpo·TD·giù4": {
+          "min": 14.52,
+          "esempio": "11,1",
+          "px": 12
+        },
+        "sintesi·TH": {
+          "min": 5.2,
+          "esempio": "Livello medio",
+          "px": 11
+        },
+        "sintesi·TD·giù2": {
+          "min": 16.96,
+          "esempio": "18,82",
+          "px": 12
+        },
+        "sintesi·TD·su1": {
+          "min": 17.95,
+          "esempio": "19,49",
+          "px": 12
+        },
+        "sintesi·TD·su5": {
+          "min": 13.21,
+          "esempio": "21,47",
+          "px": 12
+        },
+        "sintesi·TD·giù1": {
+          "min": 17.92,
+          "esempio": "19,27",
+          "px": 12
+        },
+        "sintesi·TD·giù5": {
+          "min": 13.14,
+          "esempio": "17,50",
+          "px": 12
+        },
+        "sintesi·TD·su3": {
+          "min": 15.83,
+          "esempio": "20,42",
+          "px": 12
+        },
+        "sintesi·TD": {
+          "min": 7.93,
+          "esempio": "10",
+          "px": 11
+        }
+      }
+    },
+    "grafico": {
+      "contenitore": 944,
+      "riquadro": 908,
+      "disegno": 848,
+      "pxPerPunto": 30.29,
+      "tick": [
+        116,
+        114,
+        112,
+        110,
+        108,
+        106,
+        104,
+        102,
+        100,
+        98,
+        96,
+        94,
+        92,
+        90,
+        88
+      ],
+      "sezioneTop": 651,
+      "sezioneAltezza": 1113,
+      "graficoBottom": 1690
+    },
+    "sbordi": [],
+    "testiSotto11": [],
+    "erroriConsole": []
+  },
+  {
+    "pagina": "/macro-desk/stagionalita?s=XAUUSD",
+    "larghezza": 1440,
+    "tema": "dark",
+    "file": "macro-desk_stagionalita_s_XAUUSD__1440__dark.png",
+    "innerWidth": 1440,
+    "scrollWidth": 1440,
+    "altezza": 3264,
+    "griglia": {
+      "larghezzaTabella": 685.8,
+      "larghezzaContenitore": 1118,
+      "scorre": 0,
+      "colonne": 12,
+      "primaColonna": 87.6,
+      "colonnaMin": 49.8,
+      "colonnaMax": 49.8,
+      "rigaCorpo": 25,
+      "rigaInCorso": 25,
+      "sintesiAltezza": 70,
+      "sintesiRighe": [
+        "Media 28",
+        "StDev 21",
+        "In rialzo su 20 21"
+      ],
+      "inRicalcolo": 0,
+      "caselle": 249,
+      "tinte": {
+        "neutra": 9,
+        "su4": 17,
+        "su1": 36,
+        "su5": 15,
+        "su3": 27,
+        "giù1": 50,
+        "su2": 37,
+        "giù2": 28,
+        "giù3": 19,
+        "giù4": 6,
+        "giù5": 5
+      },
+      "piccoli": 0,
+      "contrasti": {
+        "testa·TH": {
+          "min": 7.08,
+          "esempio": "Anno",
+          "px": 11
+        },
+        "in corso·TH": {
+          "min": 8.12,
+          "esempio": "in corso",
+          "px": 11
+        },
+        "in corso·TD": {
+          "min": 8.12,
+          "esempio": "-3,7",
+          "px": 12
+        },
+        "corpo·TH": {
+          "min": 16.73,
+          "esempio": "2006",
+          "px": 12
+        },
+        "corpo·TD·su4": {
+          "min": 10.18,
+          "esempio": "+6,8",
+          "px": 12
+        },
+        "corpo·TD·su1": {
+          "min": 7.42,
+          "esempio": "+2,1",
+          "px": 12
+        },
+        "corpo·TD·su5": {
+          "min": 8.43,
+          "esempio": "+9,2",
+          "px": 12
+        },
+        "corpo·TD·su3": {
+          "min": 6.02,
+          "esempio": "+6,3",
+          "px": 12
+        },
+        "corpo·TD·giù1": {
+          "min": 7.69,
+          "esempio": "-0,7",
+          "px": 12
+        },
+        "corpo·TD·su2": {
+          "min": 6.79,
+          "esempio": "+3,7",
+          "px": 12
+        },
+        "corpo·TD·giù2": {
+          "min": 7.25,
+          "esempio": "-2,7",
+          "px": 12
+        },
+        "corpo·TD·giù3": {
+          "min": 6.65,
+          "esempio": "-4,6",
+          "px": 12
+        },
+        "corpo·TD·giù4": {
+          "min": 11.83,
+          "esempio": "-7,3",
+          "px": 12
+        },
+        "corpo·TD·giù5": {
+          "min": 10.38,
+          "esempio": "-16,9",
+          "px": 12
+        },
+        "sintesi·TH": {
+          "min": 7.08,
+          "esempio": "Media",
+          "px": 11
+        },
+        "sintesi·TD·su5": {
+          "min": 8.43,
+          "esempio": "+3,49",
+          "px": 12
+        },
+        "sintesi·TD·su2": {
+          "min": 13.42,
+          "esempio": "+0,89",
+          "px": 12
+        },
+        "sintesi·TD·su1": {
+          "min": 14.69,
+          "esempio": "+0,70",
+          "px": 12
+        },
+        "sintesi·TD·su3": {
+          "min": 11.9,
+          "esempio": "+1,70",
+          "px": 12
+        },
+        "sintesi·TD·giù1": {
+          "min": 15.22,
+          "esempio": "-0,25",
+          "px": 12
+        },
+        "sintesi·TD": {
+          "min": 7.15,
+          "esempio": "12",
+          "px": 11
+        }
+      }
+    },
+    "grafico": {
+      "contenitore": 944,
+      "riquadro": 908,
+      "disegno": 848,
+      "pxPerPunto": 67.84,
+      "tick": [
+        112,
+        111.5,
+        111,
+        110.5,
+        110,
+        109.5,
+        109,
+        108.5,
+        108,
+        107.5,
+        107,
+        106.5,
+        106,
+        105.5,
+        105,
+        104.5,
+        104,
+        103.5,
+        103,
+        102.5,
+        102,
+        101.5,
+        101,
+        100.5,
+        100,
+        99.5
+      ],
+      "sezioneTop": 609,
+      "sezioneAltezza": 1096,
+      "graficoBottom": 1648
+    },
+    "sbordi": [],
+    "testiSotto11": [],
+    "erroriConsole": []
+  },
+  {
+    "pagina": "/macro-desk/stagionalita?s=XAUUSD&t=settimana",
+    "larghezza": 1440,
+    "tema": "dark",
+    "file": "macro-desk_stagionalita_s_XAUUSD_t_settimana__1440__dark.png",
+    "innerWidth": 1440,
+    "scrollWidth": 1440,
+    "altezza": 5062,
+    "griglia": {
+      "larghezzaTabella": 2757,
+      "larghezzaContenitore": 1118,
+      "scorre": 1639,
+      "colonne": 53,
+      "primaColonna": 118.4,
+      "colonnaMin": 49.8,
+      "colonnaMax": 49.8,
+      "rigaCorpo": 25,
+      "rigaInCorso": 25,
+      "sintesiAltezza": 105,
+      "sintesiRighe": [
+        "Media 28",
+        "StDev 21",
+        "In rialzo settimane su 35",
+        "Anni 21"
+      ],
+      "inRicalcolo": 0,
+      "caselle": 1081,
+      "tinte": {
+        "neutra": 38,
+        "su1": 206,
+        "su2": 154,
+        "su3": 117,
+        "giù3": 68,
+        "giù2": 117,
+        "su5": 56,
+        "giù1": 182,
+        "giù4": 45,
+        "su4": 52,
+        "giù5": 46
+      },
+      "piccoli": 0,
+      "contrasti": {
+        "testa·TH": {
+          "min": 7.08,
+          "esempio": "Anno",
+          "px": 11
+        },
+        "in corso·TH": {
+          "min": 8.12,
+          "esempio": "in corso",
+          "px": 11
+        },
+        "in corso·TD": {
+          "min": 8.12,
+          "esempio": "-1,9",
+          "px": 12
+        },
+        "in corso·TD·grigia": {
+          "min": 8.12,
+          "esempio": "-1,4",
+          "px": 12
+        },
+        "corpo·TH": {
+          "min": 16.73,
+          "esempio": "2006",
+          "px": 12
+        },
+        "corpo·TD·su1": {
+          "min": 7.42,
+          "esempio": "+0,7",
+          "px": 12
+        },
+        "corpo·TD·su2": {
+          "min": 6.79,
+          "esempio": "+1,0",
+          "px": 12
+        },
+        "corpo·TD·su3": {
+          "min": 6.02,
+          "esempio": "+2,5",
+          "px": 12
+        },
+        "corpo·TD·giù3": {
+          "min": 6.65,
+          "esempio": "-2,5",
+          "px": 12
+        },
+        "corpo·TD·giù2": {
+          "min": 7.25,
+          "esempio": "-1,5",
+          "px": 12
+        },
+        "corpo·TD·su5": {
+          "min": 8.43,
+          "esempio": "+6,5",
+          "px": 12
+        },
+        "corpo·TD·giù1": {
+          "min": 7.69,
+          "esempio": "-0,2",
+          "px": 12
+        },
+        "corpo·TD·giù4": {
+          "min": 11.83,
+          "esempio": "-3,6",
+          "px": 12
+        },
+        "corpo·TD·su4": {
+          "min": 10.18,
+          "esempio": "+3,0",
+          "px": 12
+        },
+        "corpo·TD·grigia": {
+          "min": 7.08,
+          "esempio": "—",
+          "px": 12
+        },
+        "corpo·TD·giù5": {
+          "min": 10.38,
+          "esempio": "-4,0",
+          "px": 12
+        },
+        "sintesi·TH": {
+          "min": 7.08,
+          "esempio": "Media",
+          "px": 11
+        },
+        "sintesi·TD·su4": {
+          "min": 10.18,
+          "esempio": "+0,73",
+          "px": 12
+        },
+        "sintesi·TD·su5": {
+          "min": 8.43,
+          "esempio": "+1,01",
+          "px": 12
+        },
+        "sintesi·TD·su1": {
+          "min": 14.69,
+          "esempio": "+0,13",
+          "px": 12
+        },
+        "sintesi·TD·su2": {
+          "min": 13.42,
+          "esempio": "+0,34",
+          "px": 12
+        },
+        "sintesi·TD·su3": {
+          "min": 11.9,
+          "esempio": "+0,45",
+          "px": 12
+        },
+        "sintesi·TD·giù3": {
+          "min": 13.16,
+          "esempio": "-0,51",
+          "px": 12
+        },
+        "sintesi·TD·giù1": {
+          "min": 15.22,
+          "esempio": "-0,00",
+          "px": 12
+        },
+        "sintesi·TD·giù2": {
+          "min": 14.34,
+          "esempio": "-0,37",
+          "px": 12
+        },
+        "sintesi·TD·giù5": {
+          "min": 10.38,
+          "esempio": "-0,82",
+          "px": 12
+        },
+        "sintesi·TD·giù4": {
+          "min": 11.83,
+          "esempio": "-0,64",
+          "px": 12
+        },
+        "sintesi·TD": {
+          "min": 5.09,
+          "esempio": "Campione molto",
+          "px": 11
+        }
+      }
+    },
+    "grafico": {
+      "contenitore": 944,
+      "riquadro": 908,
+      "disegno": 848,
+      "pxPerPunto": 67.84,
+      "tick": [
+        112,
+        111.5,
+        111,
+        110.5,
+        110,
+        109.5,
+        109,
+        108.5,
+        108,
+        107.5,
+        107,
+        106.5,
+        106,
+        105.5,
+        105,
+        104.5,
+        104,
+        103.5,
+        103,
+        102.5,
+        102,
+        101.5,
+        101,
+        100.5,
+        100,
+        99.5
+      ],
+      "sezioneTop": 609,
+      "sezioneAltezza": 1096,
+      "graficoBottom": 1648
+    },
+    "sbordi": [],
+    "testiSotto11": [],
+    "erroriConsole": []
+  },
+  {
+    "pagina": "/macro-desk/stagionalita?s=XAUUSD&t=sessione",
+    "larghezza": 1440,
+    "tema": "dark",
+    "file": "macro-desk_stagionalita_s_XAUUSD_t_sessione__1440__dark.png",
+    "innerWidth": 1440,
+    "scrollWidth": 1440,
+    "altezza": 3057,
+    "griglia": {
+      "larghezzaTabella": 373.2,
+      "larghezzaContenitore": 1118,
+      "scorre": 0,
+      "colonne": 4,
+      "primaColonna": 109.4,
+      "colonnaMin": 65.7,
+      "colonnaMax": 65.7,
+      "rigaCorpo": 25,
+      "rigaInCorso": 25,
+      "sintesiAltezza": 84,
+      "sintesiRighe": [
+        "Media 28",
+        "StDev 21",
+        "In rialzo sessioni su 35"
+      ],
+      "inRicalcolo": 0,
+      "caselle": 84,
+      "tinte": {
+        "neutra": 4,
+        "su2": 18,
+        "giù4": 7,
+        "su1": 17,
+        "giù1": 20,
+        "su3": 4,
+        "giù2": 6,
+        "giù3": 2,
+        "giù5": 6
+      },
+      "piccoli": 0,
+      "contrasti": {
+        "testa·TH": {
+          "min": 7.08,
+          "esempio": "Anno",
+          "px": 11
+        },
+        "in corso·TH": {
+          "min": 8.12,
+          "esempio": "in corso",
+          "px": 11
+        },
+        "in corso·TD": {
+          "min": 8.12,
+          "esempio": "-0,012",
+          "px": 12
+        },
+        "corpo·TH": {
+          "min": 16.73,
+          "esempio": "2006",
+          "px": 12
+        },
+        "corpo·TD·su2": {
+          "min": 6.79,
+          "esempio": "+0,007",
+          "px": 12
+        },
+        "corpo·TD·giù4": {
+          "min": 11.83,
+          "esempio": "-0,016",
+          "px": 12
+        },
+        "corpo·TD·su1": {
+          "min": 7.42,
+          "esempio": "+0,004",
+          "px": 12
+        },
+        "corpo·TD·giù1": {
+          "min": 7.69,
+          "esempio": "-0,000",
+          "px": 12
+        },
+        "corpo·TD·su3": {
+          "min": 6.02,
+          "esempio": "+0,012",
+          "px": 12
+        },
+        "corpo·TD·giù2": {
+          "min": 7.25,
+          "esempio": "-0,006",
+          "px": 12
+        },
+        "corpo·TD·giù3": {
+          "min": 6.65,
+          "esempio": "-0,010",
+          "px": 12
+        },
+        "corpo·TD·giù5": {
+          "min": 10.38,
+          "esempio": "-0,025",
+          "px": 12
+        },
+        "sintesi·TH": {
+          "min": 7.08,
+          "esempio": "Media",
+          "px": 11
+        },
+        "sintesi·TD·su3": {
+          "min": 11.9,
+          "esempio": "+0,0058",
+          "px": 12
+        },
+        "sintesi·TD·giù1": {
+          "min": 15.22,
+          "esempio": "-0,0026",
+          "px": 12
+        },
+        "sintesi·TD·su1": {
+          "min": 14.69,
+          "esempio": "+0,0007",
+          "px": 12
+        },
+        "sintesi·TD·giù5": {
+          "min": 10.38,
+          "esempio": "-0,0143",
+          "px": 12
+        },
+        "sintesi·TD": {
+          "min": 7.15,
+          "esempio": "4.819",
+          "px": 11
+        }
+      }
+    },
+    "grafico": {
+      "contenitore": 944,
+      "riquadro": 908,
+      "disegno": 848,
+      "pxPerPunto": 67.84,
+      "tick": [
+        112,
+        111.5,
+        111,
+        110.5,
+        110,
+        109.5,
+        109,
+        108.5,
+        108,
+        107.5,
+        107,
+        106.5,
+        106,
+        105.5,
+        105,
+        104.5,
+        104,
+        103.5,
+        103,
+        102.5,
+        102,
+        101.5,
+        101,
+        100.5,
+        100,
+        99.5
+      ],
+      "sezioneTop": 609,
+      "sezioneAltezza": 1096,
+      "graficoBottom": 1648
+    },
+    "sbordi": [],
+    "testiSotto11": [],
+    "erroriConsole": []
+  },
+  {
+    "pagina": "/macro-desk/stagionalita?s=SPX&t=ora",
+    "larghezza": 1440,
+    "tema": "dark",
+    "file": "macro-desk_stagionalita_s_SPX_t_ora__1440__dark.png",
+    "innerWidth": 1440,
+    "scrollWidth": 1440,
+    "altezza": 3771,
+    "griglia": {
+      "larghezzaTabella": 1665.1,
+      "larghezzaContenitore": 1118,
+      "scorre": 547,
+      "colonne": 24,
+      "primaColonna": 87.6,
+      "colonnaMin": 65.7,
+      "colonnaMax": 65.7,
+      "rigaCorpo": 25,
+      "rigaInCorso": 25,
+      "sintesiAltezza": 105,
+      "sintesiRighe": [
+        "Media 28",
+        "StDev 21",
+        "In rialzo ore su 35",
+        "Anni 21"
+      ],
+      "inRicalcolo": 0,
+      "caselle": 329,
+      "tinte": {
+        "neutra": 56,
+        "giù1": 62,
+        "su4": 10,
+        "giù2": 19,
+        "su1": 63,
+        "giù4": 9,
+        "su2": 40,
+        "su5": 22,
+        "su3": 26,
+        "giù3": 10,
+        "giù5": 12
+      },
+      "piccoli": 0,
+      "contrasti": {
+        "testa·TH": {
+          "min": 7.08,
+          "esempio": "Anno",
+          "px": 11
+        },
+        "in corso·TH": {
+          "min": 8.12,
+          "esempio": "in corso",
+          "px": 11
+        },
+        "in corso·TD·grigia": {
+          "min": 8.12,
+          "esempio": "-0,043",
+          "px": 12
+        },
+        "in corso·TD": {
+          "min": 8.12,
+          "esempio": "-0,001",
+          "px": 12
+        },
+        "corpo·TH": {
+          "min": 16.73,
+          "esempio": "2011",
+          "px": 12
+        },
+        "corpo·TD·grigia": {
+          "min": 7.08,
+          "esempio": "+0,038",
+          "px": 12
+        },
+        "corpo·TD·giù1": {
+          "min": 7.69,
+          "esempio": "-0,003",
+          "px": 12
+        },
+        "corpo·TD·su4": {
+          "min": 10.18,
+          "esempio": "+0,016",
+          "px": 12
+        },
+        "corpo·TD·giù2": {
+          "min": 7.25,
+          "esempio": "-0,007",
+          "px": 12
+        },
+        "corpo·TD·su1": {
+          "min": 7.42,
+          "esempio": "+0,002",
+          "px": 12
+        },
+        "corpo·TD·giù4": {
+          "min": 11.83,
+          "esempio": "-0,018",
+          "px": 12
+        },
+        "corpo·TD·su2": {
+          "min": 6.79,
+          "esempio": "+0,006",
+          "px": 12
+        },
+        "corpo·TD·su5": {
+          "min": 8.43,
+          "esempio": "+0,051",
+          "px": 12
+        },
+        "corpo·TD·su3": {
+          "min": 6.02,
+          "esempio": "+0,014",
+          "px": 12
+        },
+        "corpo·TD·giù3": {
+          "min": 6.65,
+          "esempio": "-0,015",
+          "px": 12
+        },
+        "corpo·TD·giù5": {
+          "min": 10.38,
+          "esempio": "-0,026",
+          "px": 12
+        },
+        "sintesi·TH": {
+          "min": 7.08,
+          "esempio": "Media",
+          "px": 11
+        },
+        "sintesi·TD·su2": {
+          "min": 13.42,
+          "esempio": "+0,0084",
+          "px": 12
+        },
+        "sintesi·TD·su1": {
+          "min": 14.69,
+          "esempio": "+0,0010",
+          "px": 12
+        },
+        "sintesi·TD·giù1": {
+          "min": 15.22,
+          "esempio": "-0,0029",
+          "px": 12
+        },
+        "sintesi·TD·su4": {
+          "min": 10.18,
+          "esempio": "+0,0172",
+          "px": 12
+        },
+        "sintesi·TD·giù5": {
+          "min": 10.38,
+          "esempio": "-0,0496",
+          "px": 12
+        },
+        "sintesi·TD·giù4": {
+          "min": 11.83,
+          "esempio": "-0,0146",
+          "px": 12
+        },
+        "sintesi·TD·giù2": {
+          "min": 14.34,
+          "esempio": "-0,0090",
+          "px": 12
+        },
+        "sintesi·TD": {
+          "min": 5.09,
+          "esempio": "Campione molto",
+          "px": 11
+        }
+      }
+    },
+    "grafico": {
+      "contenitore": 944,
+      "riquadro": 908,
+      "disegno": 848,
+      "pxPerPunto": 60.57,
+      "tick": [
+        113,
+        112,
+        111,
+        110,
+        109,
+        108,
+        107,
+        106,
+        105,
+        104,
+        103,
+        102,
+        101,
+        100,
+        99
+      ],
+      "sezioneTop": 633,
+      "sezioneAltezza": 1096,
+      "graficoBottom": 1672
+    },
+    "sbordi": [],
+    "testiSotto11": [],
+    "erroriConsole": []
+  },
+  {
+    "pagina": "/macro-desk/stagionalita?s=VIX&t=giorno",
+    "larghezza": 1440,
+    "tema": "dark",
+    "file": "macro-desk_stagionalita_s_VIX_t_giorno__1440__dark.png",
+    "innerWidth": 1440,
+    "scrollWidth": 1440,
+    "altezza": 3019,
+    "griglia": {
+      "larghezzaTabella": 383,
+      "larghezzaContenitore": 1118,
+      "scorre": 0,
+      "colonne": 5,
+      "primaColonna": 133.1,
+      "colonnaMin": 49.8,
+      "colonnaMax": 49.8,
+      "rigaCorpo": 25,
+      "rigaInCorso": 25,
+      "sintesiAltezza": 84,
+      "sintesiRighe": [
+        "Livello medio 28",
+        "StDev 21",
+        "Sopra mediana giorni su 35"
+      ],
+      "inRicalcolo": 0,
+      "caselle": 105,
+      "tinte": {
+        "neutra": 5,
+        "giù1": 21,
+        "giù2": 26,
+        "su3": 6,
+        "su1": 4,
+        "su5": 12,
+        "su4": 3,
+        "giù4": 5,
+        "giù3": 14,
+        "su2": 9
+      },
+      "piccoli": 0,
+      "contrasti": {
+        "testa·TH": {
+          "min": 7.08,
+          "esempio": "Anno",
+          "px": 11
+        },
+        "in corso·TH": {
+          "min": 8.12,
+          "esempio": "in corso",
+          "px": 11
+        },
+        "in corso·TD": {
+          "min": 8.12,
+          "esempio": "18,3",
+          "px": 12
+        },
+        "corpo·TH": {
+          "min": 16.73,
+          "esempio": "2006",
+          "px": 12
+        },
+        "corpo·TD·giù1": {
+          "min": 7.69,
+          "esempio": "19,1",
+          "px": 12
+        },
+        "corpo·TD·giù2": {
+          "min": 7.25,
+          "esempio": "14,4",
+          "px": 12
+        },
+        "corpo·TD·su3": {
+          "min": 6.02,
+          "esempio": "24,8",
+          "px": 12
+        },
+        "corpo·TD·su1": {
+          "min": 7.42,
+          "esempio": "19,8",
+          "px": 12
+        },
+        "corpo·TD·su5": {
+          "min": 8.43,
+          "esempio": "30,0",
+          "px": 12
+        },
+        "corpo·TD·su4": {
+          "min": 10.18,
+          "esempio": "28,6",
+          "px": 12
+        },
+        "corpo·TD·giù4": {
+          "min": 11.83,
+          "esempio": "11,0",
+          "px": 12
+        },
+        "corpo·TD·giù3": {
+          "min": 6.65,
+          "esempio": "12,7",
+          "px": 12
+        },
+        "corpo·TD·su2": {
+          "min": 6.79,
+          "esempio": "22,9",
+          "px": 12
+        },
+        "sintesi·TH": {
+          "min": 7.08,
+          "esempio": "Livello medio",
+          "px": 11
+        },
+        "sintesi·TD·su5": {
+          "min": 8.43,
+          "esempio": "19,68",
+          "px": 12
+        },
+        "sintesi·TD·su1": {
+          "min": 14.69,
+          "esempio": "19,45",
+          "px": 12
+        },
+        "sintesi·TD·giù1": {
+          "min": 15.22,
+          "esempio": "19,39",
+          "px": 12
+        },
+        "sintesi·TD": {
+          "min": 7.15,
+          "esempio": "1.010",
+          "px": 11
+        },
+        "sintesi·TD·giù2": {
+          "min": 14.34,
+          "esempio": "19,33",
+          "px": 12
+        }
+      }
+    },
+    "grafico": {
+      "contenitore": 944,
+      "riquadro": 908,
+      "disegno": 848,
+      "pxPerPunto": 30.29,
+      "tick": [
+        116,
+        114,
+        112,
+        110,
+        108,
+        106,
+        104,
+        102,
+        100,
+        98,
+        96,
+        94,
+        92,
+        90,
+        88
+      ],
+      "sezioneTop": 607,
+      "sezioneAltezza": 1096,
+      "graficoBottom": 1646
+    },
+    "sbordi": [],
+    "testiSotto11": [],
+    "erroriConsole": []
+  },
+  {
+    "pagina": "/macro-desk/stagionalita?s=VIX",
+    "larghezza": 1440,
+    "tema": "dark",
+    "file": "macro-desk_stagionalita_s_VIX__1440__dark.png",
+    "innerWidth": 1440,
+    "scrollWidth": 1440,
+    "altezza": 3262,
+    "griglia": {
+      "larghezzaTabella": 716.6,
+      "larghezzaContenitore": 1118,
+      "scorre": 0,
+      "colonne": 12,
+      "primaColonna": 118.5,
+      "colonnaMin": 49.8,
+      "colonnaMax": 49.8,
+      "rigaCorpo": 25,
+      "rigaInCorso": 25,
+      "sintesiAltezza": 70,
+      "sintesiRighe": [
+        "Livello medio 28",
+        "StDev 21",
+        "Sopra mediana su 20 21"
+      ],
+      "inRicalcolo": 0,
+      "caselle": 249,
+      "tinte": {
+        "neutra": 9,
+        "giù1": 41,
+        "su1": 29,
+        "su5": 19,
+        "giù2": 53,
+        "giù3": 42,
+        "su2": 18,
+        "su3": 19,
+        "su4": 7,
+        "giù4": 12
+      },
+      "piccoli": 0,
+      "contrasti": {
+        "testa·TH": {
+          "min": 7.08,
+          "esempio": "Anno",
+          "px": 11
+        },
+        "in corso·TH": {
+          "min": 8.12,
+          "esempio": "in corso",
+          "px": 11
+        },
+        "in corso·TD": {
+          "min": 8.12,
+          "esempio": "15,9",
+          "px": 12
+        },
+        "corpo·TH": {
+          "min": 16.73,
+          "esempio": "2006",
+          "px": 12
+        },
+        "corpo·TD·giù1": {
+          "min": 7.69,
+          "esempio": "16,8",
+          "px": 12
+        },
+        "corpo·TD·su1": {
+          "min": 7.42,
+          "esempio": "21,8",
+          "px": 12
+        },
+        "corpo·TD·su5": {
+          "min": 8.43,
+          "esempio": "32,0",
+          "px": 12
+        },
+        "corpo·TD·giù2": {
+          "min": 7.25,
+          "esempio": "15,3",
+          "px": 12
+        },
+        "corpo·TD·giù3": {
+          "min": 6.65,
+          "esempio": "11,3",
+          "px": 12
+        },
+        "corpo·TD·su2": {
+          "min": 6.79,
+          "esempio": "22,2",
+          "px": 12
+        },
+        "corpo·TD·su3": {
+          "min": 6.02,
+          "esempio": "25,6",
+          "px": 12
+        },
+        "corpo·TD·su4": {
+          "min": 10.18,
+          "esempio": "29,1",
+          "px": 12
+        },
+        "corpo·TD·giù4": {
+          "min": 11.83,
+          "esempio": "11,1",
+          "px": 12
+        },
+        "sintesi·TH": {
+          "min": 7.08,
+          "esempio": "Livello medio",
+          "px": 11
+        },
+        "sintesi·TD·giù2": {
+          "min": 14.34,
+          "esempio": "18,82",
+          "px": 12
+        },
+        "sintesi·TD·su1": {
+          "min": 14.69,
+          "esempio": "19,65",
+          "px": 12
+        },
+        "sintesi·TD·su5": {
+          "min": 8.43,
+          "esempio": "21,06",
+          "px": 12
+        },
+        "sintesi·TD·giù1": {
+          "min": 15.22,
+          "esempio": "19,27",
+          "px": 12
+        },
+        "sintesi·TD·giù5": {
+          "min": 10.38,
+          "esempio": "17,50",
+          "px": 12
+        },
+        "sintesi·TD·su3": {
+          "min": 11.9,
+          "esempio": "20,42",
+          "px": 12
+        },
+        "sintesi·TD": {
+          "min": 7.15,
+          "esempio": "10",
+          "px": 11
+        }
+      }
+    },
+    "grafico": {
+      "contenitore": 944,
+      "riquadro": 908,
+      "disegno": 848,
+      "pxPerPunto": 30.29,
+      "tick": [
+        116,
+        114,
+        112,
+        110,
+        108,
+        106,
+        104,
+        102,
+        100,
+        98,
+        96,
+        94,
+        92,
+        90,
+        88
+      ],
+      "sezioneTop": 607,
+      "sezioneAltezza": 1096,
+      "graficoBottom": 1646
+    },
+    "sbordi": [],
+    "testiSotto11": [],
+    "erroriConsole": []
+  },
+  {
+    "pagina": "/macro-desk/stagionalita?s=XAUUSD",
+    "larghezza": 390,
+    "tema": "dark",
+    "file": "macro-desk_stagionalita_s_XAUUSD__390__dark.png",
+    "innerWidth": 390,
+    "scrollWidth": 390,
+    "altezza": 3457,
+    "griglia": {
+      "larghezzaTabella": 685.8,
+      "larghezzaContenitore": 324,
+      "scorre": 362,
+      "colonne": 12,
+      "primaColonna": 87.6,
+      "colonnaMin": 49.8,
+      "colonnaMax": 49.8,
+      "rigaCorpo": 25,
+      "rigaInCorso": 25,
+      "sintesiAltezza": 70,
+      "sintesiRighe": [
+        "Media 28",
+        "StDev 21",
+        "In rialzo su 20 21"
+      ],
+      "inRicalcolo": 0,
+      "caselle": 249,
+      "tinte": {
+        "neutra": 9,
+        "su4": 17,
+        "su1": 36,
+        "su5": 15,
+        "su3": 27,
+        "giù1": 50,
+        "su2": 37,
+        "giù2": 28,
+        "giù3": 19,
+        "giù4": 6,
+        "giù5": 5
+      },
+      "piccoli": 0,
+      "contrasti": {
+        "testa·TH": {
+          "min": 7.08,
+          "esempio": "Anno",
+          "px": 11
+        },
+        "in corso·TH": {
+          "min": 8.12,
+          "esempio": "in corso",
+          "px": 11
+        },
+        "in corso·TD": {
+          "min": 8.12,
+          "esempio": "-3,7",
+          "px": 12
+        },
+        "corpo·TH": {
+          "min": 16.73,
+          "esempio": "2006",
+          "px": 12
+        },
+        "corpo·TD·su4": {
+          "min": 10.18,
+          "esempio": "+6,8",
+          "px": 12
+        },
+        "corpo·TD·su1": {
+          "min": 7.42,
+          "esempio": "+2,1",
+          "px": 12
+        },
+        "corpo·TD·su5": {
+          "min": 8.43,
+          "esempio": "+9,2",
+          "px": 12
+        },
+        "corpo·TD·su3": {
+          "min": 6.02,
+          "esempio": "+6,3",
+          "px": 12
+        },
+        "corpo·TD·giù1": {
+          "min": 7.69,
+          "esempio": "-0,7",
+          "px": 12
+        },
+        "corpo·TD·su2": {
+          "min": 6.79,
+          "esempio": "+3,7",
+          "px": 12
+        },
+        "corpo·TD·giù2": {
+          "min": 7.25,
+          "esempio": "-2,7",
+          "px": 12
+        },
+        "corpo·TD·giù3": {
+          "min": 6.65,
+          "esempio": "-4,6",
+          "px": 12
+        },
+        "corpo·TD·giù4": {
+          "min": 11.83,
+          "esempio": "-7,3",
+          "px": 12
+        },
+        "corpo·TD·giù5": {
+          "min": 10.38,
+          "esempio": "-16,9",
+          "px": 12
+        },
+        "sintesi·TH": {
+          "min": 7.08,
+          "esempio": "Media",
+          "px": 11
+        },
+        "sintesi·TD·su5": {
+          "min": 8.43,
+          "esempio": "+3,49",
+          "px": 12
+        },
+        "sintesi·TD·su2": {
+          "min": 13.42,
+          "esempio": "+0,89",
+          "px": 12
+        },
+        "sintesi·TD·su1": {
+          "min": 14.69,
+          "esempio": "+0,70",
+          "px": 12
+        },
+        "sintesi·TD·su3": {
+          "min": 11.9,
+          "esempio": "+1,70",
+          "px": 12
+        },
+        "sintesi·TD·giù1": {
+          "min": 15.22,
+          "esempio": "-0,25",
+          "px": 12
+        },
+        "sintesi·TD": {
+          "min": 7.15,
+          "esempio": "12",
+          "px": 11
+        }
+      }
+    },
+    "grafico": {
+      "contenitore": 560,
+      "riquadro": 434,
+      "disegno": 374,
+      "pxPerPunto": 26.71,
+      "tick": [
+        112,
+        110,
+        108,
+        106,
+        104,
+        102,
+        100,
+        98
+      ],
+      "sezioneTop": 760,
+      "sezioneAltezza": 874,
+      "graficoBottom": 1477
+    },
+    "sbordi": [],
+    "testiSotto11": [],
+    "erroriConsole": []
+  },
+  {
+    "pagina": "/macro-desk/stagionalita?s=XAUUSD&t=settimana",
+    "larghezza": 390,
+    "tema": "dark",
+    "file": "macro-desk_stagionalita_s_XAUUSD_t_settimana__390__dark.png",
+    "innerWidth": 390,
+    "scrollWidth": 390,
+    "altezza": 5272,
+    "griglia": {
+      "larghezzaTabella": 2757,
+      "larghezzaContenitore": 324,
+      "scorre": 2433,
+      "colonne": 53,
+      "primaColonna": 118.4,
+      "colonnaMin": 49.8,
+      "colonnaMax": 49.8,
+      "rigaCorpo": 25,
+      "rigaInCorso": 25,
+      "sintesiAltezza": 105,
+      "sintesiRighe": [
+        "Media 28",
+        "StDev 21",
+        "In rialzo settimane su 35",
+        "Anni 21"
+      ],
+      "inRicalcolo": 0,
+      "caselle": 1081,
+      "tinte": {
+        "neutra": 38,
+        "su1": 206,
+        "su2": 154,
+        "su3": 117,
+        "giù3": 68,
+        "giù2": 117,
+        "su5": 56,
+        "giù1": 182,
+        "giù4": 45,
+        "su4": 52,
+        "giù5": 46
+      },
+      "piccoli": 0,
+      "contrasti": {
+        "testa·TH": {
+          "min": 7.08,
+          "esempio": "Anno",
+          "px": 11
+        },
+        "in corso·TH": {
+          "min": 8.12,
+          "esempio": "in corso",
+          "px": 11
+        },
+        "in corso·TD": {
+          "min": 8.12,
+          "esempio": "-1,9",
+          "px": 12
+        },
+        "in corso·TD·grigia": {
+          "min": 8.12,
+          "esempio": "-1,4",
+          "px": 12
+        },
+        "corpo·TH": {
+          "min": 16.73,
+          "esempio": "2006",
+          "px": 12
+        },
+        "corpo·TD·su1": {
+          "min": 7.42,
+          "esempio": "+0,7",
+          "px": 12
+        },
+        "corpo·TD·su2": {
+          "min": 6.79,
+          "esempio": "+1,0",
+          "px": 12
+        },
+        "corpo·TD·su3": {
+          "min": 6.02,
+          "esempio": "+2,5",
+          "px": 12
+        },
+        "corpo·TD·giù3": {
+          "min": 6.65,
+          "esempio": "-2,5",
+          "px": 12
+        },
+        "corpo·TD·giù2": {
+          "min": 7.25,
+          "esempio": "-1,5",
+          "px": 12
+        },
+        "corpo·TD·su5": {
+          "min": 8.43,
+          "esempio": "+6,5",
+          "px": 12
+        },
+        "corpo·TD·giù1": {
+          "min": 7.69,
+          "esempio": "-0,2",
+          "px": 12
+        },
+        "corpo·TD·giù4": {
+          "min": 11.83,
+          "esempio": "-3,6",
+          "px": 12
+        },
+        "corpo·TD·su4": {
+          "min": 10.18,
+          "esempio": "+3,0",
+          "px": 12
+        },
+        "corpo·TD·grigia": {
+          "min": 7.08,
+          "esempio": "—",
+          "px": 12
+        },
+        "corpo·TD·giù5": {
+          "min": 10.38,
+          "esempio": "-4,0",
+          "px": 12
+        },
+        "sintesi·TH": {
+          "min": 7.08,
+          "esempio": "Media",
+          "px": 11
+        },
+        "sintesi·TD·su4": {
+          "min": 10.18,
+          "esempio": "+0,73",
+          "px": 12
+        },
+        "sintesi·TD·su5": {
+          "min": 8.43,
+          "esempio": "+1,01",
+          "px": 12
+        },
+        "sintesi·TD·su1": {
+          "min": 14.69,
+          "esempio": "+0,13",
+          "px": 12
+        },
+        "sintesi·TD·su2": {
+          "min": 13.42,
+          "esempio": "+0,34",
+          "px": 12
+        },
+        "sintesi·TD·su3": {
+          "min": 11.9,
+          "esempio": "+0,45",
+          "px": 12
+        },
+        "sintesi·TD·giù3": {
+          "min": 13.16,
+          "esempio": "-0,51",
+          "px": 12
+        },
+        "sintesi·TD·giù1": {
+          "min": 15.22,
+          "esempio": "-0,00",
+          "px": 12
+        },
+        "sintesi·TD·giù2": {
+          "min": 14.34,
+          "esempio": "-0,37",
+          "px": 12
+        },
+        "sintesi·TD·giù5": {
+          "min": 10.38,
+          "esempio": "-0,82",
+          "px": 12
+        },
+        "sintesi·TD·giù4": {
+          "min": 11.83,
+          "esempio": "-0,64",
+          "px": 12
+        },
+        "sintesi·TD": {
+          "min": 5.09,
+          "esempio": "Campione molto",
+          "px": 11
+        }
+      }
+    },
+    "grafico": {
+      "contenitore": 560,
+      "riquadro": 434,
+      "disegno": 374,
+      "pxPerPunto": 26.71,
+      "tick": [
+        112,
+        110,
+        108,
+        106,
+        104,
+        102,
+        100,
+        98
+      ],
+      "sezioneTop": 760,
+      "sezioneAltezza": 874,
+      "graficoBottom": 1477
+    },
+    "sbordi": [],
+    "testiSotto11": [],
+    "erroriConsole": []
+  },
+  {
+    "pagina": "/macro-desk/stagionalita?s=XAUUSD&t=sessione",
+    "larghezza": 390,
+    "tema": "dark",
+    "file": "macro-desk_stagionalita_s_XAUUSD_t_sessione__390__dark.png",
+    "innerWidth": 390,
+    "scrollWidth": 390,
+    "altezza": 3428,
+    "griglia": {
+      "larghezzaTabella": 373.2,
+      "larghezzaContenitore": 324,
+      "scorre": 49,
+      "colonne": 4,
+      "primaColonna": 109.4,
+      "colonnaMin": 65.7,
+      "colonnaMax": 65.7,
+      "rigaCorpo": 25,
+      "rigaInCorso": 25,
+      "sintesiAltezza": 84,
+      "sintesiRighe": [
+        "Media 28",
+        "StDev 21",
+        "In rialzo sessioni su 35"
+      ],
+      "inRicalcolo": 0,
+      "caselle": 84,
+      "tinte": {
+        "neutra": 4,
+        "su2": 18,
+        "giù4": 7,
+        "su1": 17,
+        "giù1": 20,
+        "su3": 4,
+        "giù2": 6,
+        "giù3": 2,
+        "giù5": 6
+      },
+      "piccoli": 0,
+      "contrasti": {
+        "testa·TH": {
+          "min": 7.08,
+          "esempio": "Anno",
+          "px": 11
+        },
+        "in corso·TH": {
+          "min": 8.12,
+          "esempio": "in corso",
+          "px": 11
+        },
+        "in corso·TD": {
+          "min": 8.12,
+          "esempio": "-0,012",
+          "px": 12
+        },
+        "corpo·TH": {
+          "min": 16.73,
+          "esempio": "2006",
+          "px": 12
+        },
+        "corpo·TD·su2": {
+          "min": 6.79,
+          "esempio": "+0,007",
+          "px": 12
+        },
+        "corpo·TD·giù4": {
+          "min": 11.83,
+          "esempio": "-0,016",
+          "px": 12
+        },
+        "corpo·TD·su1": {
+          "min": 7.42,
+          "esempio": "+0,004",
+          "px": 12
+        },
+        "corpo·TD·giù1": {
+          "min": 7.69,
+          "esempio": "-0,000",
+          "px": 12
+        },
+        "corpo·TD·su3": {
+          "min": 6.02,
+          "esempio": "+0,012",
+          "px": 12
+        },
+        "corpo·TD·giù2": {
+          "min": 7.25,
+          "esempio": "-0,006",
+          "px": 12
+        },
+        "corpo·TD·giù3": {
+          "min": 6.65,
+          "esempio": "-0,010",
+          "px": 12
+        },
+        "corpo·TD·giù5": {
+          "min": 10.38,
+          "esempio": "-0,025",
+          "px": 12
+        },
+        "sintesi·TH": {
+          "min": 7.08,
+          "esempio": "Media",
+          "px": 11
+        },
+        "sintesi·TD·su3": {
+          "min": 11.9,
+          "esempio": "+0,0058",
+          "px": 12
+        },
+        "sintesi·TD·giù1": {
+          "min": 15.22,
+          "esempio": "-0,0026",
+          "px": 12
+        },
+        "sintesi·TD·su1": {
+          "min": 14.69,
+          "esempio": "+0,0007",
+          "px": 12
+        },
+        "sintesi·TD·giù5": {
+          "min": 10.38,
+          "esempio": "-0,0143",
+          "px": 12
+        },
+        "sintesi·TD": {
+          "min": 7.15,
+          "esempio": "4.819",
+          "px": 11
+        }
+      }
+    },
+    "grafico": {
+      "contenitore": 560,
+      "riquadro": 434,
+      "disegno": 374,
+      "pxPerPunto": 26.71,
+      "tick": [
+        112,
+        110,
+        108,
+        106,
+        104,
+        102,
+        100,
+        98
+      ],
+      "sezioneTop": 776,
+      "sezioneAltezza": 874,
+      "graficoBottom": 1494
+    },
+    "sbordi": [],
+    "testiSotto11": [],
+    "erroriConsole": []
+  },
+  {
+    "pagina": "/macro-desk/stagionalita?s=SPX&t=ora",
+    "larghezza": 390,
+    "tema": "dark",
+    "file": "macro-desk_stagionalita_s_SPX_t_ora__390__dark.png",
+    "innerWidth": 390,
+    "scrollWidth": 390,
+    "altezza": 4148,
+    "griglia": {
+      "larghezzaTabella": 1665.1,
+      "larghezzaContenitore": 324,
+      "scorre": 1341,
+      "colonne": 24,
+      "primaColonna": 87.6,
+      "colonnaMin": 65.7,
+      "colonnaMax": 65.7,
+      "rigaCorpo": 25,
+      "rigaInCorso": 25,
+      "sintesiAltezza": 105,
+      "sintesiRighe": [
+        "Media 28",
+        "StDev 21",
+        "In rialzo ore su 35",
+        "Anni 21"
+      ],
+      "inRicalcolo": 0,
+      "caselle": 329,
+      "tinte": {
+        "neutra": 56,
+        "giù1": 62,
+        "su4": 10,
+        "giù2": 19,
+        "su1": 63,
+        "giù4": 9,
+        "su2": 40,
+        "su5": 22,
+        "su3": 26,
+        "giù3": 10,
+        "giù5": 12
+      },
+      "piccoli": 0,
+      "contrasti": {
+        "testa·TH": {
+          "min": 7.08,
+          "esempio": "Anno",
+          "px": 11
+        },
+        "in corso·TH": {
+          "min": 8.12,
+          "esempio": "in corso",
+          "px": 11
+        },
+        "in corso·TD·grigia": {
+          "min": 8.12,
+          "esempio": "-0,043",
+          "px": 12
+        },
+        "in corso·TD": {
+          "min": 8.12,
+          "esempio": "-0,001",
+          "px": 12
+        },
+        "corpo·TH": {
+          "min": 16.73,
+          "esempio": "2011",
+          "px": 12
+        },
+        "corpo·TD·grigia": {
+          "min": 7.08,
+          "esempio": "+0,038",
+          "px": 12
+        },
+        "corpo·TD·giù1": {
+          "min": 7.69,
+          "esempio": "-0,003",
+          "px": 12
+        },
+        "corpo·TD·su4": {
+          "min": 10.18,
+          "esempio": "+0,016",
+          "px": 12
+        },
+        "corpo·TD·giù2": {
+          "min": 7.25,
+          "esempio": "-0,007",
+          "px": 12
+        },
+        "corpo·TD·su1": {
+          "min": 7.42,
+          "esempio": "+0,002",
+          "px": 12
+        },
+        "corpo·TD·giù4": {
+          "min": 11.83,
+          "esempio": "-0,018",
+          "px": 12
+        },
+        "corpo·TD·su2": {
+          "min": 6.79,
+          "esempio": "+0,006",
+          "px": 12
+        },
+        "corpo·TD·su5": {
+          "min": 8.43,
+          "esempio": "+0,051",
+          "px": 12
+        },
+        "corpo·TD·su3": {
+          "min": 6.02,
+          "esempio": "+0,014",
+          "px": 12
+        },
+        "corpo·TD·giù3": {
+          "min": 6.65,
+          "esempio": "-0,015",
+          "px": 12
+        },
+        "corpo·TD·giù5": {
+          "min": 10.38,
+          "esempio": "-0,026",
+          "px": 12
+        },
+        "sintesi·TH": {
+          "min": 7.08,
+          "esempio": "Media",
+          "px": 11
+        },
+        "sintesi·TD·su2": {
+          "min": 13.42,
+          "esempio": "+0,0084",
+          "px": 12
+        },
+        "sintesi·TD·su1": {
+          "min": 14.69,
+          "esempio": "+0,0010",
+          "px": 12
+        },
+        "sintesi·TD·giù1": {
+          "min": 15.22,
+          "esempio": "-0,0029",
+          "px": 12
+        },
+        "sintesi·TD·su4": {
+          "min": 10.18,
+          "esempio": "+0,0172",
+          "px": 12
+        },
+        "sintesi·TD·giù5": {
+          "min": 10.38,
+          "esempio": "-0,0496",
+          "px": 12
+        },
+        "sintesi·TD·giù4": {
+          "min": 11.83,
+          "esempio": "-0,0146",
+          "px": 12
+        },
+        "sintesi·TD·giù2": {
+          "min": 14.34,
+          "esempio": "-0,0090",
+          "px": 12
+        },
+        "sintesi·TD": {
+          "min": 5.09,
+          "esempio": "Campione molto",
+          "px": 11
+        }
+      }
+    },
+    "grafico": {
+      "contenitore": 560,
+      "riquadro": 434,
+      "disegno": 374,
+      "pxPerPunto": 23.38,
+      "tick": [
+        114,
+        112,
+        110,
+        108,
+        106,
+        104,
+        102,
+        100,
+        98
+      ],
+      "sezioneTop": 818,
+      "sezioneAltezza": 874,
+      "graficoBottom": 1536
+    },
+    "sbordi": [],
+    "testiSotto11": [],
+    "erroriConsole": []
+  },
+  {
+    "pagina": "/macro-desk/stagionalita?s=VIX&t=giorno",
+    "larghezza": 390,
+    "tema": "dark",
+    "file": "macro-desk_stagionalita_s_VIX_t_giorno__390__dark.png",
+    "innerWidth": 390,
+    "scrollWidth": 390,
+    "altezza": 3332,
+    "griglia": {
+      "larghezzaTabella": 383,
+      "larghezzaContenitore": 324,
+      "scorre": 59,
+      "colonne": 5,
+      "primaColonna": 133.1,
+      "colonnaMin": 49.8,
+      "colonnaMax": 49.8,
+      "rigaCorpo": 25,
+      "rigaInCorso": 25,
+      "sintesiAltezza": 84,
+      "sintesiRighe": [
+        "Livello medio 28",
+        "StDev 21",
+        "Sopra mediana giorni su 35"
+      ],
+      "inRicalcolo": 0,
+      "caselle": 105,
+      "tinte": {
+        "neutra": 5,
+        "giù1": 21,
+        "giù2": 26,
+        "su3": 6,
+        "su1": 4,
+        "su5": 12,
+        "su4": 3,
+        "giù4": 5,
+        "giù3": 14,
+        "su2": 9
+      },
+      "piccoli": 0,
+      "contrasti": {
+        "testa·TH": {
+          "min": 7.08,
+          "esempio": "Anno",
+          "px": 11
+        },
+        "in corso·TH": {
+          "min": 8.12,
+          "esempio": "in corso",
+          "px": 11
+        },
+        "in corso·TD": {
+          "min": 8.12,
+          "esempio": "18,3",
+          "px": 12
+        },
+        "corpo·TH": {
+          "min": 16.73,
+          "esempio": "2006",
+          "px": 12
+        },
+        "corpo·TD·giù1": {
+          "min": 7.69,
+          "esempio": "19,1",
+          "px": 12
+        },
+        "corpo·TD·giù2": {
+          "min": 7.25,
+          "esempio": "14,4",
+          "px": 12
+        },
+        "corpo·TD·su3": {
+          "min": 6.02,
+          "esempio": "24,8",
+          "px": 12
+        },
+        "corpo·TD·su1": {
+          "min": 7.42,
+          "esempio": "19,8",
+          "px": 12
+        },
+        "corpo·TD·su5": {
+          "min": 8.43,
+          "esempio": "30,0",
+          "px": 12
+        },
+        "corpo·TD·su4": {
+          "min": 10.18,
+          "esempio": "28,6",
+          "px": 12
+        },
+        "corpo·TD·giù4": {
+          "min": 11.83,
+          "esempio": "11,0",
+          "px": 12
+        },
+        "corpo·TD·giù3": {
+          "min": 6.65,
+          "esempio": "12,7",
+          "px": 12
+        },
+        "corpo·TD·su2": {
+          "min": 6.79,
+          "esempio": "22,9",
+          "px": 12
+        },
+        "sintesi·TH": {
+          "min": 7.08,
+          "esempio": "Livello medio",
+          "px": 11
+        },
+        "sintesi·TD·su5": {
+          "min": 8.43,
+          "esempio": "19,68",
+          "px": 12
+        },
+        "sintesi·TD·su1": {
+          "min": 14.69,
+          "esempio": "19,45",
+          "px": 12
+        },
+        "sintesi·TD·giù1": {
+          "min": 15.22,
+          "esempio": "19,39",
+          "px": 12
+        },
+        "sintesi·TD": {
+          "min": 7.15,
+          "esempio": "1.010",
+          "px": 11
+        },
+        "sintesi·TD·giù2": {
+          "min": 14.34,
+          "esempio": "19,33",
+          "px": 12
+        }
+      }
+    },
+    "grafico": {
+      "contenitore": 560,
+      "riquadro": 434,
+      "disegno": 374,
+      "pxPerPunto": 10.69,
+      "tick": [
+        120,
+        115,
+        110,
+        105,
+        100,
+        95,
+        90,
+        85
+      ],
+      "sezioneTop": 812,
+      "sezioneAltezza": 907,
+      "graficoBottom": 1529
+    },
+    "sbordi": [],
+    "testiSotto11": [],
+    "erroriConsole": []
+  },
+  {
+    "pagina": "/macro-desk/stagionalita?s=VIX",
+    "larghezza": 390,
+    "tema": "dark",
+    "file": "macro-desk_stagionalita_s_VIX__390__dark.png",
+    "innerWidth": 390,
+    "scrollWidth": 390,
+    "altezza": 3558,
+    "griglia": {
+      "larghezzaTabella": 716.6,
+      "larghezzaContenitore": 324,
+      "scorre": 393,
+      "colonne": 12,
+      "primaColonna": 118.5,
+      "colonnaMin": 49.8,
+      "colonnaMax": 49.8,
+      "rigaCorpo": 25,
+      "rigaInCorso": 25,
+      "sintesiAltezza": 70,
+      "sintesiRighe": [
+        "Livello medio 28",
+        "StDev 21",
+        "Sopra mediana su 20 21"
+      ],
+      "inRicalcolo": 0,
+      "caselle": 249,
+      "tinte": {
+        "neutra": 9,
+        "giù1": 41,
+        "su1": 29,
+        "su5": 19,
+        "giù2": 53,
+        "giù3": 42,
+        "su2": 18,
+        "su3": 19,
+        "su4": 7,
+        "giù4": 12
+      },
+      "piccoli": 0,
+      "contrasti": {
+        "testa·TH": {
+          "min": 7.08,
+          "esempio": "Anno",
+          "px": 11
+        },
+        "in corso·TH": {
+          "min": 8.12,
+          "esempio": "in corso",
+          "px": 11
+        },
+        "in corso·TD": {
+          "min": 8.12,
+          "esempio": "15,9",
+          "px": 12
+        },
+        "corpo·TH": {
+          "min": 16.73,
+          "esempio": "2006",
+          "px": 12
+        },
+        "corpo·TD·giù1": {
+          "min": 7.69,
+          "esempio": "16,8",
+          "px": 12
+        },
+        "corpo·TD·su1": {
+          "min": 7.42,
+          "esempio": "21,8",
+          "px": 12
+        },
+        "corpo·TD·su5": {
+          "min": 8.43,
+          "esempio": "32,0",
+          "px": 12
+        },
+        "corpo·TD·giù2": {
+          "min": 7.25,
+          "esempio": "15,3",
+          "px": 12
+        },
+        "corpo·TD·giù3": {
+          "min": 6.65,
+          "esempio": "11,3",
+          "px": 12
+        },
+        "corpo·TD·su2": {
+          "min": 6.79,
+          "esempio": "22,2",
+          "px": 12
+        },
+        "corpo·TD·su3": {
+          "min": 6.02,
+          "esempio": "25,6",
+          "px": 12
+        },
+        "corpo·TD·su4": {
+          "min": 10.18,
+          "esempio": "29,1",
+          "px": 12
+        },
+        "corpo·TD·giù4": {
+          "min": 11.83,
+          "esempio": "11,1",
+          "px": 12
+        },
+        "sintesi·TH": {
+          "min": 7.08,
+          "esempio": "Livello medio",
+          "px": 11
+        },
+        "sintesi·TD·giù2": {
+          "min": 14.34,
+          "esempio": "18,82",
+          "px": 12
+        },
+        "sintesi·TD·su1": {
+          "min": 14.69,
+          "esempio": "19,65",
+          "px": 12
+        },
+        "sintesi·TD·su5": {
+          "min": 8.43,
+          "esempio": "21,06",
+          "px": 12
+        },
+        "sintesi·TD·giù1": {
+          "min": 15.22,
+          "esempio": "19,27",
+          "px": 12
+        },
+        "sintesi·TD·giù5": {
+          "min": 10.38,
+          "esempio": "17,50",
+          "px": 12
+        },
+        "sintesi·TD·su3": {
+          "min": 11.9,
+          "esempio": "20,42",
+          "px": 12
+        },
+        "sintesi·TD": {
+          "min": 7.15,
+          "esempio": "10",
+          "px": 11
+        }
+      }
+    },
+    "grafico": {
+      "contenitore": 560,
+      "riquadro": 434,
+      "disegno": 374,
+      "pxPerPunto": 10.69,
+      "tick": [
+        120,
+        115,
+        110,
+        105,
+        100,
+        95,
+        90,
+        85
+      ],
+      "sezioneTop": 812,
+      "sezioneAltezza": 907,
+      "graficoBottom": 1529
+    },
+    "sbordi": [],
+    "testiSotto11": [],
+    "erroriConsole": []
+  },
+  {
+    "pagina": "/macro-desk/stagionalita?s=XAUUSD",
+    "larghezza": 1280,
+    "tema": "dark",
+    "file": "macro-desk_stagionalita_s_XAUUSD__1280__dark.png",
+    "innerWidth": 1280,
+    "scrollWidth": 1280,
+    "altezza": 3281,
+    "griglia": {
+      "larghezzaTabella": 685.8,
+      "larghezzaContenitore": 958,
+      "scorre": 0,
+      "colonne": 12,
+      "primaColonna": 87.6,
+      "colonnaMin": 49.8,
+      "colonnaMax": 49.8,
+      "rigaCorpo": 25,
+      "rigaInCorso": 25,
+      "sintesiAltezza": 70,
+      "sintesiRighe": [
+        "Media 28",
+        "StDev 21",
+        "In rialzo su 20 21"
+      ],
+      "inRicalcolo": 0,
+      "caselle": 249,
+      "tinte": {
+        "neutra": 9,
+        "su4": 17,
+        "su1": 36,
+        "su5": 15,
+        "su3": 27,
+        "giù1": 50,
+        "su2": 37,
+        "giù2": 28,
+        "giù3": 19,
+        "giù4": 6,
+        "giù5": 5
+      },
+      "piccoli": 0,
+      "contrasti": {
+        "testa·TH": {
+          "min": 7.08,
+          "esempio": "Anno",
+          "px": 11
+        },
+        "in corso·TH": {
+          "min": 8.12,
+          "esempio": "in corso",
+          "px": 11
+        },
+        "in corso·TD": {
+          "min": 8.12,
+          "esempio": "-3,7",
+          "px": 12
+        },
+        "corpo·TH": {
+          "min": 16.73,
+          "esempio": "2006",
+          "px": 12
+        },
+        "corpo·TD·su4": {
+          "min": 10.18,
+          "esempio": "+6,8",
+          "px": 12
+        },
+        "corpo·TD·su1": {
+          "min": 7.42,
+          "esempio": "+2,1",
+          "px": 12
+        },
+        "corpo·TD·su5": {
+          "min": 8.43,
+          "esempio": "+9,2",
+          "px": 12
+        },
+        "corpo·TD·su3": {
+          "min": 6.02,
+          "esempio": "+6,3",
+          "px": 12
+        },
+        "corpo·TD·giù1": {
+          "min": 7.69,
+          "esempio": "-0,7",
+          "px": 12
+        },
+        "corpo·TD·su2": {
+          "min": 6.79,
+          "esempio": "+3,7",
+          "px": 12
+        },
+        "corpo·TD·giù2": {
+          "min": 7.25,
+          "esempio": "-2,7",
+          "px": 12
+        },
+        "corpo·TD·giù3": {
+          "min": 6.65,
+          "esempio": "-4,6",
+          "px": 12
+        },
+        "corpo·TD·giù4": {
+          "min": 11.83,
+          "esempio": "-7,3",
+          "px": 12
+        },
+        "corpo·TD·giù5": {
+          "min": 10.38,
+          "esempio": "-16,9",
+          "px": 12
+        },
+        "sintesi·TH": {
+          "min": 7.08,
+          "esempio": "Media",
+          "px": 11
+        },
+        "sintesi·TD·su5": {
+          "min": 8.43,
+          "esempio": "+3,49",
+          "px": 12
+        },
+        "sintesi·TD·su2": {
+          "min": 13.42,
+          "esempio": "+0,89",
+          "px": 12
+        },
+        "sintesi·TD·su1": {
+          "min": 14.69,
+          "esempio": "+0,70",
+          "px": 12
+        },
+        "sintesi·TD·su3": {
+          "min": 11.9,
+          "esempio": "+1,70",
+          "px": 12
+        },
+        "sintesi·TD·giù1": {
+          "min": 15.22,
+          "esempio": "-0,25",
+          "px": 12
+        },
+        "sintesi·TD": {
+          "min": 7.15,
+          "esempio": "12",
+          "px": 11
+        }
+      }
+    },
+    "grafico": {
+      "contenitore": 944,
+      "riquadro": 872,
+      "disegno": 812,
+      "pxPerPunto": 64.96,
+      "tick": [
+        112,
+        111.5,
+        111,
+        110.5,
+        110,
+        109.5,
+        109,
+        108.5,
+        108,
+        107.5,
+        107,
+        106.5,
+        106,
+        105.5,
+        105,
+        104.5,
+        104,
+        103.5,
+        103,
+        102.5,
+        102,
+        101.5,
+        101,
+        100.5,
+        100,
+        99.5
+      ],
+      "sezioneTop": 609,
+      "sezioneAltezza": 1096,
+      "graficoBottom": 1648
+    },
+    "sbordi": [],
+    "testiSotto11": [],
+    "erroriConsole": []
+  },
+  {
+    "pagina": "/macro-desk/stagionalita?s=XAUUSD&t=settimana",
+    "larghezza": 1280,
+    "tema": "dark",
+    "file": "macro-desk_stagionalita_s_XAUUSD_t_settimana__1280__dark.png",
+    "innerWidth": 1280,
+    "scrollWidth": 1280,
+    "altezza": 5079,
+    "griglia": {
+      "larghezzaTabella": 2757,
+      "larghezzaContenitore": 958,
+      "scorre": 1799,
+      "colonne": 53,
+      "primaColonna": 118.4,
+      "colonnaMin": 49.8,
+      "colonnaMax": 49.8,
+      "rigaCorpo": 25,
+      "rigaInCorso": 25,
+      "sintesiAltezza": 105,
+      "sintesiRighe": [
+        "Media 28",
+        "StDev 21",
+        "In rialzo settimane su 35",
+        "Anni 21"
+      ],
+      "inRicalcolo": 0,
+      "caselle": 1081,
+      "tinte": {
+        "neutra": 38,
+        "su1": 206,
+        "su2": 154,
+        "su3": 117,
+        "giù3": 68,
+        "giù2": 117,
+        "su5": 56,
+        "giù1": 182,
+        "giù4": 45,
+        "su4": 52,
+        "giù5": 46
+      },
+      "piccoli": 0,
+      "contrasti": {
+        "testa·TH": {
+          "min": 7.08,
+          "esempio": "Anno",
+          "px": 11
+        },
+        "in corso·TH": {
+          "min": 8.12,
+          "esempio": "in corso",
+          "px": 11
+        },
+        "in corso·TD": {
+          "min": 8.12,
+          "esempio": "-1,9",
+          "px": 12
+        },
+        "in corso·TD·grigia": {
+          "min": 8.12,
+          "esempio": "-1,4",
+          "px": 12
+        },
+        "corpo·TH": {
+          "min": 16.73,
+          "esempio": "2006",
+          "px": 12
+        },
+        "corpo·TD·su1": {
+          "min": 7.42,
+          "esempio": "+0,7",
+          "px": 12
+        },
+        "corpo·TD·su2": {
+          "min": 6.79,
+          "esempio": "+1,0",
+          "px": 12
+        },
+        "corpo·TD·su3": {
+          "min": 6.02,
+          "esempio": "+2,5",
+          "px": 12
+        },
+        "corpo·TD·giù3": {
+          "min": 6.65,
+          "esempio": "-2,5",
+          "px": 12
+        },
+        "corpo·TD·giù2": {
+          "min": 7.25,
+          "esempio": "-1,5",
+          "px": 12
+        },
+        "corpo·TD·su5": {
+          "min": 8.43,
+          "esempio": "+6,5",
+          "px": 12
+        },
+        "corpo·TD·giù1": {
+          "min": 7.69,
+          "esempio": "-0,2",
+          "px": 12
+        },
+        "corpo·TD·giù4": {
+          "min": 11.83,
+          "esempio": "-3,6",
+          "px": 12
+        },
+        "corpo·TD·su4": {
+          "min": 10.18,
+          "esempio": "+3,0",
+          "px": 12
+        },
+        "corpo·TD·grigia": {
+          "min": 7.08,
+          "esempio": "—",
+          "px": 12
+        },
+        "corpo·TD·giù5": {
+          "min": 10.38,
+          "esempio": "-4,0",
+          "px": 12
+        },
+        "sintesi·TH": {
+          "min": 7.08,
+          "esempio": "Media",
+          "px": 11
+        },
+        "sintesi·TD·su4": {
+          "min": 10.18,
+          "esempio": "+0,73",
+          "px": 12
+        },
+        "sintesi·TD·su5": {
+          "min": 8.43,
+          "esempio": "+1,01",
+          "px": 12
+        },
+        "sintesi·TD·su1": {
+          "min": 14.69,
+          "esempio": "+0,13",
+          "px": 12
+        },
+        "sintesi·TD·su2": {
+          "min": 13.42,
+          "esempio": "+0,34",
+          "px": 12
+        },
+        "sintesi·TD·su3": {
+          "min": 11.9,
+          "esempio": "+0,45",
+          "px": 12
+        },
+        "sintesi·TD·giù3": {
+          "min": 13.16,
+          "esempio": "-0,51",
+          "px": 12
+        },
+        "sintesi·TD·giù1": {
+          "min": 15.22,
+          "esempio": "-0,00",
+          "px": 12
+        },
+        "sintesi·TD·giù2": {
+          "min": 14.34,
+          "esempio": "-0,37",
+          "px": 12
+        },
+        "sintesi·TD·giù5": {
+          "min": 10.38,
+          "esempio": "-0,82",
+          "px": 12
+        },
+        "sintesi·TD·giù4": {
+          "min": 11.83,
+          "esempio": "-0,64",
+          "px": 12
+        },
+        "sintesi·TD": {
+          "min": 5.09,
+          "esempio": "Campione molto",
+          "px": 11
+        }
+      }
+    },
+    "grafico": {
+      "contenitore": 944,
+      "riquadro": 872,
+      "disegno": 812,
+      "pxPerPunto": 64.96,
+      "tick": [
+        112,
+        111.5,
+        111,
+        110.5,
+        110,
+        109.5,
+        109,
+        108.5,
+        108,
+        107.5,
+        107,
+        106.5,
+        106,
+        105.5,
+        105,
+        104.5,
+        104,
+        103.5,
+        103,
+        102.5,
+        102,
+        101.5,
+        101,
+        100.5,
+        100,
+        99.5
+      ],
+      "sezioneTop": 609,
+      "sezioneAltezza": 1096,
+      "graficoBottom": 1648
+    },
+    "sbordi": [],
+    "testiSotto11": [],
+    "erroriConsole": []
+  },
+  {
+    "pagina": "/macro-desk/stagionalita?s=XAUUSD&t=sessione",
+    "larghezza": 1280,
+    "tema": "dark",
+    "file": "macro-desk_stagionalita_s_XAUUSD_t_sessione__1280__dark.png",
+    "innerWidth": 1280,
+    "scrollWidth": 1280,
+    "altezza": 3075,
+    "griglia": {
+      "larghezzaTabella": 373.2,
+      "larghezzaContenitore": 958,
+      "scorre": 0,
+      "colonne": 4,
+      "primaColonna": 109.4,
+      "colonnaMin": 65.7,
+      "colonnaMax": 65.7,
+      "rigaCorpo": 25,
+      "rigaInCorso": 25,
+      "sintesiAltezza": 84,
+      "sintesiRighe": [
+        "Media 28",
+        "StDev 21",
+        "In rialzo sessioni su 35"
+      ],
+      "inRicalcolo": 0,
+      "caselle": 84,
+      "tinte": {
+        "neutra": 4,
+        "su2": 18,
+        "giù4": 7,
+        "su1": 17,
+        "giù1": 20,
+        "su3": 4,
+        "giù2": 6,
+        "giù3": 2,
+        "giù5": 6
+      },
+      "piccoli": 0,
+      "contrasti": {
+        "testa·TH": {
+          "min": 7.08,
+          "esempio": "Anno",
+          "px": 11
+        },
+        "in corso·TH": {
+          "min": 8.12,
+          "esempio": "in corso",
+          "px": 11
+        },
+        "in corso·TD": {
+          "min": 8.12,
+          "esempio": "-0,012",
+          "px": 12
+        },
+        "corpo·TH": {
+          "min": 16.73,
+          "esempio": "2006",
+          "px": 12
+        },
+        "corpo·TD·su2": {
+          "min": 6.79,
+          "esempio": "+0,007",
+          "px": 12
+        },
+        "corpo·TD·giù4": {
+          "min": 11.83,
+          "esempio": "-0,016",
+          "px": 12
+        },
+        "corpo·TD·su1": {
+          "min": 7.42,
+          "esempio": "+0,004",
+          "px": 12
+        },
+        "corpo·TD·giù1": {
+          "min": 7.69,
+          "esempio": "-0,000",
+          "px": 12
+        },
+        "corpo·TD·su3": {
+          "min": 6.02,
+          "esempio": "+0,012",
+          "px": 12
+        },
+        "corpo·TD·giù2": {
+          "min": 7.25,
+          "esempio": "-0,006",
+          "px": 12
+        },
+        "corpo·TD·giù3": {
+          "min": 6.65,
+          "esempio": "-0,010",
+          "px": 12
+        },
+        "corpo·TD·giù5": {
+          "min": 10.38,
+          "esempio": "-0,025",
+          "px": 12
+        },
+        "sintesi·TH": {
+          "min": 7.08,
+          "esempio": "Media",
+          "px": 11
+        },
+        "sintesi·TD·su3": {
+          "min": 11.9,
+          "esempio": "+0,0058",
+          "px": 12
+        },
+        "sintesi·TD·giù1": {
+          "min": 15.22,
+          "esempio": "-0,0026",
+          "px": 12
+        },
+        "sintesi·TD·su1": {
+          "min": 14.69,
+          "esempio": "+0,0007",
+          "px": 12
+        },
+        "sintesi·TD·giù5": {
+          "min": 10.38,
+          "esempio": "-0,0143",
+          "px": 12
+        },
+        "sintesi·TD": {
+          "min": 7.15,
+          "esempio": "4.819",
+          "px": 11
+        }
+      }
+    },
+    "grafico": {
+      "contenitore": 944,
+      "riquadro": 872,
+      "disegno": 812,
+      "pxPerPunto": 64.96,
+      "tick": [
+        112,
+        111.5,
+        111,
+        110.5,
+        110,
+        109.5,
+        109,
+        108.5,
+        108,
+        107.5,
+        107,
+        106.5,
+        106,
+        105.5,
+        105,
+        104.5,
+        104,
+        103.5,
+        103,
+        102.5,
+        102,
+        101.5,
+        101,
+        100.5,
+        100,
+        99.5
+      ],
+      "sezioneTop": 609,
+      "sezioneAltezza": 1096,
+      "graficoBottom": 1648
+    },
+    "sbordi": [],
+    "testiSotto11": [],
+    "erroriConsole": []
+  },
+  {
+    "pagina": "/macro-desk/stagionalita?s=SPX&t=ora",
+    "larghezza": 1280,
+    "tema": "dark",
+    "file": "macro-desk_stagionalita_s_SPX_t_ora__1280__dark.png",
+    "innerWidth": 1280,
+    "scrollWidth": 1280,
+    "altezza": 3789,
+    "griglia": {
+      "larghezzaTabella": 1665.1,
+      "larghezzaContenitore": 958,
+      "scorre": 707,
+      "colonne": 24,
+      "primaColonna": 87.6,
+      "colonnaMin": 65.7,
+      "colonnaMax": 65.7,
+      "rigaCorpo": 25,
+      "rigaInCorso": 25,
+      "sintesiAltezza": 105,
+      "sintesiRighe": [
+        "Media 28",
+        "StDev 21",
+        "In rialzo ore su 35",
+        "Anni 21"
+      ],
+      "inRicalcolo": 0,
+      "caselle": 329,
+      "tinte": {
+        "neutra": 56,
+        "giù1": 62,
+        "su4": 10,
+        "giù2": 19,
+        "su1": 63,
+        "giù4": 9,
+        "su2": 40,
+        "su5": 22,
+        "su3": 26,
+        "giù3": 10,
+        "giù5": 12
+      },
+      "piccoli": 0,
+      "contrasti": {
+        "testa·TH": {
+          "min": 7.08,
+          "esempio": "Anno",
+          "px": 11
+        },
+        "in corso·TH": {
+          "min": 8.12,
+          "esempio": "in corso",
+          "px": 11
+        },
+        "in corso·TD·grigia": {
+          "min": 8.12,
+          "esempio": "-0,043",
+          "px": 12
+        },
+        "in corso·TD": {
+          "min": 8.12,
+          "esempio": "-0,001",
+          "px": 12
+        },
+        "corpo·TH": {
+          "min": 16.73,
+          "esempio": "2011",
+          "px": 12
+        },
+        "corpo·TD·grigia": {
+          "min": 7.08,
+          "esempio": "+0,038",
+          "px": 12
+        },
+        "corpo·TD·giù1": {
+          "min": 7.69,
+          "esempio": "-0,003",
+          "px": 12
+        },
+        "corpo·TD·su4": {
+          "min": 10.18,
+          "esempio": "+0,016",
+          "px": 12
+        },
+        "corpo·TD·giù2": {
+          "min": 7.25,
+          "esempio": "-0,007",
+          "px": 12
+        },
+        "corpo·TD·su1": {
+          "min": 7.42,
+          "esempio": "+0,002",
+          "px": 12
+        },
+        "corpo·TD·giù4": {
+          "min": 11.83,
+          "esempio": "-0,018",
+          "px": 12
+        },
+        "corpo·TD·su2": {
+          "min": 6.79,
+          "esempio": "+0,006",
+          "px": 12
+        },
+        "corpo·TD·su5": {
+          "min": 8.43,
+          "esempio": "+0,051",
+          "px": 12
+        },
+        "corpo·TD·su3": {
+          "min": 6.02,
+          "esempio": "+0,014",
+          "px": 12
+        },
+        "corpo·TD·giù3": {
+          "min": 6.65,
+          "esempio": "-0,015",
+          "px": 12
+        },
+        "corpo·TD·giù5": {
+          "min": 10.38,
+          "esempio": "-0,026",
+          "px": 12
+        },
+        "sintesi·TH": {
+          "min": 7.08,
+          "esempio": "Media",
+          "px": 11
+        },
+        "sintesi·TD·su2": {
+          "min": 13.42,
+          "esempio": "+0,0084",
+          "px": 12
+        },
+        "sintesi·TD·su1": {
+          "min": 14.69,
+          "esempio": "+0,0010",
+          "px": 12
+        },
+        "sintesi·TD·giù1": {
+          "min": 15.22,
+          "esempio": "-0,0029",
+          "px": 12
+        },
+        "sintesi·TD·su4": {
+          "min": 10.18,
+          "esempio": "+0,0172",
+          "px": 12
+        },
+        "sintesi·TD·giù5": {
+          "min": 10.38,
+          "esempio": "-0,0496",
+          "px": 12
+        },
+        "sintesi·TD·giù4": {
+          "min": 11.83,
+          "esempio": "-0,0146",
+          "px": 12
+        },
+        "sintesi·TD·giù2": {
+          "min": 14.34,
+          "esempio": "-0,0090",
+          "px": 12
+        },
+        "sintesi·TD": {
+          "min": 5.09,
+          "esempio": "Campione molto",
+          "px": 11
+        }
+      }
+    },
+    "grafico": {
+      "contenitore": 944,
+      "riquadro": 908,
+      "disegno": 848,
+      "pxPerPunto": 60.57,
+      "tick": [
+        113,
+        112,
+        111,
+        110,
+        109,
+        108,
+        107,
+        106,
+        105,
+        104,
+        103,
+        102,
+        101,
+        100,
+        99
+      ],
+      "sezioneTop": 633,
+      "sezioneAltezza": 1096,
+      "graficoBottom": 1672
+    },
+    "sbordi": [],
+    "testiSotto11": [],
+    "erroriConsole": []
+  },
+  {
+    "pagina": "/macro-desk/stagionalita?s=VIX&t=giorno",
+    "larghezza": 1280,
+    "tema": "dark",
+    "file": "macro-desk_stagionalita_s_VIX_t_giorno__1280__dark.png",
+    "innerWidth": 1280,
+    "scrollWidth": 1280,
+    "altezza": 3080,
+    "griglia": {
+      "larghezzaTabella": 383,
+      "larghezzaContenitore": 958,
+      "scorre": 0,
+      "colonne": 5,
+      "primaColonna": 133.1,
+      "colonnaMin": 49.8,
+      "colonnaMax": 49.8,
+      "rigaCorpo": 25,
+      "rigaInCorso": 25,
+      "sintesiAltezza": 84,
+      "sintesiRighe": [
+        "Livello medio 28",
+        "StDev 21",
+        "Sopra mediana giorni su 35"
+      ],
+      "inRicalcolo": 0,
+      "caselle": 105,
+      "tinte": {
+        "neutra": 5,
+        "giù1": 21,
+        "giù2": 26,
+        "su3": 6,
+        "su1": 4,
+        "su5": 12,
+        "su4": 3,
+        "giù4": 5,
+        "giù3": 14,
+        "su2": 9
+      },
+      "piccoli": 0,
+      "contrasti": {
+        "testa·TH": {
+          "min": 7.08,
+          "esempio": "Anno",
+          "px": 11
+        },
+        "in corso·TH": {
+          "min": 8.12,
+          "esempio": "in corso",
+          "px": 11
+        },
+        "in corso·TD": {
+          "min": 8.12,
+          "esempio": "18,3",
+          "px": 12
+        },
+        "corpo·TH": {
+          "min": 16.73,
+          "esempio": "2006",
+          "px": 12
+        },
+        "corpo·TD·giù1": {
+          "min": 7.69,
+          "esempio": "19,1",
+          "px": 12
+        },
+        "corpo·TD·giù2": {
+          "min": 7.25,
+          "esempio": "14,4",
+          "px": 12
+        },
+        "corpo·TD·su3": {
+          "min": 6.02,
+          "esempio": "24,8",
+          "px": 12
+        },
+        "corpo·TD·su1": {
+          "min": 7.42,
+          "esempio": "19,8",
+          "px": 12
+        },
+        "corpo·TD·su5": {
+          "min": 8.43,
+          "esempio": "30,0",
+          "px": 12
+        },
+        "corpo·TD·su4": {
+          "min": 10.18,
+          "esempio": "28,6",
+          "px": 12
+        },
+        "corpo·TD·giù4": {
+          "min": 11.83,
+          "esempio": "11,0",
+          "px": 12
+        },
+        "corpo·TD·giù3": {
+          "min": 6.65,
+          "esempio": "12,7",
+          "px": 12
+        },
+        "corpo·TD·su2": {
+          "min": 6.79,
+          "esempio": "22,9",
+          "px": 12
+        },
+        "sintesi·TH": {
+          "min": 7.08,
+          "esempio": "Livello medio",
+          "px": 11
+        },
+        "sintesi·TD·su5": {
+          "min": 8.43,
+          "esempio": "19,68",
+          "px": 12
+        },
+        "sintesi·TD·su1": {
+          "min": 14.69,
+          "esempio": "19,45",
+          "px": 12
+        },
+        "sintesi·TD·giù1": {
+          "min": 15.22,
+          "esempio": "19,39",
+          "px": 12
+        },
+        "sintesi·TD": {
+          "min": 7.15,
+          "esempio": "1.010",
+          "px": 11
+        },
+        "sintesi·TD·giù2": {
+          "min": 14.34,
+          "esempio": "19,33",
+          "px": 12
+        }
+      }
+    },
+    "grafico": {
+      "contenitore": 944,
+      "riquadro": 908,
+      "disegno": 848,
+      "pxPerPunto": 30.29,
+      "tick": [
+        116,
+        114,
+        112,
+        110,
+        108,
+        106,
+        104,
+        102,
+        100,
+        98,
+        96,
+        94,
+        92,
+        90,
+        88
+      ],
+      "sezioneTop": 651,
+      "sezioneAltezza": 1113,
+      "graficoBottom": 1690
+    },
+    "sbordi": [],
+    "testiSotto11": [],
+    "erroriConsole": []
+  },
+  {
+    "pagina": "/macro-desk/stagionalita?s=VIX",
+    "larghezza": 1280,
+    "tema": "dark",
+    "file": "macro-desk_stagionalita_s_VIX__1280__dark.png",
+    "innerWidth": 1280,
+    "scrollWidth": 1280,
+    "altezza": 3323,
+    "griglia": {
+      "larghezzaTabella": 716.6,
+      "larghezzaContenitore": 958,
+      "scorre": 0,
+      "colonne": 12,
+      "primaColonna": 118.5,
+      "colonnaMin": 49.8,
+      "colonnaMax": 49.8,
+      "rigaCorpo": 25,
+      "rigaInCorso": 25,
+      "sintesiAltezza": 70,
+      "sintesiRighe": [
+        "Livello medio 28",
+        "StDev 21",
+        "Sopra mediana su 20 21"
+      ],
+      "inRicalcolo": 0,
+      "caselle": 249,
+      "tinte": {
+        "neutra": 9,
+        "giù1": 41,
+        "su1": 29,
+        "su5": 19,
+        "giù2": 53,
+        "giù3": 42,
+        "su2": 18,
+        "su3": 19,
+        "su4": 7,
+        "giù4": 12
+      },
+      "piccoli": 0,
+      "contrasti": {
+        "testa·TH": {
+          "min": 7.08,
+          "esempio": "Anno",
+          "px": 11
+        },
+        "in corso·TH": {
+          "min": 8.12,
+          "esempio": "in corso",
+          "px": 11
+        },
+        "in corso·TD": {
+          "min": 8.12,
+          "esempio": "15,9",
+          "px": 12
+        },
+        "corpo·TH": {
+          "min": 16.73,
+          "esempio": "2006",
+          "px": 12
+        },
+        "corpo·TD·giù1": {
+          "min": 7.69,
+          "esempio": "16,8",
+          "px": 12
+        },
+        "corpo·TD·su1": {
+          "min": 7.42,
+          "esempio": "21,8",
+          "px": 12
+        },
+        "corpo·TD·su5": {
+          "min": 8.43,
+          "esempio": "32,0",
+          "px": 12
+        },
+        "corpo·TD·giù2": {
+          "min": 7.25,
+          "esempio": "15,3",
+          "px": 12
+        },
+        "corpo·TD·giù3": {
+          "min": 6.65,
+          "esempio": "11,3",
+          "px": 12
+        },
+        "corpo·TD·su2": {
+          "min": 6.79,
+          "esempio": "22,2",
+          "px": 12
+        },
+        "corpo·TD·su3": {
+          "min": 6.02,
+          "esempio": "25,6",
+          "px": 12
+        },
+        "corpo·TD·su4": {
+          "min": 10.18,
+          "esempio": "29,1",
+          "px": 12
+        },
+        "corpo·TD·giù4": {
+          "min": 11.83,
+          "esempio": "11,1",
+          "px": 12
+        },
+        "sintesi·TH": {
+          "min": 7.08,
+          "esempio": "Livello medio",
+          "px": 11
+        },
+        "sintesi·TD·giù2": {
+          "min": 14.34,
+          "esempio": "18,82",
+          "px": 12
+        },
+        "sintesi·TD·su1": {
+          "min": 14.69,
+          "esempio": "19,65",
+          "px": 12
+        },
+        "sintesi·TD·su5": {
+          "min": 8.43,
+          "esempio": "21,06",
+          "px": 12
+        },
+        "sintesi·TD·giù1": {
+          "min": 15.22,
+          "esempio": "19,27",
+          "px": 12
+        },
+        "sintesi·TD·giù5": {
+          "min": 10.38,
+          "esempio": "17,50",
+          "px": 12
+        },
+        "sintesi·TD·su3": {
+          "min": 11.9,
+          "esempio": "20,42",
+          "px": 12
+        },
+        "sintesi·TD": {
+          "min": 7.15,
+          "esempio": "10",
+          "px": 11
+        }
+      }
+    },
+    "grafico": {
+      "contenitore": 944,
+      "riquadro": 908,
+      "disegno": 848,
+      "pxPerPunto": 30.29,
+      "tick": [
+        116,
+        114,
+        112,
+        110,
+        108,
+        106,
+        104,
+        102,
+        100,
+        98,
+        96,
+        94,
+        92,
+        90,
+        88
+      ],
+      "sezioneTop": 651,
+      "sezioneAltezza": 1113,
+      "graficoBottom": 1690
+    },
+    "sbordi": [],
+    "testiSotto11": [],
+    "erroriConsole": []
+  }
+]
