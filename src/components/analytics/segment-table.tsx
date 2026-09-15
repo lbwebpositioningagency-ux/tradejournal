@@ -1,4 +1,5 @@
 import { cn } from "@/lib/utils";
+import { SMALL_SAMPLE_THRESHOLD } from "@/lib/metrics/segment-performance";
 import {
   formatPercent,
   formatProfitFactor,
@@ -113,14 +114,15 @@ export function SegmentTable({
                 className={cn(
                   "border-b last:border-0",
                   row.empty && "text-muted-foreground",
-                  row.smallSample && "opacity-60",
                 )}
               >
+                {/* Sotto soglia: marca di testo, NON opacità sulla riga — la
+                    riga semitrasparente portava i numeri sotto 4,5:1. */}
                 <td className="whitespace-nowrap py-2 pr-3 font-medium">
                   {row.label}
                   {row.smallSample && (
-                    <span className="ml-1.5 rounded bg-muted px-1 py-0.5 text-2xs font-normal text-muted-foreground">
-                      campione ridotto
+                    <span className="ml-1.5 text-2xs font-normal text-muted-foreground">
+                      · sotto {SMALL_SAMPLE_THRESHOLD} trade
                     </span>
                   )}
                 </td>
@@ -137,7 +139,7 @@ export function SegmentTable({
           .map((row) => (
             <li
               key={row.label}
-              className={cn("rounded-lg border p-3", row.smallSample && "opacity-60")}
+              className="rounded-lg border p-3"
             >
               <div className="flex items-center justify-between gap-2">
                 <span className="text-sm font-medium">{row.label}</span>
@@ -165,7 +167,7 @@ export function SegmentTable({
                   {row.avgR !== null ? formatRMultiple(row.avgR) : "—"}
                 </span>
                 {row.smallSample && (
-                  <span className="text-2xs">campione ridotto</span>
+                  <span className="text-2xs">sotto {SMALL_SAMPLE_THRESHOLD} trade</span>
                 )}
               </div>
             </li>

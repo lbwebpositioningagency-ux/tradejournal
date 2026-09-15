@@ -1,9 +1,9 @@
-import Decimal from "decimal.js";
 import { avgR, avgWinLossR } from "./averages";
 import { expectancy } from "./expectancy";
 import { profitFactor } from "./profit-factor";
 import { winRate } from "./win-rate";
 import type { MetricInfoData, RSplitAggregates } from "./types";
+import { electExtremes, EXTREME_MIN_TRADES } from "./extremes";
 
 /**
  * §2/§3 — performance per SEGMENTO (fascia oraria, durata del trade).
@@ -31,12 +31,13 @@ export interface SegmentAggregates extends Partial<RSplitAggregates> {
 }
 
 /**
- * Sotto questa soglia il segmento è statisticamente muto: si mostra, ma
- * marcato. Una fascia con 3 trade non può avere la stessa credibilità
- * visiva di una con 40 — è il modo più facile per leggere rumore come
- * segnale e cambiare il proprio trading per niente.
+ * Sotto questa soglia il segmento si mostra con i suoi numeri e il suo n, ma
+ * è marcato e non può essere eletto migliore o peggiore. Era 5: una fascia
+ * con 18 trade diventava «l'ora migliore» di SIM1. Ora è la soglia unica degli
+ * estremi (`extremes.ts`, 30 trade), così marcatura ed elezione dicono la
+ * stessa cosa.
  */
-export const SMALL_SAMPLE_THRESHOLD = 5;
+export const SMALL_SAMPLE_THRESHOLD = EXTREME_MIN_TRADES;
 
 export interface SegmentMetrics {
   total: number;
@@ -192,27 +193,22 @@ export function fillDurationSegments(
   });
 }
 
-/** Il segmento migliore e il peggiore per una metrica, ignorando i vuoti. */
+/**
+ * Il segmento migliore e il peggiore per una metrica, eletti con la regola
+ * unica di `extremes.ts`: solo fra i segmenti con almeno 30 trade, e solo se
+ * gli eleggibili sono almeno due. `includeSmallSamples` resta per i test che
+ * vogliono vedere cosa succederebbe senza soglia.
+ */
 export function bestAndWorst<T extends SegmentMetrics & { label: string }>(
   segments: T[],
   pick: (s: T) => string | null,
   options: { includeSmallSamples?: boolean } = {},
-): { best: T | null; worst: T | null } {
-  const usable = segments.filter(
-    (s) =>
-      !s.empty &&
-      pick(s) !== null &&
-      (options.includeSmallSamples || !s.smallSample),
+): { best: T | null; worst: T | null; eligible: number; withTrades: number } {
+  return electExtremes(
+    segments,
+    { trades: (s) => s.total, value: (s) => (s.empty ? null : pick(s)) },
+    options.includeSmallSamples ? 1 : EXTREME_MIN_TRADES,
   );
-  if (usable.length === 0) return { best: null, worst: null };
-
-  let best = usable[0];
-  let worst = usable[0];
-  for (const s of usable) {
-    if (new Decimal(pick(s)!).gt(pick(best)!)) best = s;
-    if (new Decimal(pick(s)!).lt(pick(worst)!)) worst = s;
-  }
-  return { best, worst };
 }
 
 export const hourPerformanceInfo: MetricInfoData = {

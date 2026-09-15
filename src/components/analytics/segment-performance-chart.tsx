@@ -15,6 +15,7 @@ import {
 import { CHART, pnlChartColor } from "@/components/charts/chart-spec";
 import { useChartAnimation } from "@/components/charts/use-chart-animation";
 import { formatNumber } from "@/lib/format-number";
+import { SMALL_SAMPLE_THRESHOLD } from "@/lib/metrics/segment-performance";
 
 /**
  * §2/§3 — barre di performance per segmento (fascia oraria o durata).
@@ -66,7 +67,7 @@ function SegmentTooltip({
       <div className="text-xs font-medium">{point.label}</div>
       <div className="text-xs text-muted-foreground">
         {point.total} trade
-        {point.smallSample ? " · campione ridotto" : ""}
+        {point.smallSample ? ` · meno di ${SMALL_SAMPLE_THRESHOLD}: non eleggibile` : ""}
       </div>
       <div className="text-xs text-muted-foreground">
         {metric === "avgR"

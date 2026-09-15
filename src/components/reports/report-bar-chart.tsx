@@ -11,6 +11,7 @@ import {
 } from "recharts";
 import type { BucketPoint } from "@/lib/reports";
 import { formatNumber } from "@/lib/format-number";
+import { EXTREME_MIN_TRADES } from "@/lib/metrics/extremes";
 import { CHART, pnlChartColor } from "@/components/charts/chart-spec";
 import { useChartAnimation } from "@/components/charts/use-chart-animation";
 
@@ -63,7 +64,10 @@ export function ReportBarChart({
           }
           labelFormatter={(label, payload) => {
             const trades = payload?.[0]?.payload?.trades as number | undefined;
-            return trades !== undefined ? `${label} · ${trades} trade` : String(label);
+            if (trades === undefined) return String(label);
+            return trades > 0 && trades < EXTREME_MIN_TRADES
+              ? `${label} · ${trades} trade · meno di ${EXTREME_MIN_TRADES}: non eleggibile`
+              : `${label} · ${trades} trade`;
           }}
           cursor={CHART.cursor}
           contentStyle={CHART.tooltipStyle}
@@ -77,6 +81,9 @@ export function ReportBarChart({
             <Cell
               key={point.label}
               fill={pnlChartColor(point.value, point.trades > 0)}
+              // Sotto la soglia degli estremi la barra si schiarisce: resta
+              // leggibile, ma si vede prima del numero che non è eleggibile.
+              fillOpacity={point.trades > 0 && point.trades < EXTREME_MIN_TRADES ? 0.35 : 1}
             />
           ))}
         </Bar>

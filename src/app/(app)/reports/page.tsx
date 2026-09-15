@@ -64,6 +64,7 @@ import {
   type StatsFilter,
 } from "@/lib/queries/stats";
 import { resolveCurrencyScope } from "@/lib/currency-scope";
+import { EXTREME_MIN_TRADES } from "@/lib/metrics/extremes";
 import { cn } from "@/lib/utils";
 import { PeriodFilter } from "@/components/filters/period-filter";
 import { CurrencyFilter } from "@/components/filters/currency-filter";
@@ -279,17 +280,31 @@ function BestWorstLine({
   unit: string;
 }) {
   const extremes = bestAndWorstBucket(points);
-  if (!extremes) return null;
+  if (extremes.withTrades === 0) return null;
+  const { best, worst } = extremes;
+  // Regola unica degli estremi (metrics/extremes.ts): sotto 30 trade una
+  // fascia resta nel grafico, più chiara, ma non riceve l'etichetta.
+  if (!best || !worst) {
+    return (
+      <p className="mt-2 text-xs text-muted-foreground">
+        {extremes.eligible === 0
+          ? `Nessuna fascia arriva a ${EXTREME_MIN_TRADES} trade: nessuna è eletta migliore o peggiore. I numeri restano nel grafico.`
+          : `Solo ${extremes.eligible} fascia con almeno ${EXTREME_MIN_TRADES} trade: servono almeno due fasce per un confronto.`}
+      </p>
+    );
+  }
   return (
     <p className="mt-2 text-xs text-muted-foreground">
       {`${unit} migliore `}
-      <span className={cn("font-medium", pnlColorClass(extremes.best.netPnl))}>
-        {extremes.best.label} ({formatSignedMoney(extremes.best.netPnl, currency)})
-      </span>
+      <span className="font-medium text-foreground">{best.label}</span>{" "}
+      ({formatSignedMoney(best.netPnl, currency)} su {best.trades} trade)
       {" · peggiore "}
-      <span className={cn("font-medium", pnlColorClass(extremes.worst.netPnl))}>
-        {extremes.worst.label} ({formatSignedMoney(extremes.worst.netPnl, currency)})
-      </span>
+      <span className="font-medium text-foreground">{worst.label}</span>{" "}
+      ({formatSignedMoney(worst.netPnl, currency)} su {worst.trades} trade). Eletti fra
+      le {extremes.eligible} fasce con almeno {EXTREME_MIN_TRADES} trade
+      {extremes.withTrades > extremes.eligible
+        ? `; le altre ${extremes.withTrades - extremes.eligible} restano nel grafico, più chiare, senza etichetta.`
+        : "."}
     </p>
   );
 }

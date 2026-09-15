@@ -6,6 +6,8 @@ import {
   avgRInfo,
   avgWinLossR,
   avgWinLossRInfo,
+  EXTREME_MIN_TRADES,
+  isExtremeEligible,
   profitFactor,
   profitFactorInfo,
   winRate,
@@ -123,8 +125,13 @@ export function PerformanceBarTable({
                 className={empty ? "text-muted-foreground/60" : undefined}
               >
                 <TableCell className="font-medium">{row.label}</TableCell>
-                <TableCell className="text-right tabular-nums">
+                <TableCell className="whitespace-nowrap text-right tabular-nums">
                   {empty ? "—" : row.total}
+                  {!empty && !isExtremeEligible(row.total) ? (
+                    <span className="ml-1 text-2xs text-muted-foreground">
+                      · sotto {EXTREME_MIN_TRADES}
+                    </span>
+                  ) : null}
                 </TableCell>
                 <TableCell className="text-right tabular-nums">
                   {empty ? "—" : formatPercent(rate, 0)}
@@ -168,6 +175,12 @@ export function PerformanceBarTable({
           })}
         </TableBody>
       </Table>
+      {rows.some((r) => r.total > 0 && !isExtremeEligible(r.total)) ? (
+        <p className="mt-2 text-xs text-muted-foreground">
+          Righe con meno di {EXTREME_MIN_TRADES} trade: descrivono cosa è successo, non
+          bastano per un confronto.
+        </p>
+      ) : null}
     </div>
   );
 }

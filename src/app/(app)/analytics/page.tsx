@@ -41,6 +41,7 @@ import {
   correlationMatrix,
   correlationInfo,
   CORRELATION_MIN_DAYS,
+  EXTREME_MIN_TRADES,
   drawdownDurationInfo,
   drawdownDurationSummary,
   drawdownEpisodes,
@@ -1395,7 +1396,7 @@ export default async function AnalyticsPage({
                         {hourBasis === "close"
                           ? "Quando esci bene: è una domanda sulla gestione."
                           : "Quando entri bene: è una domanda sul setup."}
-                        {bestHour.best && bestHour.worst && (
+                        {bestHour.best && bestHour.worst ? (
                           <>
                             {" "}
                             Migliore <strong className="text-foreground">{bestHour.best.label}</strong> (
@@ -1403,10 +1404,13 @@ export default async function AnalyticsPage({
                             {bestHour.best.total} trade) · peggiore{" "}
                             <strong className="text-foreground">{bestHour.worst.label}</strong> (
                             {formatRMultiple(bestHour.worst.avgR!)} su{" "}
-                            {bestHour.worst.total}). Le fasce con meno di 5 trade
-                            non entrano in questo confronto.
+                            {bestHour.worst.total}). Eletti fra le {bestHour.eligible} fasce
+                            con almeno {EXTREME_MIN_TRADES} trade: le altre restano nel
+                            grafico, più chiare, senza etichetta.
                           </>
-                        )}
+                        ) : bestHour.withTrades > 0 ? (
+                          ` Nessuna fascia eletta migliore o peggiore: ne servono almeno due con ${EXTREME_MIN_TRADES} trade (${bestHour.eligible} nel periodo).`
+                        ) : null}
                       </>
                     }
                   >
@@ -1432,10 +1436,15 @@ export default async function AnalyticsPage({
                       bestDuration.best && bestDuration.worst ? (
                         <>
                           Migliore <strong className="text-foreground">{bestDuration.best.label}</strong> (
-                          {formatRMultiple(bestDuration.best.avgR!)}) · peggiore{" "}
+                          {formatRMultiple(bestDuration.best.avgR!)} su {bestDuration.best.total} trade) ·
+                          peggiore{" "}
                           <strong className="text-foreground">{bestDuration.worst.label}</strong> (
-                          {formatRMultiple(bestDuration.worst.avgR!)}).
+                          {formatRMultiple(bestDuration.worst.avgR!)} su {bestDuration.worst.total}).
+                          Eletti fra le {bestDuration.eligible} fasce con almeno{" "}
+                          {EXTREME_MIN_TRADES} trade.
                         </>
+                      ) : bestDuration.withTrades > 0 ? (
+                        `Nessuna durata eletta migliore o peggiore: ne servono almeno due con ${EXTREME_MIN_TRADES} trade (${bestDuration.eligible} nel periodo).`
                       ) : undefined
                     }
                     metodo={

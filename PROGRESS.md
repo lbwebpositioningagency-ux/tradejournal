@@ -3204,3 +3204,25 @@ Verificato sull'utente demo in «Tutti i conti», 09/07/2026 (3 trade USD, 2 EUR
 con `cur=USD`, bilancio «EUR −137,37 € · USD +54,00 USD». Misure a 1440/390 nei due temi su giornata,
 revisione, Trade View, dashboard: 0 testi < 11px, 0 < 4,5:1, 0 errori. Gate: typecheck, lint,
 2.184 test, build verdi. Schermate in `docs/journal/fase1-valute/`.
+
+## 15/09/2026 · Journal fase 2 — soglia di campione su migliore e peggiore
+
+Tavola Claude Design «Analytics - fase 2 - migliore e peggiore» (estende «Analytics - durata
+drawdown e correlazione»). Regola unica in `lib/metrics/extremes.ts`: un gruppo è eleggibile
+migliore o peggiore solo con **30 trade**, servono almeno due eleggibili e un migliore strettamente
+sopra il peggiore. Trenta perché sotto nessuna stima dell'etichetta regge (win rate ±17 punti) ed è
+lo stesso minimo per gruppo degli intervalli della fase 4.
+- Reports, ora di apertura e giorno della settimana: riga d'elezione con n e quante fasce erano
+  eleggibili; barre sotto soglia più chiare con «meno di 30: non eleggibile» nel tooltip; senza
+  eleggibili la frase lo dice (SIM1, 1–15/07: «Nessuna fascia arriva a 30 trade»).
+- Analytics, fascia oraria e durata: la soglia sale da 5 a 30 (`SMALL_SAMPLE_THRESHOLD` è ora la
+  stessa costante). Su SIM1 l'ora migliore passa da 13-14 (+0,71R su 18 trade) a 09-10 (+0,49R su
+  31), la peggiore da 01-02 (5 trade) a 17-18 (32). Nelle tabelle via l'opacità sulle righe (portava
+  i numeri sotto 4,5:1), al suo posto la marca «· sotto 30 trade».
+- Dashboard, sessioni e giorni: non eleggono nulla e non cominciano a farlo; marca «· sotto 30»
+  sulle righe e nota in fondo.
+- Fuori di proposito: miglior/peggior trade e giornata, che sono osservazioni singole e non gruppi.
+
+Misure (build locale, 1440/390, due temi: Reports, Reports su due settimane, Analytics, Dashboard
+anche su un periodo breve): 0 testi < 11px, 0 < 4,5:1, 0 errori. Gate: typecheck, lint, 2.196 test,
+build verdi. Schermate in `docs/journal/fase2-estremi/`.

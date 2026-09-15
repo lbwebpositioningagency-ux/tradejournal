@@ -39,32 +39,42 @@ describe("fillWeekdaySeries", () => {
   });
 });
 
-describe("bestAndWorstBucket", () => {
-  it("trova migliore e peggiore SOLO tra i bucket con trade", () => {
+describe("bestAndWorstBucket — elezione solo da 30 trade", () => {
+  it("un'ora con UN trade fortunato non diventa l'ora migliore (regressione)", () => {
     const result = bestAndWorstBucket([
-      { label: "09", netPnl: "150.00", trades: 3 },
-      { label: "10", netPnl: "0", trades: 0 }, // vuoto: ignorato anche se 0 > -80
-      { label: "15", netPnl: "-80.50", trades: 2 },
-      { label: "16", netPnl: "300.00", trades: 1 },
+      { label: "09", netPnl: "150.00", trades: 31 },
+      { label: "10", netPnl: "0", trades: 0 },
+      { label: "15", netPnl: "-80.50", trades: 40 },
+      { label: "16", netPnl: "300.00", trades: 1 }, // prima era la «migliore»
     ]);
-    expect(result?.best.label).toBe("16");
-    expect(result?.worst.label).toBe("15");
+    expect(result.best?.label).toBe("09");
+    expect(result.worst?.label).toBe("15");
+    expect(result.eligible).toBe(2);
+    expect(result.withTrades).toBe(3);
   });
 
   it("confronto Decimal, non lessicografico", () => {
     const result = bestAndWorstBucket([
-      { label: "a", netPnl: "9.50", trades: 1 },
-      { label: "b", netPnl: "100.00", trades: 1 }, // "100" < "9.5" come stringa
+      { label: "a", netPnl: "9.50", trades: 30 },
+      { label: "b", netPnl: "100.00", trades: 30 }, // "100" < "9.5" come stringa
     ]);
-    expect(result?.best.label).toBe("b");
-    expect(result?.worst.label).toBe("a");
+    expect(result.best?.label).toBe("b");
+    expect(result.worst?.label).toBe("a");
   });
 
-  it("nessun bucket con trade → null", () => {
-    expect(
-      bestAndWorstBucket([{ label: "00", netPnl: "0", trades: 0 }]),
-    ).toBeNull();
-    expect(bestAndWorstBucket([])).toBeNull();
+  it("sotto soglia o senza trade → nessuna etichetta, ma i gruppi si contano", () => {
+    expect(bestAndWorstBucket([{ label: "00", netPnl: "0", trades: 0 }])).toEqual({
+      best: null,
+      worst: null,
+      eligible: 0,
+      withTrades: 0,
+    });
+    const pochi = bestAndWorstBucket([
+      { label: "a", netPnl: "500", trades: 4 },
+      { label: "b", netPnl: "-200", trades: 2 },
+    ]);
+    expect(pochi.best).toBeNull();
+    expect(pochi.withTrades).toBe(2);
   });
 });
 

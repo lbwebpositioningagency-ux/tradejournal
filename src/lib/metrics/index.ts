@@ -91,6 +91,13 @@ export {
   type CorrelationTone,
 } from "./correlation";
 export {
+  electExtremes,
+  isExtremeEligible,
+  extremesInfo,
+  EXTREME_MIN_TRADES,
+  type Extremes,
+} from "./extremes";
+export {
   drawdownEpisodes,
   drawdownDurationSummary,
   drawdownDurationInfo,

@@ -1,5 +1,5 @@
-import Decimal from "decimal.js";
 import { formatNumber } from "@/lib/format-number";
+import { electExtremes, type Extremes } from "@/lib/metrics/extremes";
 
 /**
  * Helper puri per i Reports: riempiono i bucket mancanti delle serie
@@ -109,21 +109,13 @@ export function fillRDistribution(
 }
 
 /**
- * Bucket migliore e peggiore per netPnl tra quelli CON trade.
- * null se nessun bucket ha trade.
+ * Bucket migliore e peggiore per netPnl, eletti SOLO fra quelli con almeno
+ * `EXTREME_MIN_TRADES` trade (regola unica di `metrics/extremes.ts`). Prima
+ * bastava un trade: l'ora con un solo trade fortunato era «l'ora migliore».
  */
-export function bestAndWorstBucket(points: BucketPoint[]): {
-  best: BucketPoint;
-  worst: BucketPoint;
-} | null {
-  const active = points.filter((p) => p.trades > 0);
-  if (active.length === 0) return null;
-
-  let best = active[0];
-  let worst = active[0];
-  for (const point of active) {
-    if (new Decimal(point.netPnl).gt(best.netPnl)) best = point;
-    if (new Decimal(point.netPnl).lt(worst.netPnl)) worst = point;
-  }
-  return { best, worst };
+export function bestAndWorstBucket(points: BucketPoint[]): Extremes<BucketPoint> {
+  return electExtremes(points, {
+    trades: (p) => p.trades,
+    value: (p) => (p.trades > 0 ? p.netPnl : null),
+  });
 }
