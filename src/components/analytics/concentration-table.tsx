@@ -1,4 +1,5 @@
 import type { Concentration } from "@/lib/metrics/concentration";
+import { formatNumber } from "@/lib/format-number";
 import { formatMoney, formatPercent, pnlColorClass } from "@/lib/money";
 import { cn } from "@/lib/utils";
 
@@ -55,25 +56,71 @@ export function ConcentrationTable({
                   </span>
                 </div>
               </td>
-              <td
-                className={cn(
-                  "py-2 text-right font-medium tabular-nums",
-                  pnlColorClass(slice.netWithout),
-                )}
-              >
-                {formatMoney(slice.netWithout, currency)}
-                {slice.flipsToLoss && (
-                  /* Testo neutro con il filo: sul fondo tinto il rosso scendeva a
-                     4,27:1. Il colore del segno resta sulla cifra accanto. */
-                  <span className="ml-2 rounded-full border border-loss/40 px-2 py-0.5 text-xs font-normal text-foreground">
-                    va in perdita
+              <td className="py-2">
+                {/* Cifra e pastiglia in un flex che va a capo: a 390 la
+                    pastiglia scende sotto la cifra intera invece di spezzarsi
+                    in due righe e uscire dal bordo della cella. */}
+                <div className="flex flex-wrap items-center justify-end gap-x-2 gap-y-1">
+                  <span
+                    className={cn(
+                      "font-medium whitespace-nowrap tabular-nums",
+                      pnlColorClass(slice.netWithout),
+                    )}
+                  >
+                    {formatMoney(slice.netWithout, currency)}
                   </span>
-                )}
+                  {slice.flipsToLoss && (
+                    /* Testo neutro con il filo: sul fondo tinto il rosso scendeva a
+                       4,27:1. Il colore del segno resta sulla cifra accanto. */
+                    <span className="rounded-full border border-loss/40 px-2 py-0.5 text-xs whitespace-nowrap text-foreground">
+                      va in perdita
+                    </span>
+                  )}
+                </div>
               </td>
             </tr>
           ))}
         </tbody>
       </table>
+      <ConcentrationNotes data={data} />
     </div>
   );
+}
+
+/**
+ * Le due scelte che la tabella non può mostrare da sola: come diventa un
+ * numero di trade una percentuale che non cade su un intero, e perché una
+ * riga può nominare più soglie. Scritte sotto, non in un tooltip.
+ */
+function ConcentrationNotes({ data }: { data: Concentration }) {
+  const merged = data.slices.filter((s) => s.percents.length > 1);
+  return (
+    <div className="mt-3 space-y-1 text-xs text-muted-foreground">
+      <p>
+        Le soglie sono percentuali dei {data.winners} trade vincenti, arrotondate per
+        eccesso: ogni riga contiene almeno un trade.
+        {data.rounding ? (
+          <>
+            {" "}
+            Qui il {data.rounding.percent}% vale{" "}
+            {formatNumber(data.rounding.exact, { decimals: data.rounding.exact.includes(".") ? 2 : 0 })}{" "}
+            trade e diventa {data.rounding.trades}.
+          </>
+        ) : null}
+      </p>
+      {merged.map((s) => (
+        <p key={s.label}>
+          Con {data.winners} vincenti {joinPercents(s.percents)} danno lo stesso
+          gruppo di {s.trades} trade: una riga sola.
+        </p>
+      ))}
+    </div>
+  );
+}
+
+function joinPercents(percents: number[]): string {
+  const parts = percents.map((p) => `${p === 1 ? "l'" : "il "}${p}%`);
+  return parts.length <= 1
+    ? parts.join("")
+    : `${parts.slice(0, -1).join(", ")} e ${parts.at(-1)}`;
 }

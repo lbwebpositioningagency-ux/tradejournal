@@ -2,24 +2,45 @@ import Decimal from "decimal.js";
 import type { MetricInfoData } from "./types";
 
 /**
- * §3 — CONCENTRAZIONE TOP-N: quanta parte del profitto lordo arriva dai
- * pochi trade migliori.
+ * §3 — CONCENTRAZIONE DEL PROFITTO: quanta parte del profitto lordo arriva
+ * dai pochi trade migliori.
  *
- * La domanda a cui risponde è scomoda e per questo utile: se togli i tre
- * trade più belli dell'anno, il sistema è ancora profittevole? Un edge
+ * La domanda a cui risponde è scomoda e per questo utile: se togli i trade
+ * più belli del periodo, il sistema è ancora profittevole? Un edge
  * distribuito su molti trade è ripetibile; un profitto che sta tutto in due
  * operazioni è, con ottima probabilità, fortuna — e la statistica su tutto
  * il resto sta misurando rumore.
  */
 
+/**
+ * Soglie in PERCENTUALE dei trade vincenti. Nessuna soglia a conteggio fisso
+ * («i 3 migliori»): il 5% di 40 vincenti e il 5% di 400 sono la stessa
+ * domanda, i tre migliori no, e con pochi vincenti «Top 10» era già tutto.
+ */
+export const CONCENTRATION_PERCENTS = [1, 5, 10, 30] as const;
+export type ConcentrationPercent = (typeof CONCENTRATION_PERCENTS)[number];
+
+/**
+ * Trade che corrispondono a `percent`% di `winners` vincenti: arrotondati
+ * PER ECCESSO, quindi mai meno di uno se c'è almeno un vincente. È lo stesso
+ * `CEIL` della query: il conteggio in etichetta e la somma dal database
+ * devono parlare dello stesso gruppo.
+ *
+ * Solo interi: `winners * percent` è esatto e la divisione per 100 cade su
+ * un intero oppure lontano da esso. Con `winners * 0.3` invece 10 × 0,3 fa
+ * 3,0000000000000004 e l'eccesso darebbe 4.
+ */
+export function tradesForPercent(winners: number, percent: number): number {
+  if (winners <= 0) return 0;
+  return Math.max(1, Math.ceil((winners * percent) / 100));
+}
+
 export interface ConcentrationInput {
-  /** Somma dei netPnl dei primi N vincenti (per N = 1, 3, 5, 10). */
-  top1: string | null;
-  top3: string | null;
-  top5: string | null;
-  top10: string | null;
-  /** Somma dei primi 10% dei vincenti (decile superiore). */
-  topDecile: string | null;
+  /** Somma dei netPnl dei migliori vincenti per ogni soglia percentuale. */
+  top1Pct: string | null;
+  top5Pct: string | null;
+  top10Pct: string | null;
+  top30Pct: string | null;
   /** Profitto lordo: somma di TUTTI i netPnl positivi. */
   grossProfit: string;
   /** Numero di trade vincenti nello scope. */
@@ -29,7 +50,10 @@ export interface ConcentrationInput {
 }
 
 export interface ConcentrationSlice {
+  /** «Top 10% (31)», o «Top 1% · 5% (1)» quando le soglie coincidono. */
   label: string;
+  /** Soglie raccolte nella riga: più di una se danno lo stesso gruppo. */
+  percents: ConcentrationPercent[];
   /** Numero di trade nel gruppo. */
   trades: number;
   /** Quota del profitto lordo, frazione 0-1; null se non calcolabile. */
@@ -40,64 +64,92 @@ export interface ConcentrationSlice {
   flipsToLoss: boolean;
 }
 
+export interface ConcentrationRounding {
+  percent: ConcentrationPercent;
+  /** Trade esatti prima dell'arrotondamento (es. "1.55"). */
+  exact: string;
+  trades: number;
+}
+
 export interface Concentration {
   slices: ConcentrationSlice[];
   winners: number;
   grossProfit: string;
+  /**
+   * La prima soglia che non dà un numero intero di trade, per dichiarare
+   * l'arrotondamento con un caso vero; null se tutte cadono su interi.
+   */
+  rounding: ConcentrationRounding | null;
+}
+
+function sumFor(input: ConcentrationInput, percent: ConcentrationPercent) {
+  switch (percent) {
+    case 1:
+      return input.top1Pct;
+    case 5:
+      return input.top5Pct;
+    case 10:
+      return input.top10Pct;
+    case 30:
+      return input.top30Pct;
+  }
 }
 
 /**
- * Le fasce fisse (1, 3, 5, 10) e il decile superiore convivono di proposito:
- * i numeri fissi sono immediati da leggere ("i tuoi 3 trade migliori"), il
- * decile è l'unico confrontabile fra periodi con campioni diversi — il 10%
- * di 40 trade e il 10% di 400 sono la stessa domanda, "i tre migliori" no.
+ * Una riga per GRUPPO di trade, non per soglia: con 12 vincenti l'1% e il 5%
+ * sono entrambi il miglior trade, e due righe identiche con etichette diverse
+ * farebbero sembrare due misure ciò che è una sola. Le soglie coincidenti
+ * stanno sulla stessa riga e l'etichetta le nomina tutte.
  */
 export function concentration(input: ConcentrationInput): Concentration {
   const gross = new Decimal(input.grossProfit);
   const net = new Decimal(input.netPnl);
 
-  const slice = (
-    label: string,
-    trades: number,
-    sum: string | null,
-  ): ConcentrationSlice | null => {
-    // Un gruppo più grande del numero di vincenti non è un dato: sarebbe lo
-    // stesso gruppo con un'etichetta diversa.
-    if (sum === null || trades <= 0 || trades > input.winners) return null;
+  const slices: ConcentrationSlice[] = [];
+  for (const percent of CONCENTRATION_PERCENTS) {
+    const trades = tradesForPercent(input.winners, percent);
+    const sum = sumFor(input, percent);
+    if (trades === 0 || sum === null) continue;
+
+    const previous = slices.at(-1);
+    if (previous && previous.trades === trades) {
+      previous.percents.push(percent);
+      continue;
+    }
     const netWithout = net.minus(sum);
-    return {
-      label,
+    slices.push({
+      label: "",
+      percents: [percent],
       trades,
       share: gross.isZero() ? null : new Decimal(sum).div(gross).toFixed(4),
       netWithout: netWithout.toFixed(2),
       flipsToLoss: net.gt(0) && netWithout.lte(0),
-    };
-  };
+    });
+  }
+  for (const s of slices) {
+    s.label = `Top ${s.percents.map((p) => `${p}%`).join(" · ")} (${s.trades})`;
+  }
 
-  const decileSize = Math.ceil(input.winners * 0.1);
-  const fixed = [
-    slice("Miglior trade", 1, input.top1),
-    slice("Top 3", 3, input.top3),
-    slice("Top 5", 5, input.top5),
-    slice("Top 10", 10, input.top10),
-  ].filter((s): s is ConcentrationSlice => s !== null);
-
-  // Il decile si aggiunge solo se è un gruppo DIVERSO da quelli fissi: con 96
-  // vincenti il 10% sono 10 trade, e ripetere la stessa riga con un'altra
-  // etichetta fa sembrare due misure ciò che è una sola.
-  const decile =
-    fixed.some((s) => s.trades === decileSize)
+  const roundedPercent = CONCENTRATION_PERCENTS.find(
+    (p) => input.winners > 0 && (input.winners * p) % 100 !== 0,
+  );
+  const rounding =
+    roundedPercent === undefined
       ? null
-      : slice(`Top 10% (${decileSize})`, decileSize, input.topDecile);
+      : {
+          percent: roundedPercent,
+          exact: new Decimal(input.winners).times(roundedPercent).div(100).toString(),
+          trades: tradesForPercent(input.winners, roundedPercent),
+        };
 
-  const slices = decile ? [...fixed, decile] : fixed;
-
-  return { slices, winners: input.winners, grossProfit: input.grossProfit };
+  return { slices, winners: input.winners, grossProfit: input.grossProfit, rounding };
 }
 
 export const concentrationInfo: MetricInfoData = {
   label: "Concentrazione del profitto",
   description:
-    "Quanta parte del profitto lordo viene dai pochi trade migliori, e cosa resterebbe togliendoli. Serve a distinguere un edge ripetibile da un risultato che sta in piedi grazie a due operazioni fortunate: se togliendo i tuoi tre trade migliori il periodo va in perdita, tutte le altre statistiche stanno descrivendo rumore.",
-  formula: "Quota = Σ netPnl dei primi N vincenti / Σ di tutti i netPnl positivi",
+    "Quanta parte del profitto lordo viene dai trade migliori, e cosa resterebbe togliendoli. Serve a distinguere un edge ripetibile da un risultato che sta in piedi grazie a poche operazioni fortunate: se togliendo il 5% dei tuoi trade vincenti migliori il periodo va in perdita, tutte le altre statistiche stanno descrivendo rumore.",
+  formula:
+    "Quota = Σ netPnl dei migliori N vincenti / Σ di tutti i netPnl positivi · N = 1%, 5%, 10%, 30% dei vincenti, arrotondato per eccesso (almeno 1)",
+  note: "Le soglie sono percentuali dei trade vincenti, così la tabella si legge allo stesso modo con 20 o con 2.000 trade. Quando due soglie danno lo stesso numero di trade stanno sulla stessa riga.",
 };

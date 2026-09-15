@@ -3403,3 +3403,31 @@ Misure (pannello con tabella e metodo aperti, 1440/390, due temi, settimana e me
 0 < 4,5:1, 0 errori, nessuna pagina più larga del viewport; a 390 scorre solo la tabella completa nel
 suo contenitore. Gate: typecheck, lint, 2.258 test, build verdi. Nessuna migrazione. Schermate in
 `docs/analytics/correlazione-periodi/`.
+
+## 16/09/2026 · Analytics › Rischio — «Concentrazione del profitto» a soglie percentuali
+
+Richiesta del proprietario: via le righe a conteggio fisso (Miglior trade · Top 3 · Top 5 · Top 10)
+e il decile aggiunto a parte. Ora quattro soglie, tutte percentuali dei trade vincenti: **Top 1% ·
+Top 5% · Top 10% · Top 30%**, ognuna col numero di trade fra parentesi («Top 10% (31)»). Colonne
+invariate (quota del profitto lordo con barra, P&L netto senza quei trade con «va in perdita»), riga
+di testa invariata.
+
+- **Arrotondamento per eccesso**, con la stessa formula intera in SQL (`CEIL(COUNT(*) * p / 100.0)`)
+  e in JS (`tradesForPercent`): il gruppo copre almeno la percentuale e con almeno un vincente ha
+  almeno un trade. Dichiarato sotto la tabella con il primo caso non intero del periodo («Qui l'1%
+  vale 3,07 trade e diventa 4»). Su SIM1, 307 vincenti: 4 · 16 · 31 · 93 trade.
+- **Soglie coincidenti su una riga**: se due soglie danno lo stesso numero di trade la riga le nomina
+  tutte («Top 1% · 5% · 10% (1)») e una frase sotto la tabella lo dichiara. Su SIM1 febbraio 2025
+  (9 vincenti) le righe sono due: «Top 1% · 5% · 10% (1)» e «Top 30% (3)».
+- Difetto trovato nel vecchio decile e non riportato: `Math.ceil(winners * 0.1)` in virgola mobile
+  dava 4 con 30 vincenti (30 × 0,1 = 3,0000000000000004) mentre la query sommava 3 trade. Il conteggio
+  ora è intero, con un test apposito (il 30% di 10 è 3).
+
+Query `getTopConcentration`: quattro somme per percentuale al posto di top1/3/5/10/decile, sempre una
+riga sola in JS. Test di `pro.test.ts` riscritti sulle nuove righe (36 verdi). Tavola CD nuova
+«Analytics - concentrazione del profitto a percentuali» (1440 chiaro, soglie coincidenti scuro, 390
+scuro, decisioni). Misure (capitolo Rischio, SIM1 tutto lo storico e febbraio 2025, 1440/390, due
+temi, sonda del capitolo + sonda dei testi SVG): 0 testi < 11px, 0 < 4,5:1, 0 errori in console,
+pagina mai più larga del viewport. A 390 la pastiglia «va in perdita» scende sotto la cifra
+(flex che va a capo) invece di spezzarsi fuori dalla cella. Gate: typecheck, lint, 2.251 test, build
+verdi. Nessuna migrazione. Schermate in `docs/journal/concentrazione-percentuali/`.

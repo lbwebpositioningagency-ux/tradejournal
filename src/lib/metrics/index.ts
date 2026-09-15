@@ -208,6 +208,8 @@ export {
 export {
   concentration,
   concentrationInfo,
+  CONCENTRATION_PERCENTS,
+  tradesForPercent,
   type Concentration,
   type ConcentrationInput,
   type ConcentrationSlice,

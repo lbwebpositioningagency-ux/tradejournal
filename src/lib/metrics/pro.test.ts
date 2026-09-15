@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { breakEvenWinRate, winRateMargin } from "./break-even";
 import { kellyFraction, optimalF, OPTIMAL_F_MIN_TRADES } from "./kelly";
-import { concentration } from "./concentration";
+import { concentration, tradesForPercent } from "./concentration";
 import { equityLinearFit } from "./equity-fit";
 import { expectedLongestRun, streakDistribution } from "./streak-distribution";
 
@@ -105,57 +105,90 @@ describe("optimalF", () => {
 });
 
 describe("concentration", () => {
+  // 100 vincenti: 1% → 1 trade, 5% → 5, 10% → 10, 30% → 30, tutti interi.
   const base = {
-    top1: "500",
-    top3: "900",
-    top5: "1100",
-    top10: "1400",
-    topDecile: "900",
+    top1Pct: "500",
+    top5Pct: "900",
+    top10Pct: "1100",
+    top30Pct: "1400",
     grossProfit: "2000",
-    winners: 30,
+    winners: 100,
     netPnl: "800",
   };
+  const labels = (input: typeof base) =>
+    concentration(input).slices.map((s) => s.label);
+
+  it("quattro righe, tutte percentuali, col numero di trade accanto", () => {
+    expect(labels(base)).toEqual([
+      "Top 1% (1)",
+      "Top 5% (5)",
+      "Top 10% (10)",
+      "Top 30% (30)",
+    ]);
+    expect(concentration(base).rounding).toBeNull();
+  });
 
   it("quote sul profitto LORDO e netto senza quei trade", () => {
-    const result = concentration(base);
-    const top3 = result.slices.find((s) => s.label === "Top 3")!;
-    expect(top3.share).toBe("0.4500");
-    expect(top3.netWithout).toBe("-100.00");
-    // Togliendo i 3 migliori il periodo va in perdita: è il segnale.
-    expect(top3.flipsToLoss).toBe(true);
+    const top5 = concentration(base).slices[1];
+    expect(top5.share).toBe("0.4500");
+    expect(top5.netWithout).toBe("-100.00");
+    // Togliendo il 5% migliore il periodo va in perdita: è il segnale.
+    expect(top5.flipsToLoss).toBe(true);
   });
 
-  it("il miglior trade da solo non ribalta il risultato, e si vede", () => {
-    const best = concentration(base).slices[0];
-    expect(best.share).toBe("0.2500");
-    expect(best.netWithout).toBe("300.00");
-    expect(best.flipsToLoss).toBe(false);
+  it("l'1% da solo non ribalta il risultato, e si vede", () => {
+    const top1 = concentration(base).slices[0];
+    expect(top1.share).toBe("0.2500");
+    expect(top1.netWithout).toBe("300.00");
+    expect(top1.flipsToLoss).toBe(false);
   });
 
-  it("nessuna fascia più grande del numero di vincenti", () => {
-    // 4 vincenti: "Top 5" e "Top 10" sarebbero lo stesso gruppo con un'altra
-    // etichetta, e il decile (1 trade) coincide col miglior trade.
-    const result = concentration({ ...base, winners: 4 });
+  it("arrotonda per eccesso e dichiara il primo caso non intero", () => {
+    // 31 vincenti: 0,31 → 1 · 1,55 → 2 · 3,1 → 4 · 9,3 → 10.
+    const result = concentration({ ...base, winners: 31 });
+    expect(result.slices.map((s) => s.trades)).toEqual([1, 2, 4, 10]);
+    expect(result.rounding).toEqual({ percent: 1, exact: "0.31", trades: 1 });
+  });
+
+  it("niente errore di virgola mobile: il 30% di 10 è 3, non 4", () => {
+    expect(tradesForPercent(10, 30)).toBe(3);
+    expect(tradesForPercent(30, 10)).toBe(3);
+    expect(tradesForPercent(700, 1)).toBe(7);
+  });
+
+  it("ogni soglia contiene almeno un trade, e nessuno senza vincenti", () => {
+    expect(tradesForPercent(1, 1)).toBe(1);
+    expect(tradesForPercent(0, 30)).toBe(0);
+  });
+
+  it("le soglie che danno lo stesso gruppo stanno su una riga sola", () => {
+    // 12 vincenti: 1% e 5% sono entrambe 1 trade; 10% → 2; 30% → 4.
+    const result = concentration({ ...base, winners: 12 });
     expect(result.slices.map((s) => s.label)).toEqual([
-      "Miglior trade",
-      "Top 3",
+      "Top 1% · 5% (1)",
+      "Top 10% (2)",
+      "Top 30% (4)",
     ]);
+    expect(result.slices[0].percents).toEqual([1, 5]);
+    // La riga unita porta la somma del gruppo, non una media delle soglie.
+    expect(result.slices[0].share).toBe("0.2500");
   });
 
-  it("il decile non si ripete se coincide con una fascia fissa", () => {
-    // 96 vincenti → decile = 10 trade, cioè esattamente "Top 10".
-    const labels = concentration({ ...base, winners: 96 }).slices.map(
-      (s) => s.label,
-    );
-    expect(labels).toEqual(["Miglior trade", "Top 3", "Top 5", "Top 10"]);
+  it("con 3 vincenti tutte le soglie sono il miglior trade: una riga", () => {
+    expect(labels({ ...base, winners: 3 })).toEqual(["Top 1% · 5% · 10% · 30% (1)"]);
   });
 
-  it("il decile compare quando è un gruppo diverso", () => {
-    // 200 vincenti → decile = 20 trade: una fascia in più, non un doppione.
-    const labels = concentration({ ...base, winners: 200 }).slices.map(
-      (s) => s.label,
-    );
-    expect(labels).toContain("Top 10% (20)");
+  it("nessun vincente: nessuna riga", () => {
+    const result = concentration({
+      ...base,
+      winners: 0,
+      top1Pct: null,
+      top5Pct: null,
+      top10Pct: null,
+      top30Pct: null,
+    });
+    expect(result.slices).toEqual([]);
+    expect(result.rounding).toBeNull();
   });
 
   it("profitto lordo zero: nessuna quota inventata", () => {

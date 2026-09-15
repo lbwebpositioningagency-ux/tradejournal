@@ -485,11 +485,10 @@ export async function getStreakRuns(
 }
 
 export interface ConcentrationRow {
-  top1: string | null;
-  top3: string | null;
-  top5: string | null;
-  top10: string | null;
-  topDecile: string | null;
+  top1Pct: string | null;
+  top5Pct: string | null;
+  top10Pct: string | null;
+  top30Pct: string | null;
   grossProfit: string;
   winners: number;
 }
@@ -510,15 +509,24 @@ export async function getTopConcentration(
       WHERE ${analyticsWhere(filter)} AND t."netPnl" > 0
     )
     SELECT
-      (SUM("netPnl") FILTER (WHERE "rn" <= 1))::text  AS "top1",
-      (SUM("netPnl") FILTER (WHERE "rn" <= 3))::text  AS "top3",
-      (SUM("netPnl") FILTER (WHERE "rn" <= 5))::text  AS "top5",
-      (SUM("netPnl") FILTER (WHERE "rn" <= 10))::text AS "top10",
-      -- Il decile va calcolato su un conteggio COSTANTE: una window function
-      -- dentro un FILTER non è ammessa (le finestre girano dopo gli aggregati).
+      -- Soglie in percentuale dei vincenti, arrotondate PER ECCESSO come
+      -- tradesForPercent in lib/metrics/concentration.ts: con almeno un
+      -- vincente il gruppo ha almeno un trade. Il conteggio è una subquery
+      -- COSTANTE: una window function dentro un FILTER non è ammessa (le
+      -- finestre girano dopo gli aggregati). La divisione per 100.0 è
+      -- numeric, quindi esatta.
       (SUM("netPnl") FILTER (
-        WHERE "rn" <= (SELECT CEIL(COUNT(*) * 0.1) FROM vincenti)
-      ))::text AS "topDecile",
+        WHERE "rn" <= (SELECT CEIL(COUNT(*) * 1 / 100.0) FROM vincenti)
+      ))::text AS "top1Pct",
+      (SUM("netPnl") FILTER (
+        WHERE "rn" <= (SELECT CEIL(COUNT(*) * 5 / 100.0) FROM vincenti)
+      ))::text AS "top5Pct",
+      (SUM("netPnl") FILTER (
+        WHERE "rn" <= (SELECT CEIL(COUNT(*) * 10 / 100.0) FROM vincenti)
+      ))::text AS "top10Pct",
+      (SUM("netPnl") FILTER (
+        WHERE "rn" <= (SELECT CEIL(COUNT(*) * 30 / 100.0) FROM vincenti)
+      ))::text AS "top30Pct",
       COALESCE(SUM("netPnl"), 0)::text                AS "grossProfit",
       COUNT(*)::int                                   AS "winners"
     FROM vincenti
