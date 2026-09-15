@@ -33,9 +33,22 @@ export interface BreakdownAggregates extends RSplitAggregates {
   lossSum: string;
   rSum: string;
   rCount: number;
+  /**
+   * P&L di ogni trade del gruppo in CENTESIMI interi, in ordine di chiusura:
+   * serve al bootstrap a blocchi degli intervalli (metrics/confidence.ts).
+   * Eccezione dichiarata al «solo aggregati in JS»: un intervallo di
+   * confidenza ha bisogno delle osservazioni. Il raggruppamento resta in SQL,
+   * così le serie coincidono riga per riga coi totali.
+   */
+  pnlUnits: string[];
+  /** R di ogni trade con rischio, in decimillesimi di R interi, stesso ordine. */
+  rUnits: string[];
 }
 
 const AGGREGATE_COLUMNS = Prisma.sql`
+  COALESCE(array_agg(ROUND(t."netPnl" * 100)::bigint::text ORDER BY t."closedAt", t."id"), '{}') AS "pnlUnits",
+  COALESCE(array_agg(ROUND(t."rMultiple" * 10000)::bigint::text ORDER BY t."closedAt", t."id")
+    FILTER (WHERE t."rMultiple" IS NOT NULL), '{}')        AS "rUnits",
   COUNT(*)::int                                            AS "total",
   (COUNT(*) FILTER (WHERE t."netPnl" > 0))::int            AS "wins",
   (COUNT(*) FILTER (WHERE t."netPnl" < 0))::int            AS "losses",
@@ -53,6 +66,23 @@ const AGGREGATE_COLUMNS = Prisma.sql`
   COALESCE(SUM(t."rMultiple") FILTER (WHERE t."rMultiple" < 0), 0)::text AS "rLossSum",
   (COUNT(*) FILTER (WHERE t."rMultiple" < 0))::int         AS "rLossCount"
 `;
+
+/**
+ * Il conto intero nel periodo, con gli stessi aggregati e le stesse serie
+ * delle righe di breakdown: le stime del conto (win rate, expectancy) e i
+ * loro intervalli escono dalla stessa forma, senza una query diversa da
+ * tenere allineata. Nessun GROUP BY: una riga sola, anche senza trade.
+ */
+export async function getAccountBreakdown(
+  filter: StatsFilter,
+): Promise<BreakdownAggregates> {
+  const rows = await prisma.$queryRaw<BreakdownAggregates[]>(Prisma.sql`
+    SELECT ${AGGREGATE_COLUMNS}
+    ${FROM_TRADES}
+    WHERE ${whereClosedTrades(filter)}
+  `);
+  return rows[0];
+}
 
 export interface StrategyBreakdownRow extends BreakdownAggregates {
   /** Id strategia, oppure null per i trade senza strategia. */

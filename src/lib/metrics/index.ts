@@ -91,6 +91,25 @@ export {
   type CorrelationTone,
 } from "./correlation";
 export {
+  blockBootstrapMeanInterval,
+  confidenceInfo,
+  ESTIMATE_MIN_TRADES,
+  intervalsDisjoint,
+  meanEstimate,
+  parseUnits,
+  tradesToDistinguishMean,
+  tradesToDistinguishRate,
+  wilsonInterval,
+  winRateEstimate,
+  type Estimate,
+  type Interval,
+} from "./confidence";
+export {
+  groupEstimates,
+  type GroupAggregates,
+  type GroupEstimates,
+} from "./group-estimates";
+export {
   electExtremes,
   isExtremeEligible,
   extremesInfo,

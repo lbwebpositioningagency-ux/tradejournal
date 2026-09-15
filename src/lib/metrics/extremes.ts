@@ -31,6 +31,12 @@ export interface Extremes<T> {
   eligible: number;
   /** Gruppi con almeno un trade (quelli che il lettore vede). */
   withTrades: number;
+  /**
+   * I due candidati quando gli INTERVALLI si sovrappongono: il più alto e il
+   * più basso esistono, ma non si distinguono, quindi nessuno è eletto. La
+   * pagina li nomina per dire perché l'etichetta manca.
+   */
+  overlapping: { high: T; low: T } | null;
 }
 
 export function electExtremes<T>(
@@ -39,14 +45,30 @@ export function electExtremes<T>(
     trades: (g: T) => number;
     /** Valore da confrontare; null = non definito (es. nessun R). */
     value: (g: T) => string | null;
+    /**
+     * Intervallo di confidenza del valore. Se c'è, migliore e peggiore si
+     * dichiarano SOLO con intervalli disgiunti (fase 4): valori diversi con
+     * intervalli sovrapposti non si distinguono. Un gruppo senza intervallo
+     * non è eleggibile.
+     */
+    interval?: (g: T) => { lower: string; upper: string } | null;
   },
   minTrades: number = EXTREME_MIN_TRADES,
 ): Extremes<T> {
   const withTrades = groups.filter((g) => accessors.trades(g) > 0).length;
   const usable = groups.filter(
-    (g) => accessors.trades(g) >= minTrades && accessors.value(g) !== null,
+    (g) =>
+      accessors.trades(g) >= minTrades &&
+      accessors.value(g) !== null &&
+      (!accessors.interval || accessors.interval(g) !== null),
   );
-  const empty = { best: null, worst: null, eligible: usable.length, withTrades };
+  const empty = {
+    best: null,
+    worst: null,
+    eligible: usable.length,
+    withTrades,
+    overlapping: null,
+  };
   if (usable.length < 2) return empty;
 
   let best = usable[0];
@@ -57,7 +79,14 @@ export function electExtremes<T>(
     if (v.lt(accessors.value(worst)!)) worst = g;
   }
   if (!new Decimal(accessors.value(best)!).gt(accessors.value(worst)!)) return empty;
-  return { best, worst, eligible: usable.length, withTrades };
+  if (accessors.interval) {
+    const hi = accessors.interval(best)!;
+    const lo = accessors.interval(worst)!;
+    if (!new Decimal(hi.lower).gt(lo.upper)) {
+      return { ...empty, overlapping: { high: best, low: worst } };
+    }
+  }
+  return { best, worst, eligible: usable.length, withTrades, overlapping: null };
 }
 
 /** Il gruppo può ricevere l'etichetta di migliore o peggiore? */

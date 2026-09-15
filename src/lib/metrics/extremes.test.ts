@@ -1,8 +1,12 @@
 import { describe, expect, it } from "vitest";
 import { electExtremes, EXTREME_MIN_TRADES, isExtremeEligible } from "./extremes";
 
-type G = { label: string; trades: number; value: string | null };
+type G = { label: string; trades: number; value: string | null; lo?: string; hi?: string };
 const acc = { trades: (g: G) => g.trades, value: (g: G) => g.value };
+const conIntervalli = {
+  ...acc,
+  interval: (g: G) => (g.lo !== undefined && g.hi !== undefined ? { lower: g.lo, upper: g.hi } : null),
+};
 
 describe("electExtremes — nessuna etichetta sotto campione", () => {
   it("la soglia dichiarata è 30 trade", () => {
@@ -47,7 +51,7 @@ describe("electExtremes — nessuna etichetta sotto campione", () => {
       ],
       acc,
     );
-    expect(r).toEqual({ best: null, worst: null, eligible: 0, withTrades: 2 });
+    expect(r).toEqual({ best: null, worst: null, eligible: 0, withTrades: 2, overlapping: null });
   });
 
   it("a pari valore nessuno è estremo", () => {
@@ -76,6 +80,55 @@ describe("electExtremes — nessuna etichetta sotto campione", () => {
   });
 
   it("zero gruppi", () => {
-    expect(electExtremes<G>([], acc)).toEqual({ best: null, worst: null, eligible: 0, withTrades: 0 });
+    expect(electExtremes<G>([], acc)).toEqual({
+      best: null,
+      worst: null,
+      eligible: 0,
+      withTrades: 0,
+      overlapping: null,
+    });
+  });
+});
+
+describe("electExtremes con intervalli — fase 4", () => {
+  it("intervalli sovrapposti: nessuna elezione, ma i due candidati sono nominati", () => {
+    // SIM1, ora 16 contro ora 17: +190 [16; 374] e −56 [−252; 138].
+    const r = electExtremes<G>(
+      [
+        { label: "16", trades: 62, value: "190.47", lo: "15.75", hi: "373.67" },
+        { label: "17", trades: 32, value: "-55.97", lo: "-251.93", hi: "137.79" },
+      ],
+      conIntervalli,
+    );
+    expect(r.best).toBeNull();
+    expect(r.worst).toBeNull();
+    expect(r.overlapping?.high.label).toBe("16");
+    expect(r.overlapping?.low.label).toBe("17");
+  });
+
+  it("intervalli disgiunti: elezione confermata", () => {
+    const r = electExtremes<G>(
+      [
+        { label: "a", trades: 60, value: "200", lo: "120", hi: "280" },
+        { label: "b", trades: 60, value: "-150", lo: "-230", hi: "-60" },
+        { label: "c", trades: 60, value: "10", lo: "-80", hi: "100" },
+      ],
+      conIntervalli,
+    );
+    expect(r.best?.label).toBe("a");
+    expect(r.worst?.label).toBe("b");
+    expect(r.overlapping).toBeNull();
+  });
+
+  it("un gruppo senza intervallo non è eleggibile", () => {
+    const r = electExtremes<G>(
+      [
+        { label: "a", trades: 60, value: "200", lo: "120", hi: "280" },
+        { label: "b", trades: 60, value: "-150" },
+      ],
+      conIntervalli,
+    );
+    expect(r.eligible).toBe(1);
+    expect(r.best).toBeNull();
   });
 });

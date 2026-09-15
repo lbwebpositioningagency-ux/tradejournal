@@ -1,0 +1,450 @@
+[
+  {
+    "pagina": "/dashboard",
+    "larghezza": 1440,
+    "tema": "light",
+    "file": "dashboard__1440__light.png",
+    "h1": "Dashboard",
+    "altezza": 3436,
+    "innerWidth": 1440,
+    "scrollWidth": 1440,
+    "sbordi": [],
+    "sotto12": 31,
+    "piccoli": 0,
+    "esempiPiccoli": [],
+    "bassoContrasto": 15,
+    "esempiBassi": [
+      "4.20 11px «Demo»",
+      "2.41 14px «Fuori sessione»",
+      "2.41 14px «—»",
+      "2.41 14px «—»",
+      "2.41 14px «—»",
+      "2.41 14px «—»",
+      "2.41 14px «—»",
+      "2.41 14px «—»",
+      "3.36 11px «Gen»",
+      "3.36 11px «Feb»",
+      "3.92 11px «Mar»",
+      "3.36 11px «Apr»"
+    ],
+    "famiglie": [
+      "Geist"
+    ],
+    "erroriConsole": []
+  },
+  {
+    "pagina": "/reports?period=all",
+    "larghezza": 1440,
+    "tema": "light",
+    "file": "reports_period_all__1440__light.png",
+    "h1": "Reports",
+    "altezza": 5229,
+    "innerWidth": 1440,
+    "scrollWidth": 1440,
+    "sbordi": [],
+    "sotto12": 5,
+    "piccoli": 0,
+    "esempiPiccoli": [],
+    "bassoContrasto": 1,
+    "esempiBassi": [
+      "4.20 11px «Demo»"
+    ],
+    "famiglie": [
+      "Geist"
+    ],
+    "erroriConsole": []
+  },
+  {
+    "pagina": "/reports?period=custom&from=2026-07-01&to=2026-07-15",
+    "larghezza": 1440,
+    "tema": "light",
+    "file": "reports_period_custom_from_2026-07-01_to_2026-07-15__1440__light.png",
+    "h1": "Reports",
+    "altezza": 2954,
+    "innerWidth": 1440,
+    "scrollWidth": 1440,
+    "sbordi": [],
+    "sotto12": 5,
+    "piccoli": 0,
+    "esempiPiccoli": [],
+    "bassoContrasto": 1,
+    "esempiBassi": [
+      "4.20 11px «Demo»"
+    ],
+    "famiglie": [
+      "Geist"
+    ],
+    "erroriConsole": []
+  },
+  {
+    "pagina": "/analytics?period=all",
+    "larghezza": 1440,
+    "tema": "light",
+    "file": "analytics_period_all__1440__light.png",
+    "h1": "Analytics",
+    "altezza": 6698,
+    "innerWidth": 1440,
+    "scrollWidth": 1440,
+    "sbordi": [],
+    "sotto12": 47,
+    "piccoli": 0,
+    "esempiPiccoli": [],
+    "bassoContrasto": 1,
+    "esempiBassi": [
+      "4.20 11px «Demo»"
+    ],
+    "famiglie": [
+      "Geist"
+    ],
+    "erroriConsole": []
+  },
+  {
+    "pagina": "/dashboard",
+    "larghezza": 390,
+    "tema": "light",
+    "file": "dashboard__390__light.png",
+    "h1": "Dashboard",
+    "altezza": 5825,
+    "innerWidth": 390,
+    "scrollWidth": 390,
+    "sbordi": [
+      {
+        "d": 439,
+        "w": 326,
+        "t": "",
+        "cols": 8
+      },
+      {
+        "d": 410,
+        "w": 326,
+        "t": "",
+        "cols": 8
+      }
+    ],
+    "sotto12": 30,
+    "piccoli": 0,
+    "esempiPiccoli": [],
+    "bassoContrasto": 15,
+    "esempiBassi": [
+      "4.20 11px «Demo»",
+      "2.41 14px «Fuori sessione»",
+      "2.41 14px «—»",
+      "2.41 14px «—»",
+      "2.41 14px «—»",
+      "2.41 14px «—»",
+      "2.41 14px «—»",
+      "2.41 14px «—»",
+      "3.36 11px «Gen»",
+      "3.36 11px «Feb»",
+      "3.92 11px «Mar»",
+      "3.36 11px «Apr»"
+    ],
+    "famiglie": [
+      "Geist"
+    ],
+    "erroriConsole": []
+  },
+  {
+    "pagina": "/reports?period=all",
+    "larghezza": 390,
+    "tema": "light",
+    "file": "reports_period_all__390__light.png",
+    "h1": "Reports",
+    "altezza": 2370,
+    "innerWidth": 390,
+    "scrollWidth": 390,
+    "sbordi": [],
+    "sotto12": 4,
+    "piccoli": 0,
+    "esempiPiccoli": [],
+    "bassoContrasto": 1,
+    "esempiBassi": [
+      "4.20 11px «Demo»"
+    ],
+    "famiglie": [
+      "Geist"
+    ],
+    "erroriConsole": []
+  },
+  {
+    "pagina": "/reports?period=custom&from=2026-07-01&to=2026-07-15",
+    "larghezza": 390,
+    "tema": "light",
+    "file": "reports_period_custom_from_2026-07-01_to_2026-07-15__390__light.png",
+    "h1": "Reports",
+    "altezza": 1966,
+    "innerWidth": 390,
+    "scrollWidth": 390,
+    "sbordi": [],
+    "sotto12": 4,
+    "piccoli": 0,
+    "esempiPiccoli": [],
+    "bassoContrasto": 1,
+    "esempiBassi": [
+      "4.20 11px «Demo»"
+    ],
+    "famiglie": [
+      "Geist"
+    ],
+    "erroriConsole": []
+  },
+  {
+    "pagina": "/analytics?period=all",
+    "larghezza": 390,
+    "tema": "light",
+    "file": "analytics_period_all__390__light.png",
+    "h1": "Analytics",
+    "altezza": 9495,
+    "innerWidth": 390,
+    "scrollWidth": 390,
+    "sbordi": [
+      {
+        "d": 316,
+        "w": 324,
+        "t": "",
+        "cols": 7
+      },
+      {
+        "d": 252,
+        "w": 324,
+        "t": "",
+        "cols": 6
+      }
+    ],
+    "sotto12": 46,
+    "piccoli": 0,
+    "esempiPiccoli": [],
+    "bassoContrasto": 1,
+    "esempiBassi": [
+      "4.20 11px «Demo»"
+    ],
+    "famiglie": [
+      "Geist"
+    ],
+    "erroriConsole": []
+  },
+  {
+    "pagina": "/dashboard",
+    "larghezza": 1440,
+    "tema": "dark",
+    "file": "dashboard__1440__dark.png",
+    "h1": "Dashboard",
+    "altezza": 3436,
+    "innerWidth": 1440,
+    "scrollWidth": 1440,
+    "sbordi": [],
+    "sotto12": 31,
+    "piccoli": 0,
+    "esempiPiccoli": [],
+    "bassoContrasto": 12,
+    "esempiBassi": [
+      "4.41 11px «Demo»",
+      "3.36 14px «Fuori sessione»",
+      "3.36 14px «—»",
+      "3.36 14px «—»",
+      "3.36 14px «—»",
+      "3.36 14px «—»",
+      "3.36 14px «—»",
+      "3.36 14px «—»",
+      "3.81 11px «Gen»",
+      "3.81 11px «Feb»",
+      "3.81 11px «Apr»",
+      "3.81 11px «Mag»"
+    ],
+    "famiglie": [
+      "Geist"
+    ],
+    "erroriConsole": []
+  },
+  {
+    "pagina": "/reports?period=all",
+    "larghezza": 1440,
+    "tema": "dark",
+    "file": "reports_period_all__1440__dark.png",
+    "h1": "Reports",
+    "altezza": 5229,
+    "innerWidth": 1440,
+    "scrollWidth": 1440,
+    "sbordi": [],
+    "sotto12": 5,
+    "piccoli": 0,
+    "esempiPiccoli": [],
+    "bassoContrasto": 1,
+    "esempiBassi": [
+      "4.41 11px «Demo»"
+    ],
+    "famiglie": [
+      "Geist"
+    ],
+    "erroriConsole": []
+  },
+  {
+    "pagina": "/reports?period=custom&from=2026-07-01&to=2026-07-15",
+    "larghezza": 1440,
+    "tema": "dark",
+    "file": "reports_period_custom_from_2026-07-01_to_2026-07-15__1440__dark.png",
+    "h1": "Reports",
+    "altezza": 2954,
+    "innerWidth": 1440,
+    "scrollWidth": 1440,
+    "sbordi": [],
+    "sotto12": 5,
+    "piccoli": 0,
+    "esempiPiccoli": [],
+    "bassoContrasto": 1,
+    "esempiBassi": [
+      "4.41 11px «Demo»"
+    ],
+    "famiglie": [
+      "Geist"
+    ],
+    "erroriConsole": []
+  },
+  {
+    "pagina": "/analytics?period=all",
+    "larghezza": 1440,
+    "tema": "dark",
+    "file": "analytics_period_all__1440__dark.png",
+    "h1": "Analytics",
+    "altezza": 6698,
+    "innerWidth": 1440,
+    "scrollWidth": 1440,
+    "sbordi": [],
+    "sotto12": 47,
+    "piccoli": 0,
+    "esempiPiccoli": [],
+    "bassoContrasto": 1,
+    "esempiBassi": [
+      "4.41 11px «Demo»"
+    ],
+    "famiglie": [
+      "Geist"
+    ],
+    "erroriConsole": []
+  },
+  {
+    "pagina": "/dashboard",
+    "larghezza": 390,
+    "tema": "dark",
+    "file": "dashboard__390__dark.png",
+    "h1": "Dashboard",
+    "altezza": 5825,
+    "innerWidth": 390,
+    "scrollWidth": 390,
+    "sbordi": [
+      {
+        "d": 439,
+        "w": 326,
+        "t": "",
+        "cols": 8
+      },
+      {
+        "d": 410,
+        "w": 326,
+        "t": "",
+        "cols": 8
+      }
+    ],
+    "sotto12": 30,
+    "piccoli": 0,
+    "esempiPiccoli": [],
+    "bassoContrasto": 12,
+    "esempiBassi": [
+      "4.41 11px «Demo»",
+      "3.36 14px «Fuori sessione»",
+      "3.36 14px «—»",
+      "3.36 14px «—»",
+      "3.36 14px «—»",
+      "3.36 14px «—»",
+      "3.36 14px «—»",
+      "3.36 14px «—»",
+      "3.81 11px «Gen»",
+      "3.81 11px «Feb»",
+      "3.81 11px «Apr»",
+      "3.81 11px «Mag»"
+    ],
+    "famiglie": [
+      "Geist"
+    ],
+    "erroriConsole": []
+  },
+  {
+    "pagina": "/reports?period=all",
+    "larghezza": 390,
+    "tema": "dark",
+    "file": "reports_period_all__390__dark.png",
+    "h1": "Reports",
+    "altezza": 2370,
+    "innerWidth": 390,
+    "scrollWidth": 390,
+    "sbordi": [],
+    "sotto12": 4,
+    "piccoli": 0,
+    "esempiPiccoli": [],
+    "bassoContrasto": 1,
+    "esempiBassi": [
+      "4.41 11px «Demo»"
+    ],
+    "famiglie": [
+      "Geist"
+    ],
+    "erroriConsole": []
+  },
+  {
+    "pagina": "/reports?period=custom&from=2026-07-01&to=2026-07-15",
+    "larghezza": 390,
+    "tema": "dark",
+    "file": "reports_period_custom_from_2026-07-01_to_2026-07-15__390__dark.png",
+    "h1": "Reports",
+    "altezza": 1966,
+    "innerWidth": 390,
+    "scrollWidth": 390,
+    "sbordi": [],
+    "sotto12": 4,
+    "piccoli": 0,
+    "esempiPiccoli": [],
+    "bassoContrasto": 1,
+    "esempiBassi": [
+      "4.41 11px «Demo»"
+    ],
+    "famiglie": [
+      "Geist"
+    ],
+    "erroriConsole": []
+  },
+  {
+    "pagina": "/analytics?period=all",
+    "larghezza": 390,
+    "tema": "dark",
+    "file": "analytics_period_all__390__dark.png",
+    "h1": "Analytics",
+    "altezza": 9495,
+    "innerWidth": 390,
+    "scrollWidth": 390,
+    "sbordi": [
+      {
+        "d": 316,
+        "w": 324,
+        "t": "",
+        "cols": 7
+      },
+      {
+        "d": 252,
+        "w": 324,
+        "t": "",
+        "cols": 6
+      }
+    ],
+    "sotto12": 46,
+    "piccoli": 0,
+    "esempiPiccoli": [],
+    "bassoContrasto": 1,
+    "esempiBassi": [
+      "4.41 11px «Demo»"
+    ],
+    "famiglie": [
+      "Geist"
+    ],
+    "erroriConsole": []
+  }
+]

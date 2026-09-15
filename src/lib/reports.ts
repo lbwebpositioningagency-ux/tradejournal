@@ -1,5 +1,6 @@
 import { formatNumber } from "@/lib/format-number";
 import { electExtremes, type Extremes } from "@/lib/metrics/extremes";
+import { meanEstimate, parseUnits, type Estimate } from "@/lib/metrics/confidence";
 
 /**
  * Helper puri per i Reports: riempiono i bucket mancanti delle serie
@@ -12,13 +13,19 @@ export interface BucketPoint {
   label: string;
   netPnl: string;
   trades: number;
+  /**
+   * P&L dei trade del bucket in centesimi interi, in ordine di chiusura: serve
+   * all'intervallo dell'attesa per trade con cui si eleggono migliore e
+   * peggiore. Assente nei punti costruiti a mano (grafici, test).
+   */
+  pnlUnits?: string[];
 }
 
 export const WEEKDAY_SHORT = ["Lun", "Mar", "Mer", "Gio", "Ven", "Sab", "Dom"];
 
 /** 24 bucket 0-23; le ore senza trade valgono 0 con zero trade. */
 export function fillHourSeries(
-  rows: { hour: number; netPnl: string; total: number }[],
+  rows: { hour: number; netPnl: string; total: number; pnlUnits?: string[] }[],
 ): BucketPoint[] {
   const byHour = new Map(rows.map((r) => [r.hour, r]));
   return Array.from({ length: 24 }, (_, hour) => {
@@ -27,13 +34,15 @@ export function fillHourSeries(
       label: String(hour).padStart(2, "0"),
       netPnl: row?.netPnl ?? "0",
       trades: row?.total ?? 0,
+      // Solo se la query le porta: i punti costruiti a mano restano uguali.
+      ...(row?.pnlUnits ? { pnlUnits: row.pnlUnits } : {}),
     };
   });
 }
 
 /** 7 bucket lun→dom (ISO 1-7); i giorni senza trade valgono 0. */
 export function fillWeekdaySeries(
-  rows: { weekday: number; netPnl: string; total: number }[],
+  rows: { weekday: number; netPnl: string; total: number; pnlUnits?: string[] }[],
 ): BucketPoint[] {
   const byDay = new Map(rows.map((r) => [r.weekday, r]));
   return Array.from({ length: 7 }, (_, i) => {
@@ -42,6 +51,7 @@ export function fillWeekdaySeries(
       label: WEEKDAY_SHORT[i],
       netPnl: row?.netPnl ?? "0",
       trades: row?.total ?? 0,
+      ...(row?.pnlUnits ? { pnlUnits: row.pnlUnits } : {}),
     };
   });
 }
@@ -108,14 +118,40 @@ export function fillRDistribution(
   return points;
 }
 
+export interface ScoredBucket extends BucketPoint {
+  /** Attesa per trade con intervallo; null senza serie per trade. */
+  mean: Estimate | null;
+}
+
 /**
- * Bucket migliore e peggiore per netPnl, eletti SOLO fra quelli con almeno
- * `EXTREME_MIN_TRADES` trade (regola unica di `metrics/extremes.ts`). Prima
- * bastava un trade: l'ora con un solo trade fortunato era «l'ora migliore».
+ * Bucket migliore e peggiore, eletti SOLO fra quelli con almeno
+ * `EXTREME_MIN_TRADES` trade (regola unica di `metrics/extremes.ts`).
+ *
+ * Fase 4: con le serie per trade l'elezione si fa sull'ATTESA PER TRADE e
+ * richiede intervalli disgiunti. Prima si faceva sul P&L totale, che premia la
+ * fascia con più trade invece di quella che rende di più per trade. Senza
+ * serie (punti costruiti a mano) resta il confronto sul P&L totale.
+ *
+ * Le stime si calcolano UNA volta per bucket: l'elezione legge valore e
+ * intervallo più volte, e il bootstrap non va ripetuto.
  */
-export function bestAndWorstBucket(points: BucketPoint[]): Extremes<BucketPoint> {
-  return electExtremes(points, {
-    trades: (p) => p.trades,
-    value: (p) => (p.trades > 0 ? p.netPnl : null),
-  });
+export function bestAndWorstBucket(points: BucketPoint[]): Extremes<ScoredBucket> {
+  const scored: ScoredBucket[] = points.map((p) => ({
+    ...p,
+    mean: p.pnlUnits && p.trades > 0 ? meanEstimate(parseUnits(p.pnlUnits), 100) : null,
+  }));
+  const withSeries = scored.some((p) => p.pnlUnits !== undefined);
+  return electExtremes(
+    scored,
+    withSeries
+      ? {
+          trades: (p) => p.trades,
+          value: (p) => p.mean?.value ?? null,
+          interval: (p) => p.mean?.interval ?? null,
+        }
+      : {
+          trades: (p) => p.trades,
+          value: (p) => (p.trades > 0 ? p.netPnl : null),
+        },
+  );
 }

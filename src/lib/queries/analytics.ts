@@ -206,6 +206,11 @@ export async function getAnalyticsSymbols(
  * testati. Qui non si calcola nessuna metrica, si raggruppa soltanto.
  */
 const SEGMENT_COLUMNS = Prisma.sql`
+  -- Serie per gli intervalli di confidenza (metrics/confidence.ts): R in
+  -- decimillesimi interi, in ordine di chiusura. Eccezione dichiarata al
+  -- «solo aggregati»: il bootstrap ha bisogno delle osservazioni.
+  COALESCE(array_agg(ROUND(t."rMultiple" * 10000)::bigint::text ORDER BY t."closedAt", t."id")
+    FILTER (WHERE t."rMultiple" IS NOT NULL), '{}')        AS "rUnits",
   COUNT(*)::int                                            AS "total",
   (COUNT(*) FILTER (WHERE t."netPnl" > 0))::int            AS "wins",
   (COUNT(*) FILTER (WHERE t."netPnl" < 0))::int            AS "losses",
@@ -243,7 +248,10 @@ export interface SegmentAggregates {
  */
 export interface SegmentAggregatesR
   extends SegmentAggregates,
-    RSplitAggregates {}
+    RSplitAggregates {
+  /** R di ogni trade con rischio, in decimillesimi interi, in ordine di chiusura. */
+  rUnits: string[];
+}
 
 export interface HourPerformanceRow extends SegmentAggregatesR {
   /** 0-23, ora di APERTURA del trade nel fuso dell'utente. */

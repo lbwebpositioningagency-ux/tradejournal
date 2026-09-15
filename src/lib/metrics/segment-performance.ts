@@ -4,6 +4,7 @@ import { profitFactor } from "./profit-factor";
 import { winRate } from "./win-rate";
 import type { MetricInfoData, RSplitAggregates } from "./types";
 import { electExtremes, EXTREME_MIN_TRADES } from "./extremes";
+import { meanEstimate, parseUnits } from "./confidence";
 
 /**
  * §2/§3 — performance per SEGMENTO (fascia oraria, durata del trade).
@@ -66,11 +67,19 @@ export interface SegmentMetrics {
   smallSample: boolean;
   /** True se il segmento non ha alcun trade. */
   empty: boolean;
+  /**
+   * Intervallo al 95% dell'expectancy in R (bootstrap a blocchi); null senza
+   * serie per trade (le finestre rolling non la portano) o sotto 30 trade con R.
+   */
+  avgRInterval: { lower: string; upper: string } | null;
 }
 
-export function segmentMetrics(row: SegmentAggregates): SegmentMetrics {
+export function segmentMetrics(
+  row: SegmentAggregates & { rUnits?: string[] },
+): SegmentMetrics {
   const empty = row.total === 0;
   return {
+    avgRInterval: row.rUnits ? meanEstimate(parseUnits(row.rUnits), 10000).interval : null,
     total: row.total,
     wins: row.wins,
     losses: row.losses,
@@ -202,11 +211,25 @@ export function fillDurationSegments(
 export function bestAndWorst<T extends SegmentMetrics & { label: string }>(
   segments: T[],
   pick: (s: T) => string | null,
-  options: { includeSmallSamples?: boolean } = {},
-): { best: T | null; worst: T | null; eligible: number; withTrades: number } {
+  options: {
+    includeSmallSamples?: boolean;
+    interval?: (s: T) => { lower: string; upper: string } | null;
+  } = {},
+): {
+  best: T | null;
+  worst: T | null;
+  eligible: number;
+  withTrades: number;
+  overlapping: { high: T; low: T } | null;
+} {
   return electExtremes(
     segments,
-    { trades: (s) => s.total, value: (s) => (s.empty ? null : pick(s)) },
+    {
+      trades: (s) => s.total,
+      value: (s) => (s.empty ? null : pick(s)),
+      // Fase 4: con un intervallo, migliore e peggiore solo se disgiunti.
+      ...(options.interval ? { interval: options.interval } : {}),
+    },
     options.includeSmallSamples ? 1 : EXTREME_MIN_TRADES,
   );
 }

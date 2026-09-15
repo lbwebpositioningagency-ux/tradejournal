@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { mulberry32 } from "./metrics/monte-carlo";
 import {
   bestAndWorstBucket,
   fillHourSeries,
@@ -39,6 +40,54 @@ describe("fillWeekdaySeries", () => {
   });
 });
 
+describe("bestAndWorstBucket con le serie per trade — fase 4", () => {
+  /**
+   * `n` trade in centesimi attorno a `media`, sparsi a caso (seme fisso) fra
+   * ±`rumore`. Non una serie regolare: a blocchi ogni blocco avrebbe quasi la
+   * stessa somma e il bootstrap, correttamente, non vedrebbe dispersione.
+   */
+  const serie = (n: number, media: number, rumore: number, seme = 7) => {
+    const rnd = mulberry32(seme);
+    return Array.from({ length: n }, () =>
+      String(media + Math.round((rnd() * 2 - 1) * rumore)),
+    );
+  };
+
+  it("attese distinte e intervalli disgiunti: elezione sull'ATTESA PER TRADE", () => {
+    const r = bestAndWorstBucket([
+      // Più P&L totale ma meno per trade: col vecchio criterio vinceva "10".
+      { label: "10", netPnl: "3000.00", trades: 60, pnlUnits: serie(60, 5000, 100, 1) },
+      { label: "11", netPnl: "2000.00", trades: 40, pnlUnits: serie(40, 20000, 100, 2) },
+      { label: "12", netPnl: "-1600.00", trades: 40, pnlUnits: serie(40, -4000, 100, 3) },
+    ]);
+    expect(r.best?.label).toBe("11");
+    expect(r.worst?.label).toBe("12");
+    expect(r.overlapping).toBeNull();
+    expect(Number(r.best?.mean?.value)).toBeCloseTo(200, 0);
+  });
+
+  it("intervalli sovrapposti: nessuna elezione, i due candidati restano nominati", () => {
+    const r = bestAndWorstBucket([
+      // Attese vicine (+30 e 0 USD) con dispersione di ±900 USD: intervalli
+      // larghi centinaia di dollari, sovrapposti qualunque sia il seme.
+      { label: "16", netPnl: "1860.00", trades: 62, pnlUnits: serie(62, 3000, 90000, 11) },
+      { label: "17", netPnl: "0.00", trades: 32, pnlUnits: serie(32, 0, 90000, 12) },
+    ]);
+    expect(r.best).toBeNull();
+    expect(r.overlapping?.high.label).toBe("16");
+    expect(r.overlapping?.low.label).toBe("17");
+  });
+
+  it("con le serie, sotto 30 trade la fascia non ha stima e non entra", () => {
+    const r = bestAndWorstBucket([
+      { label: "a", netPnl: "100.00", trades: 12, pnlUnits: serie(12, 900, 10) },
+      { label: "b", netPnl: "50.00", trades: 40, pnlUnits: serie(40, 125, 10) },
+    ]);
+    expect(r.eligible).toBe(1);
+    expect(r.best).toBeNull();
+  });
+});
+
 describe("bestAndWorstBucket — elezione solo da 30 trade", () => {
   it("un'ora con UN trade fortunato non diventa l'ora migliore (regressione)", () => {
     const result = bestAndWorstBucket([
@@ -68,6 +117,7 @@ describe("bestAndWorstBucket — elezione solo da 30 trade", () => {
       worst: null,
       eligible: 0,
       withTrades: 0,
+      overlapping: null,
     });
     const pochi = bestAndWorstBucket([
       { label: "a", netPnl: "500", trades: 4 },

@@ -3273,3 +3273,40 @@ pomeriggio, lo spazio liberato è verticale (la riga di 127/146px più il suo in
 chiusa e aperta. Prova: dall'ultimo report, da tastiera (1440 scuro) si apre il 19/08 e col mouse
 (390 chiaro) il settimanale del 16/08; nella tendina del report d'archivio la voce aperta è
 quella giusta. Schermate in `docs/macro-desk/report-tendina-1509/`. Nessuna migrazione.
+## 15/09/2026 · Journal fase 4 — intervalli di confidenza (P1)
+
+Tavola Claude Design «Analytics - fase 4 - intervalli di confidenza». Modulo puro
+`lib/metrics/confidence.ts` (+ `group-estimates.ts`):
+- **Win rate**: Wilson al 95%, confrontato col win rate di **pareggio** del gruppo (col suo payoff):
+  «diverso da zero» non direbbe nulla.
+- **Expectancy in R e attesa per trade in valuta**: bootstrap a blocchi mobili (⌈n^⅓⌉ trade
+  consecutivi, 1.000 ricampionamenti, seme fisso), percentili 2,5–97,5, contro lo zero. Somme su
+  interi in unità minime (centesimi, 1/10.000 di R) arrivati già arrotondati dal database: esatte.
+- **Trade necessari** per distinguersi: ≈ (1,96·σ/|media|)² e 1,96²·p(1−p)/(p−pareggio)².
+- **Campione minimo 30 trade** per gruppo (la soglia della fase 2); l'expectancy in R ha il suo, i
+  soli trade con rischio.
+
+Dati: `array_agg` ordinato per chiusura in `AGGREGATE_COLUMNS` (Reports) e `SEGMENT_COLUMNS`
+(Analytics). Eccezione dichiarata al «solo aggregati»: un intervallo ha bisogno delle osservazioni;
+il raggruppamento resta in SQL, quindi le serie coincidono coi totali. Su SIM1 l'intera pagina Reports
+calcola in ~0,2 s.
+
+Pagina:
+- **Reports**: in testa «Il conto nel periodo» (tre tessere con valore, intervallo, barra con la
+  tacca del riferimento, stato, n). Ogni riga di ogni tabella: stime a tre righe (valore, intervallo,
+  «distinta da zero» / «sopra il pareggio» / «servono ~N trade») e la colonna nuova «Attesa per
+  trade». **Sotto 30 trade**: una cella tratteggiata al posto di Win %, Avg W/L, PF, Expectancy e
+  Attesa, con n e soglia; restano Trade e Net P&L.
+- **Elezioni** (Reports ora e giorno, Analytics fascia oraria e durata): migliore e peggiore solo con
+  intervalli disgiunti. In Reports si elegge sull'attesa per trade (il P&L totale premiava le fasce
+  con più trade). Su SIM1 **nessuna** elezione sopravvive: 09 contro 17, giovedì contro mercoledì,
+  09-10 contro 17-18, 1-2 h contro 30-60 min hanno intervalli sovrapposti, e la pagina lo scrive
+  nominando i due candidati.
+
+SIM1, conto intero: win rate 49,28% [45,37; 53,20] contro pareggio 38,83%; expectancy 0,24R [0,11;
+0,35]; attesa +115,12 USD [+50,44; +177,32]. Su due settimane (17 trade) tutto dichiara il campione
+insufficiente. Misure a 1440/390 nei due temi (Reports, Reports su due settimane, Analytics): 0 testi
+< 11px, 0 < 4,5:1, 0 errori, nessuna pagina più larga del viewport. Trappola trovata: un testo JSX
+che segue un'espressione a inizio riga e contiene un'entità (`&apos;`, `&amp;`) perde lo spazio
+iniziale nella build («17trade») — spazio esplicito `{" "}`. Gate (dopo il rebase su e1c5730): typecheck,
+lint, 2.239 test, build verdi. Nessuna migrazione. Schermate in `docs/journal/fase4-intervalli/`.

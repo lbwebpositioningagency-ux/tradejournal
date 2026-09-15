@@ -667,8 +667,14 @@ export default async function AnalyticsPage({
     return `/analytics${qs ? `?${qs}` : ""}#timing`;
   };
   const durationSegments = fillDurationSegments(durationRows);
-  const bestHour = bestAndWorst(hourSegments, (s) => s.avgR);
-  const bestDuration = bestAndWorst(durationSegments, (s) => s.avgR);
+  // Fase 4: migliore e peggiore solo con intervalli dell'expectancy in R
+  // disgiunti — valori diversi con intervalli sovrapposti non si distinguono.
+  const bestHour = bestAndWorst(hourSegments, (s) => s.avgR, {
+    interval: (s) => s.avgRInterval,
+  });
+  const bestDuration = bestAndWorst(durationSegments, (s) => s.avgR, {
+    interval: (s) => s.avgRInterval,
+  });
 
   const senzaR = coverage.total - coverage.withR;
   const senzaPiano = coverage.withR - coverage.withTargetR;
@@ -1219,7 +1225,7 @@ export default async function AnalyticsPage({
                         Il campione di una coppia sono i giorni in cui{" "}
                         <strong className="text-foreground">entrambe</strong> hanno
                         operato: solo lì possono perdere o guadagnare insieme. Sotto{" "}
-                        {CORRELATION_MIN_DAYS} giorni in comune la cella non mostra un
+                        {CORRELATION_MIN_DAYS}{" "}giorni in comune la cella non mostra un
                         numero. Il coefficiente si calcola invece su tutti i giorni in
                         cui almeno una ha operato, con zero per quella ferma: il P&amp;L
                         del conto è la somma dei due, zero compreso.
@@ -1408,8 +1414,23 @@ export default async function AnalyticsPage({
                             con almeno {EXTREME_MIN_TRADES} trade: le altre restano nel
                             grafico, più chiare, senza etichetta.
                           </>
+                        ) : bestHour.overlapping ? (
+                          <>
+                            {" "}
+                            Nessuna fascia eletta migliore o peggiore: la più alta (
+                            <strong className="text-foreground">{bestHour.overlapping.high.label}</strong>,{" "}
+                            {formatRMultiple(bestHour.overlapping.high.avgR!)}, intervallo{" "}
+                            {formatRMultiple(bestHour.overlapping.high.avgRInterval!.lower)} –{" "}
+                            {formatRMultiple(bestHour.overlapping.high.avgRInterval!.upper)}) e la più
+                            bassa (
+                            <strong className="text-foreground">{bestHour.overlapping.low.label}</strong>,{" "}
+                            {formatRMultiple(bestHour.overlapping.low.avgR!)}, intervallo{" "}
+                            {formatRMultiple(bestHour.overlapping.low.avgRInterval!.lower)} –{" "}
+                            {formatRMultiple(bestHour.overlapping.low.avgRInterval!.upper)}) hanno
+                            intervalli che si sovrappongono: non si distinguono.
+                          </>
                         ) : bestHour.withTrades > 0 ? (
-                          ` Nessuna fascia eletta migliore o peggiore: ne servono almeno due con ${EXTREME_MIN_TRADES} trade (${bestHour.eligible} nel periodo).`
+                          ` Nessuna fascia eletta migliore o peggiore: ne servono almeno due con ${EXTREME_MIN_TRADES} trade e un intervallo (${bestHour.eligible} nel periodo).`
                         ) : null}
                       </>
                     }
@@ -1443,8 +1464,22 @@ export default async function AnalyticsPage({
                           Eletti fra le {bestDuration.eligible} fasce con almeno{" "}
                           {EXTREME_MIN_TRADES} trade.
                         </>
+                      ) : bestDuration.overlapping ? (
+                        <>
+                          Nessuna durata eletta migliore o peggiore: la più alta (
+                          <strong className="text-foreground">{bestDuration.overlapping.high.label}</strong>,{" "}
+                          {formatRMultiple(bestDuration.overlapping.high.avgR!)}, intervallo{" "}
+                          {formatRMultiple(bestDuration.overlapping.high.avgRInterval!.lower)} –{" "}
+                          {formatRMultiple(bestDuration.overlapping.high.avgRInterval!.upper)}) e la più
+                          bassa (
+                          <strong className="text-foreground">{bestDuration.overlapping.low.label}</strong>,{" "}
+                          {formatRMultiple(bestDuration.overlapping.low.avgR!)}, intervallo{" "}
+                          {formatRMultiple(bestDuration.overlapping.low.avgRInterval!.lower)} –{" "}
+                          {formatRMultiple(bestDuration.overlapping.low.avgRInterval!.upper)}) hanno
+                          intervalli che si sovrappongono: non si distinguono.
+                        </>
                       ) : bestDuration.withTrades > 0 ? (
-                        `Nessuna durata eletta migliore o peggiore: ne servono almeno due con ${EXTREME_MIN_TRADES} trade (${bestDuration.eligible} nel periodo).`
+                        `Nessuna durata eletta migliore o peggiore: ne servono almeno due con ${EXTREME_MIN_TRADES} trade e un intervallo (${bestDuration.eligible} nel periodo).`
                       ) : undefined
                     }
                     metodo={

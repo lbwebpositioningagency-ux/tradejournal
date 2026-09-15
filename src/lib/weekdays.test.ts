@@ -18,6 +18,8 @@ function row(weekday: number, over: Partial<WeekdayBreakdownRow> = {}): WeekdayB
     rWinCount: 2,
     rLossSum: "-1.5000",
     rLossCount: 1,
+    pnlUnits: [],
+    rUnits: [],
     ...over,
   };
 }
