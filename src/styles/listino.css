@@ -475,21 +475,43 @@
   color: var(--md-text);
   font-weight: 500;
 }
-/* SINTESI: stessa taglia delle celle, come nella versione di riferimento —
-   quattro righe leggibili, non una fascia di note. La Media apre il blocco
-   sotto il doppio filetto dei consuntivi ed è tinta con la stessa scala. */
-.ml-griglia tfoot tr > * {
+/* SINTESI: stessa taglia delle celle (come nella versione di riferimento), ma
+   STACCATA dal corpo — tavola «Sistema visivo v3 - Stagionalità, la sintesi si
+   stacca», forma c. Col solo doppio filetto la riga Media si leggeva come
+   l'anno dopo il più vecchio; ora una riga vuota di 12px apre il vuoto e il
+   blocco poggia su un fondo proprio con un filo sopra, restando incolonnato
+   con i periodi. La Media tiene la sua tinta, che sul fondo della fascia si
+   stacca meglio che sulle caselle degli anni. */
+.ml-griglia tbody.ml-stacco td {
+  padding: 0;
+  height: 12px;
+}
+.ml-griglia tfoot :is(th, td) {
+  background-color: var(--md-surface-2);
   color: var(--md-text-2);
+}
+.ml-griglia tfoot tr:first-child > * {
+  box-shadow: inset 0 2px 0 var(--ml-rule);
+  padding-top: 6px;
+}
+.ml-griglia tfoot tr.ml-sintesi-chiude > * {
+  padding-bottom: 6px;
+}
+/* Gli anni compaiono solo quando avvertono (colonne con anni diversi, o
+   pochi) e restano FUORI dalla fascia, sulla card: il triangolo del campione
+   basso è tarato lì — sul fondo della fascia scende a 4,33:1 in chiaro e
+   4,30:1 in scuro (misurato il 16/09/2026 e di nuovo il 17/09). */
+.ml-griglia tfoot tr.ml-anni :is(th, td) {
+  background-color: var(--md-bg);
+  box-shadow: none;
+  padding-top: 5px;
 }
 .ml-griglia tfoot tr.ml-media > * {
   font-weight: 600;
   color: var(--md-text);
 }
-.ml-griglia tfoot tr:first-child > * {
-  border-top: 3px double var(--ml-rule);
-  padding-top: 7px;
-}
 .ml-griglia tfoot th:first-child {
+  background-color: var(--md-surface-2);
   font-size: 11px;
   font-weight: 600;
   letter-spacing: 0.04em;

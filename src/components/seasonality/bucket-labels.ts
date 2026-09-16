@@ -27,6 +27,8 @@ export interface BucketAxis {
   columnName: string;
   /** Plurale per le frasi («meglio del 70% dei mesi»). */
   plural: string;
+  /** «…degli altri mesi», «…delle altre ore»: genere e articolo cambiano. */
+  altri: string;
   /** Unità del CAMPIONE: la stessa del bucket — mesi, settimane, giorni,
    * sessioni, ore. «Gennaio · 20 mesi» dice da solo cosa è stato contato. */
   rawUnit: string;
@@ -51,6 +53,7 @@ export const BUCKET_AXIS: Record<
     short: (b) => MONTH_LABELS_SHORT[b - 1] ?? String(b),
     columnName: "Mese",
     plural: "mesi",
+    altri: "degli altri mesi",
     rawUnit: "mesi",
   },
   WEEK: {
@@ -59,6 +62,7 @@ export const BUCKET_AXIS: Record<
     short: weekLabel,
     columnName: "Settimana ISO",
     plural: "settimane",
+    altri: "delle altre settimane",
     rawUnit: "settimane",
   },
   WEEKDAY: {
@@ -67,6 +71,7 @@ export const BUCKET_AXIS: Record<
     short: (b) => (WEEKDAY_LABELS[b] ?? String(b)).slice(0, 3),
     columnName: "Giorno",
     plural: "giorni",
+    altri: "degli altri giorni",
     rawUnit: "giorni",
   },
   SESSION: {
@@ -75,6 +80,7 @@ export const BUCKET_AXIS: Record<
     short: (b) => (SESSION_LABELS[SESSIONS[b]] ?? String(b)).split(" ")[0],
     columnName: "Sessione",
     plural: "sessioni",
+    altri: "delle altre sessioni",
     rawUnit: "sessioni",
   },
   HOUR: {
@@ -83,6 +89,7 @@ export const BUCKET_AXIS: Record<
     short: (b) => String(b).padStart(2, "0"),
     columnName: "Ora",
     plural: "ore",
+    altri: "delle altre ore",
     rawUnit: "ore",
   },
 };

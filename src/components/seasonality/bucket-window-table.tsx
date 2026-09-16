@@ -18,9 +18,15 @@ import {
   numerositaInfo,
   medianaInfo,
   posInfo,
+  posizioneInfo,
   sigmaInfo,
   stdevInfo,
 } from "@/lib/seasonality/metric-info";
+import { RangeBar } from "@/components/macro-desk/primitives";
+import {
+  descrizionePosizione,
+  posizioneNelRange,
+} from "@/components/seasonality/posizione";
 import {
   UNIT_LABEL,
   decimalsFor,
@@ -55,6 +61,12 @@ import { formatInteger } from "@/lib/format-number";
  * finestre, accanto ai rendimenti (3a), e dove non si calcola una cella sola
  * alta quanto la tabella dice perché (3c-i); «in rialzo» contato nell'unità
  * della riga, sulla stessa base del campione.
+ *
+ * COLONNA «POSIZIONE» (17/09/2026): ripristinata com'era fino a `ca626c1` —
+ * la `RangeBar` del desk che mostra dove cade il periodo fra il peggiore e il
+ * migliore della finestra selezionata, col rango nel tooltip (`posizione.ts`).
+ * Era stata tolta perché «ripeteva il rango già detto dal colore», ma il colore
+ * dice il segno, non la distanza dagli altri periodi.
  */
 export function BucketWindowTable({
   kind,
@@ -105,6 +117,9 @@ export function BucketWindowTable({
   const [etMigliore, etPeggiore] = kind === "LEVEL" ? ["Massimo", "Minimo"] : ["Migliore", "Peggiore"];
   const ferma = "sticky left-0 z-[1] bg-[var(--md-bg)]";
   const cellaMotivo = mostraAmpiezza && motivoAmpiezza !== null;
+  /* Scala della colonna «Posizione»: le medie della finestra selezionata, cioè
+     l'intervallo reale fra il periodo peggiore e il migliore di questa vista. */
+  const medie = selected.map((s) => s.mean);
 
   if (windows.length === 0) {
     return <p className="text-sm text-[var(--md-muted)]">Nessuna statistica disponibile per questa granularità.</p>;
@@ -202,6 +217,15 @@ export function BucketWindowTable({
                 <MetricInfo info={campioneInfo(axis.rawUnit)} size="sm" />
               </span>
             </th>
+            {/* Posizione: dov'è questo periodo fra il peggiore e il migliore
+                della finestra selezionata. Ripristinata il 17/09/2026 (c'era
+                fino a `ca626c1`): il colore della colonna dice il segno, non
+                se settembre è il peggiore dei dodici o il quart'ultimo. */}
+            <th scope="col" className="ml-sep w-32 text-left">
+              <span className="inline-flex items-center gap-1">
+                Posizione <MetricInfo info={posizioneInfo} size="sm" />
+              </span>
+            </th>
           </tr>
         </thead>
         <tbody>
@@ -212,6 +236,7 @@ export function BucketWindowTable({
             const amp = ampiezza?.get(bucket);
             const occorrenze = sel ? (sel.rawCount ?? sel.n) : 0;
             const unita = unitaFrequenza(granularity, bucket);
+            const posizione = sel ? posizioneNelRange(sel.mean, medie) : null;
             return (
               <tr key={bucket} className={adesso ? "ml-ora" : undefined} aria-current={adesso ? "date" : undefined}>
                 <td className={`ml-sx ${ferma} font-medium`}>
@@ -329,6 +354,18 @@ export function BucketWindowTable({
                       )
                     : "—"}
                 </td>
+                <td className="ml-sep">
+                  {posizione !== null ? (
+                    <RangeBar
+                      position={posizione}
+                      color={valueColor(sel!.mean, kind, reference)}
+                      ariaLabel={`${axis.label(bucket)}: posizione fra ${axis.plural}`}
+                      title={descrizionePosizione(axis.label(bucket), sel!.mean, medie, axis.altri)}
+                    />
+                  ) : (
+                    "—"
+                  )}
+                </td>
               </tr>
             );
           })}
@@ -339,8 +376,9 @@ export function BucketWindowTable({
         Valori in {UNIT_LABEL[unit]}, non riscalati: l&apos;indice a base 100 è solo del grafico.{" "}
         {mostraAmpiezza ? "Ampiezza, m" : "M"}ediana, StDev,{" "}
         {mostraEstremi ? `${kind === "LEVEL" ? "massimo e minimo" : "migliore e peggiore anno"}, ` : ""}
-        {positiveLabel(kind).toLowerCase()} e campione si riferiscono alla finestra selezionata (
-        {selectedWindow} anni). «{positiveLabel(kind)}» e ampiezza si contano sulle occorrenze della riga
+        {positiveLabel(kind).toLowerCase()}, campione e posizione si riferiscono alla finestra
+        selezionata ({selectedWindow} anni). La barra «Posizione» dice dove cade il periodo fra il
+        peggiore e il migliore di questa vista, e il suo rango è nel tooltip. «{positiveLabel(kind)}» e ampiezza si contano sulle occorrenze della riga
         ({axis.rawUnit}), come il campione; media, mediana, StDev e banda sugli anni. Le frequenze sono
         conteggi storici, non probabilità. {meanHelp(kind)} Ogni colonna «{meanLabel(kind)}» porta il suo n
         nel tooltip.

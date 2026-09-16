@@ -3546,3 +3546,37 @@ Misure: griglia a 52 colonne su oro, S&P e VIX, a 1440, 1280 e 390 nei due temi;
 0 errori in console, nessuna pagina più larga del viewport. Gate: typecheck, lint, test (aggiornati
 quelli che contavano 53 settimane), build verdi. Nessuna migrazione. Schermate in
 `docs/stagionalita/settimana-53/`.
+
+## 17/09/2026 · Stagionalità — la sintesi si stacca, e torna la barra «Posizione»
+
+**1. Blocco di sintesi staccato.** Nella griglia anni × periodo, Media, StDev e In rialzo si
+leggevano come l'anno successivo al più vecchio: il doppio filetto non bastava. Tre forme a confronto
+nella tavola CD «Sistema visivo v3 - Stagionalità, la sintesi si stacca» (giro 9); scelta la **c**:
+riga vuota di 12px fra corpo e sintesi (un `tbody` aria-hidden, quindi le colonne restano le stesse)
+e blocco su `--md-surface-2` con un filo superiore. Le tre righe si leggono come un oggetto solo,
+incolonnate con i periodi; la Media tiene la sua tinta e sul fondo della fascia si stacca meglio che
+fra le caselle degli anni. «In rialzo» in ricalcolo resta una casella sola con due parole. La riga
+«Anni» — che compare solo quando avverte — sta FUORI dalla fascia, sulla card: lì il triangolo del
+campione basso è tarato (sulla fascia scendeva a 4,33 chiaro / 4,30 scuro).
+Contrasti sul fondo della fascia: testo secondario **7,94** chiaro e **7,15** scuro, primario 17,70 e
+14,11, etichette in maiuscoletto 4,77 e 5,98; il minimo misurato in pagina è **4,73**.
+Altezza del blocco: 92px sull'oro (mese), 106 dove c'è la frazione, 137 con la riga Anni.
+
+**2. Barra «Posizione»: esisteva, ed è tornata.** Cercata prima di ricostruire: la colonna con la
+`RangeBar` del desk c'era dalla fase 1 (`fa050bf`), rifinita in `2bbc4e8` («percentile sulla
+RangeBar»), documentata in `docs/stagionalita-stato-precedente.md` («…campione, posizione») e visibile
+nelle schermate del tag. È stata tolta il 15/09/2026 in **`ca626c1`** con la motivazione, scritta nel
+file, che «ripeteva il rango già detto dal colore della colonna della finestra selezionata» — ma il
+colore dice il SEGNO, non se settembre è il peggiore dei dodici o il quart'ultimo.
+Ripristinata come ultima colonna: traccia `--md-surface-3`, punto nel colore semantico del valore,
+posizione lineare `(media − minimo) / (massimo − minimo)` sulle medie della finestra selezionata,
+rango nel tooltip («Gennaio: 1º su 12 — meglio del 100% · peggio dello 0% degli altri mesi»).
+La logica sta in `components/seasonality/posizione.ts` con i suoi test; la frase è declinata per
+profondità (`BUCKET_AXIS.altri`: «degli altri mesi», «delle altre ore»). Nessun dato né calcolo
+toccato: legge le medie già in tabella.
+
+Misure (build locale; oro mese/settimana/giorno/sessione, S&P ora, VIX giorno; 1440, 1280, 390; due
+temi — 36 viste): 0 testi < 11px, 0 sbordi, 0 errori in console, contrasto minimo 4,73. La barra
+compare su tutte le profondità (12, 52, 5, 4 e 24 righe) ed è l'ultima colonna: a 1440 la tabella
+scorre di ~230px nel suo riquadro, come le altre colonne di destra. Gate: typecheck, lint, 2.360
+test, build verdi. Nessuna migrazione. Schermate in `docs/stagionalita/sintesi-posizione/`.

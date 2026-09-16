@@ -42,8 +42,14 @@ import { formatInteger, formatNumber } from "@/lib/format-number";
  * ferma, «%» fuori dalle caselle, legenda della scala e nota in fondo.
  *
  * LARGHEZZA: la griglia usa la larghezza della pagina — le colonne vanno da
- * quanto serve alla cifra più lunga (misurata in `ch`) fino a 7,5rem, oltre le
- * quali si fermano per non diventare caselle enormi e vuote.
+ * quanto serve alla cifra più lunga (misurata in `ch`) fino a COLONNA_MAX_REM,
+ * oltre la quale si fermano per non diventare caselle enormi e vuote.
+ *
+ * SINTESI STACCATA (17/09/2026, tavola «Sistema visivo v3 - Stagionalità, la
+ * sintesi si stacca», forma c): fra l'ultimo anno e il blocco in fondo c'è una
+ * riga vuota di 12px, e il blocco poggia su un fondo proprio. Prima Media,
+ * StDev e In rialzo si leggevano come l'anno successivo al più vecchio. La riga
+ * «Anni», che compare solo quando avverte, resta fuori dalla fascia.
  */
 
 /** Larghezza massima di una colonna: oltre, la griglia si ferma e resta a sinistra. */
@@ -282,6 +288,18 @@ export function SeasonalityHeatmap({
               );
             })}
           </tbody>
+          {/* Lo STACCO fra gli anni e la sintesi: una riga vuota di 12px, così
+              il blocco in fondo non si legge come l'anno dopo il più vecchio
+              (tavola «Sistema visivo v3 - Stagionalità, la sintesi si stacca»,
+              forma c). Le colonne restano le stesse: è un tbody, non un
+              contenitore a parte. */}
+          {conSintesi ? (
+            <tbody className="ml-stacco" aria-hidden="true">
+              <tr>
+                <td colSpan={axis.buckets.length + 1} />
+              </tr>
+            </tbody>
+          ) : null}
           {/* Con un filtro di mese la sintesi non c'è: numeri di periodi diversi
               non si accostano. */}
           {conSintesi ? (
@@ -310,7 +328,7 @@ export function SeasonalityHeatmap({
                 render={(s) => formatStdev(s.stdev, kind, unit, sintesiDecimals)}
               />
               {frequenzeInRicalcolo ? (
-                <tr className="ml-sintesi">
+                <tr className="ml-sintesi ml-sintesi-chiude">
                   <th scope="row">{positiveLabel(kind)}</th>
                   <td
                     colSpan={axis.buckets.length}
@@ -332,7 +350,7 @@ export function SeasonalityHeatmap({
                       </span>
                     </>
                   }
-                  className="ml-sintesi"
+                  className="ml-sintesi ml-sintesi-chiude"
                   buckets={axis.buckets}
                   values={summaryByBucket}
                   render={(s) => {
@@ -353,7 +371,7 @@ export function SeasonalityHeatmap({
               {anniDaMostrare ? (
                 <SintesiRiga
                   label="Anni"
-                  className="ml-sintesi"
+                  className="ml-anni"
                   buckets={axis.buckets}
                   values={summaryByBucket}
                   render={(s) => (
