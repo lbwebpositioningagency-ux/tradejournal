@@ -5,7 +5,7 @@ import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { tradeAccountWhere } from "@/lib/active-account";
 import { resolveTradeScope } from "@/lib/demo-account";
-import { ALL_ACCOUNTS } from "@/lib/constants";
+import { ALL_ACCOUNTS, SEQUENCE_MAX_TRADES } from "@/lib/constants";
 import {
   formatDateTime,
   secondsSince,
@@ -212,7 +212,8 @@ export default async function DashboardPage({
         accountId: activeAccountId,
         currency: lifetimeScope.active,
       }),
-      getTradeSequence(filter),
+      // «Sequenza trade»: il preset «Tutti» vuole la sequenza intera, fino al tetto.
+      getTradeSequence(filter, SEQUENCE_MAX_TRADES),
       // F33 — posizioni aperte del conto/valuta attivi (non filtrate dal
       // periodo: una posizione aperta è "adesso" per definizione).
       prisma.trade.findMany({
@@ -404,8 +405,10 @@ export default async function DashboardPage({
       netPnl: p.netPnl,
       rMultiple: p.rMultiple,
     })),
-    sequenceTruncated: agg.total > sequence.length,
-    tradeRuns: streakSummary(sequence.map((p) => classifyOutcome(p.netPnl))),
+    sequenceTotal: agg.total,
+    // Winners & Losers: stesse streak di prima, sugli ultimi 200 trade. Le
+    // streak di «Sequenza trade» le ricalcola il grafico sulla sua finestra.
+    tradeRuns: streakSummary(sequence.slice(-200).map((p) => classifyOutcome(p.netPnl))),
     dayRuns: dayStreakSummary(daily),
     dayRunsR: dayStreakSummary(daily.map((d) => ({ ...d, netPnl: d.rSum }))),
     days: dayStats(daily),

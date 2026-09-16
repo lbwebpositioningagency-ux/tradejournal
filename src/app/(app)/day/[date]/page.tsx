@@ -17,16 +17,13 @@ import { addDays, calendarHref, isValidDateKey } from "@/lib/calendar";
 import { dayAttachmentsByPhase, dayNotesByPhase } from "@/lib/day-journal";
 import { formatDateTime, todayKeyInZone, zonedInputToUtc } from "@/lib/dates";
 import {
-  classifyOutcome,
   netPnlInfo,
   profitFactor,
   profitFactorInfo,
-  streakSummary,
-  streaksInfo,
   winRate,
   winRateInfo,
 } from "@/lib/metrics";
-import { TradeSequenceChart } from "@/components/charts/trade-sequence-chart";
+import { TradeSequencePanel } from "@/components/charts/trade-sequence-panel";
 import { MetricInfo } from "@/components/metric-info";
 import { EmptyState } from "@/components/empty-state";
 import {
@@ -255,9 +252,6 @@ export default async function DayViewPage({
   }
   const dayWinRate = winRate(wins, trades.length);
   const dayProfitFactor = profitFactor(winSum.toFixed(2), lossSum.toFixed(2));
-  const dayRuns = streakSummary(
-    trades.map((t) => classifyOutcome(t.netPnl.toString())),
-  );
 
   return (
     <div className="flex flex-col gap-4">
@@ -427,38 +421,17 @@ export default async function DayViewPage({
               </p>
             </CardContent>
           </Card>
-          <Card>
-            <CardHeader className="flex flex-row flex-wrap items-center justify-between gap-2">
-              <CardTitle className="stat-label flex items-center gap-1">
-                Sequenza trade
-                <MetricInfo info={streaksInfo} />
-              </CardTitle>
-              <div className="flex items-center gap-4 text-xs text-muted-foreground">
-                <span>
-                  Max Win Streak{" "}
-                  <span className="font-semibold text-profit">
-                    {dayRuns.maxWin}
-                  </span>
-                </span>
-                <span>
-                  Max Loss Streak{" "}
-                  <span className="font-semibold text-loss">
-                    {dayRuns.maxLoss}
-                  </span>
-                </span>
-              </div>
-            </CardHeader>
-            <CardContent>
-              <TradeSequenceChart
-                points={intradayPoints.map((p, i) => ({
-                  label: p.time,
-                  symbol: p.symbol,
-                  netPnl: trades[i].netPnl.toString(),
-                }))}
-                suffix={` ${currency}`}
-              />
-            </CardContent>
-          </Card>
+          <TradeSequencePanel
+            title="Sequenza trade"
+            points={intradayPoints.map((p, i) => ({
+              label: p.time,
+              symbol: p.symbol,
+              netPnl: trades[i].netPnl.toString(),
+            }))}
+            suffix={` ${currency}`}
+            context="giornata"
+            total={trades.length}
+          />
         </div>
       ) : null}
 

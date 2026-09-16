@@ -36,11 +36,14 @@ export function TradeSequenceChart({
   points,
   suffix,
   masked = false,
+  firstIndex = 1,
 }: {
   points: TradeSequencePointView[];
   suffix: string;
   /** Vista privacy: assi e importi mascherati. */
   masked?: boolean;
+  /** Numero d'ordine del primo punto nella sequenza (il «#» del tooltip). */
+  firstIndex?: number;
 }) {
   const animate = useChartAnimation();
   // F23 — clamp visivo degli outlier: il disegno è troncato (▲/▼ sul punto),
@@ -50,7 +53,7 @@ export function TradeSequenceChart({
   const data = points.map((p, i) => {
     const { display, clamped } = clampValue(raw[i], limit);
     return {
-      index: i + 1,
+      index: i + firstIndex,
       label: p.label,
       symbol: p.symbol,
       value: display,
@@ -91,6 +94,7 @@ export function TradeSequenceChart({
           labelStyle={CHART.tooltipLabelStyle}
         />
         <Bar dataKey="value" name="Net P&L" radius={CHART.barRadius}
+          maxBarSize={28}
           isAnimationActive={animate}
         >
           {data.map((point) => (

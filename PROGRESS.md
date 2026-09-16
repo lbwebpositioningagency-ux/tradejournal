@@ -3798,3 +3798,31 @@ stop presente e trade al giorno 0), test che lo stato demo non contenga cifre n�
 build locale con tutti i mesi della heatmap aperti (577 celle SIM1, 122 del conto locale in USD e in
 EUR), 1440 e 390, due temi: 0 testi sotto 11px, 0 contrasti sotto 4,5:1, 0 errori in console.
 Schermate in `docs/progress-tracker/schermate/`. Debito registrato in `docs/DEBITO-TECNICO.md`.
+
+## Grafici temporali: solo preset, e «Sequenza trade» per numero di trade in tutti i punti (16/09/2026)
+
+**P&L giornaliero e cumulativo (Dashboard)**: tolta la striscia di scorrimento aggiunta con f57eb8d.
+Restano i preset `30g · 90g · 6m · 1a · Tutto` (apertura 6m), sempre ancorati alla parte più recente;
+«Tutto» è l'intero storico. Il grafico riceve direttamente la fetta visibile (niente `<Brush>`, e
+con lui spariscono il rimontaggio e lo stato di trascinamento). Il cumulato e il picco si calcolano
+sul periodo intero e poi si taglia. Codice morto rimosso: `nextRange`, `useBrushRemount`, lo stato
+di trascinamento di `useChartWindow`. `ZoomBrush`/`useChartZoom` restano (Stagionalità, rolling).
+
+**Sequenza trade**: compariva in **3 punti** — Dashboard, Trade View (`/trades`, sequenza coi filtri
+della tabella) e giornata (`/day/[date]`) — tutti ora sullo stesso `TradeSequencePanel`
+(`components/charts/trade-sequence-panel.tsx`). Preset per numero di trade `25 · 50 · 100 · 200 ·
+Tutti`, apertura 50, sempre gli ultimi N; nessuna striscia. Le streak (max e media) si ricalcolano
+sulla finestra visibile con `streakSummary` e una riga le dichiara («Streak degli ultimi 50 trade» /
+«Streak su tutta la sequenza (84 trade)»). I preset più lunghi della sequenza non compaiono (spenti
+stavano a 2,0:1); con ≤ 25 trade il segmentato non c'è. Logica in `sequenceWindow`
+(`lib/chart-window.ts`, testata). Sequenza letta fino a `SEQUENCE_MAX_TRADES` = 1.000 (prima 200)
+perché «Tutti» sia l'intera sequenza; oltre, la didascalia dichiara il limite. Winners & Losers
+restano sugli ultimi 200 come prima. In Trade View i preset tagliano il risultato del filtro: il
+preset scelto sopravvive ai cambi di filtro, vale «Tutti» se il filtro lascia meno trade e torna
+quando il filtro si allarga. Barre della sequenza con tetto 28px; il segno ▲/▼ delle barre troncate
+passa da 9 a 11px (usato solo da questi due grafici).
+Tavola Claude Design «Grafici temporali - solo preset e Sequenza trade per numero di trade» (1a).
+
+Misure (build locale, SIM1, 1440 e 390, due temi, 68 stati): nessuna striscia, 0 testi < 11px e 0
+contrasti < 4,5:1 (HTML e SVG), nessuno sbordo, nessun errore in console. Nessuna migrazione.
+Schermate e misure in `docs/dashboard/sequenza-preset/`.

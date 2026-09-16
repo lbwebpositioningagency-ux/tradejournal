@@ -48,17 +48,10 @@ import {
 } from "@/components/ui/table";
 import { TradeFiltersBar } from "@/components/trades/trade-filters-bar";
 import { EmptyState } from "@/components/empty-state";
-import { classifyOutcome, streakSummary, streaksInfo } from "@/lib/metrics";
-import { MetricInfo } from "@/components/metric-info";
-// P-01 — versione lazy: recharts (~110 kB gz) fuori dal bundle iniziale
-// della pagina, che senza il grafico è una tabella.
-import { TradeSequenceChart } from "@/components/charts/lazy-charts";
-import {
-  Card,
-  CardContent,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
+// P-01 — il pannello usa la versione lazy del grafico: recharts (~110 kB gz)
+// resta fuori dal bundle iniziale della pagina, che senza il grafico è una tabella.
+import { TradeSequencePanel } from "@/components/charts/trade-sequence-panel";
+import { SEQUENCE_MAX_TRADES } from "@/lib/constants";
 
 export const metadata: Metadata = { title: "Trade View" };
 
@@ -158,12 +151,13 @@ export default async function TradesPage({
         orderBy: { name: "asc" },
         select: { id: true, name: true },
       }),
-      // Sequenza per il grafico "candele": STESSI filtri della tabella,
-      // solo i chiusi, ultimi 200, tre colonne — mai la lista completa.
+      // «Sequenza trade»: STESSI filtri della tabella, solo i chiusi, fino al
+      // tetto, tre colonne — mai la lista completa. I preset per numero di
+      // trade tagliano questo risultato, non lo storico.
       prisma.trade.findMany({
         where: sequenceWhere,
         orderBy: [{ closedAt: "desc" }, { id: "desc" }],
-        take: 200,
+        take: SEQUENCE_MAX_TRADES,
         select: { netPnl: true, symbol: true, closedAt: true },
       }),
       activeAccountId !== "all"
@@ -180,9 +174,6 @@ export default async function TradesPage({
     symbol: t.symbol,
     netPnl: t.netPnl.toString(),
   }));
-  const runs = streakSummary(
-    sequencePoints.map((p) => classifyOutcome(p.netPnl)),
-  );
   const sequenceCurrency =
     sequenceScope.active ?? activeAccount?.currency ?? user.baseCurrency;
 
@@ -279,39 +270,21 @@ export default async function TradesPage({
       />
 
       {sequencePoints.length > 1 ? (
-        <Card>
-          <CardHeader className="flex flex-row flex-wrap items-center justify-between gap-2">
-            <CardTitle className="stat-label flex items-center gap-1">
-              Sequenza trade (filtri attivi)
-              <MetricInfo info={streaksInfo} />
-            </CardTitle>
-            <div className="flex flex-wrap items-center gap-4 text-xs text-muted-foreground">
-              {sequenceScope.multi ? (
-                <CurrencyFilter
-                  currencies={sequenceScope.totals.map((t) => t.currency)}
-                  active={sequenceScope.active}
-                />
-              ) : null}
-              <span>
-                Max Win Streak{" "}
-                <span className="font-semibold text-profit">{runs.maxWin}</span>
-              </span>
-              <span>
-                Max Loss Streak{" "}
-                <span className="font-semibold text-loss">{runs.maxLoss}</span>
-              </span>
-            </div>
-          </CardHeader>
-          <CardContent>
-            <TradeSequenceChart
-              points={sequencePoints}
-              suffix={` ${sequenceCurrency}`}
-            />
-            {closedSequenceDesc.length === 200 ? (
-              <p className="stat-sub mt-1">Ultimi 200 trade chiusi coi filtri attivi</p>
-            ) : null}
-          </CardContent>
-        </Card>
+        <TradeSequencePanel
+          title="Sequenza trade (filtri attivi)"
+          points={sequencePoints}
+          suffix={` ${sequenceCurrency}`}
+          context="filtri"
+          cap={SEQUENCE_MAX_TRADES}
+          controls={
+            sequenceScope.multi ? (
+              <CurrencyFilter
+                currencies={sequenceScope.totals.map((t) => t.currency)}
+                active={sequenceScope.active}
+              />
+            ) : null
+          }
+        />
       ) : null}
 
       {trades.length === 0 ? (

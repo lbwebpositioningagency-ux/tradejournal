@@ -71,7 +71,8 @@ export function ClampMark(props: unknown): React.ReactElement | null {
   const cx = x + (width ?? 0) / 2;
   const positive = value > 0;
   // Rect SVG: y è il bordo alto; per i negativi il fondo è y + height.
-  const cy = positive ? y - 3 : y + (height ?? 0) + 9;
+  // 11px, non 9: nessun testo sotto 11px, nemmeno i segni dentro l'SVG.
+  const cy = positive ? y - 3 : y + (height ?? 0) + 11;
   // createElement: questo file resta .ts (nessun JSX).
   return createElement(
     "text",
@@ -79,7 +80,7 @@ export function ClampMark(props: unknown): React.ReactElement | null {
       x: cx,
       y: cy,
       textAnchor: "middle",
-      fontSize: 9,
+      fontSize: 11,
       fill: "var(--muted-foreground)",
     },
     positive ? "▲" : "▼",

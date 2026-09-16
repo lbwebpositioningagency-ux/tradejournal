@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { nextRange, presetCutoff, presetRange } from "./chart-window";
+import { presetCutoff, presetRange, sequenceWindow } from "./chart-window";
 
 describe("presetCutoff", () => {
   it("giorni: 30 e 90 giorni di calendario prima dell'ultima giornata", () => {
@@ -36,33 +36,32 @@ describe("presetRange", () => {
   });
 });
 
-describe("nextRange", () => {
-  const current = { startIndex: 200, endIndex: 309 };
-
-  it("scorrimento: l'ampiezza resta quella di prima anche se la striscia arrotonda", () => {
-    const out = nextRange(current, { startIndex: 150, endIndex: 258 }, 344);
-    expect(out).toEqual({ range: { startIndex: 150, endIndex: 259 }, keepsPreset: true });
+describe("sequenceWindow", () => {
+  it("gli ultimi N trade di una sequenza lunga", () => {
+    expect(sequenceWindow(623, "50")).toEqual({
+      start: 573,
+      count: 50,
+      effective: "50",
+      options: ["25", "50", "100", "200", "all"],
+      showPresets: true,
+    });
+    expect(sequenceWindow(623, "all")).toMatchObject({ start: 0, count: 623, effective: "all" });
   });
 
-  it("scorrimento oltre i bordi: la finestra si ferma, non si stringe", () => {
-    expect(nextRange(current, { startIndex: 250, endIndex: 360 }, 344).range).toEqual({
-      startIndex: 234,
-      endIndex: 343,
-    });
-    expect(nextRange(current, { startIndex: -5, endIndex: 104 }, 344).range).toEqual({
-      startIndex: 0,
-      endIndex: 109,
-    });
+  it("i preset più lunghi della sequenza non compaiono e, se scelti, vale «Tutti»", () => {
+    const w = sequenceWindow(87, "100");
+    expect(w.options).toEqual(["25", "50", "all"]);
+    expect(w).toMatchObject({ start: 0, count: 87, effective: "all", showPresets: true });
+    expect(sequenceWindow(87, "50")).toMatchObject({ start: 37, count: 50, effective: "50" });
   });
 
-  it("maniglia: un estremo solo cambia, il preset si spegne", () => {
-    expect(nextRange(current, { startIndex: 120, endIndex: 309 }, 344)).toEqual({
-      range: { startIndex: 120, endIndex: 309 },
-      keepsPreset: false,
-    });
+  it("esattamente N trade: il preset N coincide con «Tutti»", () => {
+    expect(sequenceWindow(50, "50")).toMatchObject({ effective: "all", count: 50, options: ["25", "all"] });
   });
 
-  it("nessun cambiamento: tutto resta com'è", () => {
-    expect(nextRange(current, { ...current }, 344)).toEqual({ range: current, keepsPreset: true });
+  it("25 trade o meno: nessun preset da mostrare", () => {
+    expect(sequenceWindow(25, "50")).toMatchObject({ showPresets: false, count: 25, start: 0 });
+    expect(sequenceWindow(6, "25")).toMatchObject({ showPresets: false, count: 6, effective: "all" });
+    expect(sequenceWindow(0, "50")).toMatchObject({ count: 0, start: 0, showPresets: false });
   });
 });

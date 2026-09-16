@@ -97,10 +97,9 @@ import type { TradeSequencePointView } from "@/components/charts/trade-sequence-
 // P-01/P-06 — i widget sotto la piega arrivano dai wrapper lazy: recharts
 // resta nel bundle per i grafici sopra la piega (pnl-charts), ma il mount
 // di questi non pesa più sull'idratazione iniziale.
-import {
-  TradeSequenceChart,
-  UnderwaterChart,
-} from "@/components/charts/lazy-charts";
+import { UnderwaterChart } from "@/components/charts/lazy-charts";
+import { StreakLegend } from "@/components/charts/streak-legend";
+import { TradeSequencePanel } from "@/components/charts/trade-sequence-panel";
 import { cn, pluralize } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -126,7 +125,6 @@ import {
   type ChartPoint,
 } from "./pnl-charts";
 import { useChartWindow } from "@/components/charts/use-chart-window";
-import { formatNumber } from "@/lib/format-number";
 import { WINDOW_PRESETS, type WindowPreset } from "@/lib/chart-window";
 import { ScoreRadar } from "./score-radar";
 import { OnboardingHero } from "./onboarding-hero";
@@ -221,10 +219,11 @@ export interface DashboardData {
   sqn: string | null;
   /** Frazione 0-1 (formattata come % in UI). */
   ulcer: string | null;
-  /** Sequenza dei trade chiusi (ultimi ≤200) per il grafico "candele". */
+  /** Sequenza dei trade chiusi (ultimi ≤ SEQUENCE_MAX_TRADES) per «Sequenza trade». */
   sequence: TradeSequencePointView[];
-  sequenceTruncated: boolean;
-  /** Streak max/medie sui trade della sequenza e sulle giornate. */
+  /** Trade chiusi nel periodo: dice se la sequenza è troncata. */
+  sequenceTotal: number;
+  /** Streak max/medie di Winners & Losers (ultimi ≤200 trade) e sulle giornate. */
   tradeRuns: StreakSummary;
   dayRuns: StreakSummary;
   /** Streak per giornata calcolate sulla curva R (vista R). */
@@ -431,55 +430,7 @@ function StreakBadge({
   );
 }
 
-/**
- * Streak nella testata dei grafici a barre: una riga per segno, massimo e
- * media. Le due cifre non devono potersi scambiare: il massimo è un numero
- * nudo, la media porta sempre il decimale, l'unità e «di fila» — è la
- * lunghezza tipica di una serie, non un record (tavola CD «Dashboard - P&L
- * giornaliero e cumulativo a finestra», 1b). Valori già calcolati da
- * streakSummary / dayStreakSummary: qui nessun conto.
- */
-function StreakLegend({
-  runs,
-  unit,
-  winLabel,
-  lossLabel,
-}: {
-  runs: StreakSummary;
-  unit: "giorni" | "trade";
-  winLabel: string;
-  lossLabel: string;
-}) {
-  const rows = [
-    { label: winLabel, max: runs.maxWin, avg: runs.avgWin, tone: "text-profit" },
-    { label: lossLabel, max: runs.maxLoss, avg: runs.avgLoss, tone: "text-loss" },
-  ];
-  return (
-    <div className="flex flex-col gap-0.5 text-xs tabular-nums text-muted-foreground">
-      {rows.map((row) => (
-        <p key={row.label} className="flex flex-wrap items-center gap-x-1.5">
-          <span>
-            {row.label}{" "}
-            <span className={cn("font-semibold", row.tone)}>{row.max}</span>
-          </span>
-          <span aria-hidden>·</span>
-          <span>
-            Media{" "}
-            {/* Sempre un decimale («2,0», non «2»): è il segno che distingue
-                la media dal massimo, che è un intero. Number solo per il display. */}
-            <span className={cn("font-semibold", row.tone)}>
-              {row.avg !== null ? formatNumber(Number(row.avg), { decimals: 1 }) : "—"}
-            </span>
-            {row.avg !== null ? ` ${unit} di fila` : ""}
-          </span>
-          <MetricInfo info={avgStreakInfo} size="sm" />
-        </p>
-      ))}
-    </div>
-  );
-}
-
-/** Preset della finestra scorrevole: il segmentato condiviso, a pulsanti. */
+/** Preset della finestra dei grafici giornalieri: il segmentato condiviso. */
 function WindowPresets({
   label,
   value,
@@ -642,12 +593,6 @@ export function DashboardView({
         : money(`-${data.dd.maxDrawdown}`, null);
 
   const inR = view === "r";
-  // Sequenza trade: in vista R le barre seguono l'R-multiple (0 se il trade
-  // non aveva rischio iniziale), con suffisso "R"; altrimenti la valuta.
-  const sequencePoints = inR
-    ? data.sequence.map((p) => ({ ...p, netPnl: p.rMultiple ?? "0" }))
-    : data.sequence;
-  const sequenceSuffix = inR ? " R" : ` ${data.currency}`;
   // Best/Worst Days e sottotitolo del drawdown seguono la curva coerente col
   // toggle: la serie in R quando la vista è R.
   const dayData = inR ? data.daysR : data.days;
@@ -1196,46 +1141,23 @@ export function DashboardView({
       {hideAnalytics ? null : (
       <div className={cn("grid gap-4 max-lg:order-8", analyticsCls)}>
         {show("trade-sequence") ? (
-          <Card>
-            <CardHeader className="flex flex-row flex-wrap items-center justify-between gap-2">
-              <CardTitle className="stat-label flex items-center gap-1">
-                Sequenza trade
-                <MetricInfo info={streaksInfo} />
-              </CardTitle>
-              <StreakLegend
-                runs={data.tradeRuns}
-                unit="trade"
-                winLabel="Max Win Streak"
-                lossLabel="Max Loss Streak"
+          <TradeSequencePanel
+            title="Sequenza trade"
+            points={data.sequence}
+            view={inR ? "r" : "pnl"}
+            suffix={inR ? " R" : ` ${data.currency}`}
+            masked={masked}
+            context="periodo"
+            total={data.sequenceTotal}
+            empty={
+              <EmptyState
+                compact
+                icon={LineChartIcon}
+                title="Nessun trade chiuso nel periodo"
+                description="La sequenza si popola con i trade chiusi."
               />
-            </CardHeader>
-            <CardContent>
-              {data.sequence.length > 0 ? (
-                <>
-                  <TradeSequenceChart
-                    points={sequencePoints}
-                    suffix={sequenceSuffix}
-                    masked={masked}
-                  />
-                  {/* D-19 — numerosità SEMPRE in vista: senza tick sull'asse,
-                      due periodi diversi producono grafici simili con n molto
-                      diversi. La nota non è più solo per la serie troncata. */}
-                  <p className="stat-sub mt-1">
-                    {data.sequenceTruncated
-                      ? `Ultimi ${data.sequence.length} trade del periodo`
-                      : `${data.sequence.length} trade ${pluralize(data.sequence.length, "chiuso", "chiusi")} nel periodo`}
-                  </p>
-                </>
-              ) : (
-                <EmptyState
-                  compact
-                  icon={LineChartIcon}
-                  title="Nessun trade chiuso nel periodo"
-                  description="La sequenza si popola con i trade chiusi."
-                />
-              )}
-            </CardContent>
-          </Card>
+            }
+          />
         ) : null}
 
       </div>

@@ -163,3 +163,11 @@ export const TAG_CATEGORY_HINTS: Record<TagCategory, string> = {
  */
 export const CURRENCIES = ["USD", "EUR", "GBP", "CHF", "JPY"] as const;
 export type Currency = (typeof CURRENCIES)[number];
+
+/**
+ * Tetto della sequenza trade letta dal database per il grafico «Sequenza
+ * trade» (Dashboard, Trade View, giornata). Il preset «Tutti» mostra l'intera
+ * sequenza fino a qui; oltre, la didascalia dichiara il limite. Mai liste
+ * illimitate di trade nel browser.
+ */
+export const SEQUENCE_MAX_TRADES = 1000;

@@ -1,0 +1,1534 @@
+[
+  {
+    "tag": "1440__light",
+    "pagina": "dashboard",
+    "stato": "apertura",
+    "card": "P&L giornaliero",
+    "preset": [
+      "30g",
+      "90g",
+      "6m*",
+      "1a",
+      "Tutto"
+    ],
+    "striscia": 0,
+    "barre": 109,
+    "larghezzaBarraPx": 5,
+    "legenda": [
+      "Max streak verdi 14·Media 2,2 giorni di fila",
+      "Max streak rossi 8·Media 2,0 giorni di fila"
+    ],
+    "didascalia": "29/01/2026 – 27/07/2026 · 110 giornate con trade",
+    "testiSotto11px": 0,
+    "contrastiSotto45": 0
+  },
+  {
+    "tag": "1440__light",
+    "pagina": "dashboard",
+    "stato": "apertura",
+    "card": "P&L cumulativo",
+    "preset": [
+      "30g",
+      "90g",
+      "6m*",
+      "1a",
+      "Tutto"
+    ],
+    "striscia": 0,
+    "barre": 0,
+    "larghezzaBarraPx": null,
+    "legenda": [],
+    "didascalia": "29/01/2026 – 27/07/2026 · 110 giornate con trade",
+    "testiSotto11px": 0,
+    "contrastiSotto45": 0
+  },
+  {
+    "tag": "1440__light",
+    "pagina": "dashboard",
+    "stato": "apertura",
+    "card": "Sequenza trade",
+    "preset": [
+      "25",
+      "50*",
+      "100",
+      "200",
+      "Tutti"
+    ],
+    "striscia": 0,
+    "barre": 50,
+    "larghezzaBarraPx": 17,
+    "legenda": [
+      "Streak degli ultimi 50 trade",
+      "Max Win Streak 5·Media 2,2 trade di fila",
+      "Max Loss Streak 3·Media 1,8 trade di fila"
+    ],
+    "didascalia": "Ultimi 50 di 623 trade chiusi nel periodo",
+    "testiSotto11px": 0,
+    "contrastiSotto45": 0
+  },
+  {
+    "tag": "1440__light",
+    "pagina": "dashboard",
+    "stato": "30g / 1a / 25",
+    "card": "P&L giornaliero",
+    "preset": [
+      "30g*",
+      "90g",
+      "6m",
+      "1a",
+      "Tutto"
+    ],
+    "striscia": 0,
+    "barre": 19,
+    "larghezzaBarraPx": 28,
+    "legenda": [
+      "Max streak verdi 14·Media 2,2 giorni di fila",
+      "Max streak rossi 8·Media 2,0 giorni di fila"
+    ],
+    "didascalia": "29/06/2026 – 27/07/2026 · 19 giornate con trade",
+    "testiSotto11px": 0,
+    "contrastiSotto45": 0
+  },
+  {
+    "tag": "1440__light",
+    "pagina": "dashboard",
+    "stato": "30g / 1a / 25",
+    "card": "P&L cumulativo",
+    "preset": [
+      "30g",
+      "90g",
+      "6m",
+      "1a*",
+      "Tutto"
+    ],
+    "striscia": 0,
+    "barre": 0,
+    "larghezzaBarraPx": null,
+    "legenda": [],
+    "didascalia": "28/07/2025 – 27/07/2026 · 221 giornate con trade",
+    "testiSotto11px": 0,
+    "contrastiSotto45": 0
+  },
+  {
+    "tag": "1440__light",
+    "pagina": "dashboard",
+    "stato": "30g / 1a / 25",
+    "card": "Sequenza trade",
+    "preset": [
+      "25*",
+      "50",
+      "100",
+      "200",
+      "Tutti"
+    ],
+    "striscia": 0,
+    "barre": 25,
+    "larghezzaBarraPx": 28,
+    "legenda": [
+      "Streak degli ultimi 25 trade",
+      "Max Win Streak 4·Media 1,9 trade di fila",
+      "Max Loss Streak 3·Media 1,7 trade di fila"
+    ],
+    "didascalia": "Ultimi 25 di 623 trade chiusi nel periodo",
+    "testiSotto11px": 0,
+    "contrastiSotto45": 0
+  },
+  {
+    "tag": "1440__light",
+    "pagina": "dashboard",
+    "stato": "200",
+    "card": "Sequenza trade",
+    "preset": [
+      "25",
+      "50",
+      "100",
+      "200*",
+      "Tutti"
+    ],
+    "striscia": 0,
+    "barre": 200,
+    "larghezzaBarraPx": 4,
+    "legenda": [
+      "Streak degli ultimi 200 trade",
+      "Max Win Streak 6·Media 2,1 trade di fila",
+      "Max Loss Streak 8·Media 2,0 trade di fila"
+    ],
+    "didascalia": "Ultimi 200 di 623 trade chiusi nel periodo",
+    "testiSotto11px": 0,
+    "contrastiSotto45": 0
+  },
+  {
+    "tag": "1440__light",
+    "pagina": "dashboard",
+    "stato": "Tutti / Tutto",
+    "card": "Sequenza trade",
+    "preset": [
+      "25",
+      "50",
+      "100",
+      "200",
+      "Tutti*"
+    ],
+    "striscia": 0,
+    "barre": 623,
+    "larghezzaBarraPx": 1,
+    "legenda": [
+      "Streak su tutta la sequenza (623 trade)",
+      "Max Win Streak 9·Media 2,1 trade di fila",
+      "Max Loss Streak 8·Media 2,2 trade di fila"
+    ],
+    "didascalia": "623 trade chiusi nel periodo",
+    "testiSotto11px": 0,
+    "contrastiSotto45": 0
+  },
+  {
+    "tag": "1440__light",
+    "pagina": "dashboard",
+    "stato": "Tutti / Tutto",
+    "card": "P&L giornaliero",
+    "preset": [
+      "30g",
+      "90g",
+      "6m",
+      "1a",
+      "Tutto*"
+    ],
+    "striscia": 0,
+    "barre": 343,
+    "larghezzaBarraPx": 2,
+    "legenda": [
+      "Max streak verdi 14·Media 2,2 giorni di fila",
+      "Max streak rossi 8·Media 2,0 giorni di fila"
+    ],
+    "didascalia": "06/01/2025 – 27/07/2026 · 344 giornate con trade",
+    "testiSotto11px": 0,
+    "contrastiSotto45": 0
+  },
+  {
+    "tag": "1440__light",
+    "pagina": "trades",
+    "stato": "apertura",
+    "card": "Sequenza trade (filtri attivi)",
+    "preset": [
+      "25",
+      "50*",
+      "100",
+      "200",
+      "Tutti"
+    ],
+    "striscia": 0,
+    "barre": 50,
+    "larghezzaBarraPx": 17,
+    "legenda": [
+      "Streak degli ultimi 50 trade",
+      "Max Win Streak 5·Media 2,2 trade di fila",
+      "Max Loss Streak 3·Media 1,8 trade di fila"
+    ],
+    "didascalia": "Ultimi 50 di 623 trade chiusi coi filtri attivi",
+    "testiSotto11px": 0,
+    "contrastiSotto45": 0
+  },
+  {
+    "tag": "1440__light",
+    "pagina": "trades",
+    "stato": "100",
+    "card": "Sequenza trade (filtri attivi)",
+    "preset": [
+      "25",
+      "50",
+      "100*",
+      "200",
+      "Tutti"
+    ],
+    "striscia": 0,
+    "barre": 100,
+    "larghezzaBarraPx": 9,
+    "legenda": [
+      "Streak degli ultimi 100 trade",
+      "Max Win Streak 5·Media 1,9 trade di fila",
+      "Max Loss Streak 5·Media 1,9 trade di fila"
+    ],
+    "didascalia": "Ultimi 100 di 623 trade chiusi coi filtri attivi",
+    "testiSotto11px": 0,
+    "contrastiSotto45": 0
+  },
+  {
+    "tag": "1440__light",
+    "pagina": "trades",
+    "stato": "100 → filtro GC long (client)",
+    "card": "Sequenza trade (filtri attivi)",
+    "preset": [
+      "25",
+      "50",
+      "Tutti*"
+    ],
+    "striscia": 0,
+    "barre": 84,
+    "larghezzaBarraPx": 10,
+    "legenda": [
+      "Streak su tutta la sequenza (84 trade)",
+      "Max Win Streak 7·Media 2,4 trade di fila",
+      "Max Loss Streak 5·Media 2,4 trade di fila"
+    ],
+    "didascalia": "84 trade chiusi coi filtri attivi",
+    "testiSotto11px": 0,
+    "contrastiSotto45": 0
+  },
+  {
+    "tag": "1440__light",
+    "pagina": "trades",
+    "stato": "filtro tolto (client)",
+    "card": "Sequenza trade (filtri attivi)",
+    "preset": [
+      "25",
+      "50",
+      "100*",
+      "200",
+      "Tutti"
+    ],
+    "striscia": 0,
+    "barre": 100,
+    "larghezzaBarraPx": 9,
+    "legenda": [
+      "Streak degli ultimi 100 trade",
+      "Max Win Streak 5·Media 1,9 trade di fila",
+      "Max Loss Streak 5·Media 1,9 trade di fila"
+    ],
+    "didascalia": "Ultimi 100 di 623 trade chiusi coi filtri attivi",
+    "testiSotto11px": 0,
+    "contrastiSotto45": 0
+  },
+  {
+    "tag": "1440__light",
+    "pagina": "trades-filtro",
+    "stato": "apertura",
+    "card": "Sequenza trade (filtri attivi)",
+    "preset": [
+      "25",
+      "50*",
+      "Tutti"
+    ],
+    "striscia": 0,
+    "barre": 50,
+    "larghezzaBarraPx": 17,
+    "legenda": [
+      "Streak degli ultimi 50 trade",
+      "Max Win Streak 4·Media 2,2 trade di fila",
+      "Max Loss Streak 4·Media 2,0 trade di fila"
+    ],
+    "didascalia": "Ultimi 50 di 84 trade chiusi coi filtri attivi",
+    "testiSotto11px": 0,
+    "contrastiSotto45": 0
+  },
+  {
+    "tag": "1440__light",
+    "pagina": "trades-filtro",
+    "stato": "Tutti",
+    "card": "Sequenza trade (filtri attivi)",
+    "preset": [
+      "25",
+      "50",
+      "Tutti*"
+    ],
+    "striscia": 0,
+    "barre": 84,
+    "larghezzaBarraPx": 10,
+    "legenda": [
+      "Streak su tutta la sequenza (84 trade)",
+      "Max Win Streak 7·Media 2,4 trade di fila",
+      "Max Loss Streak 5·Media 2,4 trade di fila"
+    ],
+    "didascalia": "84 trade chiusi coi filtri attivi",
+    "testiSotto11px": 0,
+    "contrastiSotto45": 0
+  },
+  {
+    "tag": "1440__light",
+    "pagina": "trades-filtro",
+    "stato": "50",
+    "card": "Sequenza trade (filtri attivi)",
+    "preset": [
+      "25",
+      "50*",
+      "Tutti"
+    ],
+    "striscia": 0,
+    "barre": 50,
+    "larghezzaBarraPx": 17,
+    "legenda": [
+      "Streak degli ultimi 50 trade",
+      "Max Win Streak 4·Media 2,2 trade di fila",
+      "Max Loss Streak 4·Media 2,0 trade di fila"
+    ],
+    "didascalia": "Ultimi 50 di 84 trade chiusi coi filtri attivi",
+    "testiSotto11px": 0,
+    "contrastiSotto45": 0
+  },
+  {
+    "tag": "1440__light",
+    "pagina": "giornata",
+    "stato": "apertura",
+    "card": "Sequenza trade",
+    "preset": null,
+    "striscia": 0,
+    "barre": 4,
+    "larghezzaBarraPx": 28,
+    "legenda": [
+      "Streak su tutta la sequenza (4 trade)",
+      "Max Win Streak 1·Media 1,0 trade di fila",
+      "Max Loss Streak 2·Media 1,5 trade di fila"
+    ],
+    "didascalia": "4 trade chiusi nella giornata",
+    "testiSotto11px": 0,
+    "contrastiSotto45": 0
+  },
+  {
+    "tag": "390__light",
+    "pagina": "dashboard",
+    "stato": "apertura",
+    "card": "P&L giornaliero",
+    "preset": [
+      "30g",
+      "90g",
+      "6m*",
+      "1a",
+      "Tutto"
+    ],
+    "striscia": 0,
+    "barre": 109,
+    "larghezzaBarraPx": 2,
+    "legenda": [
+      "Max streak verdi 14·Media 2,2 giorni di fila",
+      "Max streak rossi 8·Media 2,0 giorni di fila"
+    ],
+    "didascalia": "29/01/2026 – 27/07/2026 · 110 giornate con trade",
+    "testiSotto11px": 0,
+    "contrastiSotto45": 0
+  },
+  {
+    "tag": "390__light",
+    "pagina": "dashboard",
+    "stato": "apertura",
+    "card": "P&L cumulativo",
+    "preset": [
+      "30g",
+      "90g",
+      "6m*",
+      "1a",
+      "Tutto"
+    ],
+    "striscia": 0,
+    "barre": 0,
+    "larghezzaBarraPx": null,
+    "legenda": [],
+    "didascalia": "29/01/2026 – 27/07/2026 · 110 giornate con trade",
+    "testiSotto11px": 0,
+    "contrastiSotto45": 0
+  },
+  {
+    "tag": "390__light",
+    "pagina": "dashboard",
+    "stato": "apertura",
+    "card": "Sequenza trade",
+    "preset": [
+      "25",
+      "50*",
+      "100",
+      "200",
+      "Tutti"
+    ],
+    "striscia": 0,
+    "barre": 50,
+    "larghezzaBarraPx": 4,
+    "legenda": [
+      "Streak degli ultimi 50 trade",
+      "Max Win Streak 5·Media 2,2 trade di fila",
+      "Max Loss Streak 3·Media 1,8 trade di fila"
+    ],
+    "didascalia": "Ultimi 50 di 623 trade chiusi nel periodo",
+    "testiSotto11px": 0,
+    "contrastiSotto45": 0
+  },
+  {
+    "tag": "390__light",
+    "pagina": "dashboard",
+    "stato": "30g / 1a / 25",
+    "card": "P&L giornaliero",
+    "preset": [
+      "30g*",
+      "90g",
+      "6m",
+      "1a",
+      "Tutto"
+    ],
+    "striscia": 0,
+    "barre": 19,
+    "larghezzaBarraPx": 11,
+    "legenda": [
+      "Max streak verdi 14·Media 2,2 giorni di fila",
+      "Max streak rossi 8·Media 2,0 giorni di fila"
+    ],
+    "didascalia": "29/06/2026 – 27/07/2026 · 19 giornate con trade",
+    "testiSotto11px": 0,
+    "contrastiSotto45": 0
+  },
+  {
+    "tag": "390__light",
+    "pagina": "dashboard",
+    "stato": "30g / 1a / 25",
+    "card": "P&L cumulativo",
+    "preset": [
+      "30g",
+      "90g",
+      "6m",
+      "1a*",
+      "Tutto"
+    ],
+    "striscia": 0,
+    "barre": 0,
+    "larghezzaBarraPx": null,
+    "legenda": [],
+    "didascalia": "28/07/2025 – 27/07/2026 · 221 giornate con trade",
+    "testiSotto11px": 0,
+    "contrastiSotto45": 0
+  },
+  {
+    "tag": "390__light",
+    "pagina": "dashboard",
+    "stato": "30g / 1a / 25",
+    "card": "Sequenza trade",
+    "preset": [
+      "25*",
+      "50",
+      "100",
+      "200",
+      "Tutti"
+    ],
+    "striscia": 0,
+    "barre": 25,
+    "larghezzaBarraPx": 9,
+    "legenda": [
+      "Streak degli ultimi 25 trade",
+      "Max Win Streak 4·Media 1,9 trade di fila",
+      "Max Loss Streak 3·Media 1,7 trade di fila"
+    ],
+    "didascalia": "Ultimi 25 di 623 trade chiusi nel periodo",
+    "testiSotto11px": 0,
+    "contrastiSotto45": 0
+  },
+  {
+    "tag": "390__light",
+    "pagina": "dashboard",
+    "stato": "200",
+    "card": "Sequenza trade",
+    "preset": [
+      "25",
+      "50",
+      "100",
+      "200*",
+      "Tutti"
+    ],
+    "striscia": 0,
+    "barre": 200,
+    "larghezzaBarraPx": 1,
+    "legenda": [
+      "Streak degli ultimi 200 trade",
+      "Max Win Streak 6·Media 2,1 trade di fila",
+      "Max Loss Streak 8·Media 2,0 trade di fila"
+    ],
+    "didascalia": "Ultimi 200 di 623 trade chiusi nel periodo",
+    "testiSotto11px": 0,
+    "contrastiSotto45": 0
+  },
+  {
+    "tag": "390__light",
+    "pagina": "dashboard",
+    "stato": "Tutti / Tutto",
+    "card": "Sequenza trade",
+    "preset": [
+      "25",
+      "50",
+      "100",
+      "200",
+      "Tutti*"
+    ],
+    "striscia": 0,
+    "barre": 623,
+    "larghezzaBarraPx": 0.3,
+    "legenda": [
+      "Streak su tutta la sequenza (623 trade)",
+      "Max Win Streak 9·Media 2,1 trade di fila",
+      "Max Loss Streak 8·Media 2,2 trade di fila"
+    ],
+    "didascalia": "623 trade chiusi nel periodo",
+    "testiSotto11px": 0,
+    "contrastiSotto45": 0
+  },
+  {
+    "tag": "390__light",
+    "pagina": "dashboard",
+    "stato": "Tutti / Tutto",
+    "card": "P&L giornaliero",
+    "preset": [
+      "30g",
+      "90g",
+      "6m",
+      "1a",
+      "Tutto*"
+    ],
+    "striscia": 0,
+    "barre": 343,
+    "larghezzaBarraPx": 0.6,
+    "legenda": [
+      "Max streak verdi 14·Media 2,2 giorni di fila",
+      "Max streak rossi 8·Media 2,0 giorni di fila"
+    ],
+    "didascalia": "06/01/2025 – 27/07/2026 · 344 giornate con trade",
+    "testiSotto11px": 0,
+    "contrastiSotto45": 0
+  },
+  {
+    "tag": "390__light",
+    "pagina": "trades",
+    "stato": "apertura",
+    "card": "Sequenza trade (filtri attivi)",
+    "preset": [
+      "25",
+      "50*",
+      "100",
+      "200",
+      "Tutti"
+    ],
+    "striscia": 0,
+    "barre": 50,
+    "larghezzaBarraPx": 4,
+    "legenda": [
+      "Streak degli ultimi 50 trade",
+      "Max Win Streak 5·Media 2,2 trade di fila",
+      "Max Loss Streak 3·Media 1,8 trade di fila"
+    ],
+    "didascalia": "Ultimi 50 di 623 trade chiusi coi filtri attivi",
+    "testiSotto11px": 0,
+    "contrastiSotto45": 0
+  },
+  {
+    "tag": "390__light",
+    "pagina": "trades",
+    "stato": "100",
+    "card": "Sequenza trade (filtri attivi)",
+    "preset": [
+      "25",
+      "50",
+      "100*",
+      "200",
+      "Tutti"
+    ],
+    "striscia": 0,
+    "barre": 100,
+    "larghezzaBarraPx": 2,
+    "legenda": [
+      "Streak degli ultimi 100 trade",
+      "Max Win Streak 5·Media 1,9 trade di fila",
+      "Max Loss Streak 5·Media 1,9 trade di fila"
+    ],
+    "didascalia": "Ultimi 100 di 623 trade chiusi coi filtri attivi",
+    "testiSotto11px": 0,
+    "contrastiSotto45": 0
+  },
+  {
+    "tag": "390__light",
+    "pagina": "trades",
+    "stato": "100 → filtro GC long (client)",
+    "card": "Sequenza trade (filtri attivi)",
+    "preset": [
+      "25",
+      "50",
+      "Tutti*"
+    ],
+    "striscia": 0,
+    "barre": 84,
+    "larghezzaBarraPx": 3,
+    "legenda": [
+      "Streak su tutta la sequenza (84 trade)",
+      "Max Win Streak 7·Media 2,4 trade di fila",
+      "Max Loss Streak 5·Media 2,4 trade di fila"
+    ],
+    "didascalia": "84 trade chiusi coi filtri attivi",
+    "testiSotto11px": 0,
+    "contrastiSotto45": 0
+  },
+  {
+    "tag": "390__light",
+    "pagina": "trades",
+    "stato": "filtro tolto (client)",
+    "card": "Sequenza trade (filtri attivi)",
+    "preset": [
+      "25",
+      "50",
+      "100*",
+      "200",
+      "Tutti"
+    ],
+    "striscia": 0,
+    "barre": 100,
+    "larghezzaBarraPx": 2,
+    "legenda": [
+      "Streak degli ultimi 100 trade",
+      "Max Win Streak 5·Media 1,9 trade di fila",
+      "Max Loss Streak 5·Media 1,9 trade di fila"
+    ],
+    "didascalia": "Ultimi 100 di 623 trade chiusi coi filtri attivi",
+    "testiSotto11px": 0,
+    "contrastiSotto45": 0
+  },
+  {
+    "tag": "390__light",
+    "pagina": "trades-filtro",
+    "stato": "apertura",
+    "card": "Sequenza trade (filtri attivi)",
+    "preset": [
+      "25",
+      "50*",
+      "Tutti"
+    ],
+    "striscia": 0,
+    "barre": 50,
+    "larghezzaBarraPx": 4,
+    "legenda": [
+      "Streak degli ultimi 50 trade",
+      "Max Win Streak 4·Media 2,2 trade di fila",
+      "Max Loss Streak 4·Media 2,0 trade di fila"
+    ],
+    "didascalia": "Ultimi 50 di 84 trade chiusi coi filtri attivi",
+    "testiSotto11px": 0,
+    "contrastiSotto45": 0
+  },
+  {
+    "tag": "390__light",
+    "pagina": "trades-filtro",
+    "stato": "Tutti",
+    "card": "Sequenza trade (filtri attivi)",
+    "preset": [
+      "25",
+      "50",
+      "Tutti*"
+    ],
+    "striscia": 0,
+    "barre": 84,
+    "larghezzaBarraPx": 3,
+    "legenda": [
+      "Streak su tutta la sequenza (84 trade)",
+      "Max Win Streak 7·Media 2,4 trade di fila",
+      "Max Loss Streak 5·Media 2,4 trade di fila"
+    ],
+    "didascalia": "84 trade chiusi coi filtri attivi",
+    "testiSotto11px": 0,
+    "contrastiSotto45": 0
+  },
+  {
+    "tag": "390__light",
+    "pagina": "trades-filtro",
+    "stato": "50",
+    "card": "Sequenza trade (filtri attivi)",
+    "preset": [
+      "25",
+      "50*",
+      "Tutti"
+    ],
+    "striscia": 0,
+    "barre": 50,
+    "larghezzaBarraPx": 4,
+    "legenda": [
+      "Streak degli ultimi 50 trade",
+      "Max Win Streak 4·Media 2,2 trade di fila",
+      "Max Loss Streak 4·Media 2,0 trade di fila"
+    ],
+    "didascalia": "Ultimi 50 di 84 trade chiusi coi filtri attivi",
+    "testiSotto11px": 0,
+    "contrastiSotto45": 0
+  },
+  {
+    "tag": "390__light",
+    "pagina": "giornata",
+    "stato": "apertura",
+    "card": "Sequenza trade",
+    "preset": null,
+    "striscia": 0,
+    "barre": 4,
+    "larghezzaBarraPx": 28,
+    "legenda": [
+      "Streak su tutta la sequenza (4 trade)",
+      "Max Win Streak 1·Media 1,0 trade di fila",
+      "Max Loss Streak 2·Media 1,5 trade di fila"
+    ],
+    "didascalia": "4 trade chiusi nella giornata",
+    "testiSotto11px": 0,
+    "contrastiSotto45": 0
+  },
+  {
+    "tag": "1440__dark",
+    "pagina": "dashboard",
+    "stato": "apertura",
+    "card": "P&L giornaliero",
+    "preset": [
+      "30g",
+      "90g",
+      "6m*",
+      "1a",
+      "Tutto"
+    ],
+    "striscia": 0,
+    "barre": 109,
+    "larghezzaBarraPx": 5,
+    "legenda": [
+      "Max streak verdi 14·Media 2,2 giorni di fila",
+      "Max streak rossi 8·Media 2,0 giorni di fila"
+    ],
+    "didascalia": "29/01/2026 – 27/07/2026 · 110 giornate con trade",
+    "testiSotto11px": 0,
+    "contrastiSotto45": 0
+  },
+  {
+    "tag": "1440__dark",
+    "pagina": "dashboard",
+    "stato": "apertura",
+    "card": "P&L cumulativo",
+    "preset": [
+      "30g",
+      "90g",
+      "6m*",
+      "1a",
+      "Tutto"
+    ],
+    "striscia": 0,
+    "barre": 0,
+    "larghezzaBarraPx": null,
+    "legenda": [],
+    "didascalia": "29/01/2026 – 27/07/2026 · 110 giornate con trade",
+    "testiSotto11px": 0,
+    "contrastiSotto45": 0
+  },
+  {
+    "tag": "1440__dark",
+    "pagina": "dashboard",
+    "stato": "apertura",
+    "card": "Sequenza trade",
+    "preset": [
+      "25",
+      "50*",
+      "100",
+      "200",
+      "Tutti"
+    ],
+    "striscia": 0,
+    "barre": 50,
+    "larghezzaBarraPx": 17,
+    "legenda": [
+      "Streak degli ultimi 50 trade",
+      "Max Win Streak 5·Media 2,2 trade di fila",
+      "Max Loss Streak 3·Media 1,8 trade di fila"
+    ],
+    "didascalia": "Ultimi 50 di 623 trade chiusi nel periodo",
+    "testiSotto11px": 0,
+    "contrastiSotto45": 0
+  },
+  {
+    "tag": "1440__dark",
+    "pagina": "dashboard",
+    "stato": "30g / 1a / 25",
+    "card": "P&L giornaliero",
+    "preset": [
+      "30g*",
+      "90g",
+      "6m",
+      "1a",
+      "Tutto"
+    ],
+    "striscia": 0,
+    "barre": 19,
+    "larghezzaBarraPx": 28,
+    "legenda": [
+      "Max streak verdi 14·Media 2,2 giorni di fila",
+      "Max streak rossi 8·Media 2,0 giorni di fila"
+    ],
+    "didascalia": "29/06/2026 – 27/07/2026 · 19 giornate con trade",
+    "testiSotto11px": 0,
+    "contrastiSotto45": 0
+  },
+  {
+    "tag": "1440__dark",
+    "pagina": "dashboard",
+    "stato": "30g / 1a / 25",
+    "card": "P&L cumulativo",
+    "preset": [
+      "30g",
+      "90g",
+      "6m",
+      "1a*",
+      "Tutto"
+    ],
+    "striscia": 0,
+    "barre": 0,
+    "larghezzaBarraPx": null,
+    "legenda": [],
+    "didascalia": "28/07/2025 – 27/07/2026 · 221 giornate con trade",
+    "testiSotto11px": 0,
+    "contrastiSotto45": 0
+  },
+  {
+    "tag": "1440__dark",
+    "pagina": "dashboard",
+    "stato": "30g / 1a / 25",
+    "card": "Sequenza trade",
+    "preset": [
+      "25*",
+      "50",
+      "100",
+      "200",
+      "Tutti"
+    ],
+    "striscia": 0,
+    "barre": 25,
+    "larghezzaBarraPx": 28,
+    "legenda": [
+      "Streak degli ultimi 25 trade",
+      "Max Win Streak 4·Media 1,9 trade di fila",
+      "Max Loss Streak 3·Media 1,7 trade di fila"
+    ],
+    "didascalia": "Ultimi 25 di 623 trade chiusi nel periodo",
+    "testiSotto11px": 0,
+    "contrastiSotto45": 0
+  },
+  {
+    "tag": "1440__dark",
+    "pagina": "dashboard",
+    "stato": "200",
+    "card": "Sequenza trade",
+    "preset": [
+      "25",
+      "50",
+      "100",
+      "200*",
+      "Tutti"
+    ],
+    "striscia": 0,
+    "barre": 200,
+    "larghezzaBarraPx": 4,
+    "legenda": [
+      "Streak degli ultimi 200 trade",
+      "Max Win Streak 6·Media 2,1 trade di fila",
+      "Max Loss Streak 8·Media 2,0 trade di fila"
+    ],
+    "didascalia": "Ultimi 200 di 623 trade chiusi nel periodo",
+    "testiSotto11px": 0,
+    "contrastiSotto45": 0
+  },
+  {
+    "tag": "1440__dark",
+    "pagina": "dashboard",
+    "stato": "Tutti / Tutto",
+    "card": "Sequenza trade",
+    "preset": [
+      "25",
+      "50",
+      "100",
+      "200",
+      "Tutti*"
+    ],
+    "striscia": 0,
+    "barre": 623,
+    "larghezzaBarraPx": 1,
+    "legenda": [
+      "Streak su tutta la sequenza (623 trade)",
+      "Max Win Streak 9·Media 2,1 trade di fila",
+      "Max Loss Streak 8·Media 2,2 trade di fila"
+    ],
+    "didascalia": "623 trade chiusi nel periodo",
+    "testiSotto11px": 0,
+    "contrastiSotto45": 0
+  },
+  {
+    "tag": "1440__dark",
+    "pagina": "dashboard",
+    "stato": "Tutti / Tutto",
+    "card": "P&L giornaliero",
+    "preset": [
+      "30g",
+      "90g",
+      "6m",
+      "1a",
+      "Tutto*"
+    ],
+    "striscia": 0,
+    "barre": 343,
+    "larghezzaBarraPx": 2,
+    "legenda": [
+      "Max streak verdi 14·Media 2,2 giorni di fila",
+      "Max streak rossi 8·Media 2,0 giorni di fila"
+    ],
+    "didascalia": "06/01/2025 – 27/07/2026 · 344 giornate con trade",
+    "testiSotto11px": 0,
+    "contrastiSotto45": 0
+  },
+  {
+    "tag": "1440__dark",
+    "pagina": "trades",
+    "stato": "apertura",
+    "card": "Sequenza trade (filtri attivi)",
+    "preset": [
+      "25",
+      "50*",
+      "100",
+      "200",
+      "Tutti"
+    ],
+    "striscia": 0,
+    "barre": 50,
+    "larghezzaBarraPx": 17,
+    "legenda": [
+      "Streak degli ultimi 50 trade",
+      "Max Win Streak 5·Media 2,2 trade di fila",
+      "Max Loss Streak 3·Media 1,8 trade di fila"
+    ],
+    "didascalia": "Ultimi 50 di 623 trade chiusi coi filtri attivi",
+    "testiSotto11px": 0,
+    "contrastiSotto45": 0
+  },
+  {
+    "tag": "1440__dark",
+    "pagina": "trades",
+    "stato": "100",
+    "card": "Sequenza trade (filtri attivi)",
+    "preset": [
+      "25",
+      "50",
+      "100*",
+      "200",
+      "Tutti"
+    ],
+    "striscia": 0,
+    "barre": 100,
+    "larghezzaBarraPx": 9,
+    "legenda": [
+      "Streak degli ultimi 100 trade",
+      "Max Win Streak 5·Media 1,9 trade di fila",
+      "Max Loss Streak 5·Media 1,9 trade di fila"
+    ],
+    "didascalia": "Ultimi 100 di 623 trade chiusi coi filtri attivi",
+    "testiSotto11px": 0,
+    "contrastiSotto45": 0
+  },
+  {
+    "tag": "1440__dark",
+    "pagina": "trades",
+    "stato": "100 → filtro GC long (client)",
+    "card": "Sequenza trade (filtri attivi)",
+    "preset": [
+      "25",
+      "50",
+      "Tutti*"
+    ],
+    "striscia": 0,
+    "barre": 84,
+    "larghezzaBarraPx": 10,
+    "legenda": [
+      "Streak su tutta la sequenza (84 trade)",
+      "Max Win Streak 7·Media 2,4 trade di fila",
+      "Max Loss Streak 5·Media 2,4 trade di fila"
+    ],
+    "didascalia": "84 trade chiusi coi filtri attivi",
+    "testiSotto11px": 0,
+    "contrastiSotto45": 0
+  },
+  {
+    "tag": "1440__dark",
+    "pagina": "trades",
+    "stato": "filtro tolto (client)",
+    "card": "Sequenza trade (filtri attivi)",
+    "preset": [
+      "25",
+      "50",
+      "100*",
+      "200",
+      "Tutti"
+    ],
+    "striscia": 0,
+    "barre": 100,
+    "larghezzaBarraPx": 9,
+    "legenda": [
+      "Streak degli ultimi 100 trade",
+      "Max Win Streak 5·Media 1,9 trade di fila",
+      "Max Loss Streak 5·Media 1,9 trade di fila"
+    ],
+    "didascalia": "Ultimi 100 di 623 trade chiusi coi filtri attivi",
+    "testiSotto11px": 0,
+    "contrastiSotto45": 0
+  },
+  {
+    "tag": "1440__dark",
+    "pagina": "trades-filtro",
+    "stato": "apertura",
+    "card": "Sequenza trade (filtri attivi)",
+    "preset": [
+      "25",
+      "50*",
+      "Tutti"
+    ],
+    "striscia": 0,
+    "barre": 50,
+    "larghezzaBarraPx": 17,
+    "legenda": [
+      "Streak degli ultimi 50 trade",
+      "Max Win Streak 4·Media 2,2 trade di fila",
+      "Max Loss Streak 4·Media 2,0 trade di fila"
+    ],
+    "didascalia": "Ultimi 50 di 84 trade chiusi coi filtri attivi",
+    "testiSotto11px": 0,
+    "contrastiSotto45": 0
+  },
+  {
+    "tag": "1440__dark",
+    "pagina": "trades-filtro",
+    "stato": "Tutti",
+    "card": "Sequenza trade (filtri attivi)",
+    "preset": [
+      "25",
+      "50",
+      "Tutti*"
+    ],
+    "striscia": 0,
+    "barre": 84,
+    "larghezzaBarraPx": 10,
+    "legenda": [
+      "Streak su tutta la sequenza (84 trade)",
+      "Max Win Streak 7·Media 2,4 trade di fila",
+      "Max Loss Streak 5·Media 2,4 trade di fila"
+    ],
+    "didascalia": "84 trade chiusi coi filtri attivi",
+    "testiSotto11px": 0,
+    "contrastiSotto45": 0
+  },
+  {
+    "tag": "1440__dark",
+    "pagina": "trades-filtro",
+    "stato": "50",
+    "card": "Sequenza trade (filtri attivi)",
+    "preset": [
+      "25",
+      "50*",
+      "Tutti"
+    ],
+    "striscia": 0,
+    "barre": 50,
+    "larghezzaBarraPx": 17,
+    "legenda": [
+      "Streak degli ultimi 50 trade",
+      "Max Win Streak 4·Media 2,2 trade di fila",
+      "Max Loss Streak 4·Media 2,0 trade di fila"
+    ],
+    "didascalia": "Ultimi 50 di 84 trade chiusi coi filtri attivi",
+    "testiSotto11px": 0,
+    "contrastiSotto45": 0
+  },
+  {
+    "tag": "1440__dark",
+    "pagina": "giornata",
+    "stato": "apertura",
+    "card": "Sequenza trade",
+    "preset": null,
+    "striscia": 0,
+    "barre": 4,
+    "larghezzaBarraPx": 28,
+    "legenda": [
+      "Streak su tutta la sequenza (4 trade)",
+      "Max Win Streak 1·Media 1,0 trade di fila",
+      "Max Loss Streak 2·Media 1,5 trade di fila"
+    ],
+    "didascalia": "4 trade chiusi nella giornata",
+    "testiSotto11px": 0,
+    "contrastiSotto45": 0
+  },
+  {
+    "tag": "390__dark",
+    "pagina": "dashboard",
+    "stato": "apertura",
+    "card": "P&L giornaliero",
+    "preset": [
+      "30g",
+      "90g",
+      "6m*",
+      "1a",
+      "Tutto"
+    ],
+    "striscia": 0,
+    "barre": 109,
+    "larghezzaBarraPx": 2,
+    "legenda": [
+      "Max streak verdi 14·Media 2,2 giorni di fila",
+      "Max streak rossi 8·Media 2,0 giorni di fila"
+    ],
+    "didascalia": "29/01/2026 – 27/07/2026 · 110 giornate con trade",
+    "testiSotto11px": 0,
+    "contrastiSotto45": 0
+  },
+  {
+    "tag": "390__dark",
+    "pagina": "dashboard",
+    "stato": "apertura",
+    "card": "P&L cumulativo",
+    "preset": [
+      "30g",
+      "90g",
+      "6m*",
+      "1a",
+      "Tutto"
+    ],
+    "striscia": 0,
+    "barre": 0,
+    "larghezzaBarraPx": null,
+    "legenda": [],
+    "didascalia": "29/01/2026 – 27/07/2026 · 110 giornate con trade",
+    "testiSotto11px": 0,
+    "contrastiSotto45": 0
+  },
+  {
+    "tag": "390__dark",
+    "pagina": "dashboard",
+    "stato": "apertura",
+    "card": "Sequenza trade",
+    "preset": [
+      "25",
+      "50*",
+      "100",
+      "200",
+      "Tutti"
+    ],
+    "striscia": 0,
+    "barre": 50,
+    "larghezzaBarraPx": 4,
+    "legenda": [
+      "Streak degli ultimi 50 trade",
+      "Max Win Streak 5·Media 2,2 trade di fila",
+      "Max Loss Streak 3·Media 1,8 trade di fila"
+    ],
+    "didascalia": "Ultimi 50 di 623 trade chiusi nel periodo",
+    "testiSotto11px": 0,
+    "contrastiSotto45": 0
+  },
+  {
+    "tag": "390__dark",
+    "pagina": "dashboard",
+    "stato": "30g / 1a / 25",
+    "card": "P&L giornaliero",
+    "preset": [
+      "30g*",
+      "90g",
+      "6m",
+      "1a",
+      "Tutto"
+    ],
+    "striscia": 0,
+    "barre": 19,
+    "larghezzaBarraPx": 11,
+    "legenda": [
+      "Max streak verdi 14·Media 2,2 giorni di fila",
+      "Max streak rossi 8·Media 2,0 giorni di fila"
+    ],
+    "didascalia": "29/06/2026 – 27/07/2026 · 19 giornate con trade",
+    "testiSotto11px": 0,
+    "contrastiSotto45": 0
+  },
+  {
+    "tag": "390__dark",
+    "pagina": "dashboard",
+    "stato": "30g / 1a / 25",
+    "card": "P&L cumulativo",
+    "preset": [
+      "30g",
+      "90g",
+      "6m",
+      "1a*",
+      "Tutto"
+    ],
+    "striscia": 0,
+    "barre": 0,
+    "larghezzaBarraPx": null,
+    "legenda": [],
+    "didascalia": "28/07/2025 – 27/07/2026 · 221 giornate con trade",
+    "testiSotto11px": 0,
+    "contrastiSotto45": 0
+  },
+  {
+    "tag": "390__dark",
+    "pagina": "dashboard",
+    "stato": "30g / 1a / 25",
+    "card": "Sequenza trade",
+    "preset": [
+      "25*",
+      "50",
+      "100",
+      "200",
+      "Tutti"
+    ],
+    "striscia": 0,
+    "barre": 25,
+    "larghezzaBarraPx": 9,
+    "legenda": [
+      "Streak degli ultimi 25 trade",
+      "Max Win Streak 4·Media 1,9 trade di fila",
+      "Max Loss Streak 3·Media 1,7 trade di fila"
+    ],
+    "didascalia": "Ultimi 25 di 623 trade chiusi nel periodo",
+    "testiSotto11px": 0,
+    "contrastiSotto45": 0
+  },
+  {
+    "tag": "390__dark",
+    "pagina": "dashboard",
+    "stato": "200",
+    "card": "Sequenza trade",
+    "preset": [
+      "25",
+      "50",
+      "100",
+      "200*",
+      "Tutti"
+    ],
+    "striscia": 0,
+    "barre": 200,
+    "larghezzaBarraPx": 1,
+    "legenda": [
+      "Streak degli ultimi 200 trade",
+      "Max Win Streak 6·Media 2,1 trade di fila",
+      "Max Loss Streak 8·Media 2,0 trade di fila"
+    ],
+    "didascalia": "Ultimi 200 di 623 trade chiusi nel periodo",
+    "testiSotto11px": 0,
+    "contrastiSotto45": 0
+  },
+  {
+    "tag": "390__dark",
+    "pagina": "dashboard",
+    "stato": "Tutti / Tutto",
+    "card": "Sequenza trade",
+    "preset": [
+      "25",
+      "50",
+      "100",
+      "200",
+      "Tutti*"
+    ],
+    "striscia": 0,
+    "barre": 623,
+    "larghezzaBarraPx": 0.3,
+    "legenda": [
+      "Streak su tutta la sequenza (623 trade)",
+      "Max Win Streak 9·Media 2,1 trade di fila",
+      "Max Loss Streak 8·Media 2,2 trade di fila"
+    ],
+    "didascalia": "623 trade chiusi nel periodo",
+    "testiSotto11px": 0,
+    "contrastiSotto45": 0
+  },
+  {
+    "tag": "390__dark",
+    "pagina": "dashboard",
+    "stato": "Tutti / Tutto",
+    "card": "P&L giornaliero",
+    "preset": [
+      "30g",
+      "90g",
+      "6m",
+      "1a",
+      "Tutto*"
+    ],
+    "striscia": 0,
+    "barre": 343,
+    "larghezzaBarraPx": 0.6,
+    "legenda": [
+      "Max streak verdi 14·Media 2,2 giorni di fila",
+      "Max streak rossi 8·Media 2,0 giorni di fila"
+    ],
+    "didascalia": "06/01/2025 – 27/07/2026 · 344 giornate con trade",
+    "testiSotto11px": 0,
+    "contrastiSotto45": 0
+  },
+  {
+    "tag": "390__dark",
+    "pagina": "trades",
+    "stato": "apertura",
+    "card": "Sequenza trade (filtri attivi)",
+    "preset": [
+      "25",
+      "50*",
+      "100",
+      "200",
+      "Tutti"
+    ],
+    "striscia": 0,
+    "barre": 50,
+    "larghezzaBarraPx": 4,
+    "legenda": [
+      "Streak degli ultimi 50 trade",
+      "Max Win Streak 5·Media 2,2 trade di fila",
+      "Max Loss Streak 3·Media 1,8 trade di fila"
+    ],
+    "didascalia": "Ultimi 50 di 623 trade chiusi coi filtri attivi",
+    "testiSotto11px": 0,
+    "contrastiSotto45": 0
+  },
+  {
+    "tag": "390__dark",
+    "pagina": "trades",
+    "stato": "100",
+    "card": "Sequenza trade (filtri attivi)",
+    "preset": [
+      "25",
+      "50",
+      "100*",
+      "200",
+      "Tutti"
+    ],
+    "striscia": 0,
+    "barre": 100,
+    "larghezzaBarraPx": 2,
+    "legenda": [
+      "Streak degli ultimi 100 trade",
+      "Max Win Streak 5·Media 1,9 trade di fila",
+      "Max Loss Streak 5·Media 1,9 trade di fila"
+    ],
+    "didascalia": "Ultimi 100 di 623 trade chiusi coi filtri attivi",
+    "testiSotto11px": 0,
+    "contrastiSotto45": 0
+  },
+  {
+    "tag": "390__dark",
+    "pagina": "trades",
+    "stato": "100 → filtro GC long (client)",
+    "card": "Sequenza trade (filtri attivi)",
+    "preset": [
+      "25",
+      "50",
+      "Tutti*"
+    ],
+    "striscia": 0,
+    "barre": 84,
+    "larghezzaBarraPx": 3,
+    "legenda": [
+      "Streak su tutta la sequenza (84 trade)",
+      "Max Win Streak 7·Media 2,4 trade di fila",
+      "Max Loss Streak 5·Media 2,4 trade di fila"
+    ],
+    "didascalia": "84 trade chiusi coi filtri attivi",
+    "testiSotto11px": 0,
+    "contrastiSotto45": 0
+  },
+  {
+    "tag": "390__dark",
+    "pagina": "trades",
+    "stato": "filtro tolto (client)",
+    "card": "Sequenza trade (filtri attivi)",
+    "preset": [
+      "25",
+      "50",
+      "100*",
+      "200",
+      "Tutti"
+    ],
+    "striscia": 0,
+    "barre": 100,
+    "larghezzaBarraPx": 2,
+    "legenda": [
+      "Streak degli ultimi 100 trade",
+      "Max Win Streak 5·Media 1,9 trade di fila",
+      "Max Loss Streak 5·Media 1,9 trade di fila"
+    ],
+    "didascalia": "Ultimi 100 di 623 trade chiusi coi filtri attivi",
+    "testiSotto11px": 0,
+    "contrastiSotto45": 0
+  },
+  {
+    "tag": "390__dark",
+    "pagina": "trades-filtro",
+    "stato": "apertura",
+    "card": "Sequenza trade (filtri attivi)",
+    "preset": [
+      "25",
+      "50*",
+      "Tutti"
+    ],
+    "striscia": 0,
+    "barre": 50,
+    "larghezzaBarraPx": 4,
+    "legenda": [
+      "Streak degli ultimi 50 trade",
+      "Max Win Streak 4·Media 2,2 trade di fila",
+      "Max Loss Streak 4·Media 2,0 trade di fila"
+    ],
+    "didascalia": "Ultimi 50 di 84 trade chiusi coi filtri attivi",
+    "testiSotto11px": 0,
+    "contrastiSotto45": 0
+  },
+  {
+    "tag": "390__dark",
+    "pagina": "trades-filtro",
+    "stato": "Tutti",
+    "card": "Sequenza trade (filtri attivi)",
+    "preset": [
+      "25",
+      "50",
+      "Tutti*"
+    ],
+    "striscia": 0,
+    "barre": 84,
+    "larghezzaBarraPx": 3,
+    "legenda": [
+      "Streak su tutta la sequenza (84 trade)",
+      "Max Win Streak 7·Media 2,4 trade di fila",
+      "Max Loss Streak 5·Media 2,4 trade di fila"
+    ],
+    "didascalia": "84 trade chiusi coi filtri attivi",
+    "testiSotto11px": 0,
+    "contrastiSotto45": 0
+  },
+  {
+    "tag": "390__dark",
+    "pagina": "trades-filtro",
+    "stato": "50",
+    "card": "Sequenza trade (filtri attivi)",
+    "preset": [
+      "25",
+      "50*",
+      "Tutti"
+    ],
+    "striscia": 0,
+    "barre": 50,
+    "larghezzaBarraPx": 4,
+    "legenda": [
+      "Streak degli ultimi 50 trade",
+      "Max Win Streak 4·Media 2,2 trade di fila",
+      "Max Loss Streak 4·Media 2,0 trade di fila"
+    ],
+    "didascalia": "Ultimi 50 di 84 trade chiusi coi filtri attivi",
+    "testiSotto11px": 0,
+    "contrastiSotto45": 0
+  },
+  {
+    "tag": "390__dark",
+    "pagina": "giornata",
+    "stato": "apertura",
+    "card": "Sequenza trade",
+    "preset": null,
+    "striscia": 0,
+    "barre": 4,
+    "larghezzaBarraPx": 28,
+    "legenda": [
+      "Streak su tutta la sequenza (4 trade)",
+      "Max Win Streak 1·Media 1,0 trade di fila",
+      "Max Loss Streak 2·Media 1,5 trade di fila"
+    ],
+    "didascalia": "4 trade chiusi nella giornata",
+    "testiSotto11px": 0,
+    "contrastiSotto45": 0
+  }
+]
