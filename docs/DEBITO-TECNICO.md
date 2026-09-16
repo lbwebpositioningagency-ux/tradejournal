@@ -917,3 +917,11 @@ CSV, segno dello swap). Fuori perimetro, lasciato com'è di proposito.
 - **Frequenze nella notte di transizione.** `FREQUENZE_PER_OCCORRENZA_DAL` (precompute.ts) serve
   solo finché il primo giro notturno non riscrive le righe; dopo, il confronto è sempre vero e la
   costante si può togliere.
+- **Progress Tracker: due subquery correlate nei fatti giornalieri.** `getDisciplineDayFacts`
+  (`src/lib/queries/discipline.ts`) confronta ogni apertura con tutti i trade dello scope per la
+  pausa dopo una perdita e per le posizioni aperte insieme: O(n²). Su SIM1 (625 trade, tutto lo
+  storico) 0,47 s in locale; oltre le decine di migliaia di trade va riscritta con finestre ordinate
+  per `openedAt`/`closedAt`.
+- **Progress Tracker: regole valutate retroattivamente.** Ogni giornata usa le soglie di oggi; non
+  esiste lo storico delle configurazioni. Dichiarato in pagina. Se servirà «com'ero con le regole di
+  allora», serve una tabella di versioni delle regole.

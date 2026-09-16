@@ -1,0 +1,250 @@
+[
+  {
+    "pagina": "/progress?period=all",
+    "larghezza": 1440,
+    "tema": "dark",
+    "file": "progress_period_all__1440__dark.png",
+    "altezza": 2404,
+    "innerWidth": 1440,
+    "scrollWidth": 1440,
+    "sbordi": 0,
+    "heatmap": {
+      "top": 400,
+      "h": 692,
+      "w": 1136
+    },
+    "titoli": [
+      "Giornate @362",
+      "Regole correnti @1148",
+      "Comportamento e rendimenti @1507"
+    ],
+    "piccoli": [],
+    "bassi": [],
+    "bassiCal": [],
+    "celleHeatmap": 122,
+    "gradini": [
+      67,
+      3,
+      41,
+      11
+    ],
+    "erroriConsole": []
+  },
+  {
+    "pagina": "/progress?period=all&cur=EUR",
+    "larghezza": 1440,
+    "tema": "dark",
+    "file": "progress_period_all_cur_EUR__1440__dark.png",
+    "altezza": 2404,
+    "innerWidth": 1440,
+    "scrollWidth": 1440,
+    "sbordi": 0,
+    "heatmap": {
+      "top": 400,
+      "h": 692,
+      "w": 1136
+    },
+    "titoli": [
+      "Giornate @362",
+      "Regole correnti @1148",
+      "Comportamento e rendimenti @1507"
+    ],
+    "piccoli": [],
+    "bassi": [],
+    "bassiCal": [],
+    "celleHeatmap": 122,
+    "gradini": [
+      72,
+      4,
+      27,
+      19
+    ],
+    "erroriConsole": []
+  },
+  {
+    "pagina": "/progress?period=all",
+    "larghezza": 390,
+    "tema": "dark",
+    "file": "progress_period_all__390__dark.png",
+    "altezza": 3716,
+    "innerWidth": 390,
+    "scrollWidth": 390,
+    "sbordi": 103,
+    "heatmap": {
+      "top": 622,
+      "h": 1380,
+      "w": 326
+    },
+    "titoli": [
+      "Giornate @584",
+      "Regole correnti @2058",
+      "Comportamento e rendimenti @2489"
+    ],
+    "piccoli": [],
+    "bassi": [],
+    "bassiCal": [],
+    "celleHeatmap": 122,
+    "gradini": [
+      67,
+      3,
+      41,
+      11
+    ],
+    "erroriConsole": []
+  },
+  {
+    "pagina": "/progress?period=all&cur=EUR",
+    "larghezza": 390,
+    "tema": "dark",
+    "file": "progress_period_all_cur_EUR__390__dark.png",
+    "altezza": 3716,
+    "innerWidth": 390,
+    "scrollWidth": 390,
+    "sbordi": 92,
+    "heatmap": {
+      "top": 622,
+      "h": 1380,
+      "w": 326
+    },
+    "titoli": [
+      "Giornate @584",
+      "Regole correnti @2058",
+      "Comportamento e rendimenti @2489"
+    ],
+    "piccoli": [],
+    "bassi": [],
+    "bassiCal": [],
+    "celleHeatmap": 122,
+    "gradini": [
+      72,
+      4,
+      27,
+      19
+    ],
+    "erroriConsole": []
+  },
+  {
+    "pagina": "/progress?period=all",
+    "larghezza": 1440,
+    "tema": "light",
+    "file": "progress_period_all__1440__light.png",
+    "altezza": 2404,
+    "innerWidth": 1440,
+    "scrollWidth": 1440,
+    "sbordi": 0,
+    "heatmap": {
+      "top": 400,
+      "h": 692,
+      "w": 1136
+    },
+    "titoli": [
+      "Giornate @362",
+      "Regole correnti @1148",
+      "Comportamento e rendimenti @1507"
+    ],
+    "piccoli": [],
+    "bassi": [],
+    "bassiCal": [],
+    "celleHeatmap": 122,
+    "gradini": [
+      67,
+      3,
+      41,
+      11
+    ],
+    "erroriConsole": []
+  },
+  {
+    "pagina": "/progress?period=all&cur=EUR",
+    "larghezza": 1440,
+    "tema": "light",
+    "file": "progress_period_all_cur_EUR__1440__light.png",
+    "altezza": 2404,
+    "innerWidth": 1440,
+    "scrollWidth": 1440,
+    "sbordi": 0,
+    "heatmap": {
+      "top": 400,
+      "h": 692,
+      "w": 1136
+    },
+    "titoli": [
+      "Giornate @362",
+      "Regole correnti @1148",
+      "Comportamento e rendimenti @1507"
+    ],
+    "piccoli": [],
+    "bassi": [],
+    "bassiCal": [],
+    "celleHeatmap": 122,
+    "gradini": [
+      72,
+      4,
+      27,
+      19
+    ],
+    "erroriConsole": []
+  },
+  {
+    "pagina": "/progress?period=all",
+    "larghezza": 390,
+    "tema": "light",
+    "file": "progress_period_all__390__light.png",
+    "altezza": 3716,
+    "innerWidth": 390,
+    "scrollWidth": 390,
+    "sbordi": 103,
+    "heatmap": {
+      "top": 622,
+      "h": 1380,
+      "w": 326
+    },
+    "titoli": [
+      "Giornate @584",
+      "Regole correnti @2058",
+      "Comportamento e rendimenti @2489"
+    ],
+    "piccoli": [],
+    "bassi": [],
+    "bassiCal": [],
+    "celleHeatmap": 122,
+    "gradini": [
+      67,
+      3,
+      41,
+      11
+    ],
+    "erroriConsole": []
+  },
+  {
+    "pagina": "/progress?period=all&cur=EUR",
+    "larghezza": 390,
+    "tema": "light",
+    "file": "progress_period_all_cur_EUR__390__light.png",
+    "altezza": 3716,
+    "innerWidth": 390,
+    "scrollWidth": 390,
+    "sbordi": 92,
+    "heatmap": {
+      "top": 622,
+      "h": 1380,
+      "w": 326
+    },
+    "titoli": [
+      "Giornate @584",
+      "Regole correnti @2058",
+      "Comportamento e rendimenti @2489"
+    ],
+    "piccoli": [],
+    "bassi": [],
+    "bassiCal": [],
+    "celleHeatmap": 122,
+    "gradini": [
+      72,
+      4,
+      27,
+      19
+    ],
+    "erroriConsole": []
+  }
+]

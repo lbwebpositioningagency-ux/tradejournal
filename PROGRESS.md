@@ -3755,3 +3755,46 @@ Misure (build locale; Settimana, calendario, Day View Week; 1440 e 390; due temi
 contrasto minimo 4,65, 0 sbordi di pagina, 0 errori in console. Test nuovi: helper di settimana,
 validazioni, integrazione Postgres di `WeekNote`, guardie su cella e link. Schermate in
 `docs/journal/settimana/`.
+## 16/09/2026 · Progress Tracker — disciplina da regole oggettive, e la sua relazione con il P&L
+
+Nuova sezione `/progress` (voce «Progress Tracker» della barra laterale), schede **Tracker** e
+**Regole**. Misura il comportamento, non la strategia: quanto spesso regole verificabili dai campi
+dei trade sono rispettate, giornata per giornata. Nessuna regola si dichiara a mano (checklist e
+«ho seguito il piano» restano fuori). Worktree `C:/wt/progress`, cinque fasi pubblicate una per una.
+
+**Fase 1 — regole** (7160129). Dodici tipi in `src/lib/discipline/catalog.ts`: stop presente, perdita
+entro lo stop, perdita massima per trade e giornaliera, trade al giorno, rischio pianificato, R/R
+minimo, orario operativo, pausa dopo una perdita, perdite consecutive, posizioni aperte insieme, size
+per simbolo. Le prime cinque attive di default. Regole dell'utente della sessione, valide anche sul
+demo SIM1 (in sola lettura). Soglie in denaro una per valuta. Nessuna riga = valori di partenza del
+catalogo, dichiarati come punti di partenza. Migrazione `20260916200000_progress_tracker_regole`:
+solo tabelle nuove (`DisciplineRule`, `DisciplineRuleCurrencyLimit`, `DisciplineRuleSymbolLimit`),
+applicata su Neon prima del push.
+
+**Fase 2 — valutazione** (1d9ae5c). Il database riduce i trade a fatti per giornata senza soglie
+(`lib/queries/discipline.ts`); il modulo puro `evaluate.ts` li rende rispettata / violata / non
+applicabile. Regole d'ingresso sul giorno di apertura, regole sulle perdite sul giorno di chiusura.
+Stop mancante = violazione (nota MT5 nella regola); «perdita entro lo stop» non applicabile con soli
+trade in utile. Punteggio = rispettate su applicabili; serie che le giornate non applicabili non
+spezzano; follow rate dichiarato poco affidabile sotto 20 giornate.
+
+**Fase 3 — vista** (dde705f). Tavola Claude Design «Progress Tracker - disposizione e heatmap»
+(1a + 2c): quattro numeri, heatmap per mesi del periodo, «Regole correnti». Scala nuova
+`--heat-rule-1..3` (ardesia: verde/rosso sono del P&L, blu/viola delle coppie alternative), testata
+in `theme-contrast.test.ts`. Su SIM1 l'87% delle giornate è perfetto: le giornate con violazioni
+portano un punto e la frazione. Avviso demo: «Stop presente» e «Orario operativo» sempre rispettate
+per costruzione.
+
+**Fase 4 — comportamento → rendimenti** (2b53953). Tavola «Progress Tracker - comportamento e
+rendimenti» (1b). Sul demo nessuna cifra: avviso «relazione non interpretabile, serve uno storico di
+trade reali» e struttura vuota. Sui dati reali giornate e settimane con/senza violazioni, serie
+settimanali sullo stesso asse, scarto osservato per regola; minimi 20 giornate / 8 settimane per
+gruppo; solo regole d'ingresso nei confronti, perché quelle sulla perdita li renderebbero circolari.
+
+**Fase 5 — verifica.** Un caso rispettato / violato / non applicabile per regola (unit), integrazione
+Postgres con trade costruiti a mano (overnight, weekend, posizione aperta, seconda valuta), golden su
+SIM1 (374 giornate, 96,2%, 325 perfette; violazioni: entro lo stop 29, per trade 14, giornaliera 19;
+stop presente e trade al giorno 0), test che lo stato demo non contenga cifre né grafico. Sonda sulla
+build locale con tutti i mesi della heatmap aperti (577 celle SIM1, 122 del conto locale in USD e in
+EUR), 1440 e 390, due temi: 0 testi sotto 11px, 0 contrasti sotto 4,5:1, 0 errori in console.
+Schermate in `docs/progress-tracker/schermate/`. Debito registrato in `docs/DEBITO-TECNICO.md`.
