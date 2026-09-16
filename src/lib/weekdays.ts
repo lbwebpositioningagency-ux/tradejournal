@@ -1,11 +1,11 @@
-import type { WeekdayBreakdownRow } from "@/lib/queries/reports";
-import type { RSplitAggregates } from "@/lib/metrics/types";
+import type { BreakdownAggregates, WeekdayBreakdownRow } from "@/lib/queries/reports";
+import { emptyBreakdownAggregates } from "@/lib/reports";
 
 /**
- * Performance per giorno della settimana in dashboard: stessa forma dei
- * punti-sessione (src/lib/sessions.ts), alimentata dal breakdown ISO
- * `getWeekdayBreakdown` già usato dai Reports (giorno di APERTURA nel fuso
- * utente).
+ * Performance per giorno della settimana, tabella di Reports: stessa forma
+ * dei punti-sessione (src/lib/sessions.ts), alimentata dal breakdown ISO
+ * `getWeekdayBreakdown` che serve anche il grafico per giorno (giorno di
+ * APERTURA nel fuso utente).
  *
  * SEMPRE E SOLO LUN-VEN, cinque righe fisse con gli zeri dove mancano.
  * Prima sabato e domenica comparivano se contenevano trade: decisione
@@ -20,7 +20,7 @@ import type { RSplitAggregates } from "@/lib/metrics/types";
 
 /**
  * ISO: 1 = lunedì … 5 = venerdì. Sabato (6) e domenica (7) non hanno
- * un'etichetta perché non sono rappresentabili in questo widget: chi
+ * un'etichetta perché non sono rappresentabili in questa tabella: chi
  * aggiunge una chiave qui sta cambiando la decisione di cui sopra.
  */
 export const WEEKDAY_LABELS: Record<number, string> = {
@@ -34,41 +34,23 @@ export const WEEKDAY_LABELS: Record<number, string> = {
 /** Giorni mostrati, in ordine ISO: la settimana operativa e basta. */
 const WEEKDAYS = [1, 2, 3, 4, 5];
 
-export interface WeekdayPoint extends RSplitAggregates {
+/** Riga della tabella «Per giorno della settimana» di Reports. */
+export interface WeekdayPoint extends BreakdownAggregates {
   weekday: number;
   label: string;
-  total: number;
-  wins: number;
-  /** Serve al Profit Factor della riga (Fase 60). */
-  winSum: string;
-  /** ≤ 0, col segno. */
-  lossSum: string;
-  netPnl: string;
-  rSum: string;
-  rCount: number;
 }
 
 export function fillWeekdaySeries(rows: WeekdayBreakdownRow[]): WeekdayPoint[] {
   // Le righe di sabato/domenica in ingresso vengono semplicemente ignorate:
-  // la query resta quella dei Reports (bucket ISO 1-7), è la vista che si
-  // ferma al venerdì.
+  // la query resta quella del grafico per giorno (bucket ISO 1-7), è la
+  // tabella che si ferma al venerdì.
   const byDay = new Map(rows.map((r) => [r.weekday, r]));
   return WEEKDAYS.map((weekday) => {
     const row = byDay.get(weekday);
     return {
+      ...(row ?? emptyBreakdownAggregates()),
       weekday,
       label: WEEKDAY_LABELS[weekday],
-      total: row?.total ?? 0,
-      wins: row?.wins ?? 0,
-      winSum: row?.winSum ?? "0",
-      lossSum: row?.lossSum ?? "0",
-      netPnl: row?.netPnl ?? "0",
-      rSum: row?.rSum ?? "0",
-      rCount: row?.rCount ?? 0,
-      rWinSum: row?.rWinSum ?? "0",
-      rWinCount: row?.rWinCount ?? 0,
-      rLossSum: row?.rLossSum ?? "0",
-      rLossCount: row?.rLossCount ?? 0,
     };
   });
 }
@@ -77,7 +59,7 @@ export function fillWeekdaySeries(rows: WeekdayBreakdownRow[]): WeekdayPoint[] {
 export const weekdaysInfo = {
   label: "Performance per giorno della settimana",
   description:
-    "Trade, win rate, Avg Win/Loss, profit factor, expectancy in R e profitto per giorno della settimana, classificati sul giorno di APERTURA nel tuo fuso orario. Solo lunedì-venerdì: eventuali trade del weekend restano nelle altre metriche del conto ma non compaiono in questa tabella.",
+    "Trade, win rate, Avg Win/Loss, profit factor, expectancy in R, attesa per trade e Net P&L per giorno della settimana, classificati sul giorno di APERTURA nel tuo fuso orario. Solo lunedì-venerdì: eventuali trade del weekend restano nelle altre metriche del conto ma non compaiono in questa tabella.",
   formula:
     "Bucket ISO sul giorno di apertura, lun-ven (weekend escluso), stessi aggregati del report per sessione",
 };

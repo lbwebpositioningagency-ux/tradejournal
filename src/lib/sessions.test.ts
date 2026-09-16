@@ -44,6 +44,8 @@ describe("sessioni di mercato", () => {
         rWinCount: 3,
         rLossSum: "-2.0",
         rLossCount: 1,
+        pnlUnits: ["8000", "7000", "5000", "-4000", "-3950"],
+        rUnits: [],
       },
     ]);
     expect(series.map((s) => s.session)).toEqual([
@@ -60,6 +62,13 @@ describe("sessioni di mercato", () => {
       rCount: 4,
     });
     expect(series[0]).toMatchObject({ total: 0, wins: 0, netPnl: "0", rCount: 0 });
+    // Le righe della tabella di Reports portano gli aggregati COMPLETI:
+    // perdite, breakeven e le serie per l'attesa per trade.
+    expect(series[2]).toMatchObject({ losses: 2, breakevens: 0, label: "New York" });
+    expect(series[2].pnlUnits).toHaveLength(5);
+    expect(series[0]).toMatchObject({ losses: 0, breakevens: 0, pnlUnits: [], rUnits: [] });
+    // Mai lo stesso array condiviso fra due righe vuote.
+    expect(series[0].pnlUnits).not.toBe(series[1].pnlUnits);
   });
 
   it("righe con chiave sconosciuta vengono ignorate (difensivo)", () => {
@@ -79,6 +88,8 @@ describe("sessioni di mercato", () => {
         rWinCount: 0,
         rLossSum: "0",
         rLossCount: 0,
+        pnlUnits: [],
+        rUnits: [],
       },
     ]);
     expect(series.every((s) => s.total === 0)).toBe(true);

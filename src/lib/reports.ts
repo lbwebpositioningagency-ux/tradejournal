@@ -1,12 +1,38 @@
 import { formatNumber } from "@/lib/format-number";
 import { electExtremes, type Extremes } from "@/lib/metrics/extremes";
 import { meanEstimate, parseUnits, type Estimate } from "@/lib/metrics/confidence";
+import type { BreakdownAggregates } from "@/lib/queries/reports";
 
 /**
  * Helper puri per i Reports: riempiono i bucket mancanti delle serie
  * orario/giorno (il SQL restituisce solo i bucket con trade) e trovano
  * il bucket migliore/peggiore. Solo Decimal per i confronti sul P&L.
  */
+
+/**
+ * Aggregati di un bucket senza trade: le tabelle a righe FISSE (sessioni,
+ * giorni della settimana) mostrano la riga vuota invece di toglierla.
+ * Oggetto nuovo a ogni chiamata: le serie non condividono array.
+ */
+export function emptyBreakdownAggregates(): BreakdownAggregates {
+  return {
+    total: 0,
+    wins: 0,
+    losses: 0,
+    breakevens: 0,
+    netPnl: "0",
+    winSum: "0",
+    lossSum: "0",
+    rSum: "0",
+    rCount: 0,
+    rWinSum: "0",
+    rWinCount: 0,
+    rLossSum: "0",
+    rLossCount: 0,
+    pnlUnits: [],
+    rUnits: [],
+  };
+}
 
 export interface BucketPoint {
   /** Etichetta di categoria ("09", "Lun"…). */

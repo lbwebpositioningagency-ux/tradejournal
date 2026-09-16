@@ -18,7 +18,8 @@
  * corretta in entrambe le stagioni.
  */
 
-import type { RSplitAggregates } from "@/lib/metrics/types";
+import type { BreakdownAggregates } from "@/lib/queries/reports";
+import { emptyBreakdownAggregates } from "@/lib/reports";
 
 export const SESSIONS = ["ASIA", "LONDON", "NEWYORK", "OFF"] as const;
 export type SessionKey = (typeof SESSIONS)[number];
@@ -49,31 +50,14 @@ export const SESSION_LABELS: Record<SessionKey, string> = {
 };
 
 /** Riga SQL del breakdown per sessione (stesse colonne degli altri breakdown). */
-export interface SessionRow extends RSplitAggregates {
+export interface SessionRow extends BreakdownAggregates {
   session: string;
-  total: number;
-  wins: number;
-  losses: number;
-  breakevens: number;
-  netPnl: string;
-  winSum: string;
-  lossSum: string;
-  rSum: string;
-  rCount: number;
 }
 
-export interface SessionPoint extends RSplitAggregates {
+/** Riga della tabella «Per sessione» di Reports: aggregati completi + etichetta. */
+export interface SessionPoint extends BreakdownAggregates {
   session: SessionKey;
   label: string;
-  total: number;
-  wins: number;
-  /** Serve al Profit Factor della riga (Fase 60). */
-  winSum: string;
-  /** ≤ 0, col segno. */
-  lossSum: string;
-  netPnl: string;
-  rSum: string;
-  rCount: number;
 }
 
 /**
@@ -85,19 +69,9 @@ export function fillSessionSeries(rows: SessionRow[]): SessionPoint[] {
   return SESSIONS.map((session) => {
     const row = bySession.get(session);
     return {
+      ...(row ?? emptyBreakdownAggregates()),
       session,
       label: SESSION_LABELS[session],
-      total: row?.total ?? 0,
-      wins: row?.wins ?? 0,
-      winSum: row?.winSum ?? "0",
-      lossSum: row?.lossSum ?? "0",
-      netPnl: row?.netPnl ?? "0",
-      rSum: row?.rSum ?? "0",
-      rCount: row?.rCount ?? 0,
-      rWinSum: row?.rWinSum ?? "0",
-      rWinCount: row?.rWinCount ?? 0,
-      rLossSum: row?.rLossSum ?? "0",
-      rLossCount: row?.rLossCount ?? 0,
     };
   });
 }
@@ -106,7 +80,7 @@ export function fillSessionSeries(rows: SessionRow[]): SessionPoint[] {
 export const sessionsInfo = {
   label: "Performance per sessione",
   description:
-    "Trade, win rate, Avg Win/Loss, profit factor, expectancy in R e profitto per sessione di mercato, classificati sull'ora di APERTURA in ora italiana (Europe/Rome, ora legale gestita automaticamente). Le fasce sono contigue: ogni trade appartiene a una sessione sola, e le 22–24 sono una categoria a sé.",
+    "Trade, win rate, Avg Win/Loss, profit factor, expectancy in R, attesa per trade e Net P&L per sessione di mercato, classificati sull'ora di APERTURA in ora italiana (Europe/Rome, ora legale gestita automaticamente). Le fasce sono contigue: ogni trade appartiene a una sessione sola, e le 22–24 sono una categoria a sé.",
   formula:
     "Ora italiana: Asia (Tokyo) 00–08 · Europa (Londra) 08–14 · America (New York) 14–22 · Fuori sessione 22–24",
 };

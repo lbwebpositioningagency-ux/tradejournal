@@ -57,6 +57,7 @@ import {
   getTagBreakdown,
   getTagCategoryBreakdown,
   getPlanAdherenceBreakdown,
+  getSessionBreakdown,
   getWeekdayBreakdown,
   type BreakdownAggregates,
 } from "@/lib/queries/reports";
@@ -68,7 +69,12 @@ import {
   type StatsFilter,
 } from "@/lib/queries/stats";
 import { resolveCurrencyScope } from "@/lib/currency-scope";
-import { EXTREME_MIN_TRADES } from "@/lib/metrics/extremes";
+import { EXTREME_MIN_TRADES, isExtremeEligible } from "@/lib/metrics/extremes";
+import { fillSessionSeries, sessionsInfo } from "@/lib/sessions";
+import {
+  fillWeekdaySeries as fillWeekdayRows,
+  weekdaysInfo,
+} from "@/lib/weekdays";
 import { cn } from "@/lib/utils";
 import { PeriodFilter } from "@/components/filters/period-filter";
 import { CurrencyFilter } from "@/components/filters/currency-filter";
@@ -121,6 +127,7 @@ const cashExpectancyInfo = { ...expectancyInfo, label: "Attesa per trade" };
 function BreakdownTable({
   rows,
   currency,
+  minTrades,
 }: {
   rows: {
     key: string;
@@ -130,7 +137,17 @@ function BreakdownTable({
     href?: string;
   }[];
   currency: string;
+  /**
+   * Soglia di campione (EXTREME_MIN_TRADES, la stessa dei grafici per ora e
+   * giorno): le righe sotto la soglia portano «· sotto N» e una nota in
+   * calce. Assente nelle tabelle che non la applicano.
+   */
+  minTrades?: number;
 }) {
+  const underSample = (a: BreakdownAggregates) =>
+    minTrades !== undefined &&
+    a.total > 0 &&
+    !isExtremeEligible(a.total, minTrades);
   return (
     <>
       {/* F27 — mobile (< md): card impilate col Net P&L SEMPRE in vista,
@@ -139,6 +156,8 @@ function BreakdownTable({
       <ul className="flex flex-col gap-2 md:hidden">
         {rows.map((row) => {
           const m = rowMetrics(row.aggregates);
+          // Righe a elenco fisso (sessioni, giorni) possono non avere trade.
+          const empty = row.aggregates.total === 0;
           const body = (
             <>
               <span className="flex items-center justify-between gap-2">
@@ -148,31 +167,46 @@ function BreakdownTable({
                 <span
                   className={cn(
                     "shrink-0 text-sm font-medium tabular-nums",
-                    pnlColorClass(row.aggregates.netPnl),
+                    empty
+                      ? "text-muted-foreground"
+                      : pnlColorClass(row.aggregates.netPnl),
                   )}
                 >
-                  {formatSignedMoney(row.aggregates.netPnl, currency)}
+                  {empty
+                    ? "—"
+                    : formatSignedMoney(row.aggregates.netPnl, currency)}
                 </span>
               </span>
-              <span className="flex flex-wrap items-center gap-x-3 gap-y-0.5 text-xs tabular-nums text-muted-foreground">
-                <span>
-                  {row.aggregates.total} trade ({row.aggregates.wins}W/
-                  {row.aggregates.losses}L
-                  {row.aggregates.breakevens > 0
-                    ? `/${row.aggregates.breakevens}BE`
-                    : ""}
-                  )
+              {empty ? (
+                <span className="text-xs text-muted-foreground">
+                  Nessun trade
                 </span>
-                <span>Win {m.winRate}</span>
-                <span>Avg W/L {m.avgWinLoss}</span>
-              </span>
-              <span className="flex flex-wrap items-center gap-x-3 gap-y-0.5 text-xs tabular-nums text-muted-foreground">
-                <span>PF {m.profitFactor}</span>
-                <span>Expectancy {m.expectancyR}</span>
-                <span>
-                  Attesa {m.expectancyCash} {currency}
-                </span>
-              </span>
+              ) : (
+                <>
+                  <span className="flex flex-wrap items-center gap-x-3 gap-y-0.5 text-xs tabular-nums text-muted-foreground">
+                    <span>
+                      {row.aggregates.total} trade ({row.aggregates.wins}W/
+                      {row.aggregates.losses}L
+                      {row.aggregates.breakevens > 0
+                        ? `/${row.aggregates.breakevens}BE`
+                        : ""}
+                      )
+                      {underSample(row.aggregates)
+                        ? ` · sotto ${minTrades}`
+                        : ""}
+                    </span>
+                    <span>Win {m.winRate}</span>
+                    <span>Avg W/L {m.avgWinLoss}</span>
+                  </span>
+                  <span className="flex flex-wrap items-center gap-x-3 gap-y-0.5 text-xs tabular-nums text-muted-foreground">
+                    <span>PF {m.profitFactor}</span>
+                    <span>Expectancy {m.expectancyR}</span>
+                    <span>
+                      Attesa {m.expectancyCash} {currency}
+                    </span>
+                  </span>
+                </>
+              )}
             </>
           );
           const itemClass =
@@ -236,10 +270,14 @@ function BreakdownTable({
         <TableBody>
           {rows.map((row) => {
             const m = rowMetrics(row.aggregates);
+            const empty = row.aggregates.total === 0;
             return (
               <TableRow
                 key={row.key}
-                className={row.href ? "relative" : undefined}
+                className={cn(
+                  row.href && "relative",
+                  empty && "text-muted-foreground",
+                )}
               >
                 <TableCell className="font-medium">
                   {row.href ? (
@@ -252,14 +290,25 @@ function BreakdownTable({
                   {row.label}
                 </TableCell>
                 <TableCell className="text-right tabular-nums">
-                  {row.aggregates.total}
-                  <span className="ml-1 text-xs text-muted-foreground">
-                    ({row.aggregates.wins}W/{row.aggregates.losses}L
-                    {row.aggregates.breakevens > 0
-                      ? `/${row.aggregates.breakevens}BE`
-                      : ""}
-                    )
-                  </span>
+                  {empty ? (
+                    "—"
+                  ) : (
+                    <>
+                      {row.aggregates.total}
+                      <span className="ml-1 text-xs text-muted-foreground">
+                        ({row.aggregates.wins}W/{row.aggregates.losses}L
+                        {row.aggregates.breakevens > 0
+                          ? `/${row.aggregates.breakevens}BE`
+                          : ""}
+                        )
+                      </span>
+                      {underSample(row.aggregates) ? (
+                        <span className="ml-1 whitespace-nowrap text-2xs text-muted-foreground">
+                          · sotto {minTrades}
+                        </span>
+                      ) : null}
+                    </>
+                  )}
                 </TableCell>
                 <TableCell className="text-right tabular-nums">{m.winRate}</TableCell>
                 <TableCell className="text-right tabular-nums">
@@ -277,10 +326,12 @@ function BreakdownTable({
                 <TableCell
                   className={cn(
                     "text-right font-medium tabular-nums",
-                    pnlColorClass(row.aggregates.netPnl),
+                    !empty && pnlColorClass(row.aggregates.netPnl),
                   )}
                 >
-                  {formatSignedMoney(row.aggregates.netPnl, currency)}
+                  {empty
+                    ? "—"
+                    : formatSignedMoney(row.aggregates.netPnl, currency)}
                 </TableCell>
               </TableRow>
             );
@@ -288,6 +339,12 @@ function BreakdownTable({
         </TableBody>
       </Table>
       </div>
+      {rows.some((row) => underSample(row.aggregates)) ? (
+        <p className="mt-2 text-xs text-muted-foreground">
+          Righe con meno di {minTrades} trade: descrivono cosa è successo, non
+          bastano per un confronto.
+        </p>
+      ) : null}
     </>
   );
 }
@@ -402,8 +459,9 @@ export default async function ReportsPage({
   const filter: StatsFilter = { ...baseFilter, currency: scope.active };
   const currency = scope.active ?? activeAccount?.currency ?? user.baseCurrency;
 
-  const [strategies, tags, tagCategories, planAdherence, symbols, directionAssets, months, hours, weekdays, streaks, outcomes, biasRows] =
+  const [sessions, strategies, tags, tagCategories, planAdherence, symbols, directionAssets, months, hours, weekdays, streaks, outcomes, biasRows] =
     await Promise.all([
+      getSessionBreakdown(filter),
       getStrategyBreakdown(filter),
       getTagBreakdown(filter),
       getTagCategoryBreakdown(filter),
@@ -425,6 +483,9 @@ export default async function ReportsPage({
   const totalTrades = strategies.reduce((acc, s) => acc + s.total, 0);
   const hourSeries = fillHourSeries(hours);
   const weekdaySeries = fillWeekdaySeries(weekdays);
+  // Tabelle a righe fisse: 4 sessioni, lunedì-venerdì (v. lib/weekdays.ts).
+  const sessionRows = fillSessionSeries(sessions);
+  const weekdayRows = fillWeekdayRows(weekdays);
   const current = currentStreak(outcomes);
   const suffix = ` ${currency}`;
 
@@ -530,6 +591,40 @@ export default async function ReportsPage({
         />
       ) : (
         <>
+          {/* In testa le due tabelle arrivate dalla Dashboard (16/09/2026).
+              Righe fisse, soglia di campione a EXTREME_MIN_TRADES come i
+              grafici per ora e giorno; nessun drill-down: la Trade View non
+              filtra per sessione né per giorno della settimana. */}
+          <CollapsibleCard
+            title="Per sessione"
+            titleExtra={<MetricInfo info={sessionsInfo} />}
+          >
+            <BreakdownTable
+              currency={currency}
+              minTrades={EXTREME_MIN_TRADES}
+              rows={sessionRows.map((row) => ({
+                key: row.session,
+                label: row.label,
+                aggregates: row,
+              }))}
+            />
+          </CollapsibleCard>
+
+          <CollapsibleCard
+            title="Per giorno della settimana"
+            titleExtra={<MetricInfo info={weekdaysInfo} />}
+          >
+            <BreakdownTable
+              currency={currency}
+              minTrades={EXTREME_MIN_TRADES}
+              rows={weekdayRows.map((row) => ({
+                key: String(row.weekday),
+                label: row.label,
+                aggregates: row,
+              }))}
+            />
+          </CollapsibleCard>
+
           {/* F27 — su mobile le sezioni sono collassabili (coerente con F26);
               "Per simbolo" aperta di default: è il report #1. */}
           <CollapsibleCard title="Per simbolo" defaultOpen>

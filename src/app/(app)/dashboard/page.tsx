@@ -58,9 +58,6 @@ import {
 } from "@/lib/queries/stats";
 import { fillRDistribution } from "@/lib/reports";
 import { resolveCurrencyScope } from "@/lib/currency-scope";
-import { getSessionBreakdown, getWeekdayBreakdown } from "@/lib/queries/reports";
-import { fillSessionSeries } from "@/lib/sessions";
-import { fillWeekdaySeries } from "@/lib/weekdays";
 import { parseDashboardLayout } from "@/lib/validations/dashboard";
 import {
   DashboardView,
@@ -198,8 +195,6 @@ export default async function DashboardPage({
     pnlBeforePeriod,
     lifetimeNetPnl,
     sequence,
-    sessionRows,
-    weekdayRows,
     rDistributionRows,
     openTradeRows,
     openTradeCount,
@@ -233,8 +228,6 @@ export default async function DashboardPage({
         currency: lifetimeScope.active,
       }),
       getTradeSequence(filter),
-      getSessionBreakdown(filter),
-      getWeekdayBreakdown(filter, user.timezone),
       getRDistribution(filter),
       // F33 — posizioni aperte del conto/valuta attivi (non filtrate dal
       // periodo: una posizione aperta è "adesso" per definizione).
@@ -441,8 +434,6 @@ export default async function DashboardPage({
     worstLossR: agg.worstLossR,
     avgWinDurationSec: agg.avgWinDurationSec,
     avgLossDurationSec: agg.avgLossDurationSec,
-    sessions: fillSessionSeries(sessionRows),
-    weekdays: fillWeekdaySeries(weekdayRows),
     // Metriche avanzate (FASE 9): ratio adimensionali sulla stessa serie
     // giornaliera del drawdown e sugli aggregati R già in SQL.
     sortino: sortinoRatio(ratioWindow.window),

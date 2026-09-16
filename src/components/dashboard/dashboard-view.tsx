@@ -84,8 +84,6 @@ import {
   type YearGrid,
 } from "@/lib/metrics";
 import { formatDayKey, formatDurationSec } from "@/lib/dates";
-import { sessionsInfo, type SessionPoint } from "@/lib/sessions";
-import { weekdaysInfo, type WeekdayPoint } from "@/lib/weekdays";
 import { MetricInfo, type MetricScaleData } from "@/components/metric-info";
 import { CHART } from "@/components/charts/chart-spec";
 import { EmptyState } from "@/components/empty-state";
@@ -127,25 +125,11 @@ import { OnboardingHero } from "./onboarding-hero";
 import { MiniCalendar, type MiniCalendarDay } from "./mini-calendar";
 
 /**
- * P-06 — sessioni e calendario mensile chiudono la pagina: montarli col
+ * P-06 — il calendario mensile chiude la pagina: montarlo col
  * primo frame dell'idratazione non serve. `next/dynamic` `ssr:false` con
  * fallback ad altezza equivalente: niente layout shift, mount fuori dal
  * percorso critico.
  */
-const PerformanceBarTable = dynamicImport(
-  () => import("./performance-bar-table").then((m) => m.PerformanceBarTable),
-  {
-    ssr: false,
-    loading: () => (
-      <div className="flex flex-col gap-2">
-        {Array.from({ length: 5 }, (_, i) => (
-          <Skeleton key={i} className="h-9 w-full" />
-        ))}
-      </div>
-    ),
-  },
-);
-
 const MonthlyCalendar = dynamicImport(
   () => import("./monthly-calendar").then((m) => m.MonthlyCalendar),
   {
@@ -248,8 +232,6 @@ export interface DashboardData {
   worstLossR: string | null;
   avgWinDurationSec: string | null;
   avgLossDurationSec: string | null;
-  sessions: SessionPoint[];
-  weekdays: WeekdayPoint[];
   tradeStreak: StreakResult;
   dayStreak: StreakResult;
   /** Score a 6 fattori per il radar (null con zero trade chiusi). */
@@ -1429,68 +1411,6 @@ export function DashboardView({ data }: { data: DashboardData }) {
         ) : null}
       </div>
       )}
-
-      {/* F22 — performance per sessione: tabella compatta con barre (F7:
-          classificazione nel fuso dell'exchange) */}
-      {show("sessions") && !hideAnalytics ? (
-        <Card className={cn("max-lg:order-10", analyticsCls)}>
-          <CardHeader>
-            <CardTitle className="stat-label flex items-center gap-1">
-              Performance per sessione
-              <MetricInfo info={sessionsInfo} />
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            {data.totalTrades > 0 ? (
-              <PerformanceBarTable
-                rows={data.sessions}
-                rowHeader="Sessione"
-                currency={data.currency}
-                masked={masked}
-              />
-            ) : (
-              <EmptyState
-                compact
-                icon={LineChartIcon}
-                title="Nessun trade chiuso nel periodo"
-                description="La tabella si popola con i trade chiusi per sessione."
-              />
-            )}
-          </CardContent>
-        </Card>
-      ) : null}
-
-      {/* Performance per giorno della settimana: stessa tabella con barre
-          delle sessioni, bucket ISO sul giorno di apertura (fuso utente).
-          SEMPRE e SOLO lun-ven, anche con trade nel weekend (v.
-          lib/weekdays.ts). */}
-      {show("weekdays") && !hideAnalytics ? (
-        <Card className={cn("max-lg:order-10", analyticsCls)}>
-          <CardHeader>
-            <CardTitle className="stat-label flex items-center gap-1">
-              Performance per giorno della settimana
-              <MetricInfo info={weekdaysInfo} />
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            {data.totalTrades > 0 ? (
-              <PerformanceBarTable
-                rows={data.weekdays}
-                rowHeader="Giorno"
-                currency={data.currency}
-                masked={masked}
-              />
-            ) : (
-              <EmptyState
-                compact
-                icon={LineChartIcon}
-                title="Nessun trade chiuso nel periodo"
-                description="La tabella si popola con i trade chiusi per giorno della settimana."
-              />
-            )}
-          </CardContent>
-        </Card>
-      ) : null}
 
       {/* Grafici */}
       {hideAnalytics ? null : (

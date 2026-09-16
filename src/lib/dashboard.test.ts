@@ -30,6 +30,23 @@ describe("parseDashboardLayout", () => {
   it("monte-carlo non è più un widget della dashboard", () => {
     expect(WIDGET_IDS).not.toContain("monte-carlo");
   });
+
+  it("sessioni e giorni della settimana sono passati a Reports (16/09/2026)", () => {
+    expect(WIDGET_IDS).not.toContain("sessions");
+    expect(WIDGET_IDS).not.toContain("weekdays");
+  });
+
+  it("un layout che nascondeva sessioni o giorni perde solo quei due id", () => {
+    // Chi li aveva nascosti: la preferenza non punta più a niente e sparisce
+    // al parse; al primo salvataggio del menu il documento torna pulito.
+    // Chi li teneva visibili non ha niente da migrare (hidden non li conteneva).
+    const layout = parseDashboardLayout({
+      hidden: ["sessions", "balance", "weekdays"],
+      mobile: { showAllMetrics: false, showAnalytics: true },
+    });
+    expect(layout.hidden).toEqual(["balance"]);
+    expect(layout.mobile.showAnalytics).toBe(true);
+  });
 });
 
 /**
