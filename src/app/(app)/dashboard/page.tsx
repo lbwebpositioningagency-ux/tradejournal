@@ -10,9 +10,7 @@ import {
   formatDateTime,
   secondsSince,
   todayKeyInZone,
-  zonedInputToUtc,
 } from "@/lib/dates";
-import { addMonths } from "@/lib/calendar";
 import { resolvePeriod } from "@/lib/period";
 import { periodCookieFallback } from "@/lib/period-cookie";
 import {
@@ -42,13 +40,11 @@ import {
   monthlyReturnGrids,
 } from "@/lib/metrics";
 import {
-  BE_BIN,
   getAccountCurrencyTotals,
   getCurrencyBreakdown,
   getDailyPnl,
   getLifetimeNetPnl,
   getNetPnlBefore,
-  getRDistribution,
   getPeriodPnl,
   getRecentTradeOutcomes,
   getStartingBalance,
@@ -56,13 +52,13 @@ import {
   getTradeSequence,
   type StatsFilter,
 } from "@/lib/queries/stats";
-import { fillRDistribution } from "@/lib/reports";
 import { resolveCurrencyScope } from "@/lib/currency-scope";
 import { parseDashboardLayout } from "@/lib/validations/dashboard";
 import {
   DashboardView,
   type DashboardData,
 } from "@/components/dashboard/dashboard-view";
+import { DayCalendar } from "@/components/dashboard/day-calendar";
 
 export const metadata: Metadata = { title: "Dashboard" };
 
@@ -74,6 +70,8 @@ export default async function DashboardPage({
     from?: string;
     to?: string;
     cur?: string;
+    /** Mese del calendario ("YYYY-MM"); assente = mese corrente. */
+    month?: string;
   }>;
 }) {
   const session = await auth();
@@ -118,7 +116,7 @@ export default async function DashboardPage({
     await Promise.all([
     getCurrencyBreakdown(baseFilter),
     // B-02 — valute presenti in TUTTO lo storico dello scope conto: i widget
-    // lifetime (Saldo, mini-calendario, calendario mensile) risolvono la
+    // lifetime (Saldo, calendario mensile) risolvono la
     // valuta qui, mai sul periodo — altrimenti cambiando periodo il saldo
     // "balla" di perimetro. Senza filtro periodo la prima chiamata coincide.
     hasPeriod
@@ -173,29 +171,17 @@ export default async function DashboardPage({
         }
       : accountWhere;
 
-  // F26 — mini-calendario del mese CORRENTE (fuso utente), indipendente dal
-  // filtro periodo come il Saldo conto; scope conto + valuta LIFETIME (B-02).
   const todayKey = todayKeyInZone(user.timezone);
-  const currentMonth = todayKey.slice(0, 7);
-  const monthFilter: StatsFilter = {
-    userId,
-    accountId: activeAccountId,
-    currency: lifetimeScope.active,
-    from: zonedInputToUtc(`${currentMonth}-01T00:00`, user.timezone),
-    to: zonedInputToUtc(`${addMonths(currentMonth, 1)}-01T00:00`, user.timezone),
-  };
 
   const [
     agg,
     daily,
-    monthDaily,
     outcomes,
     baseBalance,
     lifetimeBaseBalance,
     pnlBeforePeriod,
     lifetimeNetPnl,
     sequence,
-    rDistributionRows,
     openTradeRows,
     openTradeCount,
     recentTrades,
@@ -203,7 +189,6 @@ export default async function DashboardPage({
   ] = await Promise.all([
       getTradeAggregates(filter),
       getDailyPnl(filter, user.timezone),
-      getDailyPnl(monthFilter, user.timezone),
       getRecentTradeOutcomes(filter),
       getStartingBalance(filter),
       // B-02 — base del Saldo conto e del calendario mensile: saldi iniziali
@@ -228,7 +213,6 @@ export default async function DashboardPage({
         currency: lifetimeScope.active,
       }),
       getTradeSequence(filter),
-      getRDistribution(filter),
       // F33 — posizioni aperte del conto/valuta attivi (non filtrate dal
       // periodo: una posizione aperta è "adesso" per definizione).
       prisma.trade.findMany({
@@ -266,7 +250,7 @@ export default async function DashboardPage({
       }),
       // Fase 27 — P&L per mese di TUTTO lo storico (fuso utente): il
       // calendario mensile ha la sua navigazione per anno e, come saldo e
-      // mini-calendario, non segue il filtro periodo della dashboard.
+      // calendario del mese, non segue il filtro periodo della dashboard.
       getPeriodPnl(
         // B-02 — valuta lifetime: il calendario mensile è un widget storico.
         { userId, accountId: activeAccountId, currency: lifetimeScope.active },
@@ -389,8 +373,6 @@ export default async function DashboardPage({
     fees: agg.fees,
     netR: rTotal.toFixed(2),
     rCount: agg.rCount,
-    // Denaro fuori dall'istogramma R: il conteggio dei trade non basta.
-    netPnlWithoutR: agg.netPnlWithoutR,
     winRate: winRate(agg.wins, agg.total),
     dayWinRate,
     dayWins,
@@ -445,8 +427,6 @@ export default async function DashboardPage({
     dayStreak: currentDayStreak([...daily].reverse()),
     // Score a 6 fattori per il radar (peso uguale 100/6, v. lib/metrics/score.ts).
     score,
-    // F32 — istogramma R (bin 0,5R + colonna BE) da aggregato SQL completo.
-    rDistribution: fillRDistribution(rDistributionRows, BE_BIN),
     // W4 — underwater sulla stessa serie del cumulativo.
     underwater: underwaterSeries(dailySeries, equityStart),
     daily: daily.map((d) => ({ day: d.day, netPnl: d.netPnl, rSum: d.rSum })),
@@ -463,16 +443,6 @@ export default async function DashboardPage({
     hidden: layout.hidden,
     // F26 — stato persistito dei toggle mobile (chiave separata dal desktop).
     mobileLayout: layout.mobile,
-    // F26 — mini-calendario del mese corrente (mai filtrato dal periodo).
-    miniCalendar: {
-      month: currentMonth,
-      todayKey,
-      days: monthDaily.map((d) => ({
-        day: d.day,
-        netPnl: d.netPnl,
-        trades: d.trades,
-      })),
-    },
     // Fase 27 — griglie annuali del calendario mensile (convenzione del
     // rolling: ritorno = P&L del mese / equity a inizio mese).
     // B-02 — base dell'equity che scorre nella valuta lifetime, coerente
@@ -480,5 +450,24 @@ export default async function DashboardPage({
     monthlyGrids: monthlyReturnGrids(monthlyRows, lifetimeBaseBalance),
   };
 
-  return <DashboardView data={data} />;
+  return (
+    <DashboardView
+      data={data}
+      // Calendario mensile: sezione FISSA della Dashboard (era la pagina a
+      // sé /day). Componente server passato come nodo: le sue query restano
+      // sul server e il mese viaggia in ?month= accanto al periodo.
+      calendar={
+        <DayCalendar
+          sessionUserId={sessionUserId}
+          userId={userId}
+          activeAccountId={activeAccountId}
+          timezone={user.timezone}
+          baseCurrency={user.baseCurrency}
+          todayKey={todayKey}
+          params={params}
+          showCurrencyFilter={!scope.multi}
+        />
+      }
+    />
+  );
 }

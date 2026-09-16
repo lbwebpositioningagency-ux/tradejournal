@@ -130,8 +130,8 @@
   --profit: oklch(0.525 0.123 158);
   --loss: oklch(0.565 0.23 26);
   --breakeven: oklch(0.44 0.012 264);
-  /* MAPPE A INTENSITÀ (calendario /day, griglia mensile e mini-calendario
-     della Dashboard — tavola «Sistema visivo v3 - mappe a intensità del
+  /* MAPPE A INTENSITÀ (calendario del mese e griglia mensile della
+     Dashboard — tavola «Sistema visivo v3 - mappe a intensità del
      journal», 16/09/2026). Tinte PIENE, non più il token P&L velato al
      10/20/30%: quella velatura ereditava croma e luminosità di un colore
      scelto per essere TESTO, e le mappe risultavano spente.

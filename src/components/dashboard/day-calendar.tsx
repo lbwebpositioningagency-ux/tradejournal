@@ -1,17 +1,14 @@
-import { PageHeader } from "@/components/layout/page-header";
-import type { Metadata } from "next";
 import Link from "next/link";
-import { redirect } from "next/navigation";
 import Decimal from "decimal.js";
 import { ChevronLeft, ChevronRight, NotebookPen } from "lucide-react";
-import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/db";
-import { resolveTradeScope } from "@/lib/demo-account";
 import { ALL_ACCOUNTS } from "@/lib/constants";
-import { todayKeyInZone, zonedInputToUtc } from "@/lib/dates";
+import { zonedInputToUtc } from "@/lib/dates";
 import {
   addMonths,
   buildMonthWeeks,
+  CALENDAR_ANCHOR,
+  calendarHref,
   isValidMonthKey,
   sumPnl,
 } from "@/lib/calendar";
@@ -21,60 +18,73 @@ import {
   formatSignedShort,
   pnlColorClass,
 } from "@/lib/money";
-import { netPnlInfo } from "@/lib/metrics";
+import { netPnlInfo, returnIntensity } from "@/lib/metrics";
 import {
   getCurrencyBreakdown,
   getDailyPnl,
   getNetPnlBefore,
   getStartingBalance,
 } from "@/lib/queries/stats";
-import { returnIntensity } from "@/lib/metrics";
 import { HEAT_TEXT, HEAT_TEXT_MUTED, heatTone } from "@/lib/heat-scale";
 import { resolveCurrencyScope } from "@/lib/currency-scope";
 import { withCurrencyParam } from "@/lib/currency-nav";
 import { cn } from "@/lib/utils";
 import { CurrencyFilter } from "@/components/filters/currency-filter";
-import { MonthPicker } from "./month-picker";
 import { MetricInfo } from "@/components/metric-info";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { MonthPicker } from "./month-picker";
 
-export const metadata: Metadata = { title: "Calendario" };
+/**
+ * Calendario mensile della Dashboard — la stessa vista che fino al 16/09/2026
+ * era la pagina a sé `/day`, spostata qui senza ridurla: stesse celle, stesse
+ * frecce, month-picker e «Oggi», stessa heatmap sulle soglie assolute.
+ *
+ * Sezione FISSA, non un widget nascondibile. Componente server: le sue query
+ * girano accanto a quelle della Dashboard e arrivano al client già risolte.
+ * Il mese sta in `?month=` della Dashboard; i link conservano gli altri
+ * parametri (periodo, valuta) perché cambiare mese non resetti la pagina.
+ *
+ * Ha sostituito anche il mini-calendario mobile (F26), che mostrava lo
+ * stesso mese in forma ridotta e portava a questa vista.
+ */
 
 const WEEKDAY_LABELS = ["Lun", "Mar", "Mer", "Gio", "Ven", "Sab", "Dom"];
 
-// (la label testuale del mese è sostituita dal month-picker, F42)
-
-export default async function DayCalendarPage({
-  searchParams,
+export async function DayCalendar({
+  sessionUserId,
+  userId,
+  activeAccountId,
+  timezone,
+  baseCurrency,
+  todayKey,
+  params,
+  showCurrencyFilter,
 }: {
-  searchParams: Promise<{ month?: string; cur?: string }>;
+  /** Utente vero: il journal (note di giornata) è personale anche in demo. */
+  sessionUserId: string;
+  /** Scope dei trade (utente di sistema col conto demo SIM1). */
+  userId: string;
+  activeAccountId: string;
+  timezone: string;
+  baseCurrency: string;
+  todayKey: string;
+  /** Parametri della Dashboard in URL, da conservare nei link del calendario. */
+  params: Record<string, string | undefined>;
+  /**
+   * Il selettore valuta della testata della Dashboard scrive lo stesso
+   * `?cur`: se è già visibile lassù, un secondo qui sarebbe un doppione.
+   */
+  showCurrencyFilter: boolean;
 }) {
-  const session = await auth();
-  if (!session?.user?.id) redirect("/login");
-  const sessionUserId = session.user.id;
-
-  const [user, tradeScope, params] = await Promise.all([
-    prisma.user.findUniqueOrThrow({
-      where: { id: sessionUserId },
-      select: { timezone: true, baseCurrency: true },
-    }),
-    resolveTradeScope(sessionUserId),
-    searchParams,
-  ]);
-  // Scope dei dati: utente di sistema quando il conto attivo è il demo SIM1.
-  const userId = tradeScope.userId;
-  const activeAccountId = tradeScope.accountId;
-
-  const todayKey = todayKeyInZone(user.timezone);
   const currentMonth = todayKey.slice(0, 7);
   const month =
     params.month && isValidMonthKey(params.month) ? params.month : currentMonth;
 
   // Confini del mese di CALENDARIO nel fuso utente, convertiti in UTC per il
   // filtro su closedAt: stessa convenzione del bucketing SQL.
-  const from = zonedInputToUtc(`${month}-01T00:00`, user.timezone);
-  const to = zonedInputToUtc(`${addMonths(month, 1)}-01T00:00`, user.timezone);
+  const from = zonedInputToUtc(`${month}-01T00:00`, timezone);
+  const to = zonedInputToUtc(`${addMonths(month, 1)}-01T00:00`, timezone);
 
   const monthFilter = { userId, accountId: activeAccountId, from, to };
 
@@ -92,13 +102,10 @@ export default async function DayCalendarPage({
   // Valuta da portare nei link (giorni, frecce, «Oggi»): quella attiva quando
   // il mese ne ha più d'una. Senza, il mese accanto tornava alla prevalente.
   const keptCurrency = scope.multi ? scope.active : undefined;
-  const currency = scope.active ?? activeAccount?.currency ?? user.baseCurrency;
+  const currency = scope.active ?? activeAccount?.currency ?? baseCurrency;
 
   const [daily, noteRows, monthBaseBalance, pnlBeforeMonth] = await Promise.all([
-    getDailyPnl(
-      { ...monthFilter, currency: scope.active },
-      user.timezone,
-    ),
+    getDailyPnl({ ...monthFilter, currency: scope.active }, timezone),
     prisma.note.findMany({
       where: {
         // Il journal è PERSONALE: resta dell'utente vero anche in scope demo.
@@ -132,13 +139,9 @@ export default async function DayCalendarPage({
 
   /* HEATMAP: gradazione su soglie ASSOLUTE in frazione di equity, le stesse
      del calendario mensile (una convenzione sola per tutte le heatmap
-     dell'app). Prima l'intensità era relativa al giorno più grande DEL MESE:
-     due mesi non erano confrontabili e un mese con una giornata eccezionale
-     schiacciava tutte le altre a tinta chiara.
-
-     Senza un'equity positiva a inizio mese non esiste un ritorno: le celle
-     restano tinte al livello più basso, che dice il SEGNO senza pretendere
-     di dire la magnitudine. */
+     dell'app). Senza un'equity positiva a inizio mese non esiste un ritorno:
+     le celle restano tinte al livello più basso, che dice il SEGNO senza
+     pretendere di dire la magnitudine. */
   const monthEquity = new Decimal(monthBaseBalance).plus(pnlBeforeMonth);
   function dayTone(netPnl: string): string {
     const value = new Decimal(netPnl);
@@ -150,75 +153,84 @@ export default async function DayCalendarPage({
     return cn(heatTone(value.gt(0) ? "profit" : "loss", tier), "hover:border-foreground/40");
   }
 
-  return (
-    <div className="flex flex-col gap-4">
-      <PageHeader
-        title="Calendario"
-        description={
-          <>
-          <span className="flex flex-wrap items-center gap-1">
-            {daily.length === 0 ? (
-              "Nessun trade chiuso nel mese"
-            ) : (
-              <>
-                <span className={cn("font-medium", pnlColorClass(monthNet))}>
-                  {formatSignedMoney(monthNet, currency)}
-                </span>
-                {` · ${monthTrades} trade · ${greenDays} giorni verdi su ${daily.length}${scope.multi ? ` · ${currency}` : ""}`}
-                <MetricInfo info={netPnlInfo} />
-              </>
-            )}
-          </span>
-          {scope.multi ? (
-            <p className="mt-0.5 text-xs text-muted-foreground">
-              Totali del mese per valuta (mai sommati):{" "}
-              {currencyTotals.map((t, i) => (
-                <span key={t.currency}>
-                  {i > 0 ? " · " : ""}
-                  <span className={pnlColorClass(t.netPnl)}>
-                    {formatSignedMoney(t.netPnl, t.currency)}
-                  </span>
-                </span>
-              ))}
-            </p>
-          ) : null}
-          </>
-        }
-        actions={
-          <>
-          {scope.multi ? (
-            <CurrencyFilter
-              currencies={currencyTotals.map((t) => t.currency)}
-              active={currency}
-            />
-          ) : null}
-          {/* La valuta scelta viaggia coi link: senza, il mese dopo tornava
-              alla valuta prevalente e la scelta si perdeva. */}
-          <Button asChild variant="outline" size="icon" aria-label="Mese precedente">
-            <Link href={withCurrencyParam(`/day?month=${addMonths(month, -1)}`, keptCurrency)}>
-              <ChevronLeft className="size-4" />
-            </Link>
-          </Button>
-          {/* F42 — month-picker: salto diretto senza frecce ±1 in serie */}
-          <MonthPicker month={month} />
-          <Button asChild variant="outline" size="icon" aria-label="Mese successivo">
-            <Link href={withCurrencyParam(`/day?month=${addMonths(month, 1)}`, keptCurrency)}>
-              <ChevronRight className="size-4" />
-            </Link>
-          </Button>
-          {month !== currentMonth ? (
-            <Button asChild variant="outline">
-              <Link href={withCurrencyParam("/day", keptCurrency)}>Oggi</Link>
-            </Button>
-          ) : null}
-          </>
-        }
-      />
+  // Frecce, picker e «Oggi» restano sulla Dashboard: conservano periodo e
+  // valuta già in URL e non riportano la pagina in cima.
+  const monthHref = (target: string | null) =>
+    calendarHref(target, { keep: params, currency: keptCurrency });
 
-      <Card className="py-4">
+  return (
+    <section
+      id={CALENDAR_ANCHOR}
+      aria-labelledby="calendario-titolo"
+      className="scroll-mt-20"
+    >
+      <Card className="gap-4 py-4">
+        <CardHeader className="flex flex-row flex-wrap items-start justify-between gap-3 px-4">
+          <div className="flex min-w-0 flex-col gap-1">
+            <CardTitle id="calendario-titolo" className="stat-label">
+              Calendario
+            </CardTitle>
+            <div className="text-sm text-muted-foreground">
+              <span className="flex flex-wrap items-center gap-1">
+                {daily.length === 0 ? (
+                  "Nessun trade chiuso nel mese"
+                ) : (
+                  <>
+                    <span className={cn("font-medium", pnlColorClass(monthNet))}>
+                      {formatSignedMoney(monthNet, currency)}
+                    </span>
+                    {` · ${monthTrades} trade · ${greenDays} giorni verdi su ${daily.length}${scope.multi ? ` · ${currency}` : ""}`}
+                    <MetricInfo info={netPnlInfo} />
+                  </>
+                )}
+              </span>
+              {scope.multi ? (
+                <p className="mt-0.5 text-xs text-muted-foreground">
+                  Totali del mese per valuta (mai sommati):{" "}
+                  {currencyTotals.map((t, i) => (
+                    <span key={t.currency}>
+                      {i > 0 ? " · " : ""}
+                      <span className={pnlColorClass(t.netPnl)}>
+                        {formatSignedMoney(t.netPnl, t.currency)}
+                      </span>
+                    </span>
+                  ))}
+                </p>
+              ) : null}
+            </div>
+          </div>
+          <div className="flex flex-wrap items-center gap-2">
+            {scope.multi && showCurrencyFilter ? (
+              <CurrencyFilter
+                currencies={currencyTotals.map((t) => t.currency)}
+                active={currency}
+              />
+            ) : null}
+            <Button asChild variant="outline" size="icon" aria-label="Mese precedente">
+              <Link href={monthHref(addMonths(month, -1))} scroll={false}>
+                <ChevronLeft className="size-4" />
+              </Link>
+            </Button>
+            {/* F42 — month-picker: salto diretto senza frecce ±1 in serie */}
+            <MonthPicker month={month} currency={keptCurrency} />
+            <Button asChild variant="outline" size="icon" aria-label="Mese successivo">
+              <Link href={monthHref(addMonths(month, 1))} scroll={false}>
+                <ChevronRight className="size-4" />
+              </Link>
+            </Button>
+            {month !== currentMonth ? (
+              <Button asChild variant="outline">
+                <Link href={monthHref(null)} scroll={false}>
+                  Oggi
+                </Link>
+              </Button>
+            ) : null}
+          </div>
+        </CardHeader>
+
         {/* Sotto sm le celle giorno hanno ~34px utili: padding, gap e colonna
             settimana ridotti + formato importi ultra-compatto (formatSignedShort).
-            Da sm in su il layout resta IDENTICO a prima. */}
+            Da sm in su il layout è quello della vecchia pagina a sé. */}
         <CardContent className="px-2 sm:px-4">
           <div className="grid grid-cols-[repeat(7,minmax(0,1fr))_3rem] gap-0.5 sm:grid-cols-[repeat(7,minmax(0,1fr))_4.5rem] sm:gap-1">
             {WEEKDAY_LABELS.map((label) => (
@@ -238,6 +250,10 @@ export default async function DayCalendarPage({
               const weekNet = sumPnl(
                 weekDaysWithData.map((d) => byDay.get(d)!.netPnl),
               );
+              const weekTrades = weekDaysWithData.reduce(
+                (acc, d) => acc + byDay.get(d)!.trades,
+                0,
+              );
               return (
                 <div key={week[0]} className="contents">
                   {week.map((date) => {
@@ -246,14 +262,16 @@ export default async function DayCalendarPage({
                     const dayNumber = Number(date.slice(8, 10));
                     const isToday = date === todayKey;
 
+                    // Giorni del mese accanto: cella vuota. Il numero in
+                    // grigio al 40% stava a 2,2:1 (scuro) e 1,7:1 (chiaro),
+                    // sotto la soglia di 4,5:1 del sistema visivo.
                     if (!inMonth) {
                       return (
                         <div
                           key={date}
-                          className="min-h-20 rounded-md border border-transparent p-1.5 text-xs text-muted-foreground/40"
-                        >
-                          {dayNumber}
-                        </div>
+                          className="min-h-20 rounded-md border border-transparent"
+                          aria-hidden
+                        />
                       );
                     }
 
@@ -311,7 +329,7 @@ export default async function DayCalendarPage({
                       "flex min-h-20 flex-col items-center justify-center overflow-hidden rounded-md bg-muted/40 p-0.5 text-xs tabular-nums sm:p-1.5",
                       weekDaysWithData.length > 0
                         ? pnlColorClass(weekNet)
-                        : "text-muted-foreground/50",
+                        : "text-muted-foreground",
                     )}
                   >
                     {weekDaysWithData.length > 0 ? (
@@ -325,18 +343,9 @@ export default async function DayCalendarPage({
                           </span>
                         </span>
                         <span className="text-2xs text-muted-foreground">
-                          <span className="sm:hidden">
-                            {weekDaysWithData.reduce(
-                              (acc, d) => acc + byDay.get(d)!.trades,
-                              0,
-                            )}
-                          </span>
+                          <span className="sm:hidden">{weekTrades}</span>
                           <span className="hidden sm:inline">
-                            {weekDaysWithData.reduce(
-                              (acc, d) => acc + byDay.get(d)!.trades,
-                              0,
-                            )}{" "}
-                            trade
+                            {weekTrades} trade
                           </span>
                         </span>
                       </>
@@ -359,6 +368,6 @@ export default async function DayCalendarPage({
           </p>
         </CardContent>
       </Card>
-    </div>
+    </section>
   );
 }

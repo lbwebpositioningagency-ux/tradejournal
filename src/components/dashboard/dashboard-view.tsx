@@ -4,7 +4,14 @@ import { PageHeader } from "@/components/layout/page-header";
 
 import { SegmentedControl } from "@/components/ui/segmented-control";
 
-import { useEffect, useMemo, useRef, useState, useTransition } from "react";
+import {
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  useTransition,
+  type ReactNode,
+} from "react";
 import Link from "next/link";
 import dynamicImport from "next/dynamic";
 import Decimal from "decimal.js";
@@ -53,7 +60,6 @@ import {
   maxDrawdownInfo,
   netPnlInfo,
   profitFactorInfo,
-  rDistributionInfo,
   scoreInfo,
   sharpeInfo,
   sortinoInfo,
@@ -92,11 +98,9 @@ import type { TradeSequencePointView } from "@/components/charts/trade-sequence-
 // resta nel bundle per i grafici sopra la piega (pnl-charts), ma il mount
 // di questi non pesa più sull'idratazione iniziale.
 import {
-  RDistributionChart,
   TradeSequenceChart,
   UnderwaterChart,
 } from "@/components/charts/lazy-charts";
-import type { RDistPoint } from "@/lib/reports";
 import { cn, pluralize } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -122,7 +126,7 @@ import {
 } from "./pnl-charts";
 import { ScoreRadar } from "./score-radar";
 import { OnboardingHero } from "./onboarding-hero";
-import { MiniCalendar, type MiniCalendarDay } from "./mini-calendar";
+import { CALENDAR_ANCHOR } from "@/lib/calendar";
 
 /**
  * P-06 — il calendario mensile chiude la pagina: montarlo col
@@ -177,8 +181,6 @@ export interface DashboardData {
   fees: string;
   netR: string;
   rCount: number;
-  /** P&L netto dei trade senza R (fuori dall'istogramma). */
-  netPnlWithoutR: string;
   winRate: string | null;
   dayWinRate: string | null;
   dayWins: number;
@@ -236,8 +238,6 @@ export interface DashboardData {
   dayStreak: StreakResult;
   /** Score a 6 fattori per il radar (null con zero trade chiusi). */
   score: RadarScore | null;
-  /** F32 — istogramma R (bin 0,5R + colonna BE), da aggregato SQL completo. */
-  rDistribution: RDistPoint[];
   /** W4 — drawdown % dal picco, stessa serie del cumulativo. */
   underwater: UnderwaterPoint[];
   /** F33 — posizioni aperte del conto attivo (mai filtrate dal periodo). */
@@ -268,12 +268,6 @@ export interface DashboardData {
   hidden: WidgetId[];
   /** F26 — stato persistito dei toggle mobile (chiave separata, desktop invariato). */
   mobileLayout: { showAllMetrics: boolean; showAnalytics: boolean };
-  /** F26 — mini-calendario del mese corrente (mai filtrato dal periodo). */
-  miniCalendar: {
-    month: string;
-    todayKey: string;
-    days: MiniCalendarDay[];
-  };
   /** Fase 27 — griglie annuali del calendario mensile (tutto lo storico). */
   monthlyGrids: YearGrid[];
 }
@@ -433,7 +427,18 @@ function StreakBadge({
   );
 }
 
-export function DashboardView({ data }: { data: DashboardData }) {
+export function DashboardView({
+  data,
+  calendar,
+}: {
+  data: DashboardData;
+  /**
+   * Calendario mensile (ex pagina /day): componente server già risolto.
+   * Sezione FISSA — non passa da `show()` e non compare fra i widget
+   * nascondibili.
+   */
+  calendar: ReactNode;
+}) {
   const [view, setView] = useState<ViewMode>("dollars");
   const [hidden, setHidden] = useState<WidgetId[]>(data.hidden);
   const [, startTransition] = useTransition();
@@ -461,6 +466,18 @@ export function DashboardView({ data }: { data: DashboardData }) {
     query.addEventListener("change", update);
     return () => query.removeEventListener("change", update);
   }, []);
+  // Chi arriva da un'altra pagina su /dashboard#calendario (ritorno dalla
+  // giornata, 404 di una data) deve atterrare sul calendario. L'ancora nativa
+  // non basta: la Dashboard arriva in streaming dopo lo skeleton, e quando il
+  // browser cerca `#calendario` la sezione non esiste ancora.
+  useEffect(() => {
+    if (window.location.hash !== `#${CALENDAR_ANCHOR}`) return;
+    const frame = requestAnimationFrame(() =>
+      document.getElementById(CALENDAR_ANCHOR)?.scrollIntoView({ block: "start" }),
+    );
+    return () => cancelAnimationFrame(frame);
+  }, []);
+
   const hideExtraMetrics = isMobileViewport && !mobileLayout.showAllMetrics;
   const hideAnalytics = isMobileViewport && !mobileLayout.showAnalytics;
 
@@ -1013,16 +1030,6 @@ export function DashboardView({ data }: { data: DashboardData }) {
         </Button>
       </div>
 
-      {/* F26 — mini-calendario del mese corrente, solo mobile */}
-      {show("mini-calendar") ? (
-        <MiniCalendar
-          className="max-lg:order-4 lg:hidden"
-          month={data.miniCalendar.month}
-          todayKey={data.miniCalendar.todayKey}
-          days={data.miniCalendar.days}
-          currency={data.lifetimeCurrency}
-        />
-      ) : null}
 
 
       {/* F33 — posizioni aperte: card dedicata, solo quando ce ne sono */}
@@ -1107,15 +1114,7 @@ export function DashboardView({ data }: { data: DashboardData }) {
       </div>
 
       {hideAnalytics ? null : (
-      <div
-        className={cn(
-          "grid gap-4 max-lg:order-8",
-          show("trade-sequence") && show("r-distribution")
-            ? "xl:grid-cols-2"
-            : undefined,
-          analyticsCls,
-        )}
-      >
+      <div className={cn("grid gap-4 max-lg:order-8", analyticsCls)}>
         {show("trade-sequence") ? (
           <Card>
             <CardHeader className="flex flex-row flex-wrap items-center justify-between gap-2">
@@ -1167,53 +1166,6 @@ export function DashboardView({ data }: { data: DashboardData }) {
           </Card>
         ) : null}
 
-        {/* F32 — distribuzione degli R-multiple, accanto alla sequenza */}
-        {show("r-distribution") ? (
-          <Card>
-            <CardHeader>
-              <CardTitle className="stat-label flex items-center gap-1">
-                Distribuzione R
-                <MetricInfo info={rDistributionInfo} />
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              {data.rCount > 0 ? (
-                <>
-                  <RDistributionChart points={data.rDistribution} />
-                  {/* La copertura del campione si dichiara QUI come su
-                      /analytics: l'istogramma mostra i soli trade con
-                      rischio definito, e chi lo guarda deve sapere quanti
-                      ne restano fuori invece di leggerlo come "tutti". */}
-                  <p className="stat-sub mt-1">
-                    {data.rCount} trade su {data.totalTrades} con rischio
-                    definito · fasce di 0,5R
-                    {data.totalTrades > data.rCount && (
-                      <>
-                        {" · "}
-                        <Link
-                          href="/trades?risk=missing"
-                          className="underline underline-offset-2"
-                        >
-                          {data.totalTrades - data.rCount} senza rischio
-                        </Link>
-                        {" fuori dall'istogramma, con "}
-                        {money(data.netPnlWithoutR, null)}
-                        {" di P&L"}
-                      </>
-                    )}
-                  </p>
-                </>
-              ) : (
-                <EmptyState
-                  compact
-                  icon={LineChartIcon}
-                  title="Nessun trade con rischio definito"
-                  description="L'istogramma usa l'R-multiple: imposta il rischio iniziale sui trade."
-                />
-              )}
-            </CardContent>
-          </Card>
-        ) : null}
       </div>
       )}
 
@@ -1600,6 +1552,15 @@ export function DashboardView({ data }: { data: DashboardData }) {
           ) : null}
         </div>
       </div>
+
+      {/* Calendario del mese (ex pagina /day), sezione fissa. Su desktop
+          dopo il blocco P&L giornaliero · Saldo · Ultimi trade e prima della
+          griglia annuale: è un blocco alto 562px (600 a 390) e messo in testa avrebbe
+          spinto sotto la piega tutti i grafici; qui chiude la pagina insieme
+          all'altra vista di calendario, mese sopra anno. Su mobile prende il
+          posto del mini-calendario che ha sostituito (order-4, subito dopo le
+          metriche: "come sta andando il mese" nelle prime schermate). */}
+      <div className="max-lg:order-4">{calendar}</div>
 
       {/* Fase 27 — calendario mensile delle performance, in fondo: la
           panoramica per anno chiude la pagina. `order-last` su mobile,

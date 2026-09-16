@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { DEFAULT_HIDDEN_WIDGETS, WIDGET_IDS } from "./dashboard";
+import { DEFAULT_HIDDEN_WIDGETS, WIDGET_IDS, WIDGET_LABELS } from "./dashboard";
 import { parseDashboardLayout } from "./validations/dashboard";
 
 /**
@@ -46,6 +46,31 @@ describe("parseDashboardLayout", () => {
     });
     expect(layout.hidden).toEqual(["balance"]);
     expect(layout.mobile.showAnalytics).toBe(true);
+  });
+
+  /* 16/09/2026 — «Distribuzione R» era un doppione di Analytics › Distribuzioni
+     e il mini-calendario mobile un doppione ridotto del calendario mensile,
+     ora sezione fissa. Chi li aveva nascosti ha l'id salvato in `hidden`:
+     il parse lo scarta e tiene il resto, e il primo salvataggio successivo
+     riscrive il documento senza. Chi li teneva visibili non ha nulla in
+     `hidden` da ripulire. */
+  it("distribuzione R e mini-calendario non sono più widget, e il layout salvato regge", () => {
+    expect(WIDGET_IDS).not.toContain("r-distribution");
+    expect(WIDGET_IDS).not.toContain("mini-calendar");
+    expect(
+      parseDashboardLayout({
+        hidden: ["r-distribution", "sortino", "mini-calendar"],
+        mobile: { showAllMetrics: true, showAnalytics: false },
+      }),
+    ).toEqual({
+      hidden: ["sortino"],
+      mobile: { showAllMetrics: true, showAnalytics: false },
+    });
+  });
+
+  it("il calendario del mese è una sezione fissa, non un widget nascondibile", () => {
+    expect(WIDGET_IDS).not.toContain("day-calendar");
+    expect(Object.values(WIDGET_LABELS)).not.toContain("Calendario");
   });
 });
 

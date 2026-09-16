@@ -13,7 +13,7 @@ import { getCurrencyBreakdown } from "@/lib/queries/stats";
 import { CurrencyFilter } from "@/components/filters/currency-filter";
 import { resolveTradeScope } from "@/lib/demo-account";
 import { ALL_ACCOUNTS } from "@/lib/constants";
-import { addDays, isValidDateKey } from "@/lib/calendar";
+import { addDays, calendarHref, isValidDateKey } from "@/lib/calendar";
 import { dayAttachmentsByPhase, dayNotesByPhase } from "@/lib/day-journal";
 import { formatDateTime, todayKeyInZone, zonedInputToUtc } from "@/lib/dates";
 import {
@@ -263,7 +263,8 @@ export default async function DayViewPage({
     <div className="flex flex-col gap-4">
       <PageHeader
         back={{
-          href: withCurrencyParam(`/day?month=${date.slice(0, 7)}`, keptCurrency),
+          // Il calendario vive nella Dashboard: si torna al mese del giorno.
+          href: calendarHref(date.slice(0, 7), { currency: keptCurrency, anchor: true }),
           label: "Calendario",
         }}
         title={dayLabel(date)}

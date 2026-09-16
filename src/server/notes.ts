@@ -68,7 +68,8 @@ export async function saveDayNoteAction(
         : phaseWhere,
     });
     revalidatePath(`/day/${date}`);
-    revalidatePath("/day");
+    // Icona della nota nel calendario, che vive nella Dashboard.
+    revalidatePath("/dashboard");
     return { success: true, deleted: !withAttachments };
   }
 
@@ -79,6 +80,6 @@ export async function saveDayNoteAction(
   });
 
   revalidatePath(`/day/${date}`);
-  revalidatePath("/day");
+  revalidatePath("/dashboard");
   return { success: true };
 }

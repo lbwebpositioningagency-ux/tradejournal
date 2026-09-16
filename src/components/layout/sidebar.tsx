@@ -6,7 +6,6 @@ import { usePathname } from "next/navigation";
 import {
   BarChart3,
   ChartScatter,
-  CalendarDays,
   Globe,
   LayoutDashboard,
   Menu,
@@ -31,7 +30,6 @@ import {
    voce/titolo in lingue diverse. */
 const NAV_ITEMS = [
   { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
-  { href: "/day", label: "Calendario", icon: CalendarDays },
   { href: "/trades", label: "Trade View", icon: Table2 },
   { href: "/reports", label: "Reports", icon: BarChart3 },
   { href: "/analytics", label: "Analytics", icon: ChartScatter },

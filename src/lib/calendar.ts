@@ -79,3 +79,39 @@ export function sumPnl(values: string[]): string {
   }
   return total.toFixed(2);
 }
+
+/** Ancora della sezione Calendario dentro la Dashboard. */
+export const CALENDAR_ANCHOR = "calendario";
+
+/**
+ * Href del calendario mensile, che dal 16/09/2026 vive DENTRO la Dashboard
+ * (la pagina a sé `/day` non esiste più).
+ *
+ * `keep` sono i parametri già in URL (periodo, valuta…): cambiare mese non
+ * deve far perdere il periodo scelto per il resto della pagina. `month`
+ * null torna al mese corrente (il vecchio «Oggi»). `anchor` aggiunge
+ * `#calendario` per chi arriva da un'altra pagina; le frecce interne non lo
+ * vogliono, perché restano ferme dove sono (scroll={false}).
+ */
+export function calendarHref(
+  month: string | null,
+  {
+    keep = {},
+    currency,
+    anchor = false,
+  }: {
+    keep?: Record<string, string | undefined>;
+    currency?: string | null;
+    anchor?: boolean;
+  } = {},
+): string {
+  const params = new URLSearchParams();
+  for (const [key, value] of Object.entries(keep)) {
+    if (value) params.set(key, value);
+  }
+  params.delete("month");
+  if (month) params.set("month", month);
+  if (currency) params.set("cur", currency);
+  const query = params.toString();
+  return `/dashboard${query ? `?${query}` : ""}${anchor ? `#${CALENDAR_ANCHOR}` : ""}`;
+}

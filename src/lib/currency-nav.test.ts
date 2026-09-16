@@ -14,8 +14,8 @@ describe("withCurrencyParam — la valuta scelta non si perde nei link", () => {
   });
 
   it("conserva la query esistente e l'ancora", () => {
-    expect(withCurrencyParam("/day?month=2026-07#top", "EUR")).toBe(
-      "/day?month=2026-07&cur=EUR#top",
+    expect(withCurrencyParam("/dashboard?month=2026-07#calendario", "EUR")).toBe(
+      "/dashboard?month=2026-07&cur=EUR#calendario",
     );
   });
 

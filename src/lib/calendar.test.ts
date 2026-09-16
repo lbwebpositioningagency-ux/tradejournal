@@ -3,6 +3,7 @@ import {
   addDays,
   addMonths,
   buildMonthWeeks,
+  calendarHref,
   isValidDateKey,
   isValidMonthKey,
   sumPnl,
@@ -90,5 +91,37 @@ describe("sumPnl", () => {
 
   it("serie vuota → 0.00", () => {
     expect(sumPnl([])).toBe("0.00");
+  });
+});
+
+describe("calendarHref — il calendario vive nella Dashboard", () => {
+  it("mese corrente senza parametri: la Dashboard nuda", () => {
+    expect(calendarHref(null)).toBe("/dashboard");
+  });
+
+  it("dall'esterno porta l'ancora della sezione", () => {
+    expect(calendarHref("2026-07", { anchor: true })).toBe(
+      "/dashboard?month=2026-07#calendario",
+    );
+  });
+
+  it("conserva periodo e valuta già scelti, sostituisce il mese", () => {
+    expect(
+      calendarHref("2026-08", {
+        keep: { period: "90d", month: "2026-07", cur: "EUR", from: undefined },
+      }),
+    ).toBe("/dashboard?period=90d&cur=EUR&month=2026-08");
+  });
+
+  it("«Oggi» toglie il mese e tiene il resto", () => {
+    expect(calendarHref(null, { keep: { period: "ytd", month: "2025-01" } })).toBe(
+      "/dashboard?period=ytd",
+    );
+  });
+
+  it("la valuta del calendario vince su quella in URL", () => {
+    expect(calendarHref("2026-07", { keep: { cur: "USD" }, currency: "EUR" })).toBe(
+      "/dashboard?cur=EUR&month=2026-07",
+    );
   });
 });

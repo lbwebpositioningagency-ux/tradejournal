@@ -348,7 +348,7 @@ describe("E-1 — blocco @media print: il tema scuro non finisce sulla carta", (
 });
 
 /**
- * MAPPE A INTENSITÀ (calendario /day, griglia mensile e mini-calendario della
+ * MAPPE A INTENSITÀ (calendario del mese e griglia mensile della
  * Dashboard): le tinte non sono più una velatura del token P&L ma sei colori
  * PIENI per tema (`--heat-{profit,loss}-{1,2,3}`), più i due token di testo
  * che ci stanno sopra. È l'unico posto dell'app dove il testo sta su un fondo

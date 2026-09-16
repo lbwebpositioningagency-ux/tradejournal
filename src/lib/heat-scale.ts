@@ -1,6 +1,6 @@
 /**
- * Scala condivisa delle MAPPE A INTENSITÀ del journal: calendario mensile
- * (/day), griglia dei rendimenti mensili e mini-calendario della Dashboard.
+ * Scala condivisa delle MAPPE A INTENSITÀ del journal: calendario del mese e
+ * griglia dei rendimenti mensili, entrambi nella Dashboard.
  *
  * Tinte piene e opache (`--heat-{profit,loss}-{1,2,3}` in globals.css), non
  * più il token P&L velato al 10/20/30%: con la velatura la croma massima era

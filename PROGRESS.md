@@ -3605,3 +3605,32 @@ Contrasti misurati in pagina (oro mese/settimana/giorno/sessione, S&P ora, VIX g
 scuro). 0 testi < 11px, 0 sbordi, 0 errori in console (un primo giro era caduto durante un riavvio
 del Postgres locale ed è stato rifatto). Gate: typecheck, lint, 2.363 test, build verdi. Nessuna
 migrazione. Schermate in `docs/stagionalita/cornice/`.
+
+## Dashboard: il calendario del mese entra nella pagina, via «Distribuzione R» (16/09/2026)
+
+**Distribuzione R tolta dalla Dashboard**: era lo stesso istogramma (fasce da 0,5R) di Analytics ›
+Distribuzioni, che resta invariato. Via il riquadro, la voce `r-distribution` dai widget
+nascondibili, la query `getRDistribution`, la colonna `netPnlWithoutR` di `getTradeAggregates` e
+`rDistributionInfo`: nessun altro consumatore. `fillRDistribution` e `BE_BIN` restano (li usa
+Analytics).
+
+**Calendario mensile dentro la Dashboard**: la pagina `/day` (mese) non esiste più; la stessa vista,
+intera (frecce, month-picker, «Oggi», celle con heatmap, colonna «Sett.», note), è la sezione fissa
+`#calendario` in `components/dashboard/day-calendar.tsx`, componente server passato a `DashboardView`
+come nodo. Mese in `?month=`; i link passano da `calendarHref()` in `lib/calendar.ts` e conservano
+periodo e valuta. Collocazione decisa nella tavola Claude Design «Dashboard - calendario del mese
+dentro la pagina»: desktop dopo P&L giornaliero · Saldo · Ultimi trade e sopra la griglia annuale
+(nessun widget spostato), mobile nello slot del mini-calendario.
+**Mini-calendario mobile unificato**: era lo stesso mese in forma ridotta, rimosso (`mini-calendar`
+fuori dai widget). La griglia annuale «Calendario mensile» è un'altra cosa e resta.
+Le preferenze salvate con `r-distribution`/`mini-calendar` in `hidden` le scarta il parse del layout
+(test in `dashboard.test.ts`). Link corretti: voce «Calendario» della barra laterale (tolta), «←
+Calendario» della giornata (→ mese del giorno in Dashboard), 404 delle date, `revalidatePath` delle
+note. Guardia `src/app/calendar-route.test.ts`: la rotta non torna e nessun link punta a `/day`.
+Celle dei giorni fuori mese ora vuote (il numero al 40% stava a 2,17:1 / 1,73:1).
+
+Misure (build locale, SIM1, 1440 e 390, due temi): 0 testi < 11px, 0 sbordi, 0 errori in console,
+nessun contrasto sotto 4,5 in pagina. Calendario 562px a 1440 (y 2.484 su 3.320, dopo il
+riallineamento su 40c955b che ha tolto sessioni e giorni), 600px a 390 (y 666). Frecce, picker e
+«Oggi» lasciano la pagina ferma e conservano il periodo; `/dashboard#calendario` atterra sulla sezione.
+Nessuna migrazione. Schermate in `docs/dashboard/calendario-in-dashboard/`.
