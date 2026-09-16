@@ -9,6 +9,7 @@ import {
   Globe,
   LayoutDashboard,
   Menu,
+  NotebookPen,
   Settings,
   Table2,
   Target,
@@ -31,6 +32,7 @@ import {
 const NAV_ITEMS = [
   { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
   { href: "/trades", label: "Trade View", icon: Table2 },
+  { href: "/notebook", label: "Notebook", icon: NotebookPen },
   { href: "/reports", label: "Reports", icon: BarChart3 },
   { href: "/analytics", label: "Analytics", icon: ChartScatter },
   { href: "/macro-desk", label: "Macro Desk", icon: Globe },

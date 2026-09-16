@@ -3634,3 +3634,35 @@ nessun contrasto sotto 4,5 in pagina. Calendario 562px a 1440 (y 2.484 su 3.320,
 riallineamento su 40c955b che ha tolto sessioni e giorni), 600px a 390 (y 666). Frecce, picker e
 «Oggi» lasciano la pagina ferma e conservano il periodo; `/dashboard#calendario` atterra sulla sezione.
 Nessuna migrazione. Schermate in `docs/dashboard/calendario-in-dashboard/`.
+
+## 16/09/2026 · Journal — Notebook: note libere
+
+Aggiunta, non modifica: il journal di giornata (`Note`, `Attachment`) non cambia né di schema né di
+righe. Disposizione decisa in Claude Design, tavola «Journal - Notebook e Day View, disposizione»
+(1b: elenco a pagina intera, editor su pagina propria; scartati master-detail e griglia di schede).
+
+- **Modello nuovo, tabelle proprie**: `NotebookNote` (titolo, testo markdown, `createdAt`,
+  `updatedAt`) e `NotebookImage` (byte in Postgres come gli allegati, tipo riletto dai byte).
+  Migrazione `20260916094152_notebook`: solo `CREATE TABLE`/indici/chiavi delle due tabelle nuove.
+  Applicata su Neon PRIMA del push.
+- **Data di riferimento = `createdAt`**, messa dal database al primo salvataggio. Nessun campo data
+  modificabile: l'editor la mostra in sola lettura («Creata mercoledì 16 settembre 2026, 11:52»),
+  l'elenco la mette in colonna. La pagina «Nuova nota» non crea righe finché non si scrive.
+- **Editor senza librerie nuove**: nel progetto non esisteva un editor ricco (la Giornata usa un
+  `Textarea`). Testo markdown con barra (grassetto, corsivo, titolo, sottotitolo, elenchi, link,
+  immagine; Ctrl+B/I/K/S) e segmentato Scrivi | Anteprima. L'anteprima passa da un renderer interno
+  (`src/lib/notebook/markdown.ts`) che produce un albero reso in React: nessun HTML iniettato,
+  `javascript:` e simili restano testo. 24 test su renderer, azioni della barra, estratto e date.
+- **Salvataggio automatico** 1 s dopo l'ultima battuta, in fila (mai due richieste insieme: la
+  prima battuta crea una riga sola), all'uscita e con Ctrl+S; stato «Salvata alle hh:mm».
+- **Elenco** `/notebook`: ricerca nel database su titolo e testo (senza maiuscole/minuscole),
+  ordine Più recenti | Meno recenti, paginazione a 20 con il componente nuovo
+  `src/components/pagination.tsx` (stessa resa della lista trade, che resta com'è).
+  Eliminazione con conferma; nota eliminata o di un altro utente → 404 vero.
+- **Navigazione**: voce «Notebook» nella barra laterale dopo Trade View (nella struttura senza
+  «Calendario» di 9dc4b37).
+
+Verifica nel browser (build locale): creazione, salvataggio, immagine caricata e resa, anteprima,
+ricerca, ordine, eliminazione, 404 — 0 errori in console. Schermate a 1440 e 390 nei due temi di
+elenco, editor e nota vuota: 0 testi < 11px, 0 contrasti sotto soglia, 0 sbordi. Gate dopo il
+rebase su 5990936: typecheck, lint, 2.399 test, build verdi. Schermate in `docs/notebook/schermate/`.

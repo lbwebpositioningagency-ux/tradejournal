@@ -67,6 +67,15 @@ export const ALLOWED_ATTACHMENT_TYPES: Record<string, string> = {
   "application/pdf": "pdf",
 };
 
+/** Notebook: immagini nel testo di una nota — solo formati immagine, stesso tetto per file. */
+export const NOTEBOOK_IMAGE_TYPES = ["image/png", "image/jpeg", "image/webp", "image/gif"] as const;
+export const MAX_NOTEBOOK_IMAGES_PER_NOTE = 30;
+export const MAX_NOTEBOOK_TITLE = 200;
+export const MAX_NOTEBOOK_CONTENT = 100_000;
+/** Righe per pagina dell'elenco note e di Day View. */
+export const NOTEBOOK_PAGE_SIZE = 20;
+export const DAY_VIEW_PAGE_SIZE = 20;
+
 /** Cookie del colore di accento (FASE 10): data-accent su <html>. */
 export const ACCENT_COOKIE = "tj-accent";
 

@@ -1,0 +1,246 @@
+[
+  {
+    "pagina": "/notebook",
+    "larghezza": 1440,
+    "tema": "dark",
+    "file": "notebook__1440__dark.png",
+    "h1": "Notebook",
+    "altezza": 900,
+    "innerWidth": 1440,
+    "scrollWidth": 1440,
+    "sbordi": [],
+    "sotto12": 1,
+    "piccoli": 0,
+    "esempiPiccoli": [],
+    "bassoContrasto": 0,
+    "esempiBassi": [],
+    "famiglie": [
+      "Geist"
+    ],
+    "erroriConsole": []
+  },
+  {
+    "pagina": "/notebook/cmu3x9qjl0000nsvrb3ouarl9",
+    "larghezza": 1440,
+    "tema": "dark",
+    "file": "notebook_cmu3x9qjl0000nsvrb3ouarl9__1440__dark.png",
+    "h1": "Nota",
+    "altezza": 900,
+    "innerWidth": 1440,
+    "scrollWidth": 1440,
+    "sbordi": [],
+    "sotto12": 1,
+    "piccoli": 0,
+    "esempiPiccoli": [],
+    "bassoContrasto": 0,
+    "esempiBassi": [],
+    "famiglie": [
+      "Geist",
+      "\"Geist Mono\""
+    ],
+    "erroriConsole": []
+  },
+  {
+    "pagina": "/notebook/new",
+    "larghezza": 1440,
+    "tema": "dark",
+    "file": "notebook_new__1440__dark.png",
+    "h1": "Nuova nota",
+    "altezza": 900,
+    "innerWidth": 1440,
+    "scrollWidth": 1440,
+    "sbordi": [],
+    "sotto12": 1,
+    "piccoli": 0,
+    "esempiPiccoli": [],
+    "bassoContrasto": 0,
+    "esempiBassi": [],
+    "famiglie": [
+      "Geist"
+    ],
+    "erroriConsole": []
+  },
+  {
+    "pagina": "/notebook",
+    "larghezza": 390,
+    "tema": "dark",
+    "file": "notebook__390__dark.png",
+    "h1": "Notebook",
+    "altezza": 900,
+    "innerWidth": 390,
+    "scrollWidth": 390,
+    "sbordi": [],
+    "sotto12": 0,
+    "piccoli": 0,
+    "esempiPiccoli": [],
+    "bassoContrasto": 0,
+    "esempiBassi": [],
+    "famiglie": [
+      "Geist"
+    ],
+    "erroriConsole": []
+  },
+  {
+    "pagina": "/notebook/cmu3x9qjl0000nsvrb3ouarl9",
+    "larghezza": 390,
+    "tema": "dark",
+    "file": "notebook_cmu3x9qjl0000nsvrb3ouarl9__390__dark.png",
+    "h1": "Nota",
+    "altezza": 900,
+    "innerWidth": 390,
+    "scrollWidth": 390,
+    "sbordi": [],
+    "sotto12": 0,
+    "piccoli": 0,
+    "esempiPiccoli": [],
+    "bassoContrasto": 0,
+    "esempiBassi": [],
+    "famiglie": [
+      "Geist",
+      "\"Geist Mono\""
+    ],
+    "erroriConsole": []
+  },
+  {
+    "pagina": "/notebook/new",
+    "larghezza": 390,
+    "tema": "dark",
+    "file": "notebook_new__390__dark.png",
+    "h1": "Nuova nota",
+    "altezza": 900,
+    "innerWidth": 390,
+    "scrollWidth": 390,
+    "sbordi": [],
+    "sotto12": 0,
+    "piccoli": 0,
+    "esempiPiccoli": [],
+    "bassoContrasto": 0,
+    "esempiBassi": [],
+    "famiglie": [
+      "Geist"
+    ],
+    "erroriConsole": []
+  },
+  {
+    "pagina": "/notebook",
+    "larghezza": 1440,
+    "tema": "light",
+    "file": "notebook__1440__light.png",
+    "h1": "Notebook",
+    "altezza": 900,
+    "innerWidth": 1440,
+    "scrollWidth": 1440,
+    "sbordi": [],
+    "sotto12": 1,
+    "piccoli": 0,
+    "esempiPiccoli": [],
+    "bassoContrasto": 0,
+    "esempiBassi": [],
+    "famiglie": [
+      "Geist"
+    ],
+    "erroriConsole": []
+  },
+  {
+    "pagina": "/notebook/cmu3x9qjl0000nsvrb3ouarl9",
+    "larghezza": 1440,
+    "tema": "light",
+    "file": "notebook_cmu3x9qjl0000nsvrb3ouarl9__1440__light.png",
+    "h1": "Nota",
+    "altezza": 900,
+    "innerWidth": 1440,
+    "scrollWidth": 1440,
+    "sbordi": [],
+    "sotto12": 1,
+    "piccoli": 0,
+    "esempiPiccoli": [],
+    "bassoContrasto": 0,
+    "esempiBassi": [],
+    "famiglie": [
+      "Geist",
+      "\"Geist Mono\""
+    ],
+    "erroriConsole": []
+  },
+  {
+    "pagina": "/notebook/new",
+    "larghezza": 1440,
+    "tema": "light",
+    "file": "notebook_new__1440__light.png",
+    "h1": "Nuova nota",
+    "altezza": 900,
+    "innerWidth": 1440,
+    "scrollWidth": 1440,
+    "sbordi": [],
+    "sotto12": 1,
+    "piccoli": 0,
+    "esempiPiccoli": [],
+    "bassoContrasto": 0,
+    "esempiBassi": [],
+    "famiglie": [
+      "Geist"
+    ],
+    "erroriConsole": []
+  },
+  {
+    "pagina": "/notebook",
+    "larghezza": 390,
+    "tema": "light",
+    "file": "notebook__390__light.png",
+    "h1": "Notebook",
+    "altezza": 900,
+    "innerWidth": 390,
+    "scrollWidth": 390,
+    "sbordi": [],
+    "sotto12": 0,
+    "piccoli": 0,
+    "esempiPiccoli": [],
+    "bassoContrasto": 0,
+    "esempiBassi": [],
+    "famiglie": [
+      "Geist"
+    ],
+    "erroriConsole": []
+  },
+  {
+    "pagina": "/notebook/cmu3x9qjl0000nsvrb3ouarl9",
+    "larghezza": 390,
+    "tema": "light",
+    "file": "notebook_cmu3x9qjl0000nsvrb3ouarl9__390__light.png",
+    "h1": "Nota",
+    "altezza": 900,
+    "innerWidth": 390,
+    "scrollWidth": 390,
+    "sbordi": [],
+    "sotto12": 0,
+    "piccoli": 0,
+    "esempiPiccoli": [],
+    "bassoContrasto": 0,
+    "esempiBassi": [],
+    "famiglie": [
+      "Geist",
+      "\"Geist Mono\""
+    ],
+    "erroriConsole": []
+  },
+  {
+    "pagina": "/notebook/new",
+    "larghezza": 390,
+    "tema": "light",
+    "file": "notebook_new__390__light.png",
+    "h1": "Nuova nota",
+    "altezza": 900,
+    "innerWidth": 390,
+    "scrollWidth": 390,
+    "sbordi": [],
+    "sotto12": 0,
+    "piccoli": 0,
+    "esempiPiccoli": [],
+    "bassoContrasto": 0,
+    "esempiBassi": [],
+    "famiglie": [
+      "Geist"
+    ],
+    "erroriConsole": []
+  }
+]

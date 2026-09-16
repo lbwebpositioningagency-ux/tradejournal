@@ -30,6 +30,8 @@ model User {
   mt5SyncSources  Mt5SyncSource[]
   attachments     Attachment[]
   checklistItems  ChecklistItem[]
+  notebookNotes   NotebookNote[]
+  notebookImages  NotebookImage[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -387,6 +389,47 @@ model Attachment {
   @@index([tradeId])
   @@index([noteId])
   @@index([userId, dayDate])
+}
+
+/**
+ * NOTEBOOK — note libere (16/09/2026).
+ * Tabelle PROPRIE, di proposito: `Note` è il journal di giornata e dei trade
+ * (vincoli unici su giorno+fase e trade+fase), e le aggiunte non ne toccano né
+ * lo schema né le righe. La data di riferimento della nota è `createdAt`,
+ * assegnata dal server al primo salvataggio e mai modificabile dall'utente.
+ */
+model NotebookNote {
+  id      String @id @default(cuid())
+  userId  String
+  title   String @default("")
+  content String @default("") // markdown
+
+  user   User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  images NotebookImage[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([userId, createdAt])
+}
+
+/** Immagini inserite nel testo di una nota: byte in Postgres come `Attachment`. */
+model NotebookImage {
+  id       String @id @default(cuid())
+  userId   String // proprietario: filtro di sicurezza diretto, senza join
+  noteId   String
+  fileName String
+  mimeType String
+  size     Int
+  data     Bytes // mai in SELECT di listing, solo nella route di download
+
+  user User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  note NotebookNote @relation(fields: [noteId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+
+  @@index([noteId])
+  @@index([userId])
 }
 
 // ───────────────────────── Import CSV (FASE 3) ─────────────────────────
