@@ -7,6 +7,9 @@ import {
   isValidDateKey,
   isValidMonthKey,
   sumPnl,
+  weekDays,
+  weekRangeLabel,
+  weekStartOf,
 } from "./calendar";
 
 describe("isValidMonthKey / isValidDateKey", () => {
@@ -123,5 +126,31 @@ describe("calendarHref — il calendario vive nella Dashboard", () => {
     expect(calendarHref("2026-07", { keep: { cur: "USD" }, currency: "EUR" })).toBe(
       "/dashboard?cur=EUR&month=2026-07",
     );
+  });
+});
+
+describe("settimana del journal (lunedì→domenica)", () => {
+  it("il lunedì di ogni giorno della settimana, domenica compresa", () => {
+    for (const day of ["2026-07-13", "2026-07-15", "2026-07-18", "2026-07-19"]) {
+      expect(weekStartOf(day)).toBe("2026-07-13");
+    }
+    expect(weekStartOf("2026-07-20")).toBe("2026-07-20");
+  });
+
+  it("attraversa mese e anno", () => {
+    expect(weekStartOf("2026-07-02")).toBe("2026-06-29");
+    expect(weekStartOf("2026-01-01")).toBe("2025-12-29");
+  });
+
+  it("coincide con le righe del calendario mensile", () => {
+    for (const week of buildMonthWeeks("2026-03")) {
+      expect(weekDays(weekStartOf(week[3]))).toEqual(week);
+    }
+  });
+
+  it("etichetta: mese e anno solo quando cambiano", () => {
+    expect(weekRangeLabel("2026-07-13")).toBe("13–19 luglio 2026");
+    expect(weekRangeLabel("2026-06-29")).toBe("29 giugno – 5 luglio 2026");
+    expect(weekRangeLabel("2025-12-29")).toBe("29 dicembre 2025 – 4 gennaio 2026");
   });
 });

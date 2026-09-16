@@ -52,7 +52,7 @@ describe("contorno", () => {
   it("etichetta del giorno", () => {
     expect(dayViewDayLabel("2026-09-15")).toBe("Martedì 15 settembre 2026");
   });
-  it("la pagina Settimana non è ancora collegata", () => {
-    expect(weekPageHref("2026-09-14")).toBeNull();
+  it("la settimana porta alla pagina Settimana del suo lunedì", () => {
+    expect(weekPageHref("2026-09-14")).toBe("/week/2026-09-14");
   });
 });

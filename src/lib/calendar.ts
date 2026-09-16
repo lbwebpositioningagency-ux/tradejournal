@@ -115,3 +115,54 @@ export function calendarHref(
   const query = params.toString();
   return `/dashboard${query ? `?${query}` : ""}${anchor ? `#${CALENDAR_ANCHOR}` : ""}`;
 }
+
+/**
+ * Lunedì della settimana (lunedì→domenica) che contiene il giorno: la chiave
+ * della vista Settimana e del suo journal. È la stessa riga del calendario
+ * mensile (`buildMonthWeeks`), così il totale della pagina coincide con la
+ * cella «Sett.» che l'ha aperta.
+ */
+export function weekStartOf(date: string): string {
+  const [year, month, day] = date.split("-").map(Number);
+  const ms = Date.UTC(year, month - 1, day);
+  const mondayOffset = (new Date(ms).getUTCDay() + 6) % 7;
+  return msToDateKey(ms - mondayOffset * DAY_MS);
+}
+
+/** I sette giorni (lunedì→domenica) della settimana che inizia a `monday`. */
+export function weekDays(monday: string): string[] {
+  return Array.from({ length: 7 }, (_, i) => addDays(monday, i));
+}
+
+const WEEK_LABEL_DAY = new Intl.DateTimeFormat("it-IT", {
+  day: "numeric",
+  timeZone: "UTC",
+});
+const WEEK_LABEL_FULL = new Intl.DateTimeFormat("it-IT", {
+  day: "numeric",
+  month: "long",
+  year: "numeric",
+  timeZone: "UTC",
+});
+const WEEK_LABEL_DAY_MONTH = new Intl.DateTimeFormat("it-IT", {
+  day: "numeric",
+  month: "long",
+  timeZone: "UTC",
+});
+
+/**
+ * «13–19 luglio 2026», «29 giugno – 5 luglio 2026», «29 dicembre 2025 –
+ * 4 gennaio 2026»: il mese e l'anno si ripetono solo quando cambiano.
+ * Mezzogiorno UTC + timeZone UTC: l'etichetta non può scivolare di giorno.
+ */
+export function weekRangeLabel(monday: string): string {
+  const sunday = addDays(monday, 6);
+  const at = (key: string) => new Date(`${key}T12:00:00Z`);
+  if (monday.slice(0, 7) === sunday.slice(0, 7)) {
+    return `${WEEK_LABEL_DAY.format(at(monday))}–${WEEK_LABEL_FULL.format(at(sunday))}`;
+  }
+  if (monday.slice(0, 4) === sunday.slice(0, 4)) {
+    return `${WEEK_LABEL_DAY_MONTH.format(at(monday))} – ${WEEK_LABEL_FULL.format(at(sunday))}`;
+  }
+  return `${WEEK_LABEL_FULL.format(at(monday))} – ${WEEK_LABEL_FULL.format(at(sunday))}`;
+}

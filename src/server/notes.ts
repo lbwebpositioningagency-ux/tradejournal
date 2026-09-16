@@ -4,7 +4,12 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/db";
-import { dayNoteSchema, type DayNoteInput } from "@/lib/validations/note";
+import {
+  dayNoteSchema,
+  weekNoteSchema,
+  type DayNoteInput,
+  type WeekNoteInput,
+} from "@/lib/validations/note";
 
 export type DayNoteActionResult = {
   error?: string;
@@ -81,5 +86,52 @@ export async function saveDayNoteAction(
 
   revalidatePath(`/day/${date}`);
   revalidatePath("/dashboard");
+  return { success: true };
+}
+
+/**
+ * Salva (upsert) il journal di SETTIMANA: una nota sola, chiave lunedì.
+ * Contenuto vuoto = elimina, ma come per le fasi del giorno la nota resta
+ * (vuota) se porta allegati: svuotare il testo non cancella le immagini.
+ */
+export async function saveWeekNoteAction(
+  input: WeekNoteInput,
+): Promise<DayNoteActionResult> {
+  const userId = await requireUserId();
+
+  const parsed = weekNoteSchema.safeParse(input);
+  if (!parsed.success) {
+    return { error: parsed.error.issues[0]?.message ?? "Dati non validi" };
+  }
+  const { week, content } = parsed.data;
+  const weekStart = new Date(`${week}T00:00:00.000Z`);
+
+  if (content === "") {
+    const existing = await prisma.weekNote.findFirst({
+      where: { userId, weekStart },
+      select: { id: true, _count: { select: { attachments: true } } },
+    });
+    if (existing && existing._count.attachments > 0) {
+      await prisma.weekNote.updateMany({
+        where: { id: existing.id, userId },
+        data: { content: "" },
+      });
+    } else {
+      await prisma.weekNote.deleteMany({ where: { userId, weekStart } });
+    }
+    revalidatePath(`/week/${week}`);
+    return {
+      success: true,
+      deleted: !(existing && existing._count.attachments > 0),
+    };
+  }
+
+  await prisma.weekNote.upsert({
+    where: { userId_weekStart: { userId, weekStart } },
+    update: { content },
+    create: { userId, weekStart, content },
+  });
+
+  revalidatePath(`/week/${week}`);
   return { success: true };
 }

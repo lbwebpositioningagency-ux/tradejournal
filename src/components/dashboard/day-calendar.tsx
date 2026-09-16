@@ -232,7 +232,9 @@ export async function DayCalendar({
             settimana ridotti + formato importi ultra-compatto (formatSignedShort).
             Da sm in su il layout è quello della vecchia pagina a sé. */}
         <CardContent className="px-2 sm:px-4">
-          <div className="grid grid-cols-[repeat(7,minmax(0,1fr))_3rem] gap-0.5 sm:grid-cols-[repeat(7,minmax(0,1fr))_4.5rem] sm:gap-1">
+          {/* Otto colonne UGUALI: la settimana ha la stessa misura di un giorno
+              (prima era una colonna stretta da 3-4,5rem, più piccola delle celle). */}
+          <div className="grid grid-cols-8 gap-0.5 sm:gap-1">
             {WEEKDAY_LABELS.map((label) => (
               <div
                 key={label}
@@ -324,9 +326,14 @@ export async function DayCalendar({
                       </Link>
                     );
                   })}
-                  <div
+                  {/* La cella «Sett.» apre la vista Settimana (lunedì→domenica,
+                      la stessa riga): stesso aspetto a riposo, filo al
+                      passaggio come le celle giorno. */}
+                  <Link
+                    href={withCurrencyParam(`/week/${week[0]}`, keptCurrency)}
+                    aria-label={`Apri la settimana dal ${Number(week[0].slice(8, 10))}/${Number(week[0].slice(5, 7))}${weekDaysWithData.length > 0 ? ` (${weekTrades} trade)` : ""}`}
                     className={cn(
-                      "flex min-h-20 flex-col items-center justify-center overflow-hidden rounded-md bg-muted/40 p-0.5 text-xs tabular-nums sm:p-1.5",
+                      "flex min-h-20 flex-col items-center justify-center gap-0.5 overflow-hidden rounded-md border border-border/60 bg-muted/40 px-0.5 py-1 text-xs tabular-nums transition-colors hover:border-foreground/40 sm:p-1.5",
                       weekDaysWithData.length > 0
                         ? pnlColorClass(weekNet)
                         : "text-muted-foreground",
@@ -352,7 +359,7 @@ export async function DayCalendar({
                     ) : (
                       "—"
                     )}
-                  </div>
+                  </Link>
                 </div>
               );
             })}

@@ -31,6 +31,7 @@ model User {
   attachments     Attachment[]
   checklistItems  ChecklistItem[]
   notebookNotes   NotebookNote[]
+  weekNotes       WeekNote[]
   notebookImages  NotebookImage[]
   disciplineRules DisciplineRule[]
 
@@ -384,12 +385,41 @@ model Attachment {
   user  User   @relation(fields: [userId], references: [id], onDelete: Cascade)
   trade Trade? @relation(fields: [tradeId], references: [id], onDelete: Cascade)
   note  Note?  @relation(fields: [noteId], references: [id], onDelete: Cascade)
+  // Journal di SETTIMANA: l'allegato sta con la sua nota, come quelli di fase
+  // stanno con la Note DAILY. Campo nuovo e nullable: nessuna riga esistente
+  // cambia.
+  weekNoteId String?
+  weekNote   WeekNote? @relation(fields: [weekNoteId], references: [id], onDelete: Cascade)
 
   createdAt DateTime @default(now())
 
   @@index([tradeId])
   @@index([noteId])
   @@index([userId, dayDate])
+  @@index([weekNoteId])
+}
+
+/**
+ * JOURNAL DI SETTIMANA (vista Settimana, `/week/[lunedì]`): una nota per
+ * utente e settimana, senza fasi. Tabella propria e non un tipo di `Note`:
+ * aggiungere un valore all'enum `NoteType` avrebbe rotto il codice già in
+ * produzione alla prima riga scritta (AGENTS.md), e una tabella nuova non
+ * tocca nulla di esistente. Gli allegati restano in `Attachment`
+ * (`weekNoteId`), così upload, anteprima e download sono quelli di sempre.
+ */
+model WeekNote {
+  id        String   @id @default(cuid())
+  userId    String
+  weekStart DateTime @db.Date // lunedì della settimana nel fuso dell'utente
+  content   String   @default("") // markdown
+
+  user        User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  attachments Attachment[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([userId, weekStart]) // un journal per settimana
 }
 
 /**

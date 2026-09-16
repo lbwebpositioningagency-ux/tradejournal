@@ -170,7 +170,9 @@ export default async function DayViewListPage({
                     ? "journal scritto"
                     : `journal in ${row.journalDays} ${row.journalDays === 1 ? "giorno" : "giorni"}`;
               const href =
-                mode === "day" ? withCurrencyParam(`/day/${row.key}`, keptCurrency) : weekPageHref(row.key);
+                mode === "day"
+                  ? withCurrencyParam(`/day/${row.key}`, keptCurrency)
+                  : ((weekHref) => (weekHref ? withCurrencyParam(weekHref, keptCurrency) : null))(weekPageHref(row.key));
               return (
                 <li
                   key={row.key}

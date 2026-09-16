@@ -53,6 +53,11 @@ describe("calendario mensile dentro la Dashboard", () => {
     expect(page).toMatch(/<DayCalendar\b/);
     const view = readFileSync(join(SRC, "components", "dashboard", "dashboard-view.tsx"), "utf8");
     expect(view).toMatch(/\{calendar\}/);
+    // La cella «Sett.» ha la misura di un giorno e apre la vista Settimana.
+    const calendar = readFileSync(join(SRC, "components", "dashboard", "day-calendar.tsx"), "utf8");
+    expect(calendar).toMatch(/grid grid-cols-8 /);
+    expect(calendar).not.toMatch(/_4\.5rem\]|_3rem\]/);
+    expect(calendar).toContain("withCurrencyParam(`/week/${week[0]}`, keptCurrency)");
     // Nessun doppione ridotto dello stesso mese.
     expect(existsSync(join(SRC, "components", "dashboard", "mini-calendar.tsx"))).toBe(false);
   });

@@ -43,7 +43,9 @@ export type AttachmentTargetProps =
       kind: "phase";
       date: string;
       phase: "PREMARKET" | "INMARKET" | "POSTMARKET";
-    };
+    }
+  /** Journal di settimana: `date` è il lunedì. */
+  | { kind: "week"; date: string };
 
 /** Byte → etichetta leggibile (solo display). */
 function formatBytes(size: number): string {

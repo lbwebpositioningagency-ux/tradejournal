@@ -24,8 +24,8 @@ function walk(dir: string): string[] {
 }
 
 /** Link che portano a una vista con importi dipendenti dalla valuta. */
-const RAW_LINK = /href=\{\s*`\/(day|reports\/settimana)[/?`$]/;
-const RAW_BACK = /href:\s*`\/(day|reports\/settimana)[/?`$]/;
+const RAW_LINK = /href=\{\s*`\/(day|week|reports\/settimana)[/?`$]/;
+const RAW_BACK = /href:\s*`\/(day|week|reports\/settimana)[/?`$]/;
 
 describe("link verso giornata, calendario e report periodico", () => {
   const files = ROOTS.flatMap(walk);
@@ -48,6 +48,19 @@ describe("link verso giornata, calendario e report periodico", () => {
     );
     expect(review).toMatch(/reviewBalanceLines\(/);
     expect(review).not.toMatch(/net\s*=\s*net\.plus/);
+  });
+
+  it("la settimana risolve la valuta sui propri trade, e il calendario la apre con la valuta", () => {
+    const week = readFileSync(
+      join(process.cwd(), "src", "app", "(app)", "week", "[date]", "page.tsx"),
+      "utf8",
+    );
+    expect(week).toMatch(/resolveCurrencyScope\(weekCurrencies/);
+    const calendar = readFileSync(
+      join(process.cwd(), "src", "components", "dashboard", "day-calendar.tsx"),
+      "utf8",
+    );
+    expect(calendar).toContain("withCurrencyParam(`/week/${week[0]}`, keptCurrency)");
   });
 
   it("la giornata risolve la valuta sui propri trade, non solo sul link", () => {

@@ -3728,3 +3728,30 @@ Misure (build locale, SIM1, 1440 e 390, due temi, stati apertura / 30g e 1a / 90
 indietro / maniglia / Tutto): 0 testi < 11px e 0 contrasti < 4,5:1 nelle tre card, testi SVG
 compresi; nessuno sbordo, nessun errore in console. Nessuna migrazione. Schermate e misure in
 `docs/dashboard/grafici-finestra/`.
+
+## Journal: la pagina Settimana (16/09/2026)
+
+**`/week/[lunedì]`** (`src/app/(app)/week/[date]/`), costruita come la Giornata e aggregata su
+lunedì→domenica, la stessa riga del calendario (il totale coincide con la cella «Sett.»): Net P&L con
+fee, win rate, qualità (PF, R totale), striscia dei sette giorni con la tinta del calendario e link
+alle Giornate, P&L cumulativo e sequenza trade (stessi componenti), tabella dei trade, journal della
+settimana con allegati. Frecce sulle settimane operative, «← Calendario» al mese del giovedì. Un
+giorno che non è lunedì rimanda al suo lunedì nel layout; data impossibile = 404. Tavole Claude
+Design «Journal - vista Settimana» e «… , ripresa».
+
+**Schema**: tabella nuova `WeekNote` (unica per `userId + weekStart`) e campo nuovo nullable
+`Attachment.weekNoteId` (FK con cascade, indice). Nessun enum toccato: la prima bozza aggiungeva
+`WEEKLY` a `NoteType`, scartata perché un valore d'enum nuovo rompe il codice in produzione.
+Migrazione `20260916220000_journal_settimana`. Allegati: destinazione `week` in upload/delete.
+
+**Calendario**: griglia a otto colonne uguali, la cella «Sett.» ha la misura di un giorno, lo stesso
+filo, ed è il link alla Settimana con la valuta del mese. **Day View**: `weekPageHref()` restituisce
+`/week/[lunedì]`, «Vedi settimana» compare su ogni riga con `?cur`.
+
+**Valuta** (utente demo, settimana 6 luglio, EUR+USD): solo EUR −65,31 € (identico alla somma SQL
+dei soli EUR), «10 in USD non sommati», selettore, `?cur` su frecce e giorni.
+
+Misure (build locale; Settimana, calendario, Day View Week; 1440 e 390; due temi): 0 testi < 11px,
+contrasto minimo 4,65, 0 sbordi di pagina, 0 errori in console. Test nuovi: helper di settimana,
+validazioni, integrazione Postgres di `WeekNote`, guardie su cella e link. Schermate in
+`docs/journal/settimana/`.

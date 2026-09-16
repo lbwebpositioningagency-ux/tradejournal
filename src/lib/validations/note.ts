@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { isValidDateKey } from "@/lib/calendar";
+import { isValidDateKey, weekStartOf } from "@/lib/calendar";
 import { DAY_PHASES } from "@/lib/day-journal";
 
 /**
@@ -19,3 +19,22 @@ export const dayNoteSchema = z.object({
 });
 
 export type DayNoteInput = z.input<typeof dayNoteSchema>;
+
+/**
+ * Journal di settimana (Note type=WEEKLY): UNA nota per settimana per
+ * utente, senza fasi. La chiave è il lunedì nel fuso dell'utente: un altro
+ * giorno viene rifiutato invece che normalizzato, perché un indirizzo che
+ * salva su una settimana diversa da quella mostrata sarebbe un errore
+ * silenzioso.
+ */
+export const weekNoteSchema = z.object({
+  /** Lunedì della settimana ("YYYY-MM-DD"). */
+  week: z
+    .string()
+    .refine(isValidDateKey, "Data non valida")
+    .refine((v) => weekStartOf(v) === v, "La settimana si indica col suo lunedì"),
+  /** Contenuto markdown; vuoto = elimina la nota (se non ha allegati). */
+  content: z.string().trim().max(10000, "Nota troppo lunga (max 10.000 caratteri)"),
+});
+
+export type WeekNoteInput = z.input<typeof weekNoteSchema>;

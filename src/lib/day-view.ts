@@ -60,14 +60,13 @@ export function buildDayViewRows(
 }
 
 /**
- * Pagina Settimana del journal: NON esiste ancora (verificato su origin/main
- * il 16/09/2026 — `/reports/settimana` è il Report periodico, un'altra cosa).
- * Quando sarà pubblicata basta restituire qui il suo indirizzo: le righe della
- * modalità Week mostrano il pulsante «Vedi settimana» solo se questo non è null.
+ * Pagina Settimana del journal (`/week/[lunedì]`, 16/09/2026; da non
+ * confondere con `/reports/settimana`, il Report periodico). Le righe della
+ * modalità Week mostrano il pulsante «Vedi settimana» solo se questo non è
+ * null; la valuta la aggiunge chi chiama, con `withCurrencyParam`.
  */
 export function weekPageHref(monday: string): string | null {
-  void monday;
-  return null;
+  return `/week/${monday}`;
 }
 
 /** «Martedì 15 settembre 2026» da una chiave giorno, senza scivolare di fuso. */

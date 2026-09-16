@@ -23,9 +23,11 @@ async function requireUserId(): Promise<string> {
 function targetPath(
   tradeId: string | null,
   dayDate: Date | null,
+  weekStart: Date | null = null,
 ): string | null {
   if (tradeId) return `/trades/${tradeId}`;
   if (dayDate) return `/day/${dayDate.toISOString().slice(0, 10)}`;
+  if (weekStart) return `/week/${weekStart.toISOString().slice(0, 10)}`;
   return null;
 }
 
@@ -67,6 +69,8 @@ export async function uploadAttachmentAction(
   /** kind=phase: la Note contenitore si crea solo a upload VALIDO (B-07). */
   let phaseTarget: { day: Date; phase: "PREMARKET" | "INMARKET" | "POSTMARKET" } | null =
     null;
+  /** kind=week: stessa regola della fase, contenitore WeekNote del lunedì. */
+  let weekTarget: Date | null = null;
   /** Path da rigenerare (per kind=phase non deriva da tradeId/dayDate). */
   let revalidate: string | null = null;
   if (target.kind === "trade") {
@@ -79,6 +83,9 @@ export async function uploadAttachmentAction(
   } else if (target.kind === "day") {
     // Chiave giorno nel fuso utente, salvata come mezzanotte UTC (@db.Date).
     dayDate = new Date(`${target.date}T00:00:00.000Z`);
+  } else if (target.kind === "week") {
+    weekTarget = new Date(`${target.date}T00:00:00.000Z`);
+    revalidate = `/week/${target.date}`;
   } else {
     // FASE del journal: l'allegato si aggancia alla Note DAILY di
     // giorno+fase. Se non esiste ancora (si allega il grafico prima di
@@ -101,7 +108,9 @@ export async function uploadAttachmentAction(
             userId,
             note: { dayDate: phaseTarget.day, dayPhase: phaseTarget.phase },
           }
-        : { userId, dayDate },
+        : weekTarget
+          ? { userId, weekNote: { weekStart: weekTarget } }
+          : { userId, dayDate },
   });
   if (existing >= MAX_ATTACHMENTS_PER_TARGET) {
     return {
@@ -171,6 +180,19 @@ export async function uploadAttachmentAction(
         data: { ...attachmentData, noteId: note.id },
       });
     });
+  } else if (weekTarget) {
+    const weekStart = weekTarget;
+    await prisma.$transaction(async (tx) => {
+      const note = await tx.weekNote.upsert({
+        where: { userId_weekStart: { userId, weekStart } },
+        update: {},
+        create: { userId, weekStart, content: "" },
+        select: { id: true },
+      });
+      await tx.attachment.create({
+        data: { ...attachmentData, noteId: null, weekNoteId: note.id },
+      });
+    });
   } else {
     await prisma.attachment.create({ data: { ...attachmentData, noteId: null } });
   }
@@ -192,6 +214,7 @@ export async function deleteAttachmentAction(
       tradeId: true,
       dayDate: true,
       note: { select: { dayDate: true } },
+      weekNote: { select: { weekStart: true } },
     },
   });
   if (!attachment) return { error: "Allegato non trovato" };
@@ -202,6 +225,7 @@ export async function deleteAttachmentAction(
   const path = targetPath(
     attachment.tradeId,
     attachment.dayDate ?? attachment.note?.dayDate ?? null,
+    attachment.weekNote?.weekStart ?? null,
   );
   if (path) revalidatePath(path);
   return { success: true };

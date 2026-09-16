@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { isValidDateKey } from "@/lib/calendar";
+import { isValidDateKey, weekStartOf } from "@/lib/calendar";
 import {
   ALLOWED_ATTACHMENT_TYPES,
   MAX_ATTACHMENT_BYTES,
@@ -54,6 +54,16 @@ export const attachmentTargetSchema = z.union([
       message: "Data non valida",
     }),
     phase: z.enum(["PREMARKET", "INMARKET", "POSTMARKET"]),
+  }),
+  // Journal di SETTIMANA: l'allegato si aggancia alla Note WEEKLY del lunedì
+  // (come quelli di fase alla Note DAILY), mai a un giorno.
+  z.object({
+    kind: z.literal("week"),
+    date: z
+      .string()
+      .refine((v) => isValidDateKey(v) && weekStartOf(v) === v, {
+        message: "Settimana non valida",
+      }),
   }),
 ]);
 
