@@ -63,6 +63,7 @@
   --md-border: var(--border);
   --ml-rule: var(--rule);
   --ml-track: var(--track);
+  --ml-frame: var(--frame);
   --md-text: var(--foreground);
   --md-text-2: var(--foreground-2);
   --md-muted: var(--muted-foreground);
@@ -409,12 +410,20 @@
   color: var(--md-text-2);
   border-radius: var(--md-r-sm);
 }
+/* LA CORNICE (17/09/2026, tavola «Sistema visivo v3 - Stagionalità, la cornice
+   della griglia», forma B): testata, colonna Anno e blocco di sintesi stanno su
+   un fondo comune, --ml-frame, e i separatori sono gli stessi stacchi di 2px del
+   colore della card che dividono le caselle dei dati — così ogni anno è una
+   casella e non una riga di testo impilato. Sul fondo di cornice le etichette
+   in maiuscoletto sono in testo secondario: il grigio attenuato scendeva a 4,46
+   in chiaro. */
 .ml-griglia thead th {
   font-size: 11px;
   font-weight: 600;
   letter-spacing: 0.04em;
   text-transform: uppercase;
-  color: var(--md-muted);
+  color: var(--md-text-2);
+  background-color: var(--ml-frame);
   vertical-align: bottom;
 }
 /* Mese (settimana, giorno…) corrente: il filetto ambra dell'«adesso». */
@@ -430,8 +439,10 @@
   z-index: 1;
   min-width: 8rem;
   text-align: left;
-  background-color: var(--md-bg);
-  box-shadow: 1px 0 0 var(--ml-rule);
+  background-color: var(--ml-frame);
+  /* Filo a destra, e sotto uno stacco pieno del colore della card: senza, nei
+     2px fra due anni si vedevano le caselle che scorrono sotto la colonna ferma. */
+  box-shadow: 1px 0 0 var(--ml-rule), 0 2px 0 var(--md-bg);
 }
 .ml-griglia tbody th {
   font-weight: 600;
@@ -487,7 +498,7 @@
   height: 12px;
 }
 .ml-griglia tfoot :is(th, td) {
-  background-color: var(--md-surface-2);
+  background-color: var(--ml-frame);
   color: var(--md-text-2);
 }
 .ml-griglia tfoot tr:first-child > * {
@@ -501,7 +512,7 @@
    pochi) e restano FUORI dalla fascia, sulla card: il triangolo del campione
    basso è tarato lì — sul fondo della fascia scende a 4,33:1 in chiaro e
    4,30:1 in scuro (misurato il 16/09/2026 e di nuovo il 17/09). */
-.ml-griglia tfoot tr.ml-anni :is(th, td) {
+.ml-griglia tfoot tr.ml-anni td {
   background-color: var(--md-bg);
   box-shadow: none;
   padding-top: 5px;
@@ -511,12 +522,12 @@
   color: var(--md-text);
 }
 .ml-griglia tfoot th:first-child {
-  background-color: var(--md-surface-2);
+  background-color: var(--ml-frame);
   font-size: 11px;
   font-weight: 600;
   letter-spacing: 0.04em;
   text-transform: uppercase;
-  color: var(--md-muted);
+  color: var(--md-text-2);
 }
 .ml-griglia .ml-sintesi-den {
   font-weight: 400;
@@ -531,9 +542,11 @@
   align-items: flex-end;
   line-height: 16px;
 }
+/* Sul fondo di cornice il grigio attenuato scende a 4,46 in chiaro: il
+   denominatore sta in testo secondario (7,41) e si distingue per la taglia. */
 .ml-griglia .ml-frazione > span:last-child {
   font-size: 12px;
-  color: var(--md-muted);
+  color: var(--md-text-2);
 }
 /* In ricalcolo: due parole in una casella sola, non una frase per dodici
    colonne. */

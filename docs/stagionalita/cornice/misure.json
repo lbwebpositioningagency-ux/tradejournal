@@ -1,0 +1,3570 @@
+[
+  {
+    "pagina": "/macro-desk/stagionalita?s=XAUUSD",
+    "larghezza": 1440,
+    "tema": "light",
+    "file": "macro-desk_stagionalita_s_XAUUSD__1440__light.png",
+    "innerWidth": 1440,
+    "scrollWidth": 1440,
+    "altezza": 3219,
+    "griglia": {
+      "larghezzaTabella": 1118,
+      "larghezzaContenitore": 1118,
+      "scorre": 0,
+      "colonne": 12,
+      "primaColonna": 128,
+      "colonnaMin": 80.2,
+      "colonnaMax": 80.3,
+      "rigaCorpo": 28,
+      "rigaInCorso": 29,
+      "sintesiAltezza": 92,
+      "sintesiRighe": [
+        "Media 30",
+        "StDev 28",
+        "In rialzo su 20 30"
+      ],
+      "inRicalcolo": 0,
+      "caselle": 249,
+      "tinte": {
+        "neutra": 14,
+        "fondo": 235
+      },
+      "piccoli": 0,
+      "contrasti": {
+        "testa·TH": {
+          "min": 7.43,
+          "esempio": "Dic",
+          "px": 11
+        },
+        "in corso·TH": {
+          "min": 7.56,
+          "esempio": "in corso",
+          "px": 12
+        },
+        "in corso·TD": {
+          "min": 7.56,
+          "esempio": "-3,7",
+          "px": 14
+        },
+        "corpo·TH": {
+          "min": 16.57,
+          "esempio": "2025",
+          "px": 14
+        },
+        "corpo·TD": {
+          "min": 9.02,
+          "esempio": "-16,9",
+          "px": 14
+        },
+        "sintesi·TH": {
+          "min": 7.43,
+          "esempio": "su 20",
+          "px": 11
+        },
+        "sintesi·TD": {
+          "min": 7.43,
+          "esempio": "12",
+          "px": 14
+        }
+      }
+    },
+    "grafico": {
+      "contenitore": 732,
+      "riquadro": 696,
+      "disegno": 636,
+      "pxPerPunto": 48.92,
+      "tick": [
+        112,
+        111,
+        110,
+        109,
+        108,
+        107,
+        106,
+        105,
+        104,
+        103,
+        102,
+        101,
+        100,
+        99
+      ],
+      "sezioneTop": 609,
+      "sezioneAltezza": 884,
+      "graficoBottom": 1436
+    },
+    "sbordi": [],
+    "testiSotto11": [],
+    "erroriConsole": []
+  },
+  {
+    "pagina": "/macro-desk/stagionalita?s=XAUUSD&t=settimana",
+    "larghezza": 1440,
+    "tema": "light",
+    "file": "macro-desk_stagionalita_s_XAUUSD_t_settimana__1440__light.png",
+    "innerWidth": 1440,
+    "scrollWidth": 1440,
+    "altezza": 4984,
+    "griglia": {
+      "larghezzaTabella": 3565.7,
+      "larghezzaContenitore": 1118,
+      "scorre": 2448,
+      "colonne": 52,
+      "primaColonna": 140.3,
+      "colonnaMin": 63.8,
+      "colonnaMax": 63.8,
+      "rigaCorpo": 28,
+      "rigaInCorso": 29,
+      "sintesiAltezza": 137,
+      "sintesiRighe": [
+        "Media 30",
+        "StDev 28",
+        "In rialzo settimane su 44",
+        "Anni 29"
+      ],
+      "inRicalcolo": 0,
+      "caselle": 1078,
+      "tinte": {
+        "neutra": 67,
+        "fondo": 1011
+      },
+      "piccoli": 0,
+      "contrasti": {
+        "testa·TH": {
+          "min": 7.43,
+          "esempio": "S52",
+          "px": 11
+        },
+        "in corso·TH": {
+          "min": 7.56,
+          "esempio": "in corso",
+          "px": 12
+        },
+        "in corso·TD": {
+          "min": 7.56,
+          "esempio": "-1,9",
+          "px": 14
+        },
+        "in corso·TD·grigia": {
+          "min": 7.56,
+          "esempio": "-1,4",
+          "px": 14
+        },
+        "corpo·TH": {
+          "min": 16.57,
+          "esempio": "2025",
+          "px": 14
+        },
+        "corpo·TD": {
+          "min": 9.02,
+          "esempio": "-4,0",
+          "px": 14
+        },
+        "sintesi·TH": {
+          "min": 7.43,
+          "esempio": "Anni",
+          "px": 11
+        },
+        "sintesi·TD": {
+          "min": 7.43,
+          "esempio": "20",
+          "px": 12
+        }
+      }
+    },
+    "grafico": {
+      "contenitore": 732,
+      "riquadro": 696,
+      "disegno": 636,
+      "pxPerPunto": 48.92,
+      "tick": [
+        112,
+        111,
+        110,
+        109,
+        108,
+        107,
+        106,
+        105,
+        104,
+        103,
+        102,
+        101,
+        100,
+        99
+      ],
+      "sezioneTop": 609,
+      "sezioneAltezza": 884,
+      "graficoBottom": 1436
+    },
+    "sbordi": [],
+    "testiSotto11": [],
+    "erroriConsole": []
+  },
+  {
+    "pagina": "/macro-desk/stagionalita?s=XAUUSD&t=giorno",
+    "larghezza": 1440,
+    "tema": "light",
+    "file": "macro-desk_stagionalita_s_XAUUSD_t_giorno__1440__light.png",
+    "innerWidth": 1440,
+    "scrollWidth": 1440,
+    "altezza": 2976,
+    "griglia": {
+      "larghezzaTabella": 672,
+      "larghezzaContenitore": 1118,
+      "scorre": 0,
+      "colonne": 5,
+      "primaColonna": 128,
+      "colonnaMin": 106,
+      "colonnaMax": 106,
+      "rigaCorpo": 28,
+      "rigaInCorso": 29,
+      "sintesiAltezza": 106,
+      "sintesiRighe": [
+        "Media 30",
+        "StDev 28",
+        "In rialzo giorni su 44"
+      ],
+      "inRicalcolo": 0,
+      "caselle": 105,
+      "tinte": {
+        "neutra": 8,
+        "fondo": 97
+      },
+      "piccoli": 0,
+      "contrasti": {
+        "testa·TH": {
+          "min": 7.43,
+          "esempio": "Ven",
+          "px": 11
+        },
+        "in corso·TH": {
+          "min": 7.56,
+          "esempio": "in corso",
+          "px": 12
+        },
+        "in corso·TD": {
+          "min": 7.56,
+          "esempio": "-0,1",
+          "px": 14
+        },
+        "corpo·TH": {
+          "min": 16.57,
+          "esempio": "2025",
+          "px": 14
+        },
+        "corpo·TD": {
+          "min": 9.02,
+          "esempio": "-0,3",
+          "px": 14
+        },
+        "sintesi·TH": {
+          "min": 7.43,
+          "esempio": "giorni su",
+          "px": 11
+        },
+        "sintesi·TD": {
+          "min": 7.43,
+          "esempio": "1.025",
+          "px": 12
+        }
+      }
+    },
+    "grafico": {
+      "contenitore": 732,
+      "riquadro": 696,
+      "disegno": 636,
+      "pxPerPunto": 48.92,
+      "tick": [
+        112,
+        111,
+        110,
+        109,
+        108,
+        107,
+        106,
+        105,
+        104,
+        103,
+        102,
+        101,
+        100,
+        99
+      ],
+      "sezioneTop": 609,
+      "sezioneAltezza": 884,
+      "graficoBottom": 1436
+    },
+    "sbordi": [],
+    "testiSotto11": [],
+    "erroriConsole": []
+  },
+  {
+    "pagina": "/macro-desk/stagionalita?s=XAUUSD&t=sessione",
+    "larghezza": 1440,
+    "tema": "light",
+    "file": "macro-desk_stagionalita_s_XAUUSD_t_sessione__1440__light.png",
+    "innerWidth": 1440,
+    "scrollWidth": 1440,
+    "altezza": 3011,
+    "griglia": {
+      "larghezzaTabella": 576,
+      "larghezzaContenitore": 1118,
+      "scorre": 0,
+      "colonne": 4,
+      "primaColonna": 131.3,
+      "colonnaMin": 108.2,
+      "colonnaMax": 108.2,
+      "rigaCorpo": 28,
+      "rigaInCorso": 29,
+      "sintesiAltezza": 106,
+      "sintesiRighe": [
+        "Media 30",
+        "StDev 28",
+        "In rialzo sessioni su 44"
+      ],
+      "inRicalcolo": 0,
+      "caselle": 84,
+      "tinte": {
+        "neutra": 9,
+        "fondo": 75
+      },
+      "piccoli": 0,
+      "contrasti": {
+        "testa·TH": {
+          "min": 7.43,
+          "esempio": "Fuori",
+          "px": 11
+        },
+        "in corso·TH": {
+          "min": 7.56,
+          "esempio": "in corso",
+          "px": 12
+        },
+        "in corso·TD": {
+          "min": 7.56,
+          "esempio": "-0,012",
+          "px": 14
+        },
+        "corpo·TH": {
+          "min": 16.57,
+          "esempio": "2025",
+          "px": 14
+        },
+        "corpo·TD": {
+          "min": 9.02,
+          "esempio": "-0,025",
+          "px": 14
+        },
+        "sintesi·TH": {
+          "min": 7.43,
+          "esempio": "sessioni su",
+          "px": 11
+        },
+        "sintesi·TD": {
+          "min": 7.43,
+          "esempio": "4.819",
+          "px": 12
+        }
+      }
+    },
+    "grafico": {
+      "contenitore": 732,
+      "riquadro": 696,
+      "disegno": 636,
+      "pxPerPunto": 48.92,
+      "tick": [
+        112,
+        111,
+        110,
+        109,
+        108,
+        107,
+        106,
+        105,
+        104,
+        103,
+        102,
+        101,
+        100,
+        99
+      ],
+      "sezioneTop": 609,
+      "sezioneAltezza": 884,
+      "graficoBottom": 1436
+    },
+    "sbordi": [],
+    "testiSotto11": [],
+    "erroriConsole": []
+  },
+  {
+    "pagina": "/macro-desk/stagionalita?s=SPX&t=ora",
+    "larghezza": 1440,
+    "tema": "light",
+    "file": "macro-desk_stagionalita_s_SPX_t_ora__1440__light.png",
+    "innerWidth": 1440,
+    "scrollWidth": 1440,
+    "altezza": 3710,
+    "griglia": {
+      "larghezzaTabella": 2170.1,
+      "larghezzaContenitore": 1118,
+      "scorre": 1052,
+      "colonne": 24,
+      "primaColonna": 128,
+      "colonnaMin": 82.9,
+      "colonnaMax": 82.9,
+      "rigaCorpo": 28,
+      "rigaInCorso": 29,
+      "sintesiAltezza": 137,
+      "sintesiRighe": [
+        "Media 30",
+        "StDev 28",
+        "In rialzo ore su 44",
+        "Anni 29"
+      ],
+      "inRicalcolo": 0,
+      "caselle": 329,
+      "tinte": {
+        "neutra": 73,
+        "fondo": 256
+      },
+      "piccoli": 0,
+      "contrasti": {
+        "testa·TH": {
+          "min": 7.43,
+          "esempio": "23",
+          "px": 11
+        },
+        "in corso·TH": {
+          "min": 7.56,
+          "esempio": "in corso",
+          "px": 12
+        },
+        "in corso·TD·grigia": {
+          "min": 7.56,
+          "esempio": "-0,043",
+          "px": 14
+        },
+        "in corso·TD": {
+          "min": 7.56,
+          "esempio": "-0,001",
+          "px": 14
+        },
+        "corpo·TH": {
+          "min": 16.57,
+          "esempio": "2025",
+          "px": 14
+        },
+        "corpo·TD·grigia": {
+          "min": 5.2,
+          "esempio": "+0,038",
+          "px": 14
+        },
+        "corpo·TD": {
+          "min": 9.02,
+          "esempio": "-0,026",
+          "px": 14
+        },
+        "sintesi·TH": {
+          "min": 7.43,
+          "esempio": "Anni",
+          "px": 11
+        },
+        "sintesi·TD": {
+          "min": 4.76,
+          "esempio": "Campione basso",
+          "px": 14
+        }
+      }
+    },
+    "grafico": {
+      "contenitore": 732,
+      "riquadro": 696,
+      "disegno": 636,
+      "pxPerPunto": 45.43,
+      "tick": [
+        113,
+        112,
+        111,
+        110,
+        109,
+        108,
+        107,
+        106,
+        105,
+        104,
+        103,
+        102,
+        101,
+        100,
+        99
+      ],
+      "sezioneTop": 633,
+      "sezioneAltezza": 884,
+      "graficoBottom": 1460
+    },
+    "sbordi": [],
+    "testiSotto11": [],
+    "erroriConsole": []
+  },
+  {
+    "pagina": "/macro-desk/stagionalita?s=VIX&t=giorno",
+    "larghezza": 1440,
+    "tema": "light",
+    "file": "macro-desk_stagionalita_s_VIX_t_giorno__1440__light.png",
+    "innerWidth": 1440,
+    "scrollWidth": 1440,
+    "altezza": 2974,
+    "griglia": {
+      "larghezzaTabella": 672,
+      "larghezzaContenitore": 1118,
+      "scorre": 0,
+      "colonne": 5,
+      "primaColonna": 159,
+      "colonnaMin": 99.8,
+      "colonnaMax": 99.8,
+      "rigaCorpo": 28,
+      "rigaInCorso": 29,
+      "sintesiAltezza": 106,
+      "sintesiRighe": [
+        "Livello medio 30",
+        "StDev 28",
+        "Sopra mediana giorni su 44"
+      ],
+      "inRicalcolo": 0,
+      "caselle": 105,
+      "tinte": {
+        "neutra": 7,
+        "fondo": 98
+      },
+      "piccoli": 0,
+      "contrasti": {
+        "testa·TH": {
+          "min": 7.43,
+          "esempio": "Ven",
+          "px": 11
+        },
+        "in corso·TH": {
+          "min": 7.56,
+          "esempio": "in corso",
+          "px": 12
+        },
+        "in corso·TD": {
+          "min": 7.56,
+          "esempio": "18,3",
+          "px": 14
+        },
+        "corpo·TH": {
+          "min": 16.57,
+          "esempio": "2025",
+          "px": 14
+        },
+        "corpo·TD": {
+          "min": 9.11,
+          "esempio": "33,1",
+          "px": 14
+        },
+        "sintesi·TH": {
+          "min": 7.43,
+          "esempio": "giorni su",
+          "px": 11
+        },
+        "sintesi·TD": {
+          "min": 7.43,
+          "esempio": "1.010",
+          "px": 12
+        }
+      }
+    },
+    "grafico": {
+      "contenitore": 732,
+      "riquadro": 696,
+      "disegno": 636,
+      "pxPerPunto": 22.71,
+      "tick": [
+        116,
+        114,
+        112,
+        110,
+        108,
+        106,
+        104,
+        102,
+        100,
+        98,
+        96,
+        94,
+        92,
+        90,
+        88
+      ],
+      "sezioneTop": 607,
+      "sezioneAltezza": 884,
+      "graficoBottom": 1434
+    },
+    "sbordi": [],
+    "testiSotto11": [],
+    "erroriConsole": []
+  },
+  {
+    "pagina": "/macro-desk/stagionalita?s=XAUUSD",
+    "larghezza": 390,
+    "tema": "light",
+    "file": "macro-desk_stagionalita_s_XAUUSD__390__light.png",
+    "innerWidth": 390,
+    "scrollWidth": 390,
+    "altezza": 3546,
+    "griglia": {
+      "larghezzaTabella": 921.6,
+      "larghezzaContenitore": 324,
+      "scorre": 598,
+      "colonne": 12,
+      "primaColonna": 128,
+      "colonnaMin": 63.8,
+      "colonnaMax": 63.8,
+      "rigaCorpo": 28,
+      "rigaInCorso": 29,
+      "sintesiAltezza": 92,
+      "sintesiRighe": [
+        "Media 30",
+        "StDev 28",
+        "In rialzo su 20 30"
+      ],
+      "inRicalcolo": 0,
+      "caselle": 249,
+      "tinte": {
+        "neutra": 14,
+        "fondo": 235
+      },
+      "piccoli": 0,
+      "contrasti": {
+        "testa·TH": {
+          "min": 7.43,
+          "esempio": "Dic",
+          "px": 11
+        },
+        "in corso·TH": {
+          "min": 7.56,
+          "esempio": "in corso",
+          "px": 12
+        },
+        "in corso·TD": {
+          "min": 7.56,
+          "esempio": "-3,7",
+          "px": 14
+        },
+        "corpo·TH": {
+          "min": 16.57,
+          "esempio": "2025",
+          "px": 14
+        },
+        "corpo·TD": {
+          "min": 9.02,
+          "esempio": "-16,9",
+          "px": 14
+        },
+        "sintesi·TH": {
+          "min": 7.43,
+          "esempio": "su 20",
+          "px": 11
+        },
+        "sintesi·TD": {
+          "min": 7.43,
+          "esempio": "12",
+          "px": 14
+        }
+      }
+    },
+    "grafico": {
+      "contenitore": 466,
+      "riquadro": 340,
+      "disegno": 280,
+      "pxPerPunto": 20,
+      "tick": [
+        112,
+        110,
+        108,
+        106,
+        104,
+        102,
+        100,
+        98
+      ],
+      "sezioneTop": 760,
+      "sezioneAltezza": 780,
+      "graficoBottom": 1383
+    },
+    "sbordi": [],
+    "testiSotto11": [],
+    "erroriConsole": []
+  },
+  {
+    "pagina": "/macro-desk/stagionalita?s=XAUUSD&t=settimana",
+    "larghezza": 390,
+    "tema": "light",
+    "file": "macro-desk_stagionalita_s_XAUUSD_t_settimana__390__light.png",
+    "innerWidth": 390,
+    "scrollWidth": 390,
+    "altezza": 5414,
+    "griglia": {
+      "larghezzaTabella": 3565.7,
+      "larghezzaContenitore": 324,
+      "scorre": 3242,
+      "colonne": 52,
+      "primaColonna": 140.3,
+      "colonnaMin": 63.8,
+      "colonnaMax": 63.8,
+      "rigaCorpo": 28,
+      "rigaInCorso": 29,
+      "sintesiAltezza": 137,
+      "sintesiRighe": [
+        "Media 30",
+        "StDev 28",
+        "In rialzo settimane su 44",
+        "Anni 29"
+      ],
+      "inRicalcolo": 0,
+      "caselle": 1078,
+      "tinte": {
+        "neutra": 67,
+        "fondo": 1011
+      },
+      "piccoli": 0,
+      "contrasti": {
+        "testa·TH": {
+          "min": 7.43,
+          "esempio": "S52",
+          "px": 11
+        },
+        "in corso·TH": {
+          "min": 7.56,
+          "esempio": "in corso",
+          "px": 12
+        },
+        "in corso·TD": {
+          "min": 7.56,
+          "esempio": "-1,9",
+          "px": 14
+        },
+        "in corso·TD·grigia": {
+          "min": 7.56,
+          "esempio": "-1,4",
+          "px": 14
+        },
+        "corpo·TH": {
+          "min": 16.57,
+          "esempio": "2025",
+          "px": 14
+        },
+        "corpo·TD": {
+          "min": 9.02,
+          "esempio": "-4,0",
+          "px": 14
+        },
+        "sintesi·TH": {
+          "min": 7.43,
+          "esempio": "Anni",
+          "px": 11
+        },
+        "sintesi·TD": {
+          "min": 7.43,
+          "esempio": "20",
+          "px": 12
+        }
+      }
+    },
+    "grafico": {
+      "contenitore": 466,
+      "riquadro": 340,
+      "disegno": 280,
+      "pxPerPunto": 20,
+      "tick": [
+        112,
+        110,
+        108,
+        106,
+        104,
+        102,
+        100,
+        98
+      ],
+      "sezioneTop": 760,
+      "sezioneAltezza": 780,
+      "graficoBottom": 1383
+    },
+    "sbordi": [],
+    "testiSotto11": [],
+    "erroriConsole": []
+  },
+  {
+    "pagina": "/macro-desk/stagionalita?s=XAUUSD&t=giorno",
+    "larghezza": 390,
+    "tema": "light",
+    "file": "macro-desk_stagionalita_s_XAUUSD_t_giorno__390__light.png",
+    "innerWidth": 390,
+    "scrollWidth": 390,
+    "altezza": 3320,
+    "griglia": {
+      "larghezzaTabella": 461,
+      "larghezzaContenitore": 324,
+      "scorre": 137,
+      "colonne": 5,
+      "primaColonna": 128,
+      "colonnaMin": 63.8,
+      "colonnaMax": 63.8,
+      "rigaCorpo": 28,
+      "rigaInCorso": 29,
+      "sintesiAltezza": 106,
+      "sintesiRighe": [
+        "Media 30",
+        "StDev 28",
+        "In rialzo giorni su 44"
+      ],
+      "inRicalcolo": 0,
+      "caselle": 105,
+      "tinte": {
+        "neutra": 8,
+        "fondo": 97
+      },
+      "piccoli": 0,
+      "contrasti": {
+        "testa·TH": {
+          "min": 7.43,
+          "esempio": "Ven",
+          "px": 11
+        },
+        "in corso·TH": {
+          "min": 7.56,
+          "esempio": "in corso",
+          "px": 12
+        },
+        "in corso·TD": {
+          "min": 7.56,
+          "esempio": "-0,1",
+          "px": 14
+        },
+        "corpo·TH": {
+          "min": 16.57,
+          "esempio": "2025",
+          "px": 14
+        },
+        "corpo·TD": {
+          "min": 9.02,
+          "esempio": "-0,3",
+          "px": 14
+        },
+        "sintesi·TH": {
+          "min": 7.43,
+          "esempio": "giorni su",
+          "px": 11
+        },
+        "sintesi·TD": {
+          "min": 7.43,
+          "esempio": "1.025",
+          "px": 12
+        }
+      }
+    },
+    "grafico": {
+      "contenitore": 466,
+      "riquadro": 340,
+      "disegno": 280,
+      "pxPerPunto": 20,
+      "tick": [
+        112,
+        110,
+        108,
+        106,
+        104,
+        102,
+        100,
+        98
+      ],
+      "sezioneTop": 760,
+      "sezioneAltezza": 780,
+      "graficoBottom": 1383
+    },
+    "sbordi": [],
+    "testiSotto11": [],
+    "erroriConsole": []
+  },
+  {
+    "pagina": "/macro-desk/stagionalita?s=XAUUSD&t=sessione",
+    "larghezza": 390,
+    "tema": "light",
+    "file": "macro-desk_stagionalita_s_XAUUSD_t_sessione__390__light.png",
+    "innerWidth": 390,
+    "scrollWidth": 390,
+    "altezza": 3517,
+    "griglia": {
+      "larghezzaTabella": 475,
+      "larghezzaContenitore": 324,
+      "scorre": 151,
+      "colonne": 4,
+      "primaColonna": 131.3,
+      "colonnaMin": 82.9,
+      "colonnaMax": 82.9,
+      "rigaCorpo": 28,
+      "rigaInCorso": 29,
+      "sintesiAltezza": 106,
+      "sintesiRighe": [
+        "Media 30",
+        "StDev 28",
+        "In rialzo sessioni su 44"
+      ],
+      "inRicalcolo": 0,
+      "caselle": 84,
+      "tinte": {
+        "neutra": 9,
+        "fondo": 75
+      },
+      "piccoli": 0,
+      "contrasti": {
+        "testa·TH": {
+          "min": 7.43,
+          "esempio": "Fuori",
+          "px": 11
+        },
+        "in corso·TH": {
+          "min": 7.56,
+          "esempio": "in corso",
+          "px": 12
+        },
+        "in corso·TD": {
+          "min": 7.56,
+          "esempio": "-0,012",
+          "px": 14
+        },
+        "corpo·TH": {
+          "min": 16.57,
+          "esempio": "2025",
+          "px": 14
+        },
+        "corpo·TD": {
+          "min": 9.02,
+          "esempio": "-0,025",
+          "px": 14
+        },
+        "sintesi·TH": {
+          "min": 7.43,
+          "esempio": "sessioni su",
+          "px": 11
+        },
+        "sintesi·TD": {
+          "min": 7.43,
+          "esempio": "4.819",
+          "px": 12
+        }
+      }
+    },
+    "grafico": {
+      "contenitore": 466,
+      "riquadro": 340,
+      "disegno": 280,
+      "pxPerPunto": 20,
+      "tick": [
+        112,
+        110,
+        108,
+        106,
+        104,
+        102,
+        100,
+        98
+      ],
+      "sezioneTop": 776,
+      "sezioneAltezza": 780,
+      "graficoBottom": 1400
+    },
+    "sbordi": [],
+    "testiSotto11": [],
+    "erroriConsole": []
+  },
+  {
+    "pagina": "/macro-desk/stagionalita?s=SPX&t=ora",
+    "larghezza": 390,
+    "tema": "light",
+    "file": "macro-desk_stagionalita_s_SPX_t_ora__390__light.png",
+    "innerWidth": 390,
+    "scrollWidth": 390,
+    "altezza": 4222,
+    "griglia": {
+      "larghezzaTabella": 2170.1,
+      "larghezzaContenitore": 324,
+      "scorre": 1846,
+      "colonne": 24,
+      "primaColonna": 128,
+      "colonnaMin": 82.9,
+      "colonnaMax": 82.9,
+      "rigaCorpo": 28,
+      "rigaInCorso": 29,
+      "sintesiAltezza": 137,
+      "sintesiRighe": [
+        "Media 30",
+        "StDev 28",
+        "In rialzo ore su 44",
+        "Anni 29"
+      ],
+      "inRicalcolo": 0,
+      "caselle": 329,
+      "tinte": {
+        "neutra": 73,
+        "fondo": 256
+      },
+      "piccoli": 0,
+      "contrasti": {
+        "testa·TH": {
+          "min": 7.43,
+          "esempio": "23",
+          "px": 11
+        },
+        "in corso·TH": {
+          "min": 7.56,
+          "esempio": "in corso",
+          "px": 12
+        },
+        "in corso·TD·grigia": {
+          "min": 7.56,
+          "esempio": "-0,043",
+          "px": 14
+        },
+        "in corso·TD": {
+          "min": 7.56,
+          "esempio": "-0,001",
+          "px": 14
+        },
+        "corpo·TH": {
+          "min": 16.57,
+          "esempio": "2025",
+          "px": 14
+        },
+        "corpo·TD·grigia": {
+          "min": 5.2,
+          "esempio": "+0,038",
+          "px": 14
+        },
+        "corpo·TD": {
+          "min": 9.02,
+          "esempio": "-0,026",
+          "px": 14
+        },
+        "sintesi·TH": {
+          "min": 7.43,
+          "esempio": "Anni",
+          "px": 11
+        },
+        "sintesi·TD": {
+          "min": 4.76,
+          "esempio": "Campione basso",
+          "px": 14
+        }
+      }
+    },
+    "grafico": {
+      "contenitore": 466,
+      "riquadro": 340,
+      "disegno": 280,
+      "pxPerPunto": 17.5,
+      "tick": [
+        114,
+        112,
+        110,
+        108,
+        106,
+        104,
+        102,
+        100,
+        98
+      ],
+      "sezioneTop": 818,
+      "sezioneAltezza": 780,
+      "graficoBottom": 1442
+    },
+    "sbordi": [],
+    "testiSotto11": [],
+    "erroriConsole": []
+  },
+  {
+    "pagina": "/macro-desk/stagionalita?s=VIX&t=giorno",
+    "larghezza": 390,
+    "tema": "light",
+    "file": "macro-desk_stagionalita_s_VIX_t_giorno__390__light.png",
+    "innerWidth": 390,
+    "scrollWidth": 390,
+    "altezza": 3438,
+    "griglia": {
+      "larghezzaTabella": 492,
+      "larghezzaContenitore": 324,
+      "scorre": 168,
+      "colonne": 5,
+      "primaColonna": 159,
+      "colonnaMin": 63.8,
+      "colonnaMax": 63.8,
+      "rigaCorpo": 28,
+      "rigaInCorso": 29,
+      "sintesiAltezza": 106,
+      "sintesiRighe": [
+        "Livello medio 30",
+        "StDev 28",
+        "Sopra mediana giorni su 44"
+      ],
+      "inRicalcolo": 0,
+      "caselle": 105,
+      "tinte": {
+        "neutra": 7,
+        "fondo": 98
+      },
+      "piccoli": 0,
+      "contrasti": {
+        "testa·TH": {
+          "min": 7.43,
+          "esempio": "Ven",
+          "px": 11
+        },
+        "in corso·TH": {
+          "min": 7.56,
+          "esempio": "in corso",
+          "px": 12
+        },
+        "in corso·TD": {
+          "min": 7.56,
+          "esempio": "18,3",
+          "px": 14
+        },
+        "corpo·TH": {
+          "min": 16.57,
+          "esempio": "2025",
+          "px": 14
+        },
+        "corpo·TD": {
+          "min": 9.11,
+          "esempio": "33,1",
+          "px": 14
+        },
+        "sintesi·TH": {
+          "min": 7.43,
+          "esempio": "giorni su",
+          "px": 11
+        },
+        "sintesi·TD": {
+          "min": 7.43,
+          "esempio": "1.010",
+          "px": 12
+        }
+      }
+    },
+    "grafico": {
+      "contenitore": 466,
+      "riquadro": 340,
+      "disegno": 280,
+      "pxPerPunto": 8,
+      "tick": [
+        120,
+        115,
+        110,
+        105,
+        100,
+        95,
+        90,
+        85
+      ],
+      "sezioneTop": 812,
+      "sezioneAltezza": 813,
+      "graficoBottom": 1435
+    },
+    "sbordi": [],
+    "testiSotto11": [],
+    "erroriConsole": []
+  },
+  {
+    "pagina": "/macro-desk/stagionalita?s=XAUUSD",
+    "larghezza": 1280,
+    "tema": "light",
+    "file": "macro-desk_stagionalita_s_XAUUSD__1280__light.png",
+    "innerWidth": 1280,
+    "scrollWidth": 1280,
+    "altezza": 3219,
+    "griglia": {
+      "larghezzaTabella": 958,
+      "larghezzaContenitore": 958,
+      "scorre": 0,
+      "colonne": 12,
+      "primaColonna": 128,
+      "colonnaMin": 66.8,
+      "colonnaMax": 66.9,
+      "rigaCorpo": 28,
+      "rigaInCorso": 29,
+      "sintesiAltezza": 92,
+      "sintesiRighe": [
+        "Media 30",
+        "StDev 28",
+        "In rialzo su 20 30"
+      ],
+      "inRicalcolo": 0,
+      "caselle": 249,
+      "tinte": {
+        "neutra": 14,
+        "fondo": 235
+      },
+      "piccoli": 0,
+      "contrasti": {
+        "testa·TH": {
+          "min": 7.43,
+          "esempio": "Dic",
+          "px": 11
+        },
+        "in corso·TH": {
+          "min": 7.56,
+          "esempio": "in corso",
+          "px": 12
+        },
+        "in corso·TD": {
+          "min": 7.56,
+          "esempio": "-3,7",
+          "px": 14
+        },
+        "corpo·TH": {
+          "min": 16.57,
+          "esempio": "2025",
+          "px": 14
+        },
+        "corpo·TD": {
+          "min": 9.02,
+          "esempio": "-16,9",
+          "px": 14
+        },
+        "sintesi·TH": {
+          "min": 7.43,
+          "esempio": "su 20",
+          "px": 11
+        },
+        "sintesi·TD": {
+          "min": 7.43,
+          "esempio": "12",
+          "px": 14
+        }
+      }
+    },
+    "grafico": {
+      "contenitore": 732,
+      "riquadro": 696,
+      "disegno": 636,
+      "pxPerPunto": 48.92,
+      "tick": [
+        112,
+        111,
+        110,
+        109,
+        108,
+        107,
+        106,
+        105,
+        104,
+        103,
+        102,
+        101,
+        100,
+        99
+      ],
+      "sezioneTop": 609,
+      "sezioneAltezza": 884,
+      "graficoBottom": 1436
+    },
+    "sbordi": [],
+    "testiSotto11": [],
+    "erroriConsole": []
+  },
+  {
+    "pagina": "/macro-desk/stagionalita?s=XAUUSD&t=settimana",
+    "larghezza": 1280,
+    "tema": "light",
+    "file": "macro-desk_stagionalita_s_XAUUSD_t_settimana__1280__light.png",
+    "innerWidth": 1280,
+    "scrollWidth": 1280,
+    "altezza": 5018,
+    "griglia": {
+      "larghezzaTabella": 3565.7,
+      "larghezzaContenitore": 958,
+      "scorre": 2608,
+      "colonne": 52,
+      "primaColonna": 140.3,
+      "colonnaMin": 63.8,
+      "colonnaMax": 63.8,
+      "rigaCorpo": 28,
+      "rigaInCorso": 29,
+      "sintesiAltezza": 137,
+      "sintesiRighe": [
+        "Media 30",
+        "StDev 28",
+        "In rialzo settimane su 44",
+        "Anni 29"
+      ],
+      "inRicalcolo": 0,
+      "caselle": 1078,
+      "tinte": {
+        "neutra": 67,
+        "fondo": 1011
+      },
+      "piccoli": 0,
+      "contrasti": {
+        "testa·TH": {
+          "min": 7.43,
+          "esempio": "S52",
+          "px": 11
+        },
+        "in corso·TH": {
+          "min": 7.56,
+          "esempio": "in corso",
+          "px": 12
+        },
+        "in corso·TD": {
+          "min": 7.56,
+          "esempio": "-1,9",
+          "px": 14
+        },
+        "in corso·TD·grigia": {
+          "min": 7.56,
+          "esempio": "-1,4",
+          "px": 14
+        },
+        "corpo·TH": {
+          "min": 16.57,
+          "esempio": "2025",
+          "px": 14
+        },
+        "corpo·TD": {
+          "min": 9.02,
+          "esempio": "-4,0",
+          "px": 14
+        },
+        "sintesi·TH": {
+          "min": 7.43,
+          "esempio": "Anni",
+          "px": 11
+        },
+        "sintesi·TD": {
+          "min": 7.43,
+          "esempio": "20",
+          "px": 12
+        }
+      }
+    },
+    "grafico": {
+      "contenitore": 732,
+      "riquadro": 696,
+      "disegno": 636,
+      "pxPerPunto": 48.92,
+      "tick": [
+        112,
+        111,
+        110,
+        109,
+        108,
+        107,
+        106,
+        105,
+        104,
+        103,
+        102,
+        101,
+        100,
+        99
+      ],
+      "sezioneTop": 609,
+      "sezioneAltezza": 884,
+      "graficoBottom": 1436
+    },
+    "sbordi": [],
+    "testiSotto11": [],
+    "erroriConsole": []
+  },
+  {
+    "pagina": "/macro-desk/stagionalita?s=XAUUSD&t=giorno",
+    "larghezza": 1280,
+    "tema": "light",
+    "file": "macro-desk_stagionalita_s_XAUUSD_t_giorno__1280__light.png",
+    "innerWidth": 1280,
+    "scrollWidth": 1280,
+    "altezza": 2976,
+    "griglia": {
+      "larghezzaTabella": 672,
+      "larghezzaContenitore": 958,
+      "scorre": 0,
+      "colonne": 5,
+      "primaColonna": 128,
+      "colonnaMin": 106,
+      "colonnaMax": 106,
+      "rigaCorpo": 28,
+      "rigaInCorso": 29,
+      "sintesiAltezza": 106,
+      "sintesiRighe": [
+        "Media 30",
+        "StDev 28",
+        "In rialzo giorni su 44"
+      ],
+      "inRicalcolo": 0,
+      "caselle": 105,
+      "tinte": {
+        "neutra": 8,
+        "fondo": 97
+      },
+      "piccoli": 0,
+      "contrasti": {
+        "testa·TH": {
+          "min": 7.43,
+          "esempio": "Ven",
+          "px": 11
+        },
+        "in corso·TH": {
+          "min": 7.56,
+          "esempio": "in corso",
+          "px": 12
+        },
+        "in corso·TD": {
+          "min": 7.56,
+          "esempio": "-0,1",
+          "px": 14
+        },
+        "corpo·TH": {
+          "min": 16.57,
+          "esempio": "2025",
+          "px": 14
+        },
+        "corpo·TD": {
+          "min": 9.02,
+          "esempio": "-0,3",
+          "px": 14
+        },
+        "sintesi·TH": {
+          "min": 7.43,
+          "esempio": "giorni su",
+          "px": 11
+        },
+        "sintesi·TD": {
+          "min": 7.43,
+          "esempio": "1.025",
+          "px": 12
+        }
+      }
+    },
+    "grafico": {
+      "contenitore": 732,
+      "riquadro": 696,
+      "disegno": 636,
+      "pxPerPunto": 48.92,
+      "tick": [
+        112,
+        111,
+        110,
+        109,
+        108,
+        107,
+        106,
+        105,
+        104,
+        103,
+        102,
+        101,
+        100,
+        99
+      ],
+      "sezioneTop": 609,
+      "sezioneAltezza": 884,
+      "graficoBottom": 1436
+    },
+    "sbordi": [],
+    "testiSotto11": [],
+    "erroriConsole": []
+  },
+  {
+    "pagina": "/macro-desk/stagionalita?s=XAUUSD&t=sessione",
+    "larghezza": 1280,
+    "tema": "light",
+    "file": "macro-desk_stagionalita_s_XAUUSD_t_sessione__1280__light.png",
+    "innerWidth": 1280,
+    "scrollWidth": 1280,
+    "altezza": 3029,
+    "griglia": {
+      "larghezzaTabella": 576,
+      "larghezzaContenitore": 958,
+      "scorre": 0,
+      "colonne": 4,
+      "primaColonna": 131.3,
+      "colonnaMin": 108.2,
+      "colonnaMax": 108.2,
+      "rigaCorpo": 28,
+      "rigaInCorso": 29,
+      "sintesiAltezza": 106,
+      "sintesiRighe": [
+        "Media 30",
+        "StDev 28",
+        "In rialzo sessioni su 44"
+      ],
+      "inRicalcolo": 0,
+      "caselle": 84,
+      "tinte": {
+        "neutra": 9,
+        "fondo": 75
+      },
+      "piccoli": 0,
+      "contrasti": {
+        "testa·TH": {
+          "min": 7.43,
+          "esempio": "Fuori",
+          "px": 11
+        },
+        "in corso·TH": {
+          "min": 7.56,
+          "esempio": "in corso",
+          "px": 12
+        },
+        "in corso·TD": {
+          "min": 7.56,
+          "esempio": "-0,012",
+          "px": 14
+        },
+        "corpo·TH": {
+          "min": 16.57,
+          "esempio": "2025",
+          "px": 14
+        },
+        "corpo·TD": {
+          "min": 9.02,
+          "esempio": "-0,025",
+          "px": 14
+        },
+        "sintesi·TH": {
+          "min": 7.43,
+          "esempio": "sessioni su",
+          "px": 11
+        },
+        "sintesi·TD": {
+          "min": 7.43,
+          "esempio": "4.819",
+          "px": 12
+        }
+      }
+    },
+    "grafico": {
+      "contenitore": 732,
+      "riquadro": 696,
+      "disegno": 636,
+      "pxPerPunto": 48.92,
+      "tick": [
+        112,
+        111,
+        110,
+        109,
+        108,
+        107,
+        106,
+        105,
+        104,
+        103,
+        102,
+        101,
+        100,
+        99
+      ],
+      "sezioneTop": 609,
+      "sezioneAltezza": 884,
+      "graficoBottom": 1436
+    },
+    "sbordi": [],
+    "testiSotto11": [],
+    "erroriConsole": []
+  },
+  {
+    "pagina": "/macro-desk/stagionalita?s=SPX&t=ora",
+    "larghezza": 1280,
+    "tema": "light",
+    "file": "macro-desk_stagionalita_s_SPX_t_ora__1280__light.png",
+    "innerWidth": 1280,
+    "scrollWidth": 1280,
+    "altezza": 3728,
+    "griglia": {
+      "larghezzaTabella": 2170.1,
+      "larghezzaContenitore": 958,
+      "scorre": 1212,
+      "colonne": 24,
+      "primaColonna": 128,
+      "colonnaMin": 82.9,
+      "colonnaMax": 82.9,
+      "rigaCorpo": 28,
+      "rigaInCorso": 29,
+      "sintesiAltezza": 137,
+      "sintesiRighe": [
+        "Media 30",
+        "StDev 28",
+        "In rialzo ore su 44",
+        "Anni 29"
+      ],
+      "inRicalcolo": 0,
+      "caselle": 329,
+      "tinte": {
+        "neutra": 73,
+        "fondo": 256
+      },
+      "piccoli": 0,
+      "contrasti": {
+        "testa·TH": {
+          "min": 7.43,
+          "esempio": "23",
+          "px": 11
+        },
+        "in corso·TH": {
+          "min": 7.56,
+          "esempio": "in corso",
+          "px": 12
+        },
+        "in corso·TD·grigia": {
+          "min": 7.56,
+          "esempio": "-0,043",
+          "px": 14
+        },
+        "in corso·TD": {
+          "min": 7.56,
+          "esempio": "-0,001",
+          "px": 14
+        },
+        "corpo·TH": {
+          "min": 16.57,
+          "esempio": "2025",
+          "px": 14
+        },
+        "corpo·TD·grigia": {
+          "min": 5.2,
+          "esempio": "+0,038",
+          "px": 14
+        },
+        "corpo·TD": {
+          "min": 9.02,
+          "esempio": "-0,026",
+          "px": 14
+        },
+        "sintesi·TH": {
+          "min": 7.43,
+          "esempio": "Anni",
+          "px": 11
+        },
+        "sintesi·TD": {
+          "min": 4.76,
+          "esempio": "Campione basso",
+          "px": 14
+        }
+      }
+    },
+    "grafico": {
+      "contenitore": 732,
+      "riquadro": 696,
+      "disegno": 636,
+      "pxPerPunto": 45.43,
+      "tick": [
+        113,
+        112,
+        111,
+        110,
+        109,
+        108,
+        107,
+        106,
+        105,
+        104,
+        103,
+        102,
+        101,
+        100,
+        99
+      ],
+      "sezioneTop": 633,
+      "sezioneAltezza": 884,
+      "graficoBottom": 1460
+    },
+    "sbordi": [],
+    "testiSotto11": [],
+    "erroriConsole": []
+  },
+  {
+    "pagina": "/macro-desk/stagionalita?s=VIX&t=giorno",
+    "larghezza": 1280,
+    "tema": "light",
+    "file": "macro-desk_stagionalita_s_VIX_t_giorno__1280__light.png",
+    "innerWidth": 1280,
+    "scrollWidth": 1280,
+    "altezza": 3034,
+    "griglia": {
+      "larghezzaTabella": 672,
+      "larghezzaContenitore": 958,
+      "scorre": 0,
+      "colonne": 5,
+      "primaColonna": 159,
+      "colonnaMin": 99.8,
+      "colonnaMax": 99.8,
+      "rigaCorpo": 28,
+      "rigaInCorso": 29,
+      "sintesiAltezza": 106,
+      "sintesiRighe": [
+        "Livello medio 30",
+        "StDev 28",
+        "Sopra mediana giorni su 44"
+      ],
+      "inRicalcolo": 0,
+      "caselle": 105,
+      "tinte": {
+        "neutra": 7,
+        "fondo": 98
+      },
+      "piccoli": 0,
+      "contrasti": {
+        "testa·TH": {
+          "min": 7.43,
+          "esempio": "Ven",
+          "px": 11
+        },
+        "in corso·TH": {
+          "min": 7.56,
+          "esempio": "in corso",
+          "px": 12
+        },
+        "in corso·TD": {
+          "min": 7.56,
+          "esempio": "18,3",
+          "px": 14
+        },
+        "corpo·TH": {
+          "min": 16.57,
+          "esempio": "2025",
+          "px": 14
+        },
+        "corpo·TD": {
+          "min": 9.11,
+          "esempio": "33,1",
+          "px": 14
+        },
+        "sintesi·TH": {
+          "min": 7.43,
+          "esempio": "giorni su",
+          "px": 11
+        },
+        "sintesi·TD": {
+          "min": 7.43,
+          "esempio": "1.010",
+          "px": 12
+        }
+      }
+    },
+    "grafico": {
+      "contenitore": 732,
+      "riquadro": 696,
+      "disegno": 636,
+      "pxPerPunto": 22.71,
+      "tick": [
+        116,
+        114,
+        112,
+        110,
+        108,
+        106,
+        104,
+        102,
+        100,
+        98,
+        96,
+        94,
+        92,
+        90,
+        88
+      ],
+      "sezioneTop": 651,
+      "sezioneAltezza": 901,
+      "graficoBottom": 1478
+    },
+    "sbordi": [],
+    "testiSotto11": [],
+    "erroriConsole": []
+  },
+  {
+    "pagina": "/macro-desk/stagionalita?s=XAUUSD",
+    "larghezza": 1440,
+    "tema": "dark",
+    "file": "macro-desk_stagionalita_s_XAUUSD__1440__dark.png",
+    "innerWidth": 1440,
+    "scrollWidth": 1440,
+    "altezza": 3219,
+    "griglia": {
+      "larghezzaTabella": 1118,
+      "larghezzaContenitore": 1118,
+      "scorre": 0,
+      "colonne": 12,
+      "primaColonna": 128,
+      "colonnaMin": 80.2,
+      "colonnaMax": 80.3,
+      "rigaCorpo": 28,
+      "rigaInCorso": 29,
+      "sintesiAltezza": 92,
+      "sintesiRighe": [
+        "Media 30",
+        "StDev 28",
+        "In rialzo su 20 30"
+      ],
+      "inRicalcolo": 0,
+      "caselle": 249,
+      "tinte": {
+        "neutra": 14,
+        "fondo": 235
+      },
+      "piccoli": 0,
+      "contrasti": {
+        "testa·TH": {
+          "min": 7.15,
+          "esempio": "Dic",
+          "px": 11
+        },
+        "in corso·TH": {
+          "min": 8.12,
+          "esempio": "in corso",
+          "px": 12
+        },
+        "in corso·TD": {
+          "min": 8.12,
+          "esempio": "-3,7",
+          "px": 14
+        },
+        "corpo·TH": {
+          "min": 14.14,
+          "esempio": "2006",
+          "px": 14
+        },
+        "corpo·TD": {
+          "min": 5.64,
+          "esempio": "+9,2",
+          "px": 14
+        },
+        "sintesi·TH": {
+          "min": 7.15,
+          "esempio": "su 20",
+          "px": 11
+        },
+        "sintesi·TD": {
+          "min": 5.64,
+          "esempio": "+3,49",
+          "px": 14
+        }
+      }
+    },
+    "grafico": {
+      "contenitore": 732,
+      "riquadro": 696,
+      "disegno": 636,
+      "pxPerPunto": 48.92,
+      "tick": [
+        112,
+        111,
+        110,
+        109,
+        108,
+        107,
+        106,
+        105,
+        104,
+        103,
+        102,
+        101,
+        100,
+        99
+      ],
+      "sezioneTop": 609,
+      "sezioneAltezza": 884,
+      "graficoBottom": 1436
+    },
+    "sbordi": [],
+    "testiSotto11": [],
+    "erroriConsole": []
+  },
+  {
+    "pagina": "/macro-desk/stagionalita?s=XAUUSD&t=settimana",
+    "larghezza": 1440,
+    "tema": "dark",
+    "file": "macro-desk_stagionalita_s_XAUUSD_t_settimana__1440__dark.png",
+    "innerWidth": 1440,
+    "scrollWidth": 1440,
+    "altezza": 4984,
+    "griglia": {
+      "larghezzaTabella": 3565.7,
+      "larghezzaContenitore": 1118,
+      "scorre": 2448,
+      "colonne": 52,
+      "primaColonna": 140.3,
+      "colonnaMin": 63.8,
+      "colonnaMax": 63.8,
+      "rigaCorpo": 28,
+      "rigaInCorso": 29,
+      "sintesiAltezza": 137,
+      "sintesiRighe": [
+        "Media 30",
+        "StDev 28",
+        "In rialzo settimane su 44",
+        "Anni 29"
+      ],
+      "inRicalcolo": 0,
+      "caselle": 1078,
+      "tinte": {
+        "neutra": 67,
+        "fondo": 1011
+      },
+      "piccoli": 0,
+      "contrasti": {
+        "testa·TH": {
+          "min": 7.15,
+          "esempio": "S52",
+          "px": 11
+        },
+        "in corso·TH": {
+          "min": 8.12,
+          "esempio": "in corso",
+          "px": 12
+        },
+        "in corso·TD": {
+          "min": 8.12,
+          "esempio": "-1,9",
+          "px": 14
+        },
+        "in corso·TD·grigia": {
+          "min": 8.12,
+          "esempio": "-1,4",
+          "px": 14
+        },
+        "corpo·TH": {
+          "min": 14.14,
+          "esempio": "2006",
+          "px": 14
+        },
+        "corpo·TD": {
+          "min": 5.64,
+          "esempio": "+6,5",
+          "px": 14
+        },
+        "sintesi·TH": {
+          "min": 7.15,
+          "esempio": "Anni",
+          "px": 11
+        },
+        "sintesi·TD": {
+          "min": 5.64,
+          "esempio": "+1,01",
+          "px": 14
+        }
+      }
+    },
+    "grafico": {
+      "contenitore": 732,
+      "riquadro": 696,
+      "disegno": 636,
+      "pxPerPunto": 48.92,
+      "tick": [
+        112,
+        111,
+        110,
+        109,
+        108,
+        107,
+        106,
+        105,
+        104,
+        103,
+        102,
+        101,
+        100,
+        99
+      ],
+      "sezioneTop": 609,
+      "sezioneAltezza": 884,
+      "graficoBottom": 1436
+    },
+    "sbordi": [],
+    "testiSotto11": [],
+    "erroriConsole": []
+  },
+  {
+    "pagina": "/macro-desk/stagionalita?s=XAUUSD&t=giorno",
+    "larghezza": 1440,
+    "tema": "dark",
+    "file": "macro-desk_stagionalita_s_XAUUSD_t_giorno__1440__dark.png",
+    "innerWidth": 1440,
+    "scrollWidth": 1440,
+    "altezza": 2976,
+    "griglia": {
+      "larghezzaTabella": 672,
+      "larghezzaContenitore": 1118,
+      "scorre": 0,
+      "colonne": 5,
+      "primaColonna": 128,
+      "colonnaMin": 106,
+      "colonnaMax": 106,
+      "rigaCorpo": 28,
+      "rigaInCorso": 29,
+      "sintesiAltezza": 106,
+      "sintesiRighe": [
+        "Media 30",
+        "StDev 28",
+        "In rialzo giorni su 44"
+      ],
+      "inRicalcolo": 0,
+      "caselle": 105,
+      "tinte": {
+        "neutra": 8,
+        "fondo": 97
+      },
+      "piccoli": 0,
+      "contrasti": {
+        "testa·TH": {
+          "min": 7.15,
+          "esempio": "Ven",
+          "px": 11
+        },
+        "in corso·TH": {
+          "min": 8.12,
+          "esempio": "in corso",
+          "px": 12
+        },
+        "in corso·TD": {
+          "min": 8.12,
+          "esempio": "-0,1",
+          "px": 14
+        },
+        "corpo·TH": {
+          "min": 14.14,
+          "esempio": "2006",
+          "px": 14
+        },
+        "corpo·TD": {
+          "min": 5.64,
+          "esempio": "+0,4",
+          "px": 14
+        },
+        "sintesi·TH": {
+          "min": 7.15,
+          "esempio": "giorni su",
+          "px": 11
+        },
+        "sintesi·TD": {
+          "min": 5.64,
+          "esempio": "+0,09",
+          "px": 14
+        }
+      }
+    },
+    "grafico": {
+      "contenitore": 732,
+      "riquadro": 696,
+      "disegno": 636,
+      "pxPerPunto": 48.92,
+      "tick": [
+        112,
+        111,
+        110,
+        109,
+        108,
+        107,
+        106,
+        105,
+        104,
+        103,
+        102,
+        101,
+        100,
+        99
+      ],
+      "sezioneTop": 609,
+      "sezioneAltezza": 884,
+      "graficoBottom": 1436
+    },
+    "sbordi": [],
+    "testiSotto11": [],
+    "erroriConsole": []
+  },
+  {
+    "pagina": "/macro-desk/stagionalita?s=XAUUSD&t=sessione",
+    "larghezza": 1440,
+    "tema": "dark",
+    "file": "macro-desk_stagionalita_s_XAUUSD_t_sessione__1440__dark.png",
+    "innerWidth": 1440,
+    "scrollWidth": 1440,
+    "altezza": 3011,
+    "griglia": {
+      "larghezzaTabella": 576,
+      "larghezzaContenitore": 1118,
+      "scorre": 0,
+      "colonne": 4,
+      "primaColonna": 131.3,
+      "colonnaMin": 108.2,
+      "colonnaMax": 108.2,
+      "rigaCorpo": 28,
+      "rigaInCorso": 29,
+      "sintesiAltezza": 106,
+      "sintesiRighe": [
+        "Media 30",
+        "StDev 28",
+        "In rialzo sessioni su 44"
+      ],
+      "inRicalcolo": 0,
+      "caselle": 84,
+      "tinte": {
+        "neutra": 9,
+        "fondo": 75
+      },
+      "piccoli": 0,
+      "contrasti": {
+        "testa·TH": {
+          "min": 7.15,
+          "esempio": "Fuori",
+          "px": 11
+        },
+        "in corso·TH": {
+          "min": 8.12,
+          "esempio": "in corso",
+          "px": 12
+        },
+        "in corso·TD": {
+          "min": 8.12,
+          "esempio": "-0,012",
+          "px": 14
+        },
+        "corpo·TH": {
+          "min": 14.14,
+          "esempio": "2006",
+          "px": 14
+        },
+        "corpo·TD": {
+          "min": 7.56,
+          "esempio": "+0,013",
+          "px": 14
+        },
+        "sintesi·TH": {
+          "min": 7.15,
+          "esempio": "sessioni su",
+          "px": 11
+        },
+        "sintesi·TD": {
+          "min": 7.15,
+          "esempio": "4.819",
+          "px": 12
+        }
+      }
+    },
+    "grafico": {
+      "contenitore": 732,
+      "riquadro": 696,
+      "disegno": 636,
+      "pxPerPunto": 48.92,
+      "tick": [
+        112,
+        111,
+        110,
+        109,
+        108,
+        107,
+        106,
+        105,
+        104,
+        103,
+        102,
+        101,
+        100,
+        99
+      ],
+      "sezioneTop": 609,
+      "sezioneAltezza": 884,
+      "graficoBottom": 1436
+    },
+    "sbordi": [],
+    "testiSotto11": [],
+    "erroriConsole": []
+  },
+  {
+    "pagina": "/macro-desk/stagionalita?s=SPX&t=ora",
+    "larghezza": 1440,
+    "tema": "dark",
+    "file": "macro-desk_stagionalita_s_SPX_t_ora__1440__dark.png",
+    "innerWidth": 1440,
+    "scrollWidth": 1440,
+    "altezza": 3710,
+    "griglia": {
+      "larghezzaTabella": 2170.1,
+      "larghezzaContenitore": 1118,
+      "scorre": 1052,
+      "colonne": 24,
+      "primaColonna": 128,
+      "colonnaMin": 82.9,
+      "colonnaMax": 82.9,
+      "rigaCorpo": 28,
+      "rigaInCorso": 29,
+      "sintesiAltezza": 137,
+      "sintesiRighe": [
+        "Media 30",
+        "StDev 28",
+        "In rialzo ore su 44",
+        "Anni 29"
+      ],
+      "inRicalcolo": 0,
+      "caselle": 329,
+      "tinte": {
+        "neutra": 73,
+        "fondo": 256
+      },
+      "piccoli": 0,
+      "contrasti": {
+        "testa·TH": {
+          "min": 7.15,
+          "esempio": "23",
+          "px": 11
+        },
+        "in corso·TH": {
+          "min": 8.12,
+          "esempio": "in corso",
+          "px": 12
+        },
+        "in corso·TD·grigia": {
+          "min": 8.12,
+          "esempio": "-0,043",
+          "px": 14
+        },
+        "in corso·TD": {
+          "min": 8.12,
+          "esempio": "-0,001",
+          "px": 14
+        },
+        "corpo·TH": {
+          "min": 14.14,
+          "esempio": "2011",
+          "px": 14
+        },
+        "corpo·TD·grigia": {
+          "min": 7.08,
+          "esempio": "+0,038",
+          "px": 14
+        },
+        "corpo·TD": {
+          "min": 5.64,
+          "esempio": "+0,051",
+          "px": 14
+        },
+        "sintesi·TH": {
+          "min": 7.15,
+          "esempio": "Anni",
+          "px": 11
+        },
+        "sintesi·TD": {
+          "min": 5.09,
+          "esempio": "Campione molto",
+          "px": 14
+        }
+      }
+    },
+    "grafico": {
+      "contenitore": 732,
+      "riquadro": 696,
+      "disegno": 636,
+      "pxPerPunto": 45.43,
+      "tick": [
+        113,
+        112,
+        111,
+        110,
+        109,
+        108,
+        107,
+        106,
+        105,
+        104,
+        103,
+        102,
+        101,
+        100,
+        99
+      ],
+      "sezioneTop": 633,
+      "sezioneAltezza": 884,
+      "graficoBottom": 1460
+    },
+    "sbordi": [],
+    "testiSotto11": [],
+    "erroriConsole": []
+  },
+  {
+    "pagina": "/macro-desk/stagionalita?s=VIX&t=giorno",
+    "larghezza": 1440,
+    "tema": "dark",
+    "file": "macro-desk_stagionalita_s_VIX_t_giorno__1440__dark.png",
+    "innerWidth": 1440,
+    "scrollWidth": 1440,
+    "altezza": 2974,
+    "griglia": {
+      "larghezzaTabella": 672,
+      "larghezzaContenitore": 1118,
+      "scorre": 0,
+      "colonne": 5,
+      "primaColonna": 159,
+      "colonnaMin": 99.8,
+      "colonnaMax": 99.8,
+      "rigaCorpo": 28,
+      "rigaInCorso": 29,
+      "sintesiAltezza": 106,
+      "sintesiRighe": [
+        "Livello medio 30",
+        "StDev 28",
+        "Sopra mediana giorni su 44"
+      ],
+      "inRicalcolo": 0,
+      "caselle": 105,
+      "tinte": {
+        "neutra": 7,
+        "fondo": 98
+      },
+      "piccoli": 0,
+      "contrasti": {
+        "testa·TH": {
+          "min": 7.15,
+          "esempio": "Ven",
+          "px": 11
+        },
+        "in corso·TH": {
+          "min": 8.12,
+          "esempio": "in corso",
+          "px": 12
+        },
+        "in corso·TD": {
+          "min": 8.12,
+          "esempio": "18,3",
+          "px": 14
+        },
+        "corpo·TH": {
+          "min": 14.14,
+          "esempio": "2006",
+          "px": 14
+        },
+        "corpo·TD": {
+          "min": 5.64,
+          "esempio": "31,6",
+          "px": 14
+        },
+        "sintesi·TH": {
+          "min": 7.15,
+          "esempio": "giorni su",
+          "px": 11
+        },
+        "sintesi·TD": {
+          "min": 5.64,
+          "esempio": "19,68",
+          "px": 14
+        }
+      }
+    },
+    "grafico": {
+      "contenitore": 732,
+      "riquadro": 696,
+      "disegno": 636,
+      "pxPerPunto": 22.71,
+      "tick": [
+        116,
+        114,
+        112,
+        110,
+        108,
+        106,
+        104,
+        102,
+        100,
+        98,
+        96,
+        94,
+        92,
+        90,
+        88
+      ],
+      "sezioneTop": 607,
+      "sezioneAltezza": 884,
+      "graficoBottom": 1434
+    },
+    "sbordi": [],
+    "testiSotto11": [],
+    "erroriConsole": []
+  },
+  {
+    "pagina": "/macro-desk/stagionalita?s=XAUUSD",
+    "larghezza": 390,
+    "tema": "dark",
+    "file": "macro-desk_stagionalita_s_XAUUSD__390__dark.png",
+    "innerWidth": 390,
+    "scrollWidth": 390,
+    "altezza": 3546,
+    "griglia": {
+      "larghezzaTabella": 921.6,
+      "larghezzaContenitore": 324,
+      "scorre": 598,
+      "colonne": 12,
+      "primaColonna": 128,
+      "colonnaMin": 63.8,
+      "colonnaMax": 63.8,
+      "rigaCorpo": 28,
+      "rigaInCorso": 29,
+      "sintesiAltezza": 92,
+      "sintesiRighe": [
+        "Media 30",
+        "StDev 28",
+        "In rialzo su 20 30"
+      ],
+      "inRicalcolo": 0,
+      "caselle": 249,
+      "tinte": {
+        "neutra": 14,
+        "fondo": 235
+      },
+      "piccoli": 0,
+      "contrasti": {
+        "testa·TH": {
+          "min": 7.15,
+          "esempio": "Dic",
+          "px": 11
+        },
+        "in corso·TH": {
+          "min": 8.12,
+          "esempio": "in corso",
+          "px": 12
+        },
+        "in corso·TD": {
+          "min": 8.12,
+          "esempio": "-3,7",
+          "px": 14
+        },
+        "corpo·TH": {
+          "min": 14.14,
+          "esempio": "2006",
+          "px": 14
+        },
+        "corpo·TD": {
+          "min": 5.64,
+          "esempio": "+9,2",
+          "px": 14
+        },
+        "sintesi·TH": {
+          "min": 7.15,
+          "esempio": "su 20",
+          "px": 11
+        },
+        "sintesi·TD": {
+          "min": 5.64,
+          "esempio": "+3,49",
+          "px": 14
+        }
+      }
+    },
+    "grafico": {
+      "contenitore": 466,
+      "riquadro": 340,
+      "disegno": 280,
+      "pxPerPunto": 20,
+      "tick": [
+        112,
+        110,
+        108,
+        106,
+        104,
+        102,
+        100,
+        98
+      ],
+      "sezioneTop": 760,
+      "sezioneAltezza": 780,
+      "graficoBottom": 1383
+    },
+    "sbordi": [],
+    "testiSotto11": [],
+    "erroriConsole": []
+  },
+  {
+    "pagina": "/macro-desk/stagionalita?s=XAUUSD&t=settimana",
+    "larghezza": 390,
+    "tema": "dark",
+    "file": "macro-desk_stagionalita_s_XAUUSD_t_settimana__390__dark.png",
+    "innerWidth": 390,
+    "scrollWidth": 390,
+    "altezza": 5414,
+    "griglia": {
+      "larghezzaTabella": 3565.7,
+      "larghezzaContenitore": 324,
+      "scorre": 3242,
+      "colonne": 52,
+      "primaColonna": 140.3,
+      "colonnaMin": 63.8,
+      "colonnaMax": 63.8,
+      "rigaCorpo": 28,
+      "rigaInCorso": 29,
+      "sintesiAltezza": 137,
+      "sintesiRighe": [
+        "Media 30",
+        "StDev 28",
+        "In rialzo settimane su 44",
+        "Anni 29"
+      ],
+      "inRicalcolo": 0,
+      "caselle": 1078,
+      "tinte": {
+        "neutra": 67,
+        "fondo": 1011
+      },
+      "piccoli": 0,
+      "contrasti": {
+        "testa·TH": {
+          "min": 7.15,
+          "esempio": "S52",
+          "px": 11
+        },
+        "in corso·TH": {
+          "min": 8.12,
+          "esempio": "in corso",
+          "px": 12
+        },
+        "in corso·TD": {
+          "min": 8.12,
+          "esempio": "-1,9",
+          "px": 14
+        },
+        "in corso·TD·grigia": {
+          "min": 8.12,
+          "esempio": "-1,4",
+          "px": 14
+        },
+        "corpo·TH": {
+          "min": 14.14,
+          "esempio": "2006",
+          "px": 14
+        },
+        "corpo·TD": {
+          "min": 5.64,
+          "esempio": "+6,5",
+          "px": 14
+        },
+        "sintesi·TH": {
+          "min": 7.15,
+          "esempio": "Anni",
+          "px": 11
+        },
+        "sintesi·TD": {
+          "min": 5.64,
+          "esempio": "+1,01",
+          "px": 14
+        }
+      }
+    },
+    "grafico": {
+      "contenitore": 466,
+      "riquadro": 340,
+      "disegno": 280,
+      "pxPerPunto": 20,
+      "tick": [
+        112,
+        110,
+        108,
+        106,
+        104,
+        102,
+        100,
+        98
+      ],
+      "sezioneTop": 760,
+      "sezioneAltezza": 780,
+      "graficoBottom": 1383
+    },
+    "sbordi": [],
+    "testiSotto11": [],
+    "erroriConsole": []
+  },
+  {
+    "pagina": "/macro-desk/stagionalita?s=XAUUSD&t=giorno",
+    "larghezza": 390,
+    "tema": "dark",
+    "file": "macro-desk_stagionalita_s_XAUUSD_t_giorno__390__dark.png",
+    "innerWidth": 390,
+    "scrollWidth": 390,
+    "altezza": 3320,
+    "griglia": {
+      "larghezzaTabella": 461,
+      "larghezzaContenitore": 324,
+      "scorre": 137,
+      "colonne": 5,
+      "primaColonna": 128,
+      "colonnaMin": 63.8,
+      "colonnaMax": 63.8,
+      "rigaCorpo": 28,
+      "rigaInCorso": 29,
+      "sintesiAltezza": 106,
+      "sintesiRighe": [
+        "Media 30",
+        "StDev 28",
+        "In rialzo giorni su 44"
+      ],
+      "inRicalcolo": 0,
+      "caselle": 105,
+      "tinte": {
+        "neutra": 8,
+        "fondo": 97
+      },
+      "piccoli": 0,
+      "contrasti": {
+        "testa·TH": {
+          "min": 7.15,
+          "esempio": "Ven",
+          "px": 11
+        },
+        "in corso·TH": {
+          "min": 8.12,
+          "esempio": "in corso",
+          "px": 12
+        },
+        "in corso·TD": {
+          "min": 8.12,
+          "esempio": "-0,1",
+          "px": 14
+        },
+        "corpo·TH": {
+          "min": 14.14,
+          "esempio": "2006",
+          "px": 14
+        },
+        "corpo·TD": {
+          "min": 5.64,
+          "esempio": "+0,4",
+          "px": 14
+        },
+        "sintesi·TH": {
+          "min": 7.15,
+          "esempio": "giorni su",
+          "px": 11
+        },
+        "sintesi·TD": {
+          "min": 5.64,
+          "esempio": "+0,09",
+          "px": 14
+        }
+      }
+    },
+    "grafico": {
+      "contenitore": 466,
+      "riquadro": 340,
+      "disegno": 280,
+      "pxPerPunto": 20,
+      "tick": [
+        112,
+        110,
+        108,
+        106,
+        104,
+        102,
+        100,
+        98
+      ],
+      "sezioneTop": 760,
+      "sezioneAltezza": 780,
+      "graficoBottom": 1383
+    },
+    "sbordi": [],
+    "testiSotto11": [],
+    "erroriConsole": []
+  },
+  {
+    "pagina": "/macro-desk/stagionalita?s=XAUUSD&t=sessione",
+    "larghezza": 390,
+    "tema": "dark",
+    "file": "macro-desk_stagionalita_s_XAUUSD_t_sessione__390__dark.png",
+    "innerWidth": 390,
+    "scrollWidth": 390,
+    "altezza": 3517,
+    "griglia": {
+      "larghezzaTabella": 475,
+      "larghezzaContenitore": 324,
+      "scorre": 151,
+      "colonne": 4,
+      "primaColonna": 131.3,
+      "colonnaMin": 82.9,
+      "colonnaMax": 82.9,
+      "rigaCorpo": 28,
+      "rigaInCorso": 29,
+      "sintesiAltezza": 106,
+      "sintesiRighe": [
+        "Media 30",
+        "StDev 28",
+        "In rialzo sessioni su 44"
+      ],
+      "inRicalcolo": 0,
+      "caselle": 84,
+      "tinte": {
+        "neutra": 9,
+        "fondo": 75
+      },
+      "piccoli": 0,
+      "contrasti": {
+        "testa·TH": {
+          "min": 7.15,
+          "esempio": "Fuori",
+          "px": 11
+        },
+        "in corso·TH": {
+          "min": 8.12,
+          "esempio": "in corso",
+          "px": 12
+        },
+        "in corso·TD": {
+          "min": 8.12,
+          "esempio": "-0,012",
+          "px": 14
+        },
+        "corpo·TH": {
+          "min": 14.14,
+          "esempio": "2006",
+          "px": 14
+        },
+        "corpo·TD": {
+          "min": 7.56,
+          "esempio": "+0,013",
+          "px": 14
+        },
+        "sintesi·TH": {
+          "min": 7.15,
+          "esempio": "sessioni su",
+          "px": 11
+        },
+        "sintesi·TD": {
+          "min": 7.15,
+          "esempio": "4.819",
+          "px": 12
+        }
+      }
+    },
+    "grafico": {
+      "contenitore": 466,
+      "riquadro": 340,
+      "disegno": 280,
+      "pxPerPunto": 20,
+      "tick": [
+        112,
+        110,
+        108,
+        106,
+        104,
+        102,
+        100,
+        98
+      ],
+      "sezioneTop": 776,
+      "sezioneAltezza": 780,
+      "graficoBottom": 1400
+    },
+    "sbordi": [],
+    "testiSotto11": [],
+    "erroriConsole": []
+  },
+  {
+    "pagina": "/macro-desk/stagionalita?s=SPX&t=ora",
+    "larghezza": 390,
+    "tema": "dark",
+    "file": "macro-desk_stagionalita_s_SPX_t_ora__390__dark.png",
+    "innerWidth": 390,
+    "scrollWidth": 390,
+    "altezza": 4222,
+    "griglia": {
+      "larghezzaTabella": 2170.1,
+      "larghezzaContenitore": 324,
+      "scorre": 1846,
+      "colonne": 24,
+      "primaColonna": 128,
+      "colonnaMin": 82.9,
+      "colonnaMax": 82.9,
+      "rigaCorpo": 28,
+      "rigaInCorso": 29,
+      "sintesiAltezza": 137,
+      "sintesiRighe": [
+        "Media 30",
+        "StDev 28",
+        "In rialzo ore su 44",
+        "Anni 29"
+      ],
+      "inRicalcolo": 0,
+      "caselle": 329,
+      "tinte": {
+        "neutra": 73,
+        "fondo": 256
+      },
+      "piccoli": 0,
+      "contrasti": {
+        "testa·TH": {
+          "min": 7.15,
+          "esempio": "23",
+          "px": 11
+        },
+        "in corso·TH": {
+          "min": 8.12,
+          "esempio": "in corso",
+          "px": 12
+        },
+        "in corso·TD·grigia": {
+          "min": 8.12,
+          "esempio": "-0,043",
+          "px": 14
+        },
+        "in corso·TD": {
+          "min": 8.12,
+          "esempio": "-0,001",
+          "px": 14
+        },
+        "corpo·TH": {
+          "min": 14.14,
+          "esempio": "2011",
+          "px": 14
+        },
+        "corpo·TD·grigia": {
+          "min": 7.08,
+          "esempio": "+0,038",
+          "px": 14
+        },
+        "corpo·TD": {
+          "min": 5.64,
+          "esempio": "+0,051",
+          "px": 14
+        },
+        "sintesi·TH": {
+          "min": 7.15,
+          "esempio": "Anni",
+          "px": 11
+        },
+        "sintesi·TD": {
+          "min": 5.09,
+          "esempio": "Campione molto",
+          "px": 14
+        }
+      }
+    },
+    "grafico": {
+      "contenitore": 466,
+      "riquadro": 340,
+      "disegno": 280,
+      "pxPerPunto": 17.5,
+      "tick": [
+        114,
+        112,
+        110,
+        108,
+        106,
+        104,
+        102,
+        100,
+        98
+      ],
+      "sezioneTop": 818,
+      "sezioneAltezza": 780,
+      "graficoBottom": 1442
+    },
+    "sbordi": [],
+    "testiSotto11": [],
+    "erroriConsole": []
+  },
+  {
+    "pagina": "/macro-desk/stagionalita?s=VIX&t=giorno",
+    "larghezza": 390,
+    "tema": "dark",
+    "file": "macro-desk_stagionalita_s_VIX_t_giorno__390__dark.png",
+    "innerWidth": 390,
+    "scrollWidth": 390,
+    "altezza": 3438,
+    "griglia": {
+      "larghezzaTabella": 492,
+      "larghezzaContenitore": 324,
+      "scorre": 168,
+      "colonne": 5,
+      "primaColonna": 159,
+      "colonnaMin": 63.8,
+      "colonnaMax": 63.8,
+      "rigaCorpo": 28,
+      "rigaInCorso": 29,
+      "sintesiAltezza": 106,
+      "sintesiRighe": [
+        "Livello medio 30",
+        "StDev 28",
+        "Sopra mediana giorni su 44"
+      ],
+      "inRicalcolo": 0,
+      "caselle": 105,
+      "tinte": {
+        "neutra": 7,
+        "fondo": 98
+      },
+      "piccoli": 0,
+      "contrasti": {
+        "testa·TH": {
+          "min": 7.15,
+          "esempio": "Ven",
+          "px": 11
+        },
+        "in corso·TH": {
+          "min": 8.12,
+          "esempio": "in corso",
+          "px": 12
+        },
+        "in corso·TD": {
+          "min": 8.12,
+          "esempio": "18,3",
+          "px": 14
+        },
+        "corpo·TH": {
+          "min": 14.14,
+          "esempio": "2006",
+          "px": 14
+        },
+        "corpo·TD": {
+          "min": 5.64,
+          "esempio": "31,6",
+          "px": 14
+        },
+        "sintesi·TH": {
+          "min": 7.15,
+          "esempio": "giorni su",
+          "px": 11
+        },
+        "sintesi·TD": {
+          "min": 5.64,
+          "esempio": "19,68",
+          "px": 14
+        }
+      }
+    },
+    "grafico": {
+      "contenitore": 466,
+      "riquadro": 340,
+      "disegno": 280,
+      "pxPerPunto": 8,
+      "tick": [
+        120,
+        115,
+        110,
+        105,
+        100,
+        95,
+        90,
+        85
+      ],
+      "sezioneTop": 812,
+      "sezioneAltezza": 813,
+      "graficoBottom": 1435
+    },
+    "sbordi": [],
+    "testiSotto11": [],
+    "erroriConsole": []
+  },
+  {
+    "pagina": "/macro-desk/stagionalita?s=XAUUSD",
+    "larghezza": 1280,
+    "tema": "dark",
+    "file": "macro-desk_stagionalita_s_XAUUSD__1280__dark.png",
+    "innerWidth": 1280,
+    "scrollWidth": 1280,
+    "altezza": 3219,
+    "griglia": {
+      "larghezzaTabella": 958,
+      "larghezzaContenitore": 958,
+      "scorre": 0,
+      "colonne": 12,
+      "primaColonna": 128,
+      "colonnaMin": 66.8,
+      "colonnaMax": 66.9,
+      "rigaCorpo": 28,
+      "rigaInCorso": 29,
+      "sintesiAltezza": 92,
+      "sintesiRighe": [
+        "Media 30",
+        "StDev 28",
+        "In rialzo su 20 30"
+      ],
+      "inRicalcolo": 0,
+      "caselle": 249,
+      "tinte": {
+        "neutra": 14,
+        "fondo": 235
+      },
+      "piccoli": 0,
+      "contrasti": {
+        "testa·TH": {
+          "min": 7.15,
+          "esempio": "Dic",
+          "px": 11
+        },
+        "in corso·TH": {
+          "min": 8.12,
+          "esempio": "in corso",
+          "px": 12
+        },
+        "in corso·TD": {
+          "min": 8.12,
+          "esempio": "-3,7",
+          "px": 14
+        },
+        "corpo·TH": {
+          "min": 14.14,
+          "esempio": "2006",
+          "px": 14
+        },
+        "corpo·TD": {
+          "min": 5.64,
+          "esempio": "+9,2",
+          "px": 14
+        },
+        "sintesi·TH": {
+          "min": 7.15,
+          "esempio": "su 20",
+          "px": 11
+        },
+        "sintesi·TD": {
+          "min": 5.64,
+          "esempio": "+3,49",
+          "px": 14
+        }
+      }
+    },
+    "grafico": {
+      "contenitore": 732,
+      "riquadro": 696,
+      "disegno": 636,
+      "pxPerPunto": 48.92,
+      "tick": [
+        112,
+        111,
+        110,
+        109,
+        108,
+        107,
+        106,
+        105,
+        104,
+        103,
+        102,
+        101,
+        100,
+        99
+      ],
+      "sezioneTop": 609,
+      "sezioneAltezza": 884,
+      "graficoBottom": 1436
+    },
+    "sbordi": [],
+    "testiSotto11": [],
+    "erroriConsole": []
+  },
+  {
+    "pagina": "/macro-desk/stagionalita?s=XAUUSD&t=settimana",
+    "larghezza": 1280,
+    "tema": "dark",
+    "file": "macro-desk_stagionalita_s_XAUUSD_t_settimana__1280__dark.png",
+    "innerWidth": 1280,
+    "scrollWidth": 1280,
+    "altezza": 5018,
+    "griglia": {
+      "larghezzaTabella": 3565.7,
+      "larghezzaContenitore": 958,
+      "scorre": 2608,
+      "colonne": 52,
+      "primaColonna": 140.3,
+      "colonnaMin": 63.8,
+      "colonnaMax": 63.8,
+      "rigaCorpo": 28,
+      "rigaInCorso": 29,
+      "sintesiAltezza": 137,
+      "sintesiRighe": [
+        "Media 30",
+        "StDev 28",
+        "In rialzo settimane su 44",
+        "Anni 29"
+      ],
+      "inRicalcolo": 0,
+      "caselle": 1078,
+      "tinte": {
+        "neutra": 67,
+        "fondo": 1011
+      },
+      "piccoli": 0,
+      "contrasti": {
+        "testa·TH": {
+          "min": 7.15,
+          "esempio": "S52",
+          "px": 11
+        },
+        "in corso·TH": {
+          "min": 8.12,
+          "esempio": "in corso",
+          "px": 12
+        },
+        "in corso·TD": {
+          "min": 8.12,
+          "esempio": "-1,9",
+          "px": 14
+        },
+        "in corso·TD·grigia": {
+          "min": 8.12,
+          "esempio": "-1,4",
+          "px": 14
+        },
+        "corpo·TH": {
+          "min": 14.14,
+          "esempio": "2006",
+          "px": 14
+        },
+        "corpo·TD": {
+          "min": 5.64,
+          "esempio": "+6,5",
+          "px": 14
+        },
+        "sintesi·TH": {
+          "min": 7.15,
+          "esempio": "Anni",
+          "px": 11
+        },
+        "sintesi·TD": {
+          "min": 5.64,
+          "esempio": "+1,01",
+          "px": 14
+        }
+      }
+    },
+    "grafico": {
+      "contenitore": 732,
+      "riquadro": 696,
+      "disegno": 636,
+      "pxPerPunto": 48.92,
+      "tick": [
+        112,
+        111,
+        110,
+        109,
+        108,
+        107,
+        106,
+        105,
+        104,
+        103,
+        102,
+        101,
+        100,
+        99
+      ],
+      "sezioneTop": 609,
+      "sezioneAltezza": 884,
+      "graficoBottom": 1436
+    },
+    "sbordi": [],
+    "testiSotto11": [],
+    "erroriConsole": []
+  },
+  {
+    "pagina": "/macro-desk/stagionalita?s=XAUUSD&t=giorno",
+    "larghezza": 1280,
+    "tema": "dark",
+    "file": "macro-desk_stagionalita_s_XAUUSD_t_giorno__1280__dark.png",
+    "innerWidth": 1280,
+    "scrollWidth": 1280,
+    "altezza": 2976,
+    "griglia": {
+      "larghezzaTabella": 672,
+      "larghezzaContenitore": 958,
+      "scorre": 0,
+      "colonne": 5,
+      "primaColonna": 128,
+      "colonnaMin": 106,
+      "colonnaMax": 106,
+      "rigaCorpo": 28,
+      "rigaInCorso": 29,
+      "sintesiAltezza": 106,
+      "sintesiRighe": [
+        "Media 30",
+        "StDev 28",
+        "In rialzo giorni su 44"
+      ],
+      "inRicalcolo": 0,
+      "caselle": 105,
+      "tinte": {
+        "neutra": 8,
+        "fondo": 97
+      },
+      "piccoli": 0,
+      "contrasti": {
+        "testa·TH": {
+          "min": 7.15,
+          "esempio": "Ven",
+          "px": 11
+        },
+        "in corso·TH": {
+          "min": 8.12,
+          "esempio": "in corso",
+          "px": 12
+        },
+        "in corso·TD": {
+          "min": 8.12,
+          "esempio": "-0,1",
+          "px": 14
+        },
+        "corpo·TH": {
+          "min": 14.14,
+          "esempio": "2006",
+          "px": 14
+        },
+        "corpo·TD": {
+          "min": 5.64,
+          "esempio": "+0,4",
+          "px": 14
+        },
+        "sintesi·TH": {
+          "min": 7.15,
+          "esempio": "giorni su",
+          "px": 11
+        },
+        "sintesi·TD": {
+          "min": 5.64,
+          "esempio": "+0,09",
+          "px": 14
+        }
+      }
+    },
+    "grafico": {
+      "contenitore": 732,
+      "riquadro": 696,
+      "disegno": 636,
+      "pxPerPunto": 48.92,
+      "tick": [
+        112,
+        111,
+        110,
+        109,
+        108,
+        107,
+        106,
+        105,
+        104,
+        103,
+        102,
+        101,
+        100,
+        99
+      ],
+      "sezioneTop": 609,
+      "sezioneAltezza": 884,
+      "graficoBottom": 1436
+    },
+    "sbordi": [],
+    "testiSotto11": [],
+    "erroriConsole": []
+  },
+  {
+    "pagina": "/macro-desk/stagionalita?s=XAUUSD&t=sessione",
+    "larghezza": 1280,
+    "tema": "dark",
+    "file": "macro-desk_stagionalita_s_XAUUSD_t_sessione__1280__dark.png",
+    "innerWidth": 1280,
+    "scrollWidth": 1280,
+    "altezza": 3029,
+    "griglia": {
+      "larghezzaTabella": 576,
+      "larghezzaContenitore": 958,
+      "scorre": 0,
+      "colonne": 4,
+      "primaColonna": 131.3,
+      "colonnaMin": 108.2,
+      "colonnaMax": 108.2,
+      "rigaCorpo": 28,
+      "rigaInCorso": 29,
+      "sintesiAltezza": 106,
+      "sintesiRighe": [
+        "Media 30",
+        "StDev 28",
+        "In rialzo sessioni su 44"
+      ],
+      "inRicalcolo": 0,
+      "caselle": 84,
+      "tinte": {
+        "neutra": 9,
+        "fondo": 75
+      },
+      "piccoli": 0,
+      "contrasti": {
+        "testa·TH": {
+          "min": 7.15,
+          "esempio": "Fuori",
+          "px": 11
+        },
+        "in corso·TH": {
+          "min": 8.12,
+          "esempio": "in corso",
+          "px": 12
+        },
+        "in corso·TD": {
+          "min": 8.12,
+          "esempio": "-0,012",
+          "px": 14
+        },
+        "corpo·TH": {
+          "min": 14.14,
+          "esempio": "2006",
+          "px": 14
+        },
+        "corpo·TD": {
+          "min": 7.56,
+          "esempio": "+0,013",
+          "px": 14
+        },
+        "sintesi·TH": {
+          "min": 7.15,
+          "esempio": "sessioni su",
+          "px": 11
+        },
+        "sintesi·TD": {
+          "min": 7.15,
+          "esempio": "4.819",
+          "px": 12
+        }
+      }
+    },
+    "grafico": {
+      "contenitore": 732,
+      "riquadro": 696,
+      "disegno": 636,
+      "pxPerPunto": 48.92,
+      "tick": [
+        112,
+        111,
+        110,
+        109,
+        108,
+        107,
+        106,
+        105,
+        104,
+        103,
+        102,
+        101,
+        100,
+        99
+      ],
+      "sezioneTop": 609,
+      "sezioneAltezza": 884,
+      "graficoBottom": 1436
+    },
+    "sbordi": [],
+    "testiSotto11": [],
+    "erroriConsole": []
+  },
+  {
+    "pagina": "/macro-desk/stagionalita?s=SPX&t=ora",
+    "larghezza": 1280,
+    "tema": "dark",
+    "file": "macro-desk_stagionalita_s_SPX_t_ora__1280__dark.png",
+    "innerWidth": 1280,
+    "scrollWidth": 1280,
+    "altezza": 3728,
+    "griglia": {
+      "larghezzaTabella": 2170.1,
+      "larghezzaContenitore": 958,
+      "scorre": 1212,
+      "colonne": 24,
+      "primaColonna": 128,
+      "colonnaMin": 82.9,
+      "colonnaMax": 82.9,
+      "rigaCorpo": 28,
+      "rigaInCorso": 29,
+      "sintesiAltezza": 137,
+      "sintesiRighe": [
+        "Media 30",
+        "StDev 28",
+        "In rialzo ore su 44",
+        "Anni 29"
+      ],
+      "inRicalcolo": 0,
+      "caselle": 329,
+      "tinte": {
+        "neutra": 73,
+        "fondo": 256
+      },
+      "piccoli": 0,
+      "contrasti": {
+        "testa·TH": {
+          "min": 7.15,
+          "esempio": "23",
+          "px": 11
+        },
+        "in corso·TH": {
+          "min": 8.12,
+          "esempio": "in corso",
+          "px": 12
+        },
+        "in corso·TD·grigia": {
+          "min": 8.12,
+          "esempio": "-0,043",
+          "px": 14
+        },
+        "in corso·TD": {
+          "min": 8.12,
+          "esempio": "-0,001",
+          "px": 14
+        },
+        "corpo·TH": {
+          "min": 14.14,
+          "esempio": "2011",
+          "px": 14
+        },
+        "corpo·TD·grigia": {
+          "min": 7.08,
+          "esempio": "+0,038",
+          "px": 14
+        },
+        "corpo·TD": {
+          "min": 5.64,
+          "esempio": "+0,051",
+          "px": 14
+        },
+        "sintesi·TH": {
+          "min": 7.15,
+          "esempio": "Anni",
+          "px": 11
+        },
+        "sintesi·TD": {
+          "min": 5.09,
+          "esempio": "Campione molto",
+          "px": 14
+        }
+      }
+    },
+    "grafico": {
+      "contenitore": 732,
+      "riquadro": 696,
+      "disegno": 636,
+      "pxPerPunto": 45.43,
+      "tick": [
+        113,
+        112,
+        111,
+        110,
+        109,
+        108,
+        107,
+        106,
+        105,
+        104,
+        103,
+        102,
+        101,
+        100,
+        99
+      ],
+      "sezioneTop": 633,
+      "sezioneAltezza": 884,
+      "graficoBottom": 1460
+    },
+    "sbordi": [],
+    "testiSotto11": [],
+    "erroriConsole": []
+  },
+  {
+    "pagina": "/macro-desk/stagionalita?s=VIX&t=giorno",
+    "larghezza": 1280,
+    "tema": "dark",
+    "file": "macro-desk_stagionalita_s_VIX_t_giorno__1280__dark.png",
+    "innerWidth": 1280,
+    "scrollWidth": 1280,
+    "altezza": 3034,
+    "griglia": {
+      "larghezzaTabella": 672,
+      "larghezzaContenitore": 958,
+      "scorre": 0,
+      "colonne": 5,
+      "primaColonna": 159,
+      "colonnaMin": 99.8,
+      "colonnaMax": 99.8,
+      "rigaCorpo": 28,
+      "rigaInCorso": 29,
+      "sintesiAltezza": 106,
+      "sintesiRighe": [
+        "Livello medio 30",
+        "StDev 28",
+        "Sopra mediana giorni su 44"
+      ],
+      "inRicalcolo": 0,
+      "caselle": 105,
+      "tinte": {
+        "neutra": 7,
+        "fondo": 98
+      },
+      "piccoli": 0,
+      "contrasti": {
+        "testa·TH": {
+          "min": 7.15,
+          "esempio": "Ven",
+          "px": 11
+        },
+        "in corso·TH": {
+          "min": 8.12,
+          "esempio": "in corso",
+          "px": 12
+        },
+        "in corso·TD": {
+          "min": 8.12,
+          "esempio": "18,3",
+          "px": 14
+        },
+        "corpo·TH": {
+          "min": 14.14,
+          "esempio": "2006",
+          "px": 14
+        },
+        "corpo·TD": {
+          "min": 5.64,
+          "esempio": "31,6",
+          "px": 14
+        },
+        "sintesi·TH": {
+          "min": 7.15,
+          "esempio": "giorni su",
+          "px": 11
+        },
+        "sintesi·TD": {
+          "min": 5.64,
+          "esempio": "19,68",
+          "px": 14
+        }
+      }
+    },
+    "grafico": {
+      "contenitore": 732,
+      "riquadro": 696,
+      "disegno": 636,
+      "pxPerPunto": 22.71,
+      "tick": [
+        116,
+        114,
+        112,
+        110,
+        108,
+        106,
+        104,
+        102,
+        100,
+        98,
+        96,
+        94,
+        92,
+        90,
+        88
+      ],
+      "sezioneTop": 651,
+      "sezioneAltezza": 901,
+      "graficoBottom": 1478
+    },
+    "sbordi": [],
+    "testiSotto11": [],
+    "erroriConsole": []
+  }
+]

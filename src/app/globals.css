@@ -167,6 +167,13 @@
      barre-parola: grafica, non testo. */
   --rule: oklch(0.837 0.016 257);
   --track: oklch(0.951 0.006 255);
+  /* CORNICE DELLE TABELLE A GRIGLIA (Stagionalità, 17/09/2026, tavola «Sistema
+     visivo v3 - Stagionalità, la cornice della griglia»): il fondo comune di
+     testata, colonna delle etichette e blocco di sintesi, così che l'intelaiatura
+     si legga come tale e non come sfondo. In chiaro un gradino sotto --muted
+     (1,17:1 sulla card invece di 1,10): al 3% i separatori sparivano. Testo sopra:
+     --foreground 16,53 · --foreground-2 7,41; --muted-foreground NON regge (4,46). */
+  --frame: oklch(0.945 0.008 262);
   /* DATI CATEGORICI: identificano un asset o una finestra, non giudicano.
      Mai per stati o segni. Tutti ≥ 4,5 su card anche come testo; il 15 anni
      è stato scurito di un gradino di luminosità (4,27 → 4,6 su card). */
@@ -248,6 +255,9 @@
   --foreground-2: oklch(0.763 0.031 258); /* 9,32 bg · 8,45 card */
   --rule: oklch(0.328 0.035 262);
   --track: oklch(0.222 0.025 264);
+  /* In scuro --muted si distingueva già dalla card (1,18:1): stesso valore.
+     Testo sopra: --foreground 14,11 · --foreground-2 7,15 · --muted-foreground 5,98. */
+  --frame: oklch(0.268 0.018 264);
   --data-gold: oklch(0.807 0.133 91);
   --data-oil: oklch(0.71 0.132 55);
   --data-idx: oklch(0.721 0.131 274);
@@ -709,6 +719,7 @@
      --foreground-2: oklch(0.413 0.029 256);
     --rule: oklch(0.837 0.016 257);
     --track: oklch(0.951 0.006 255);
+    --frame: oklch(0.945 0.008 262);
     --data-gold: oklch(0.548 0.106 89);
     --data-oil: oklch(0.535 0.13 50);
     --data-idx: oklch(0.438 0.142 269);

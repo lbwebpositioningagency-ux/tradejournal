@@ -3580,3 +3580,28 @@ temi — 36 viste): 0 testi < 11px, 0 sbordi, 0 errori in console, contrasto min
 compare su tutte le profondità (12, 52, 5, 4 e 24 righe) ed è l'ultima colonna: a 1440 la tabella
 scorre di ~230px nel suo riquadro, come le altre colonne di destra. Gate: typecheck, lint, 2.360
 test, build verdi. Nessuna migrazione. Schermate in `docs/stagionalita/sintesi-posizione/`.
+
+## 17/09/2026 · Stagionalità — la cornice della griglia anni × periodo
+
+Testata, colonna Anno e blocco di sintesi stavano sul fondo della card: gli anni sembravano testo
+impilato, la testata sfondo. Decisione in Claude Design, tavola «Sistema visivo v3 - Stagionalità, la
+cornice della griglia» (giro 10), fra A (`--muted`, token esistente) e **B, scelta**.
+
+- **Token nuovo `--frame`** in `globals.css` (anche nel blocco di stampa), alias `--ml-frame` nel
+  listino: chiaro `oklch(0.945 0.008 262)`, un gradino sotto `--muted` perché a 1,10:1 dalla card
+  cornice e separatori sparivano (ora 1,17:1); scuro `oklch(0.268 0.018 264)`, pari a `--muted`, che
+  si distingueva già (1,18:1). Stesso fondo per testata, colonna Anno e fascia di sintesi.
+- **Separatori** = gli stessi stacchi di 2px del colore della card che dividono le caselle dei dati;
+  la colonna ferma porta sotto uno stacco pieno, così nei 2px non si vedono le caselle che scorrono.
+- **Testo sul fondo di cornice**: le etichette in maiuscoletto (testata, Media/StDev/In rialzo)
+  passano dal grigio attenuato — 4,46:1 in chiaro, sotto soglia — al testo secondario; anche il
+  denominatore delle frazioni, che nella prima misura in pagina scendeva a 4,43.
+- La tinta delle celle dati, i dati e la colonna «Posizione» non cambiano. La riga «Anni» resta con
+  le celle sulla card (triangolo del campione basso a 4,76).
+
+Contrasti misurati in pagina (oro mese/settimana/giorno/sessione, S&P ora, VIX giorno; 1440, 1280,
+390; 36 viste): testata **7,43** chiaro · **7,15** scuro; colonna Anno **16,57** · **14,14** (in corso
+7,56 · 8,12); sintesi etichette **7,43** · **7,15**, valori **7,43** · **5,64** (la Media tinta in
+scuro). 0 testi < 11px, 0 sbordi, 0 errori in console (un primo giro era caduto durante un riavvio
+del Postgres locale ed è stato rifatto). Gate: typecheck, lint, 2.363 test, build verdi. Nessuna
+migrazione. Schermate in `docs/stagionalita/cornice/`.

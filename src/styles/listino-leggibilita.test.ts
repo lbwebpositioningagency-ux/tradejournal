@@ -172,3 +172,34 @@ describe("Griglia anni × periodo — tinta piena, colori dal sistema", () => {
     });
   }
 });
+
+describe("Griglia anni × periodo — la cornice ha un fondo suo (--frame)", () => {
+  const regola = (sel: string) =>
+    [...LISTINO.matchAll(/(\.ml-griglia[^{]*)\{([^}]*)\}/g)].find((m) => m[1].trim() === sel)?.[2] ?? "";
+  const TEMI = {
+    chiaro: tokens(block(GLOBALS, ":root")),
+    scuro: tokens(block(GLOBALS, ".dark")),
+  };
+
+  it("testata, colonna Anno e sintesi stanno sul fondo di cornice, con etichette in testo secondario", () => {
+    expect(regola(".ml-griglia thead th")).toMatch(/background-color:\s*var\(--ml-frame\)/);
+    expect(regola(".ml-griglia thead th")).toMatch(/color:\s*var\(--md-text-2\)/);
+    expect(regola(".ml-griglia :is(thead, tbody, tfoot) th:first-child")).toMatch(/background-color:\s*var\(--ml-frame\)/);
+    expect(regola(".ml-griglia tfoot :is(th, td)")).toMatch(/background-color:\s*var\(--ml-frame\)/);
+    expect(regola(".ml-griglia tfoot th:first-child")).toMatch(/color:\s*var\(--md-text-2\)/);
+    expect(LISTINO).toMatch(/--ml-frame:\s*var\(--frame\)/);
+  });
+
+  for (const [tema, t] of Object.entries(TEMI)) {
+    it(`--frame si distingue dalla card e regge il testo in tema ${tema}`, () => {
+      const frame = t.get("frame");
+      expect(frame, `--frame in ${tema}`).toBeDefined();
+      const stacco = contrast(frame!, t.get("card")!);
+      expect(stacco, `--frame su --card = ${stacco.toFixed(2)}:1`).toBeGreaterThanOrEqual(1.15);
+      for (const testo of ["foreground", "foreground-2"]) {
+        const ratio = contrast(t.get(testo)!, frame!);
+        expect(ratio, `--${testo} su --frame = ${ratio.toFixed(2)}:1`).toBeGreaterThanOrEqual(4.5);
+      }
+    });
+  }
+});
