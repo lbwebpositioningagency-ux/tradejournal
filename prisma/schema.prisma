@@ -32,6 +32,7 @@ model User {
   checklistItems  ChecklistItem[]
   notebookNotes   NotebookNote[]
   notebookImages  NotebookImage[]
+  disciplineRules DisciplineRule[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -445,6 +446,90 @@ model ImportProfile {
   createdAt DateTime @default(now())
 
   @@unique([userId, name])
+}
+
+// ───────────────────────── Progress Tracker ─────────────────────────
+
+/**
+ * Insieme CHIUSO delle regole di disciplina: solo quelle che l'app verifica da
+ * sé leggendo i campi dei trade. Nessuna regola dichiarata dall'utente (niente
+ * «ho seguito il piano»): se il dato non la prova, la regola non esiste.
+ * Il significato di ogni tipo — campo che lo alimenta, giornata a cui si
+ * attribuisce, soglia di partenza — sta in `src/lib/discipline/catalog.ts`.
+ */
+enum DisciplineRuleType {
+  STOP_PRESENT
+  STOP_RESPECTED
+  MAX_LOSS_PER_TRADE
+  MAX_DAILY_LOSS
+  MAX_TRADES_PER_DAY
+  MAX_PLANNED_RISK
+  MIN_TARGET_R
+  TRADING_HOURS
+  COOLDOWN_AFTER_LOSS
+  MAX_CONSECUTIVE_LOSSES
+  MAX_OPEN_POSITIONS
+  MAX_QUANTITY_PER_SYMBOL
+}
+
+/**
+ * Regola configurata dall'utente. Appartiene all'UTENTE, non a un conto: vale
+ * su tutti i conti che l'utente guarda, compreso il demo SIM1 (in sola
+ * lettura, che mostra le regole di chi lo sta guardando).
+ * Nessuna riga = la regola vive con i valori di partenza del catalogo; la riga
+ * nasce alla prima modifica. I parametri non usati da un tipo restano null.
+ */
+model DisciplineRule {
+  id           String             @id @default(cuid())
+  userId       String
+  type         DisciplineRuleType
+  isActive     Boolean
+  /** Tolleranza in R (STOP_RESPECTED) o R/R minimo (MIN_TARGET_R). */
+  rValue       Decimal?           @db.Decimal(10, 4)
+  /** Numero massimo (trade al giorno, perdite consecutive, posizioni aperte). */
+  countValue   Int?
+  /** Minuti di pausa (COOLDOWN_AFTER_LOSS). */
+  minutesValue Int?
+  /** Sessioni ammesse (TRADING_HOURS): chiavi di `src/lib/sessions.ts`. */
+  sessions     String[]
+  /** TRADING_HOURS: aperture di sabato e domenica ammesse. */
+  allowWeekend Boolean            @default(false)
+
+  user           User                          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  currencyLimits DisciplineRuleCurrencyLimit[]
+  symbolLimits   DisciplineRuleSymbolLimit[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([userId, type])
+}
+
+/**
+ * Soglia in denaro PER VALUTA: una regola in valuta non somma mai valute
+ * diverse. Una valuta senza riga = regola senza soglia in quella valuta.
+ */
+model DisciplineRuleCurrencyLimit {
+  id       String  @id @default(cuid())
+  ruleId   String
+  currency String
+  amount   Decimal @db.Decimal(14, 2)
+
+  rule DisciplineRule @relation(fields: [ruleId], references: [id], onDelete: Cascade)
+
+  @@unique([ruleId, currency])
+}
+
+/** Quantità massima PER SIMBOLO (contratti/lotti non sono confrontabili fra simboli). */
+model DisciplineRuleSymbolLimit {
+  id       String  @id @default(cuid())
+  ruleId   String
+  symbol   String
+  quantity Decimal @db.Decimal(18, 8)
+
+  rule DisciplineRule @relation(fields: [ruleId], references: [id], onDelete: Cascade)
+
+  @@unique([ruleId, symbol])
 }
 
 // ───────────────────────── Macro Desk ─────────────────────────
