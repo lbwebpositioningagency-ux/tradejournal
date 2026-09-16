@@ -2,7 +2,7 @@ import Decimal from "decimal.js";
 import type { MetricInfoData } from "./types";
 
 /**
- * CORRELAZIONE FRA STRATEGIE sui P&L AGGREGATI PER SETTIMANA O PER MESE.
+ * CORRELAZIONE FRA STRATEGIE sui P&L AGGREGATI PER SETTIMANA.
  *
  * La domanda è «sto davvero diversificando, o le mie strategie perdono tutte
  * negli stessi periodi?». Nessuna metrica per-strategia la risolve: profit
@@ -13,29 +13,33 @@ import type { MetricInfoData } from "./types";
  *
  * PERCHÉ NON PIÙ I GIORNI (16/09/2026). Due strategie discrezionali operano
  * insieme in pochi giorni: su SIM1 le coppie avevano 28-46 giorni in comune su
- * 19 mesi, e il coefficiente poggiava su troppo poco. Una settimana o un mese
- * raccolgono più trade di entrambe, e il legame fra le due ha il tempo di
- * manifestarsi anche quando non operano lo stesso giorno.
+ * 19 mesi, e il coefficiente poggiava su troppo poco. Una settimana raccoglie
+ * più trade di entrambe, e il legame fra le due ha il tempo di manifestarsi
+ * anche quando non operano lo stesso giorno.
  *
- * DEFINIZIONE DEI PERIODI (tutto sul giorno di CHIUSURA nel fuso dell'utente,
- * come ogni bucket giornaliero dell'app):
+ * PERCHÉ NON IL MESE (16/09/2026). Per un giorno la pagina ha offerto anche il
+ * mese: con lo storico attuale lascia troppo pochi periodi utili (SIM1: 19
+ * mesi, nessuna coppia arriva a 30) e la settimana resta l'unità corretta.
+ * Tolto, con il suo selettore.
+ *
+ * DEFINIZIONE DELLA SETTIMANA (tutto sul giorno di CHIUSURA nel fuso
+ * dell'utente, come ogni bucket giornaliero dell'app):
  * - SETTIMANA di calendario, da lunedì. Le sedute sono i cinque giorni
  *   lunedì–venerdì; un trade chiuso di sabato o domenica resta nella settimana
  *   di quel lunedì (non ne crea una nuova).
- * - MESE di calendario.
- * - PERIODI PARZIALI: entra solo un periodo le cui sedute cadono TUTTE dentro
- *   l'intervallo selezionato — per la settimana lunedì e venerdì, per il mese
- *   il primo e l'ultimo giorno. Un periodo tagliato dal filtro (o non ancora
- *   finito) somma meno sedute degli altri e confronterebbe grandezze diverse:
- *   resta fuori e la pagina dice quanti ne ha tolti. Senza data d'inizio
- *   («tutto lo storico») il primo periodo non è tagliato da nessun filtro.
+ * - SETTIMANE PARZIALI: entra solo una settimana il cui lunedì e il cui
+ *   venerdì cadono dentro l'intervallo selezionato. Una settimana tagliata dal
+ *   filtro (o non ancora finita) somma meno sedute delle altre e
+ *   confronterebbe grandezze diverse: resta fuori e la pagina dice quante ne
+ *   ha tolte. Senza data d'inizio («tutto lo storico») la prima settimana non
+ *   è tagliata da nessun filtro.
  *
- * PERIODI SENZA ATTIVITÀ: ESCLUSI. Il coefficiente si calcola SOLO sui periodi
- * in cui entrambe le strategie hanno operato. Uno zero messo dove una
- * strategia è ferma non è un risultato, è un'assenza: con i periodi di
+ * SETTIMANE SENZA ATTIVITÀ: ESCLUSE. Il coefficiente si calcola SOLO sulle
+ * settimane in cui entrambe le strategie hanno operato. Uno zero messo dove
+ * una strategia è ferma non è un risultato, è un'assenza: con le settimane di
  * calendario due strategie ferme insieme finirebbero allineate sullo zero, e
  * anche lo zero di una sola lega il coefficiente a QUANDO si opera invece che
- * a COME va. Escludendoli, il numero di osservazioni del coefficiente è lo
+ * a COME va. Escludendole, il numero di osservazioni del coefficiente è lo
  * stesso della soglia e della banda di rumore: il test dichiarato è quello
  * che si fa davvero.
  *
@@ -43,43 +47,20 @@ import type { MetricInfoData } from "./types";
  * non è definita: `null`, mai uno zero che si leggerebbe «indipendenti».
  */
 
-export type CorrelationGrain = "week" | "month";
-
-export const CORRELATION_GRAINS: readonly { key: CorrelationGrain; label: string }[] = [
-  { key: "week", label: "Settimana" },
-  { key: "month", label: "Mese" },
-];
-
-export const DEFAULT_CORRELATION_GRAIN: CorrelationGrain = "week";
-
-/** Parole del periodo, per celle, meta e metodo. */
-export const CORRELATION_UNITS: Record<
-  CorrelationGrain,
-  { one: string; many: string; short: string }
-> = {
-  week: { one: "settimana", many: "settimane", short: "sett." },
-  month: { one: "mese", many: "mesi", short: "mesi" },
-};
-
 /**
- * Osservazioni IN COMUNE minime perché una coppia mostri un numero, per
- * periodo. Sono uguali, e non per pigrizia: l'incertezza di un coefficiente
- * dipende dal NUMERO di coppie di osservazioni, non da quanto dura ognuna.
- * Con n osservazioni una correlazione nulla oscilla di ±1,96/√n; a 30 la banda
- * è ±0,36, ed è anche il campione che distingue da zero una correlazione vera
- * di 0,5 con probabilità dell'80% (Fisher: ((1,96+0,84)/atanh 0,5)² + 3 ≈ 29).
- * Sotto 30 anche un valore grande può essere il caso.
+ * Settimane IN COMUNE minime perché una coppia mostri un numero. L'incertezza
+ * di un coefficiente dipende dal NUMERO di coppie di osservazioni, non da
+ * quanto dura ognuna. Con n osservazioni una correlazione nulla oscilla di
+ * ±1,96/√n; a 30 la banda è ±0,36, ed è anche il campione che distingue da
+ * zero una correlazione vera di 0,5 con probabilità dell'80% (Fisher:
+ * ((1,96+0,84)/atanh 0,5)² + 3 ≈ 29). Sotto 30 anche un valore grande può
+ * essere il caso.
  *
- * Dividere la vecchia soglia per la lunghezza del periodo (30 giorni → 6
- * settimane, 1,5 mesi) darebbe coefficienti su sei punti: bande di ±0,80, il
- * rumore scambiato per dato. Per il mese 30 osservazioni sono due anni e
- * mezzo di operatività congiunta: è il prezzo di una domanda sul mese, e
- * uno storico più corto la dichiara non calcolabile.
+ * Dividere la vecchia soglia per la lunghezza della settimana (30 giorni → 6
+ * settimane) darebbe coefficienti su sei punti: bande di ±0,80, il rumore
+ * scambiato per dato.
  */
-export const CORRELATION_MIN_OBSERVATIONS: Record<CorrelationGrain, number> = {
-  week: 30,
-  month: 30,
-};
+export const CORRELATION_MIN_OBSERVATIONS = 30;
 
 const DAY_MS = 86_400_000;
 
@@ -91,37 +72,28 @@ function utcToDay(date: Date): string {
   return date.toISOString().slice(0, 10);
 }
 
-/** Chiave del periodo di un giorno "YYYY-MM-DD": lunedì della settimana o "YYYY-MM". */
-export function correlationPeriodKey(day: string, grain: CorrelationGrain): string {
-  if (grain === "month") return day.slice(0, 7);
+/** Chiave della settimana di un giorno "YYYY-MM-DD": il suo lunedì. */
+export function correlationPeriodKey(day: string): string {
   const date = dayToUtc(day);
   const offset = (date.getUTCDay() + 6) % 7; // lunedì = 0
   return utcToDay(new Date(date.getTime() - offset * DAY_MS));
 }
 
-/** Prima e ultima seduta del periodo: lunedì–venerdì, o primo–ultimo del mese. */
-export function correlationPeriodBounds(
-  key: string,
-  grain: CorrelationGrain,
-): { first: string; last: string } {
-  if (grain === "week") {
-    return { first: key, last: utcToDay(new Date(dayToUtc(key).getTime() + 4 * DAY_MS)) };
-  }
-  const [year, month] = key.split("-").map(Number);
-  const lastDay = new Date(Date.UTC(year, month, 0)).getUTCDate();
-  return { first: `${key}-01`, last: `${key}-${String(lastDay).padStart(2, "0")}` };
+/** Prima e ultima seduta della settimana: lunedì e venerdì. */
+export function correlationPeriodBounds(key: string): { first: string; last: string } {
+  return { first: key, last: utcToDay(new Date(dayToUtc(key).getTime() + 4 * DAY_MS)) };
 }
 
 /**
- * true se tutte le sedute del periodo cadono nell'intervallo [fromKey, toKey]
- * (giorni locali, estremi inclusi). Senza `fromKey` l'inizio non taglia.
+ * true se tutte le sedute della settimana cadono nell'intervallo
+ * [fromKey, toKey] (giorni locali, estremi inclusi). Senza `fromKey` l'inizio
+ * non taglia.
  */
 export function isCompletePeriod(
   key: string,
-  grain: CorrelationGrain,
   range: { fromKey?: string; toKey: string },
 ): boolean {
-  const { first, last } = correlationPeriodBounds(key, grain);
+  const { first, last } = correlationPeriodBounds(key);
   if (range.fromKey !== undefined && first < range.fromKey) return false;
   return last <= range.toKey;
 }
@@ -138,27 +110,26 @@ export interface StrategyDayRow {
 export interface CorrelationSeries {
   key: string;
   label: string;
-  /** P&L per periodo completo: solo i periodi in cui questa serie ha operato. */
+  /** P&L per settimana completa: solo le settimane in cui questa serie ha operato. */
   byPeriod: Map<string, string>;
-  /** Trade della serie nei periodi completi. */
+  /** Trade della serie nelle settimane complete. */
   trades: number;
 }
 
 export interface AggregatedSeries {
   series: CorrelationSeries[];
-  /** Periodi con trade tolti perché tagliati dall'intervallo. */
+  /** Settimane con trade tolte perché tagliate dall'intervallo. */
   partialPeriods: number;
-  /** Periodi completi con almeno un trade di almeno una strategia. */
+  /** Settimane complete con almeno un trade di almeno una strategia. */
   periods: number;
 }
 
 /**
  * Dalle righe giornaliere (già aggregate in SQL per strategia e giorno) alle
- * serie per periodo. Somme in Decimal; i periodi parziali restano fuori.
+ * serie per settimana. Somme in Decimal; le settimane parziali restano fuori.
  */
 export function aggregateStrategySeries(
   rows: StrategyDayRow[],
-  grain: CorrelationGrain,
   range: { fromKey?: string; toKey: string },
 ): AggregatedSeries {
   const byStrategy = new Map<
@@ -168,8 +139,8 @@ export function aggregateStrategySeries(
   const partial = new Set<string>();
   const complete = new Set<string>();
   for (const row of rows) {
-    const period = correlationPeriodKey(row.day, grain);
-    if (!isCompletePeriod(period, grain, range)) {
+    const period = correlationPeriodKey(row.day);
+    if (!isCompletePeriod(period, range)) {
       partial.add(period);
       continue;
     }
@@ -200,21 +171,20 @@ export interface CorrelationPair {
   b: string;
   /** Pearson −1..1 a 4 decimali; null se non definito o campione corto. */
   r: string | null;
-  /** Periodi in cui ENTRAMBE hanno operato: campione E calendario del calcolo. */
+  /** Settimane in cui ENTRAMBE hanno operato: campione E calendario del calcolo. */
   common: number;
-  /** Periodi in cui ha operato una sola delle due: esclusi dal calcolo. */
+  /** Settimane in cui ha operato una sola delle due: escluse dal calcolo. */
   onlyOne: number;
-  /** true se i periodi in comune sono sotto la soglia: nessun coefficiente. */
+  /** true se le settimane in comune sono sotto la soglia: nessun coefficiente. */
   lowSample: boolean;
   /**
-   * Banda di rumore attorno a zero, 1,96 / √periodi in comune (scala 4). Un |r|
-   * dentro la banda non si distingue da zero. null sotto campione.
+   * Banda di rumore attorno a zero, 1,96 / √settimane in comune (scala 4). Un
+   * |r| dentro la banda non si distingue da zero. null sotto campione.
    */
   noiseBand: string | null;
 }
 
 export interface CorrelationMatrix {
-  grain: CorrelationGrain;
   keys: string[];
   labels: Record<string, string>;
   /** Chiave "a|b" canonica (vedi `pairKey`). */
@@ -247,11 +217,8 @@ export function pairKey(a: string, b: string): string {
   return a < b ? `${a}|${b}` : `${b}|${a}`;
 }
 
-export function correlationMatrix(
-  series: CorrelationSeries[],
-  grain: CorrelationGrain,
-): CorrelationMatrix {
-  const min = CORRELATION_MIN_OBSERVATIONS[grain];
+export function correlationMatrix(series: CorrelationSeries[]): CorrelationMatrix {
+  const min = CORRELATION_MIN_OBSERVATIONS;
   const keys = series.map((s) => s.key);
   const labels = Object.fromEntries(series.map((s) => [s.key, s.label]));
   const pairs = new Map<string, CorrelationPair>();
@@ -281,32 +248,29 @@ export function correlationMatrix(
       });
     }
   }
-  return { grain, keys, labels, pairs };
+  return { keys, labels, pairs };
 }
 
 /**
- * Serie che non possono avere NESSUNA coppia leggibile: meno periodi operati
- * della soglia, quindi meno periodi in comune con chiunque. Restano fuori
+ * Serie che non possono avere NESSUNA coppia leggibile: meno settimane operate
+ * della soglia, quindi meno settimane in comune con chiunque. Restano fuori
  * dalla matrice (sarebbero una riga di celle vuote) ma la pagina le nomina.
  */
-export function correlationEligible(
-  series: CorrelationSeries,
-  grain: CorrelationGrain,
-): boolean {
-  return series.byPeriod.size >= CORRELATION_MIN_OBSERVATIONS[grain];
+export function correlationEligible(series: CorrelationSeries): boolean {
+  return series.byPeriod.size >= CORRELATION_MIN_OBSERVATIONS;
 }
 
 export interface CorrelationAvailability {
   /** true se almeno una coppia supera la soglia. */
   usable: boolean;
-  /** La coppia con più periodi in comune (anche sotto soglia); null con < 2 strategie. */
+  /** La coppia con più settimane in comune (anche sotto soglia); null con < 2 strategie. */
   closest: CorrelationPair | null;
 }
 
 /**
- * Il periodo è calcolabile? Si guarda la matrice di TUTTE le strategie, non
- * solo delle eleggibili: quando nessuna coppia arriva alla soglia la pagina
- * dice quanto manca alla coppia più vicina.
+ * La correlazione è calcolabile? Si guarda la matrice di TUTTE le strategie,
+ * non solo delle eleggibili: quando nessuna coppia arriva alla soglia la
+ * pagina dice quanto manca alla coppia più vicina.
  */
 export function correlationAvailability(all: CorrelationMatrix): CorrelationAvailability {
   let closest: CorrelationPair | null = null;
@@ -348,8 +312,8 @@ export const CORRELATION_TONE_LABELS: Record<CorrelationTone, string> = {
 export const correlationInfo: MetricInfoData = {
   label: "Correlazione fra strategie",
   description:
-    "Quanto si muovono insieme i P&L di due strategie, sommati per settimana o per mese. Positiva e fuori dal rumore: vanno bene e male negli stessi periodi, e sommarle non riduce il rischio, lo moltiplica. Negativa: una copre l'altra. Dentro la banda di rumore: con i periodi che ci sono non si può dire. La cella resta vuota finché le due strategie non hanno operato insieme almeno 30 settimane (o 30 mesi): una correlazione su dieci osservazioni è rumore che sembra un dato.",
+    "Quanto si muovono insieme i P&L di due strategie, sommati per settimana. Positiva e fuori dal rumore: vanno bene e male nelle stesse settimane, e sommarle non riduce il rischio, lo moltiplica. Negativa: una copre l'altra. Dentro la banda di rumore: con le settimane che ci sono non si può dire. La cella resta vuota finché le due strategie non hanno operato insieme almeno 30 settimane: una correlazione su dieci osservazioni è rumore che sembra un dato.",
   formula:
-    "Pearson sui P&L per settimana (lun–ven) o per mese di calendario, solo nei periodi in cui operano entrambe · minimo 30 periodi in comune · rumore = |r| < 1,96/√periodi in comune",
+    "Pearson sui P&L per settimana (lun–ven), solo nelle settimane in cui operano entrambe · minimo 30 settimane in comune · rumore = |r| < 1,96/√settimane in comune",
   note: "Correlazione non è causa: due strategie possono muoversi insieme perché reagiscono allo stesso mercato, non perché una dipenda dall'altra.",
 };
