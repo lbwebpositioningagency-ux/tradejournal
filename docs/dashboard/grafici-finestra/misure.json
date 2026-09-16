@@ -1,0 +1,422 @@
+[
+  {
+    "tag": "1440__light",
+    "stato": "apertura",
+    "giornaliero": {
+      "preset": "6m",
+      "didascalia": "29/01/2026 – 27/07/2026 · 110 giornate con trade",
+      "barre": 109,
+      "larghezzaBarraPx": 5,
+      "legenda": [
+        "Max streak verdi 14·Media 2,2 giorni di fila",
+        "Max streak rossi 8·Media 2,0 giorni di fila"
+      ],
+      "testiSotto11px": 0,
+      "contrastiSotto45": 0
+    },
+    "cumulativo": {
+      "preset": "6m",
+      "didascalia": "29/01/2026 – 27/07/2026 · 110 giornate con trade",
+      "testiSotto11px": 0,
+      "contrastiSotto45": 0
+    },
+    "sequenza": {
+      "legenda": [
+        "Max Win Streak 6·Media 2,1 trade di fila",
+        "Max Loss Streak 8·Media 2,0 trade di fila"
+      ],
+      "testiSotto11px": 0,
+      "contrastiSotto45": 0
+    }
+  },
+  {
+    "tag": "1440__light",
+    "stato": "30g / 1a",
+    "giornaliero": {
+      "preset": "30g",
+      "didascalia": "29/06/2026 – 27/07/2026 · 19 giornate con trade",
+      "barre": 19,
+      "larghezzaBarraPx": 28,
+      "legenda": [
+        "Max streak verdi 14·Media 2,2 giorni di fila",
+        "Max streak rossi 8·Media 2,0 giorni di fila"
+      ],
+      "testiSotto11px": 0,
+      "contrastiSotto45": 0
+    },
+    "cumulativo": {
+      "preset": "1a",
+      "didascalia": "28/07/2025 – 27/07/2026 · 221 giornate con trade",
+      "testiSotto11px": 0,
+      "contrastiSotto45": 0
+    },
+    "sequenza": {
+      "legenda": [
+        "Max Win Streak 6·Media 2,1 trade di fila",
+        "Max Loss Streak 8·Media 2,0 trade di fila"
+      ],
+      "testiSotto11px": 0,
+      "contrastiSotto45": 0
+    }
+  },
+  {
+    "tag": "1440__light",
+    "stato": "90g / 1a trascinati indietro",
+    "giornaliero": {
+      "preset": "90g",
+      "didascalia": "15/08/2025 – 04/11/2025 · 53 giornate con trade",
+      "barre": 53,
+      "larghezzaBarraPx": 10,
+      "legenda": [
+        "Max streak verdi 14·Media 2,2 giorni di fila",
+        "Max streak rossi 8·Media 2,0 giorni di fila"
+      ],
+      "testiSotto11px": 0,
+      "contrastiSotto45": 0
+    },
+    "cumulativo": {
+      "preset": "1a",
+      "didascalia": "07/01/2025 – 05/01/2026 · 221 giornate con trade",
+      "testiSotto11px": 0,
+      "contrastiSotto45": 0
+    },
+    "sequenza": {
+      "legenda": [
+        "Max Win Streak 6·Media 2,1 trade di fila",
+        "Max Loss Streak 8·Media 2,0 trade di fila"
+      ],
+      "testiSotto11px": 0,
+      "contrastiSotto45": 0
+    }
+  },
+  {
+    "tag": "1440__light",
+    "stato": "maniglia stirata",
+    "giornaliero": {
+      "preset": null,
+      "didascalia": "24/06/2025 – 04/11/2025 · 88 giornate con trade",
+      "barre": 88,
+      "larghezzaBarraPx": 6,
+      "legenda": [
+        "Max streak verdi 14·Media 2,2 giorni di fila",
+        "Max streak rossi 8·Media 2,0 giorni di fila"
+      ],
+      "testiSotto11px": 0,
+      "contrastiSotto45": 0
+    },
+    "cumulativo": {
+      "preset": "1a",
+      "didascalia": "07/01/2025 – 05/01/2026 · 221 giornate con trade",
+      "testiSotto11px": 0,
+      "contrastiSotto45": 0
+    },
+    "sequenza": {
+      "legenda": [
+        "Max Win Streak 6·Media 2,1 trade di fila",
+        "Max Loss Streak 8·Media 2,0 trade di fila"
+      ],
+      "testiSotto11px": 0,
+      "contrastiSotto45": 0
+    }
+  },
+  {
+    "tag": "1440__light",
+    "stato": "Tutto",
+    "giornaliero": {
+      "preset": "Tutto",
+      "didascalia": "06/01/2025 – 27/07/2026 · 344 giornate con trade",
+      "barre": 343,
+      "larghezzaBarraPx": 2,
+      "legenda": [
+        "Max streak verdi 14·Media 2,2 giorni di fila",
+        "Max streak rossi 8·Media 2,0 giorni di fila"
+      ],
+      "testiSotto11px": 0,
+      "contrastiSotto45": 0
+    },
+    "cumulativo": {
+      "preset": "Tutto",
+      "didascalia": "06/01/2025 – 27/07/2026 · 344 giornate con trade",
+      "testiSotto11px": 0,
+      "contrastiSotto45": 0
+    },
+    "sequenza": {
+      "legenda": [
+        "Max Win Streak 6·Media 2,1 trade di fila",
+        "Max Loss Streak 8·Media 2,0 trade di fila"
+      ],
+      "testiSotto11px": 0,
+      "contrastiSotto45": 0
+    }
+  },
+  {
+    "tag": "390__light",
+    "stato": "apertura",
+    "giornaliero": {
+      "preset": "6m",
+      "didascalia": "29/01/2026 – 27/07/2026 · 110 giornate con trade",
+      "barre": 109,
+      "larghezzaBarraPx": 2,
+      "legenda": [
+        "Max streak verdi 14·Media 2,2 giorni di fila",
+        "Max streak rossi 8·Media 2,0 giorni di fila"
+      ],
+      "testiSotto11px": 0,
+      "contrastiSotto45": 0
+    },
+    "cumulativo": {
+      "preset": "6m",
+      "didascalia": "29/01/2026 – 27/07/2026 · 110 giornate con trade",
+      "testiSotto11px": 0,
+      "contrastiSotto45": 0
+    },
+    "sequenza": {
+      "legenda": [
+        "Max Win Streak 6·Media 2,1 trade di fila",
+        "Max Loss Streak 8·Media 2,0 trade di fila"
+      ],
+      "testiSotto11px": 0,
+      "contrastiSotto45": 0
+    }
+  },
+  {
+    "tag": "390__light",
+    "stato": "30g / 1a",
+    "giornaliero": {
+      "preset": "30g",
+      "didascalia": "29/06/2026 – 27/07/2026 · 19 giornate con trade",
+      "barre": 19,
+      "larghezzaBarraPx": 11,
+      "legenda": [
+        "Max streak verdi 14·Media 2,2 giorni di fila",
+        "Max streak rossi 8·Media 2,0 giorni di fila"
+      ],
+      "testiSotto11px": 0,
+      "contrastiSotto45": 0
+    },
+    "cumulativo": {
+      "preset": "1a",
+      "didascalia": "28/07/2025 – 27/07/2026 · 221 giornate con trade",
+      "testiSotto11px": 0,
+      "contrastiSotto45": 0
+    },
+    "sequenza": {
+      "legenda": [
+        "Max Win Streak 6·Media 2,1 trade di fila",
+        "Max Loss Streak 8·Media 2,0 trade di fila"
+      ],
+      "testiSotto11px": 0,
+      "contrastiSotto45": 0
+    }
+  },
+  {
+    "tag": "390__light",
+    "stato": "90g / 1a trascinati indietro",
+    "giornaliero": {
+      "preset": "90g",
+      "didascalia": "11/08/2025 – 24/10/2025 · 53 giornate con trade",
+      "barre": 53,
+      "larghezzaBarraPx": 4,
+      "legenda": [
+        "Max streak verdi 14·Media 2,2 giorni di fila",
+        "Max streak rossi 8·Media 2,0 giorni di fila"
+      ],
+      "testiSotto11px": 0,
+      "contrastiSotto45": 0
+    },
+    "cumulativo": {
+      "preset": "1a",
+      "didascalia": "06/01/2025 – 01/01/2026 · 221 giornate con trade",
+      "testiSotto11px": 0,
+      "contrastiSotto45": 0
+    },
+    "sequenza": {
+      "legenda": [
+        "Max Win Streak 6·Media 2,1 trade di fila",
+        "Max Loss Streak 8·Media 2,0 trade di fila"
+      ],
+      "testiSotto11px": 0,
+      "contrastiSotto45": 0
+    }
+  },
+  {
+    "tag": "1440__dark",
+    "stato": "apertura",
+    "giornaliero": {
+      "preset": "6m",
+      "didascalia": "29/01/2026 – 27/07/2026 · 110 giornate con trade",
+      "barre": 109,
+      "larghezzaBarraPx": 5,
+      "legenda": [
+        "Max streak verdi 14·Media 2,2 giorni di fila",
+        "Max streak rossi 8·Media 2,0 giorni di fila"
+      ],
+      "testiSotto11px": 0,
+      "contrastiSotto45": 0
+    },
+    "cumulativo": {
+      "preset": "6m",
+      "didascalia": "29/01/2026 – 27/07/2026 · 110 giornate con trade",
+      "testiSotto11px": 0,
+      "contrastiSotto45": 0
+    },
+    "sequenza": {
+      "legenda": [
+        "Max Win Streak 6·Media 2,1 trade di fila",
+        "Max Loss Streak 8·Media 2,0 trade di fila"
+      ],
+      "testiSotto11px": 0,
+      "contrastiSotto45": 0
+    }
+  },
+  {
+    "tag": "1440__dark",
+    "stato": "30g / 1a",
+    "giornaliero": {
+      "preset": "30g",
+      "didascalia": "29/06/2026 – 27/07/2026 · 19 giornate con trade",
+      "barre": 19,
+      "larghezzaBarraPx": 28,
+      "legenda": [
+        "Max streak verdi 14·Media 2,2 giorni di fila",
+        "Max streak rossi 8·Media 2,0 giorni di fila"
+      ],
+      "testiSotto11px": 0,
+      "contrastiSotto45": 0
+    },
+    "cumulativo": {
+      "preset": "1a",
+      "didascalia": "28/07/2025 – 27/07/2026 · 221 giornate con trade",
+      "testiSotto11px": 0,
+      "contrastiSotto45": 0
+    },
+    "sequenza": {
+      "legenda": [
+        "Max Win Streak 6·Media 2,1 trade di fila",
+        "Max Loss Streak 8·Media 2,0 trade di fila"
+      ],
+      "testiSotto11px": 0,
+      "contrastiSotto45": 0
+    }
+  },
+  {
+    "tag": "1440__dark",
+    "stato": "90g / 1a trascinati indietro",
+    "giornaliero": {
+      "preset": "90g",
+      "didascalia": "15/08/2025 – 04/11/2025 · 53 giornate con trade",
+      "barre": 53,
+      "larghezzaBarraPx": 10,
+      "legenda": [
+        "Max streak verdi 14·Media 2,2 giorni di fila",
+        "Max streak rossi 8·Media 2,0 giorni di fila"
+      ],
+      "testiSotto11px": 0,
+      "contrastiSotto45": 0
+    },
+    "cumulativo": {
+      "preset": "1a",
+      "didascalia": "07/01/2025 – 05/01/2026 · 221 giornate con trade",
+      "testiSotto11px": 0,
+      "contrastiSotto45": 0
+    },
+    "sequenza": {
+      "legenda": [
+        "Max Win Streak 6·Media 2,1 trade di fila",
+        "Max Loss Streak 8·Media 2,0 trade di fila"
+      ],
+      "testiSotto11px": 0,
+      "contrastiSotto45": 0
+    }
+  },
+  {
+    "tag": "390__dark",
+    "stato": "apertura",
+    "giornaliero": {
+      "preset": "6m",
+      "didascalia": "29/01/2026 – 27/07/2026 · 110 giornate con trade",
+      "barre": 109,
+      "larghezzaBarraPx": 2,
+      "legenda": [
+        "Max streak verdi 14·Media 2,2 giorni di fila",
+        "Max streak rossi 8·Media 2,0 giorni di fila"
+      ],
+      "testiSotto11px": 0,
+      "contrastiSotto45": 0
+    },
+    "cumulativo": {
+      "preset": "6m",
+      "didascalia": "29/01/2026 – 27/07/2026 · 110 giornate con trade",
+      "testiSotto11px": 0,
+      "contrastiSotto45": 0
+    },
+    "sequenza": {
+      "legenda": [
+        "Max Win Streak 6·Media 2,1 trade di fila",
+        "Max Loss Streak 8·Media 2,0 trade di fila"
+      ],
+      "testiSotto11px": 0,
+      "contrastiSotto45": 0
+    }
+  },
+  {
+    "tag": "390__dark",
+    "stato": "30g / 1a",
+    "giornaliero": {
+      "preset": "30g",
+      "didascalia": "29/06/2026 – 27/07/2026 · 19 giornate con trade",
+      "barre": 19,
+      "larghezzaBarraPx": 11,
+      "legenda": [
+        "Max streak verdi 14·Media 2,2 giorni di fila",
+        "Max streak rossi 8·Media 2,0 giorni di fila"
+      ],
+      "testiSotto11px": 0,
+      "contrastiSotto45": 0
+    },
+    "cumulativo": {
+      "preset": "1a",
+      "didascalia": "28/07/2025 – 27/07/2026 · 221 giornate con trade",
+      "testiSotto11px": 0,
+      "contrastiSotto45": 0
+    },
+    "sequenza": {
+      "legenda": [
+        "Max Win Streak 6·Media 2,1 trade di fila",
+        "Max Loss Streak 8·Media 2,0 trade di fila"
+      ],
+      "testiSotto11px": 0,
+      "contrastiSotto45": 0
+    }
+  },
+  {
+    "tag": "390__dark",
+    "stato": "90g / 1a trascinati indietro",
+    "giornaliero": {
+      "preset": "90g",
+      "didascalia": "11/08/2025 – 24/10/2025 · 53 giornate con trade",
+      "barre": 53,
+      "larghezzaBarraPx": 4,
+      "legenda": [
+        "Max streak verdi 14·Media 2,2 giorni di fila",
+        "Max streak rossi 8·Media 2,0 giorni di fila"
+      ],
+      "testiSotto11px": 0,
+      "contrastiSotto45": 0
+    },
+    "cumulativo": {
+      "preset": "1a",
+      "didascalia": "06/01/2025 – 01/01/2026 · 221 giornate con trade",
+      "testiSotto11px": 0,
+      "contrastiSotto45": 0
+    },
+    "sequenza": {
+      "legenda": [
+        "Max Win Streak 6·Media 2,1 trade di fila",
+        "Max Loss Streak 8·Media 2,0 trade di fila"
+      ],
+      "testiSotto11px": 0,
+      "contrastiSotto45": 0
+    }
+  }
+]

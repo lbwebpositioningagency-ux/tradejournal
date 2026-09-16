@@ -120,10 +120,14 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
+  ChartWindowCaption,
   CumulativePnlChart,
   DailyPnlChart,
   type ChartPoint,
 } from "./pnl-charts";
+import { useChartWindow } from "@/components/charts/use-chart-window";
+import { formatNumber } from "@/lib/format-number";
+import { WINDOW_PRESETS, type WindowPreset } from "@/lib/chart-window";
 import { ScoreRadar } from "./score-radar";
 import { OnboardingHero } from "./onboarding-hero";
 import { CALENDAR_ANCHOR } from "@/lib/calendar";
@@ -427,6 +431,76 @@ function StreakBadge({
   );
 }
 
+/**
+ * Streak nella testata dei grafici a barre: una riga per segno, massimo e
+ * media. Le due cifre non devono potersi scambiare: il massimo è un numero
+ * nudo, la media porta sempre il decimale, l'unità e «di fila» — è la
+ * lunghezza tipica di una serie, non un record (tavola CD «Dashboard - P&L
+ * giornaliero e cumulativo a finestra», 1b). Valori già calcolati da
+ * streakSummary / dayStreakSummary: qui nessun conto.
+ */
+function StreakLegend({
+  runs,
+  unit,
+  winLabel,
+  lossLabel,
+}: {
+  runs: StreakSummary;
+  unit: "giorni" | "trade";
+  winLabel: string;
+  lossLabel: string;
+}) {
+  const rows = [
+    { label: winLabel, max: runs.maxWin, avg: runs.avgWin, tone: "text-profit" },
+    { label: lossLabel, max: runs.maxLoss, avg: runs.avgLoss, tone: "text-loss" },
+  ];
+  return (
+    <div className="flex flex-col gap-0.5 text-xs tabular-nums text-muted-foreground">
+      {rows.map((row) => (
+        <p key={row.label} className="flex flex-wrap items-center gap-x-1.5">
+          <span>
+            {row.label}{" "}
+            <span className={cn("font-semibold", row.tone)}>{row.max}</span>
+          </span>
+          <span aria-hidden>·</span>
+          <span>
+            Media{" "}
+            {/* Sempre un decimale («2,0», non «2»): è il segno che distingue
+                la media dal massimo, che è un intero. Number solo per il display. */}
+            <span className={cn("font-semibold", row.tone)}>
+              {row.avg !== null ? formatNumber(Number(row.avg), { decimals: 1 }) : "—"}
+            </span>
+            {row.avg !== null ? ` ${unit} di fila` : ""}
+          </span>
+          <MetricInfo info={avgStreakInfo} size="sm" />
+        </p>
+      ))}
+    </div>
+  );
+}
+
+/** Preset della finestra scorrevole: il segmentato condiviso, a pulsanti. */
+function WindowPresets({
+  label,
+  value,
+  onChange,
+}: {
+  label: string;
+  value: WindowPreset | null;
+  onChange: (preset: WindowPreset) => void;
+}) {
+  return (
+    <SegmentedControl
+      label={label}
+      options={WINDOW_PRESETS}
+      value={value}
+      onValueChange={(next) => {
+        if (next) onChange(next);
+      }}
+    />
+  );
+}
+
 export function DashboardView({
   data,
   calendar,
@@ -534,6 +608,12 @@ export function DashboardView({
     }
     return { points, suffix };
   }, [data.daily, data.baseBalance, data.currency, view, percentBaseMissing]);
+
+  // Finestre scorrevoli dei due grafici giornalieri: indipendenti, stessi
+  // preset. Stanno qui (prima di ogni return) perché sono hook.
+  const chartDays = useMemo(() => chart.points.map((p) => p.day), [chart.points]);
+  const dailyWindow = useChartWindow(chartDays);
+  const cumulativeWindow = useChartWindow(chartDays);
 
   function toggleWidget(id: WidgetId) {
     const next = hidden.includes(id)
@@ -1122,20 +1202,12 @@ export function DashboardView({
                 Sequenza trade
                 <MetricInfo info={streaksInfo} />
               </CardTitle>
-              <div className="flex items-center gap-4 text-xs text-muted-foreground">
-                <span>
-                  Max Win Streak{" "}
-                  <span className="font-semibold text-profit">
-                    {data.tradeRuns.maxWin}
-                  </span>
-                </span>
-                <span>
-                  Max Loss Streak{" "}
-                  <span className="font-semibold text-loss">
-                    {data.tradeRuns.maxLoss}
-                  </span>
-                </span>
-              </div>
+              <StreakLegend
+                runs={data.tradeRuns}
+                unit="trade"
+                winLabel="Max Win Streak"
+                lossLabel="Max Loss Streak"
+              />
             </CardHeader>
             <CardContent>
               {data.sequence.length > 0 ? (
@@ -1424,20 +1496,31 @@ export function DashboardView({
       {show("cumulative") ? (
         <div className={cn("grid gap-4 max-lg:order-12", analyticsCls)}>
           <Card>
-            <CardHeader>
+            <CardHeader className="flex flex-row flex-wrap items-center gap-x-3 gap-y-2">
               <CardTitle className="stat-label">P&L cumulativo</CardTitle>
+              {chart.points.length > 0 ? (
+                <WindowPresets
+                  label="Finestra del P&L cumulativo"
+                  value={cumulativeWindow.preset}
+                  onChange={cumulativeWindow.setPreset}
+                />
+              ) : null}
             </CardHeader>
             <CardContent>
               {chart.points.length > 0 ? (
                 /* Altezza doppia: qui il grafico è il contenuto principale
                    della riga, e lo zoom ha bisogno di spazio verticale per
                    servire a qualcosa. */
-                <CumulativePnlChart
-                  points={chart.points}
-                  masked={masked}
-                  suffix={chart.suffix}
-                  height={CHART.height * 2}
-                />
+                <>
+                  <CumulativePnlChart
+                    points={chart.points}
+                    masked={masked}
+                    suffix={chart.suffix}
+                    height={CHART.height * 2}
+                    chartWindow={cumulativeWindow}
+                  />
+                  <ChartWindowCaption days={chartDays} chartWindow={cumulativeWindow} />
+                </>
               ) : (
                 <EmptyState
                   compact
@@ -1455,16 +1538,40 @@ export function DashboardView({
       <div className="grid gap-4 max-lg:order-5 lg:grid-cols-3">
         {show("daily-pnl") ? (
           <Card className="lg:col-span-2">
-            <CardHeader>
-              <CardTitle className="stat-label">P&L giornaliero</CardTitle>
+            <CardHeader className="flex flex-row flex-wrap items-center justify-between gap-x-4 gap-y-2">
+              <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
+                <CardTitle className="stat-label flex items-center gap-1">
+                  P&L giornaliero
+                  <MetricInfo info={streaksInfo} />
+                </CardTitle>
+                {chart.points.length > 0 ? (
+                  <WindowPresets
+                    label="Finestra del P&L giornaliero"
+                    value={dailyWindow.preset}
+                    onChange={dailyWindow.setPreset}
+                  />
+                ) : null}
+              </div>
+              {chart.points.length > 0 ? (
+                <StreakLegend
+                  runs={dayRunsData}
+                  unit="giorni"
+                  winLabel="Max streak verdi"
+                  lossLabel="Max streak rossi"
+                />
+              ) : null}
             </CardHeader>
             <CardContent>
               {chart.points.length > 0 ? (
-                <DailyPnlChart
-                  points={chart.points}
-                  masked={masked}
-                  suffix={chart.suffix}
-                />
+                <>
+                  <DailyPnlChart
+                    points={chart.points}
+                    masked={masked}
+                    suffix={chart.suffix}
+                    chartWindow={dailyWindow}
+                  />
+                  <ChartWindowCaption days={chartDays} chartWindow={dailyWindow} />
+                </>
               ) : (
                 <EmptyState
                   compact

@@ -3695,3 +3695,36 @@ Schermate a 1440 e 390 nei due temi, Day e Week: 0 testi < 11px, 0 contrasti sot
 sbordi. Gate: typecheck, lint, 2.409 test, build verdi (due giri precedenti con timeout degli hook
 di integrazione su Postgres locale, verdi in serie e al giro successivo). Schermate in
 `docs/day-view/schermate/`.
+
+## Dashboard: P&L giornaliero e cumulativo a finestra scorrevole, streak medie in testata (16/09/2026)
+
+**Problema**: su SIM1 «P&L giornaliero» metteva 344 giornate con trade in ~740px (2px a barra) e il
+cumulativo aveva lo stesso affollamento.
+
+**Finestra scorrevole** su entrambi i grafici: mostra una finestra di ampiezza fissa, preset
+`30g · 90g · 6m · 1a · Tutto` col `SegmentedControl` condiviso accanto al titolo (apertura su **6m**,
+cioè 110 giornate su SIM1), e sotto il disegno la striscia `ZoomBrush` già usata da Stagionalità e
+rolling, riusata senza modifiche. Niente date picker. I preset sono giorni di calendario contati
+all'indietro dall'ultima giornata e diventano un'ampiezza in barre (`lib/chart-window.ts`, testato):
+trascinando la striscia la finestra scorre ad ampiezza fissa e il preset resta acceso; stirando una
+maniglia il preset si spegne. Didascalia sotto la striscia con date complete e numero di giornate
+(l'asse porta solo gg/mm). Barre con `maxBarSize` 28. Il cumulativo resta la curva dell'intero
+periodo: la finestra ne sceglie solo il tratto, e lì nessuna streak. Le due finestre sono
+indipendenti (`components/charts/use-chart-window.ts`).
+Due trappole di Recharts 3 risolte: i dati del grafico vanno memoizzati (a ogni nuova identità la
+striscia riportava la selezione all'indice intero: il trascinamento avanzava a scatti), e quando i
+dati cambiano Recharts azzera l'indice di inizio in un effetto del contenitore, dopo la striscia: la
+striscia si rimonta in un effetto successivo (a 390 l'apertura mostrava 343 barre con «6m» acceso).
+
+**Streak**: nessun calcolo nuovo. `dayStreakSummary`/`streakSummary` davano già massimo e lunghezza
+media delle serie separati per segno (`data.dayRuns`, `dayRunsR`, `tradeRuns`), visibili solo in
+Best/Worst Days e Winners & Losers. Ora in testata a «P&L giornaliero» («Max streak verdi 14 · Media
+2,2 giorni di fila», idem rossi) e a «Sequenza trade» («Max Win Streak 6 · Media 2,1 trade di fila»).
+La media ha sempre un decimale, l'unità e «di fila», più la «i» di `avgStreakInfo`: non si legge come
+un record. Streak del periodo, non della finestra. Disposizione nella tavola Claude Design «Dashboard
+- P&L giornaliero e cumulativo a finestra» (scelta 1b).
+
+Misure (build locale, SIM1, 1440 e 390, due temi, stati apertura / 30g e 1a / 90g e 1a trascinati
+indietro / maniglia / Tutto): 0 testi < 11px e 0 contrasti < 4,5:1 nelle tre card, testi SVG
+compresi; nessuno sbordo, nessun errore in console. Nessuna migrazione. Schermate e misure in
+`docs/dashboard/grafici-finestra/`.
