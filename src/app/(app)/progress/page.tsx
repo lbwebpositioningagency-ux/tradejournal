@@ -32,6 +32,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { DisciplineHeatmap } from "@/components/progress/discipline-heatmap";
 import { RulesTable } from "@/components/progress/rules-table";
+import { BehaviorReturns } from "@/components/progress/behavior-returns";
 import { ProgressNav } from "./progress-nav";
 
 export const metadata: Metadata = { title: "Progress Tracker" };
@@ -226,6 +227,8 @@ export default async function ProgressPage({
               </p>
             </CardContent>
           </Card>
+
+          <BehaviorReturns isDemo={tradeScope.isDemo} evaluations={periodDays} rules={rules} currency={currency} />
         </>
       )}
     </div>
