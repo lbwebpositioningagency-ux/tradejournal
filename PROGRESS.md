@@ -3666,3 +3666,32 @@ Verifica nel browser (build locale): creazione, salvataggio, immagine caricata e
 ricerca, ordine, eliminazione, 404 — 0 errori in console. Schermate a 1440 e 390 nei due temi di
 elenco, editor e nota vuota: 0 testi < 11px, 0 contrasti sotto soglia, 0 sbordi. Gate dopo il
 rebase su 5990936: typecheck, lint, 2.399 test, build verdi. Schermate in `docs/notebook/schermate/`.
+
+## 16/09/2026 · Journal — Day View: elenco cronologico dei giorni e delle settimane
+
+Pagina nuova `/day-view`, voce «Day View» nella barra laterale fra Trade View e Notebook (il
+calendario del mese ora vive in Dashboard, 9dc4b37: la voce sta con le altre del journal).
+Disposizione dalla tavola «Journal - Notebook e Day View, disposizione», riquadro 2.
+
+- **Segmentato Day | Week** in testata (`?modo=week`), accanto al selettore di valuta
+  `CurrencyFilter` quando le valute sono più d'una; il conto è quello di `AccountSwitcher`.
+- **Day**: i giorni con almeno un trade chiuso o una nota di giornata (stessa regola dell'icona
+  del calendario), dal più recente; data, trade, «journal scritto», Net P&L del giorno e «Vedi
+  nota» → `/day/AAAA-MM-GG`. Un giorno con solo journal mostra «—», non zero.
+- **Week**: stessa riga per settimana ISO («Settimana 7–13 settembre 2026»), Net P&L settimanale,
+  giorni con journal contati nel loro lunedì. **Pagina Settimana del journal non pubblicata**
+  (verificato su origin/main: `/reports/settimana` è il Report periodico): le righe non hanno
+  link e la pagina lo dichiara; `weekPageHref()` in `src/lib/day-view.ts` è il punto unico da
+  attivare quando esisterà.
+- **Nessun calcolo nuovo**: Net P&L da `getDailyPnl` e da `getPeriodPnl(…, "week")`; in JS solo
+  l'unione delle chiavi e l'ordine (`buildDayViewRows`, 10 test). Paginazione a 20 con
+  `components/pagination.tsx` della fase Notebook.
+- Nessuna migrazione, nessuna tabella del journal toccata.
+
+Verifica nel browser (build locale, utente demo, due note di giornata scritte dall'app sul DB
+locale): unione e ordine, giorno senza trade, «Vedi nota», pagina oltre la fine → ultima, Week con
+journal nel lunedì, cambio valuta che conserva il modo e azzera la pagina — 0 errori in console.
+Schermate a 1440 e 390 nei due temi, Day e Week: 0 testi < 11px, 0 contrasti sotto soglia, 0
+sbordi. Gate: typecheck, lint, 2.409 test, build verdi (due giri precedenti con timeout degli hook
+di integrazione su Postgres locale, verdi in serie e al giro successivo). Schermate in
+`docs/day-view/schermate/`.

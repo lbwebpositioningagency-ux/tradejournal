@@ -10,6 +10,7 @@ import {
   LayoutDashboard,
   Menu,
   NotebookPen,
+  Rows3,
   Settings,
   Table2,
   Target,
@@ -32,6 +33,7 @@ import {
 const NAV_ITEMS = [
   { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
   { href: "/trades", label: "Trade View", icon: Table2 },
+  { href: "/day-view", label: "Day View", icon: Rows3 },
   { href: "/notebook", label: "Notebook", icon: NotebookPen },
   { href: "/reports", label: "Reports", icon: BarChart3 },
   { href: "/analytics", label: "Analytics", icon: ChartScatter },

@@ -1,0 +1,162 @@
+[
+  {
+    "pagina": "/day-view",
+    "larghezza": 1440,
+    "tema": "dark",
+    "file": "day-view__1440__dark.png",
+    "h1": "Day View",
+    "altezza": 1517,
+    "innerWidth": 1440,
+    "scrollWidth": 1440,
+    "sbordi": [],
+    "sotto12": 1,
+    "piccoli": 0,
+    "esempiPiccoli": [],
+    "bassoContrasto": 0,
+    "esempiBassi": [],
+    "famiglie": [
+      "Geist"
+    ],
+    "erroriConsole": []
+  },
+  {
+    "pagina": "/day-view?modo=week",
+    "larghezza": 1440,
+    "tema": "dark",
+    "file": "day-view_modo_week__1440__dark.png",
+    "h1": "Day View",
+    "altezza": 1200,
+    "innerWidth": 1440,
+    "scrollWidth": 1440,
+    "sbordi": [],
+    "sotto12": 1,
+    "piccoli": 0,
+    "esempiPiccoli": [],
+    "bassoContrasto": 0,
+    "esempiBassi": [],
+    "famiglie": [
+      "Geist"
+    ],
+    "erroriConsole": []
+  },
+  {
+    "pagina": "/day-view",
+    "larghezza": 390,
+    "tema": "dark",
+    "file": "day-view__390__dark.png",
+    "h1": "Day View",
+    "altezza": 2267,
+    "innerWidth": 390,
+    "scrollWidth": 390,
+    "sbordi": [],
+    "sotto12": 0,
+    "piccoli": 0,
+    "esempiPiccoli": [],
+    "bassoContrasto": 0,
+    "esempiBassi": [],
+    "famiglie": [
+      "Geist"
+    ],
+    "erroriConsole": []
+  },
+  {
+    "pagina": "/day-view?modo=week",
+    "larghezza": 390,
+    "tema": "dark",
+    "file": "day-view_modo_week__390__dark.png",
+    "h1": "Day View",
+    "altezza": 1670,
+    "innerWidth": 390,
+    "scrollWidth": 390,
+    "sbordi": [],
+    "sotto12": 0,
+    "piccoli": 0,
+    "esempiPiccoli": [],
+    "bassoContrasto": 0,
+    "esempiBassi": [],
+    "famiglie": [
+      "Geist"
+    ],
+    "erroriConsole": []
+  },
+  {
+    "pagina": "/day-view",
+    "larghezza": 1440,
+    "tema": "light",
+    "file": "day-view__1440__light.png",
+    "h1": "Day View",
+    "altezza": 1517,
+    "innerWidth": 1440,
+    "scrollWidth": 1440,
+    "sbordi": [],
+    "sotto12": 1,
+    "piccoli": 0,
+    "esempiPiccoli": [],
+    "bassoContrasto": 0,
+    "esempiBassi": [],
+    "famiglie": [
+      "Geist"
+    ],
+    "erroriConsole": []
+  },
+  {
+    "pagina": "/day-view?modo=week",
+    "larghezza": 1440,
+    "tema": "light",
+    "file": "day-view_modo_week__1440__light.png",
+    "h1": "Day View",
+    "altezza": 1200,
+    "innerWidth": 1440,
+    "scrollWidth": 1440,
+    "sbordi": [],
+    "sotto12": 1,
+    "piccoli": 0,
+    "esempiPiccoli": [],
+    "bassoContrasto": 0,
+    "esempiBassi": [],
+    "famiglie": [
+      "Geist"
+    ],
+    "erroriConsole": []
+  },
+  {
+    "pagina": "/day-view",
+    "larghezza": 390,
+    "tema": "light",
+    "file": "day-view__390__light.png",
+    "h1": "Day View",
+    "altezza": 2267,
+    "innerWidth": 390,
+    "scrollWidth": 390,
+    "sbordi": [],
+    "sotto12": 0,
+    "piccoli": 0,
+    "esempiPiccoli": [],
+    "bassoContrasto": 0,
+    "esempiBassi": [],
+    "famiglie": [
+      "Geist"
+    ],
+    "erroriConsole": []
+  },
+  {
+    "pagina": "/day-view?modo=week",
+    "larghezza": 390,
+    "tema": "light",
+    "file": "day-view_modo_week__390__light.png",
+    "h1": "Day View",
+    "altezza": 1670,
+    "innerWidth": 390,
+    "scrollWidth": 390,
+    "sbordi": [],
+    "sotto12": 0,
+    "piccoli": 0,
+    "esempiPiccoli": [],
+    "bassoContrasto": 0,
+    "esempiBassi": [],
+    "famiglie": [
+      "Geist"
+    ],
+    "erroriConsole": []
+  }
+]
