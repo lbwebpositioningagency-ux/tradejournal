@@ -446,6 +446,39 @@ describe("mappe a intensità — tinte in gamut, testo AA su ogni gradino", () =
 });
 
 /**
+ * PROGRESS TRACKER — scala della DISCIPLINA (`--heat-rule-{1,2,3}`): ardesia a
+ * croma bassa, indipendente dalle coppie P&L. Stesse tre verifiche delle
+ * mappe P&L: gamut, testo heat-* AA su ogni gradino, gradini ordinati.
+ */
+describe("heatmap della disciplina — tinte in gamut, testo AA su ogni gradino", () => {
+  for (const [mode, base] of [["light", light], ["dark", dark]] as const) {
+    const tinte = [1, 2, 3].map((n) => [`heat-rule-${n}`, base.get(`heat-rule-${n}`)!] as const);
+
+    it.each(tinte)(`${mode}: %s dichiarata e nel gamut sRGB`, (nome, colore) => {
+      expect(colore, `--${nome} in ${mode}`).toBeDefined();
+      expect(outOfGamut(...colore), `${nome} ${hex(...colore)} clampato`).toBe(false);
+    });
+
+    it.each(tinte)(`${mode}: cifra e testo secondario reggono AA su %s`, (nome, colore) => {
+      for (const testo of ["heat-foreground", "heat-muted"]) {
+        const ratio = contrast(base.get(testo)!, colore);
+        expect(ratio, `--${testo} su ${nome} = ${ratio.toFixed(2)}:1`).toBeGreaterThanOrEqual(4.5);
+      }
+    });
+
+    it(`${mode}: i tre gradini si allontanano dalla card`, () => {
+      const distanze = tinte.map(([, c]) => Math.abs(c[0] - base.get("card")![0]));
+      expect(distanze[1]).toBeGreaterThan(distanze[0]);
+      expect(distanze[2]).toBeGreaterThan(distanze[1]);
+    });
+  }
+
+  it("la scala della disciplina è anche nel blocco di stampa", () => {
+    expect(PRINT_MEDIA).toMatch(/--heat-rule-3:/);
+  });
+});
+
+/**
  * F4 — SUPERFICI TINTE: il contrasto va ricontrollato dove il fondo NON è
  * la card ma la card più una velatura del colore stesso.
  *

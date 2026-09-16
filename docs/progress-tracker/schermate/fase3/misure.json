@@ -1,0 +1,158 @@
+[
+  {
+    "pagina": "/progress?period=all",
+    "larghezza": 1440,
+    "tema": "dark",
+    "file": "progress_period_all__1440__dark.png",
+    "altezza": 1265,
+    "innerWidth": 1440,
+    "scrollWidth": 1440,
+    "sbordi": 0,
+    "heatmap": {
+      "top": 510,
+      "h": 372,
+      "w": 1136
+    },
+    "titoli": [
+      "Giornate @472",
+      "Regole correnti @938"
+    ],
+    "piccoli": [],
+    "bassi": [],
+    "bassiCal": [],
+    "erroriConsole": []
+  },
+  {
+    "pagina": "/progress/regole",
+    "larghezza": 1440,
+    "tema": "dark",
+    "file": "progress_regole__1440__dark.png",
+    "altezza": 4508,
+    "innerWidth": 1440,
+    "scrollWidth": 1440,
+    "sbordi": 0,
+    "heatmap": null,
+    "titoli": [],
+    "piccoli": [],
+    "bassi": [],
+    "bassiCal": [],
+    "erroriConsole": []
+  },
+  {
+    "pagina": "/progress?period=all",
+    "larghezza": 390,
+    "tema": "dark",
+    "file": "progress_period_all__390__dark.png",
+    "altezza": 2357,
+    "innerWidth": 390,
+    "scrollWidth": 390,
+    "sbordi": 55,
+    "heatmap": {
+      "top": 850,
+      "h": 1060,
+      "w": 326
+    },
+    "titoli": [
+      "Giornate @812",
+      "Regole correnti @1966"
+    ],
+    "piccoli": [],
+    "bassi": [],
+    "bassiCal": [],
+    "erroriConsole": []
+  },
+  {
+    "pagina": "/progress/regole",
+    "larghezza": 390,
+    "tema": "dark",
+    "file": "progress_regole__390__dark.png",
+    "altezza": 6684,
+    "innerWidth": 390,
+    "scrollWidth": 390,
+    "sbordi": 0,
+    "heatmap": null,
+    "titoli": [],
+    "piccoli": [],
+    "bassi": [],
+    "bassiCal": [],
+    "erroriConsole": []
+  },
+  {
+    "pagina": "/progress?period=all",
+    "larghezza": 1440,
+    "tema": "light",
+    "file": "progress_period_all__1440__light.png",
+    "altezza": 1265,
+    "innerWidth": 1440,
+    "scrollWidth": 1440,
+    "sbordi": 0,
+    "heatmap": {
+      "top": 510,
+      "h": 372,
+      "w": 1136
+    },
+    "titoli": [
+      "Giornate @472",
+      "Regole correnti @938"
+    ],
+    "piccoli": [],
+    "bassi": [],
+    "bassiCal": [],
+    "erroriConsole": []
+  },
+  {
+    "pagina": "/progress/regole",
+    "larghezza": 1440,
+    "tema": "light",
+    "file": "progress_regole__1440__light.png",
+    "altezza": 4508,
+    "innerWidth": 1440,
+    "scrollWidth": 1440,
+    "sbordi": 0,
+    "heatmap": null,
+    "titoli": [],
+    "piccoli": [],
+    "bassi": [],
+    "bassiCal": [],
+    "erroriConsole": []
+  },
+  {
+    "pagina": "/progress?period=all",
+    "larghezza": 390,
+    "tema": "light",
+    "file": "progress_period_all__390__light.png",
+    "altezza": 2357,
+    "innerWidth": 390,
+    "scrollWidth": 390,
+    "sbordi": 55,
+    "heatmap": {
+      "top": 850,
+      "h": 1060,
+      "w": 326
+    },
+    "titoli": [
+      "Giornate @812",
+      "Regole correnti @1966"
+    ],
+    "piccoli": [],
+    "bassi": [],
+    "bassiCal": [],
+    "erroriConsole": []
+  },
+  {
+    "pagina": "/progress/regole",
+    "larghezza": 390,
+    "tema": "light",
+    "file": "progress_regole__390__light.png",
+    "altezza": 6684,
+    "innerWidth": 390,
+    "scrollWidth": 390,
+    "sbordi": 0,
+    "heatmap": null,
+    "titoli": [],
+    "piccoli": [],
+    "bassi": [],
+    "bassiCal": [],
+    "erroriConsole": []
+  }
+]

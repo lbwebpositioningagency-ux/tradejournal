@@ -80,6 +80,9 @@
   --color-heat-loss-3: var(--heat-loss-3);
   --color-heat-foreground: var(--heat-foreground);
   --color-heat-muted: var(--heat-muted);
+  --color-heat-rule-1: var(--heat-rule-1);
+  --color-heat-rule-2: var(--heat-rule-2);
+  --color-heat-rule-3: var(--heat-rule-3);
   /* Avvisi non-P&L (es. divergenze sync): ambra AA come testo in entrambi i modi */
   --color-warning: var(--warning);
   /* Micro-testo a scala (11px): unico taglio sotto text-xs */
@@ -155,6 +158,13 @@
   /* Numero del giorno, etichetta del mese, conteggio trade: il muted del tema
      sulla tinta più forte valeva 2.99 (misurato), questo vale 4.68. */
   --heat-muted: oklch(0.345 0.02 264);
+  /* Progress Tracker — scala della DISCIPLINA (tavola «Progress Tracker -
+     disposizione e heatmap» in Claude Design): ardesia, tonalità 255 a croma
+     bassa, perché verde e rosso sono del P&L e blu e viola delle coppie P&L
+     alternative. Stesse luminosità delle tinte P&L, stesso testo heat-*. */
+  --heat-rule-1: oklch(0.93 0.018 255);
+  --heat-rule-2: oklch(0.85 0.03 255);
+  --heat-rule-3: oklch(0.75 0.045 255);
   /* Testo di avviso (ambra) AA su bg e card: 4.58 · 4.75 (solver) */
   --warning: oklch(0.565 0.133 60);
   /* Sistema v2 (14/09/2026, tavola «Sistema visivo v2» in Claude Design):
@@ -249,6 +259,9 @@
   --heat-loss-3: oklch(0.49 0.175 26); /* cifra 6.38 · secondario 5.36 */
   --heat-foreground: oklch(0.975 0.004 264); /* = foreground */
   --heat-muted: oklch(0.918 0.02 264); /* il muted del tema valeva 3.81 */
+  --heat-rule-1: oklch(0.3 0.025 255);
+  --heat-rule-2: oklch(0.39 0.035 255);
+  --heat-rule-3: oklch(0.48 0.045 255);
   /* Ambra IN GAMUT più vicina all'amber-400 usata prima (che era clampata):
      11.57 su bg · 10.50 su card (solver) */
   --warning: oklch(0.83 0.17 84);
@@ -715,6 +728,9 @@
     --heat-loss-3: oklch(0.74 0.158 26);
     --heat-foreground: oklch(0.16 0.014 264);
     --heat-muted: oklch(0.345 0.02 264);
+    --heat-rule-1: oklch(0.93 0.018 255);
+    --heat-rule-2: oklch(0.85 0.03 255);
+    --heat-rule-3: oklch(0.75 0.045 255);
     --warning: oklch(0.565 0.133 60);
      --foreground-2: oklch(0.413 0.029 256);
     --rule: oklch(0.837 0.016 257);
