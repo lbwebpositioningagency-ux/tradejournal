@@ -5,6 +5,7 @@ import {
   BarChart,
   Cell,
   LabelList,
+  ReferenceLine,
   ResponsiveContainer,
   Tooltip,
   XAxis,
@@ -93,6 +94,9 @@ export function TradeSequenceChart({
           itemStyle={CHART.tooltipItemStyle}
           labelStyle={CHART.tooltipLabelStyle}
         />
+        {/* Linea dello zero: riferimento discreto sotto le barre (disegnata
+            prima, quindi dietro), tratteggiata come nei grafici rolling. */}
+        <ReferenceLine y={0} stroke="var(--muted-foreground)" strokeDasharray="4 4" strokeWidth={1} ifOverflow="extendDomain" />
         <Bar dataKey="value" name="Net P&L" radius={CHART.barRadius}
           maxBarSize={28}
           isAnimationActive={animate}

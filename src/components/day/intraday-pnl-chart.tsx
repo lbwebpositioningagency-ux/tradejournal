@@ -8,7 +8,7 @@ import {
   XAxis,
   YAxis,
 } from "recharts";
-import { CHART, pnlChartColor } from "@/components/charts/chart-spec";
+import { CHART, signSplitGradients, zeroSplitOffset } from "@/components/charts/chart-spec";
 import { formatNumber } from "@/lib/format-number";
 
 /**
@@ -43,17 +43,15 @@ export function IntradayPnlChart({
       cumulative: Number(p.cumulative),
     })),
   ];
-  const last = data.at(-1)?.cumulative ?? 0;
-  const color = pnlChartColor(last === 0 ? 1 : last);
+  // Colore secondo il SEGNO lungo la curva, non secondo l'ultimo valore:
+  // verde sopra lo zero, rosso sotto, linea e area.
+  const offset = zeroSplitOffset(data.map((d) => d.cumulative));
 
   return (
     <ResponsiveContainer width="100%" height={CHART.height}>
       <AreaChart data={data} margin={CHART.margin}>
         <defs>
-          <linearGradient id="intraday-fill" x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0%" stopColor={color} stopOpacity={CHART.areaFillFrom} />
-            <stop offset="100%" stopColor={color} stopOpacity={CHART.areaFillTo} />
-          </linearGradient>
+          {signSplitGradients("intraday", offset)}
         </defs>
         <XAxis
           dataKey="time"
@@ -85,7 +83,7 @@ export function IntradayPnlChart({
           type="monotone"
           dataKey="cumulative"
           name="Cumulativo"
-          stroke={color}
+          stroke="url(#intraday-stroke)"
           strokeWidth={CHART.strokeWidth}
           fill="url(#intraday-fill)"
         />

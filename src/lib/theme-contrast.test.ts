@@ -690,9 +690,9 @@ describe("calendario mensile — tre esiti a colore pieno, testo AA", () => {
 });
 
 /**
- * SCHEDA SETTIMANALE del calendario: fondo DEDICATO --viz-week-surface,
- * diverso dalle celle vuote — in scuro più profondo della card (tre livelli:
- * scheda < card < cella vuota), in chiaro un bianco azzurrato. Filo del tema,
+ * SCHEDA SETTIMANALE del calendario: fondo --viz-week-surface derivato dallo
+ * sfondo della pagina (--background al 85% con la card), diverso dalle celle
+ * vuote. Filo del tema,
  * importo #71c6a7 / #dd7271 in scuro, pillola #251b47 col bianco.
  */
 describe("scheda settimanale del calendario — fondo dedicato, AA nei due temi", () => {
@@ -713,29 +713,45 @@ describe("scheda settimanale del calendario — fondo dedicato, AA nei due temi"
     expect(root.get("viz-week-pill-foreground")!.toLowerCase()).toBe("#ffffff");
   });
 
-  it("tre livelli distinti: card, cella vuota, scheda settimanale", () => {
-    const scheda = [oklchHex(root.get("viz-week-surface")!), oklchHex(darkRaw.get("viz-week-surface")!)];
+  // La scheda è lo sfondo della pagina mescolato al 15% con la card (stessa
+  // tinta H 264: in oklab il misto interpola luminosità e croma).
+  const schedaDa = (tokens: Map<string, [number, number, number]>) => {
+    const bg = tokens.get("background")!;
+    const card = tokens.get("card")!;
+    expect(bg[2]).toBeCloseTo(card[2] === 0 ? bg[2] : card[2], 0);
+    return hex(bg[0] * 0.85 + card[0] * 0.15, bg[1] * 0.85 + card[1] * 0.15, bg[2]);
+  };
+
+  it("fondo derivato dallo sfondo della pagina, non un valore nuovo", () => {
+    expect(root.get("viz-week-surface")).toBe("color-mix(in oklab, var(--background) 85%, var(--card))");
+    expect(darkRaw.has("viz-week-surface")).toBe(false);
+  });
+
+  it("scheda riconoscibilmente il blu della pagina, distinta da card e cella vuota", () => {
+    const pagina = [hex(...light.get("background")!), hex(...dark.get("background")!)];
+    const scheda = [schedaDa(light), schedaDa(dark)];
     const vuota = [oklchHex(root.get("viz-day-empty")!), oklchHex(darkRaw.get("viz-day-empty")!)];
     const card = [hex(...light.get("card")!), hex(...dark.get("card")!)];
     for (const t of [0, 1]) {
+      // Vicinissima alla pagina…
+      expect(hexContrast(scheda[t], pagina[t])).toBeLessThan(1.05);
+      // …ma diversa da card e cella vuota.
       expect(new Set([scheda[t], vuota[t], card[t]]).size).toBe(3);
-      for (const [x, y] of [[scheda[t], card[t]], [scheda[t], vuota[t]], [card[t], vuota[t]]]) {
-        const r = hexContrast(x, y);
-        expect(r, `${x} / ${y} = ${r.toFixed(3)}:1`).toBeGreaterThanOrEqual(1.05);
-      }
+      expect(hexContrast(scheda[t], vuota[t])).toBeGreaterThanOrEqual(1.05);
     }
-    // In scuro la scheda sta SOTTO la card, la cella vuota sopra.
+    // In scuro: scheda (quasi pagina) < card < cella vuota.
+    expect(hexContrast(scheda[1], card[1])).toBeGreaterThanOrEqual(1.05);
     expect(hexLuminance(scheda[1])).toBeLessThan(hexLuminance(card[1]));
     expect(hexLuminance(vuota[1])).toBeGreaterThan(hexLuminance(card[1]));
   });
 
   it("importo in utile e in perdita ≥ 4,5:1 sul fondo della scheda, nei due temi", () => {
-    const fondoScuro = oklchHex(darkRaw.get("viz-week-surface")!);
+    const fondoScuro = schedaDa(dark);
     for (const k of ["viz-week-profit", "viz-week-loss"]) {
       const r = hexContrast(darkRaw.get(k)!.toLowerCase(), fondoScuro);
       expect(r, `${k} su ${fondoScuro} = ${r.toFixed(2)}:1`).toBeGreaterThanOrEqual(4.5);
     }
-    const fondoChiaro = oklchHex(root.get("viz-week-surface")!);
+    const fondoChiaro = schedaDa(light);
     for (const k of ["profit", "loss", "foreground"]) {
       const r = hexContrast(hex(...light.get(k)!), fondoChiaro);
       expect(r, `${k} su ${fondoChiaro} = ${r.toFixed(2)}:1`).toBeGreaterThanOrEqual(4.5);

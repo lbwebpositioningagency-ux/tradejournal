@@ -46,6 +46,56 @@ export const CHART = {
   areaFillTo: 0.02,
 } as const;
 
+/**
+ * Punto dello ZERO lungo l'altezza di una curva, come frazione 0-1 dall'alto,
+ * per un gradiente diviso per segno: sopra verde, sotto rosso.
+ *
+ * Il gradiente usa `objectBoundingBox`, cioè il riquadro del tracciato: da
+ * max (0) a min (1). Il riquadro del riempimento coincide perché la curva dei
+ * cumulativi passa sempre per lo zero (punto sintetico iniziale) o, quando la
+ * finestra lo esclude, la base dell'area è il minimo del dominio. Tutto sopra
+ * zero → 1 (tutto verde), tutto sotto → 0 (tutto rosso), piatta → 1.
+ */
+export function zeroSplitOffset(values: readonly number[]): number {
+  const finite = values.filter((v) => Number.isFinite(v));
+  if (finite.length === 0) return 1;
+  const max = Math.max(...finite);
+  const min = Math.min(...finite);
+  if (max <= 0 && min < 0) return 0;
+  if (min >= 0) return 1;
+  return max / (max - min);
+}
+
+/**
+ * Due gradienti verticali divisi sullo zero, da mettere in `<defs>`:
+ * `${id}-stroke` per la linea (verde sopra, rosso sotto, taglio netto) e
+ * `${id}-fill` per l'area (più intensa lontano dallo zero, trasparente sullo
+ * zero, in entrambe le direzioni). Colori della coppia P&L dell'utente.
+ */
+export function signSplitGradients(id: string, offset: number) {
+  const o = `${Math.min(1, Math.max(0, offset)) * 100}%`;
+  const stop = (key: string, offsetAt: string, color: string, opacity: number) =>
+    createElement("stop", { key, offset: offsetAt, stopColor: color, stopOpacity: opacity });
+  return [
+    createElement(
+      "linearGradient",
+      { key: "stroke", id: `${id}-stroke`, x1: "0", y1: "0", x2: "0", y2: "1" },
+      stop("a", "0%", "var(--profit)", 1),
+      stop("b", o, "var(--profit)", 1),
+      stop("c", o, "var(--loss)", 1),
+      stop("d", "100%", "var(--loss)", 1),
+    ),
+    createElement(
+      "linearGradient",
+      { key: "fill", id: `${id}-fill`, x1: "0", y1: "0", x2: "0", y2: "1" },
+      stop("a", "0%", "var(--profit)", CHART.areaFillFrom),
+      stop("b", o, "var(--profit)", CHART.areaFillTo),
+      stop("c", o, "var(--loss)", CHART.areaFillTo),
+      stop("d", "100%", "var(--loss)", CHART.areaFillFrom),
+    ),
+  ];
+}
+
 /** Colore semantico P&L per un valore numerico (solo rendering grafici). */
 export function pnlChartColor(value: number, hasData = true): string {
   if (!hasData) return "var(--muted)";

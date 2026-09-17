@@ -236,10 +236,13 @@
   --viz-day-empty: oklch(0.962 0.008 264);
   /* SCHEDA SETTIMANALE (colonna «Sett.»), campionata dal riferimento: pillola
      dei giorni #251b47 col testo bianco (15,83), uguale nei due temi. Filo del
-     tema. Fondo DEDICATO, diverso dalle celle vuote: in chiaro un bianco appena
-     azzurrato (#f5f9ff), in scuro un blu più profondo della card, verso lo
-     sfondo della pagina. Tre livelli: scheda < card < cella vuota. */
-  --viz-week-surface: oklch(0.982 0.012 264);
+     tema. Fondo = lo SFONDO DELLA PAGINA (--background, stesso blu H 264),
+     spostato del 15% verso la card per staccarsi appena dalla pagina: nessun
+     valore nuovo, solo una variante del token. Dichiarato una volta sola: il
+     var() si risolve sull'elemento radice, che porta anche .dark.
+     Scuro: pagina oklch(0.145 0.012 264) → scheda ≈ oklch(0.154 0.012 264);
+     chiaro: oklch(0.988 0.003 264) → ≈ oklch(0.990 0.003 264). */
+  --viz-week-surface: color-mix(in oklab, var(--background) 85%, var(--card));
   --viz-week-edge: var(--border);
   --viz-week-pill: #251b47;
   --viz-week-pill-foreground: #ffffff;
@@ -353,7 +356,6 @@
   --viz-rule-3: oklch(0.3 0.034 255);
   --viz-rule-edge: oklch(0.5 0.03 255 / 26%);
   --viz-day-empty: oklch(0.264 0.02 264); /* #20252f · 1,17:1 sulla card */
-  --viz-week-surface: oklch(0.16 0.03 264); /* sotto la card, verso la pagina */
   --viz-week-profit: #71c6a7; /* importo in utile del riferimento */
   --viz-week-loss: #dd7271; /* rosso di testo del riferimento */
   /* Ambra IN GAMUT più vicina all'amber-400 usata prima (che era clampata):
@@ -858,7 +860,6 @@
     --viz-rule-3: oklch(0.898 0.026 255);
     --viz-rule-edge: oklch(0.6 0.03 255 / 22%);
     --viz-day-empty: oklch(0.962 0.008 264);
-    --viz-week-surface: oklch(0.982 0.012 264);
     --viz-week-edge: var(--border);
     --viz-week-profit: var(--profit);
     --viz-week-loss: var(--loss);

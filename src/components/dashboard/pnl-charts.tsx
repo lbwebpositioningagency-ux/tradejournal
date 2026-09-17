@@ -13,7 +13,13 @@ import {
   XAxis,
   YAxis,
 } from "recharts";
-import { CHART, ClampMark, pnlChartColor } from "@/components/charts/chart-spec";
+import {
+  CHART,
+  ClampMark,
+  pnlChartColor,
+  signSplitGradients,
+  zeroSplitOffset,
+} from "@/components/charts/chart-spec";
 import type { ChartWindow } from "@/components/charts/use-chart-window";
 import { useChartAnimation } from "@/components/charts/use-chart-animation";
 import { clampLimit, clampValue } from "@/lib/chart-clamp";
@@ -138,9 +144,6 @@ export function CumulativePnlChart({
   chartWindow: ChartWindow;
 }) {
   const animate = useChartAnimation();
-  const last = points.at(-1)?.cumulative ?? 0;
-  const color = pnlChartColor(last === 0 ? 1 : last);
-
   /* IL MASSIMO PRECEDENTE (high-water mark) NON SI DISEGNA PIÙ, dal
      28/08/2026: la curva si vuole pulita. La serie però RESTA nel grafico,
      invisibile, perché è quella che porta «Sotto il picco» nel tooltip — cioè
@@ -164,16 +167,14 @@ export function CumulativePnlChart({
       ),
     [points, startIndex, endIndex],
   );
+  // Colore secondo il SEGNO lungo la curva visibile (verde sopra lo zero, rosso
+  // sotto), come i cumulativi di Giornata e Settimana.
+  const offset = zeroSplitOffset(data.map((d) => Number(d.cumulative)));
 
   return (
     <ResponsiveContainer width="100%" height={height}>
       <AreaChart data={data} margin={CHART.margin}>
-        <defs>
-          <linearGradient id="cumulative-fill" x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0%" stopColor={color} stopOpacity={CHART.areaFillFrom} />
-            <stop offset="100%" stopColor={color} stopOpacity={CHART.areaFillTo} />
-          </linearGradient>
-        </defs>
+        <defs>{signSplitGradients("cumulative", offset)}</defs>
         <XAxis
           dataKey="day"
           tickFormatter={shortDay}
@@ -213,7 +214,7 @@ export function CumulativePnlChart({
           type="monotone"
           dataKey="cumulative"
           name="Cumulativo"
-          stroke={color}
+          stroke="url(#cumulative-stroke)"
           strokeWidth={CHART.strokeWidth}
           fill="url(#cumulative-fill)"
         />
