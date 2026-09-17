@@ -153,6 +153,15 @@ export interface RigaCalendario {
    * stesso segno per due fatti diversi, e il primo dei due sembra un guasto.
    */
   passato: boolean;
+  /**
+   * Festività nazionale (`indicator: "Holidays"` alla fonte).
+   *
+   * Non è una riga come le altre: non ha numeri, la fonte la classifica
+   * sempre d'importanza bassa — quindi il filtro «Solo alta» la nascondeva —
+   * eppure dice che un paese intero è fermo quel giorno. In pagina sale
+   * sull'intestazione del giorno, e ignora il filtro d'importanza.
+   */
+  festivita: boolean;
   /** L'unità della riga, per l'etichetta accanto al titolo. */
   unita: string | null;
   /* I tre valori, già scalati e con l'unità attaccata, oppure `null`. */
@@ -180,17 +189,22 @@ export function rigaDaEvento(
 ): RigaCalendario {
   const istante = new Date(e.date);
   const parti = partiNelFuso(istante, fuso);
+  const diGiornata = e.date.endsWith("T00:00:00.000Z");
   return {
     id: e.id,
     istante: e.date,
-    giorno: parti.giorno,
-    ora: e.date.endsWith("T00:00:00.000Z") ? null : parti.ora,
+    /* L'evento di giornata vale per la DATA, non per un istante: la
+       mezzanotte UTC del Labor Day, portata nel fuso di New York, cadrebbe
+       la domenica prima. Il giorno è quello scritto dalla fonte. */
+    giorno: diGiornata ? e.date.slice(0, 10) : parti.giorno,
+    ora: diGiornata ? null : parti.ora,
     valuta: e.currency,
     paese: e.country,
     titolo: e.title,
     periodo: e.period,
     importanza: livelloImportanza(e.importance),
     passato: istante.getTime() <= adesso.getTime(),
+    festivita: e.indicator === "Holidays",
     unita: unitaDiRiga(e.scale, e.unit),
     precedente: formattaValore(e.previousRaw, e.scale, e.unit),
     consenso: formattaValore(e.forecastRaw, e.scale, e.unit),

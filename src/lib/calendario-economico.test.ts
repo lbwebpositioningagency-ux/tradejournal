@@ -159,6 +159,31 @@ describe("rigaDaEvento", () => {
     });
     expect(rigaDaEvento(festivita, "Europe/Rome", adesso).ora).toBeNull();
   });
+
+  it("riconosce le festività dall'indicatore della fonte, e solo da quello", () => {
+    const labor = eventoCalendarioSchema.parse({
+      ...NFP,
+      id: "2",
+      title: "Labor Day",
+      indicator: "Holidays",
+      date: "2026-09-07T00:00:00.000Z",
+      importance: -1,
+    });
+    expect(rigaDaEvento(labor, "Europe/Rome", adesso).festivita).toBe(true);
+    expect(rigaDaEvento(evento, "Europe/Rome", adesso).festivita).toBe(false);
+  });
+
+  it("tiene l'evento di giornata sulla sua data anche nei fusi a ovest di UTC", () => {
+    /* Mezzanotte UTC del 7 a New York è la sera del 6: il Labor Day finirebbe
+       di domenica. */
+    const labor = eventoCalendarioSchema.parse({
+      ...NFP,
+      id: "2",
+      indicator: "Holidays",
+      date: "2026-09-07T00:00:00.000Z",
+    });
+    expect(rigaDaEvento(labor, "America/New_York", adesso).giorno).toBe("2026-09-07");
+  });
 });
 
 describe("eventiValidi — un evento storto non porta giù gli altri", () => {
@@ -203,6 +228,7 @@ describe("perGiorno — raggruppamento e ordine", () => {
     periodo: "",
     importanza: "alta",
     passato: false,
+    festivita: false,
     unita: null,
     precedente: null,
     consenso: null,

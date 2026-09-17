@@ -28,6 +28,7 @@ function riga(over: Partial<RigaCalendario> = {}): RigaCalendario {
     periodo: "Ago",
     importanza: "alta",
     passato: false,
+    festivita: false,
     unita: "K",
     precedente: "-23K",
     consenso: "45K",
@@ -70,6 +71,45 @@ describe("Calendario — legenda dei simboli", () => {
     for (const segno of ["giornata", "non pubblicato", "in uscita", "—", "K M B T", "alta", "media", "bassa"]) {
       expect(legenda).toContain(segno);
     }
+  });
+});
+
+describe("Calendario — le festività in evidenza", () => {
+  const labor = (over: Partial<RigaCalendario> = {}) =>
+    riga({
+      id: "labor",
+      giorno: "2026-09-07",
+      ora: null,
+      titolo: "Labor Day",
+      importanza: "bassa",
+      festivita: true,
+      precedente: null,
+      consenso: null,
+      unita: null,
+      fonte: "",
+      fonteUrl: "",
+      ...over,
+    });
+
+  it("restano visibili con il filtro «Solo alta», in una fascia sotto la data", () => {
+    const out = lista([riga(), labor()]);
+    expect(out).toContain("data-festivita");
+    expect(out).toContain("Labor Day");
+    expect(out).toContain("lunedì 7 settembre");
+  });
+
+  it("non sono contate né rese come righe di evento", () => {
+    const out = lista([labor()]);
+    /* Il giorno con la sola festività resta in lista, senza «0 eventi». */
+    expect(out).toContain("lunedì 7 settembre");
+    expect(out).not.toContain(">0 eventi<");
+    expect(out).toContain("1 festività");
+    expect(out).not.toContain("in uscita");
+  });
+
+  it("seguono il filtro di valuta", () => {
+    const out = lista([riga(), labor({ valuta: "CNY", paese: "CN", titolo: "Golden Week" })]);
+    expect(out).not.toContain("Golden Week");
   });
 });
 

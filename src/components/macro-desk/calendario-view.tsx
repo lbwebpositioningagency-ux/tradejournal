@@ -94,13 +94,17 @@ export function CalendarioView({ dati }: { dati: DatiCalendario }) {
   const giorniFiltrati = useMemo(() => {
     const righe = tutteLeRighe.filter(
       (r) =>
-        (importanza === "tutte" || r.importanza === "alta") &&
+        /* Le festività ignorano il filtro d'importanza: la fonte le dà tutte
+           «bassa», e «Solo alta» le nascondeva proprio nei giorni in cui un
+           paese intero è fermo. La valuta invece vale anche per loro. */
+        (r.festivita || importanza === "tutte" || r.importanza === "alta") &&
         (valute.size === 0 || valute.has(r.valuta)),
     );
     return perGiorno(righe);
   }, [tutteLeRighe, importanza, valute]);
 
-  const mostrate = giorniFiltrati.reduce((n, g) => n + g.righe.length, 0);
+  const mostrate = giorniFiltrati.reduce((n, g) => n + eventiDelGiorno(g).length, 0);
+  const festive = giorniFiltrati.reduce((n, g) => n + festivitaDelGiorno(g).length, 0);
 
   return (
     <div className="flex flex-col gap-4 p-4 sm:p-5">
@@ -158,7 +162,7 @@ export function CalendarioView({ dati }: { dati: DatiCalendario }) {
       </div>
 
       {/* ── I giorni ───────────────────────────────────────────────────── */}
-      {mostrate === 0 ? (
+      {giorniFiltrati.length === 0 ? (
         /* Nessuna riga DOPO un filtro è un fatto sul FILTRO, non sui dati.
            La tabella vuota qui non è ambigua solo perché accanto c'è scritto
            perché è vuota. */
@@ -181,6 +185,7 @@ export function CalendarioView({ dati }: { dati: DatiCalendario }) {
               {mostrate} event{mostrate === 1 ? "o" : "i"} su{" "}
               {giorniFiltrati.length} giornat
               {giorniFiltrati.length === 1 ? "a" : "e"}
+              {festive > 0 ? ` · ${festive} festività` : ""}
             </span>
           </div>
 
@@ -313,13 +318,18 @@ function Tabella({ giorni, oggi }: { giorni: GiornoCalendario[]; oggi: string })
                   >
                     {etichettaGiorno(g.giorno, oggi)}
                   </span>
-                  <span className="md-mono text-2xs font-normal text-[var(--md-muted)]">
-                    {g.righe.length} event{g.righe.length === 1 ? "o" : "i"}
-                  </span>
+                  <ContaEventi n={eventiDelGiorno(g).length} />
                 </span>
               </th>
             </tr>
-            {g.righe.map((r) => (
+            {festivitaDelGiorno(g).length > 0 ? (
+              <tr>
+                <td colSpan={6} className="px-2 pb-2">
+                  <Festivita righe={festivitaDelGiorno(g)} />
+                </td>
+              </tr>
+            ) : null}
+            {eventiDelGiorno(g).map((r) => (
               <tr
                 key={r.id}
                 className="border-b last:border-0"
@@ -372,13 +382,15 @@ function Schede({ giorni, oggi }: { giorni: GiornoCalendario[]; oggi: string }) 
             >
               {etichettaGiorno(g.giorno, oggi)}
             </span>
-            <span className="md-mono text-2xs text-[var(--md-muted)]">
-              {g.righe.length} event{g.righe.length === 1 ? "o" : "i"}
-            </span>
+            <ContaEventi n={eventiDelGiorno(g).length} />
           </h3>
 
-          <ul className="flex flex-col gap-2">
-            {g.righe.map((r) => (
+          {festivitaDelGiorno(g).length > 0 ? (
+            <Festivita righe={festivitaDelGiorno(g)} />
+          ) : null}
+
+          <ul className="flex flex-col gap-2 empty:hidden">
+            {eventiDelGiorno(g).map((r) => (
               <li key={r.id} className="md-card-2 flex flex-col gap-2 p-3">
                 <div className="flex items-baseline justify-between gap-2">
                   <span className="md-mono text-sm font-semibold text-[var(--md-text)]">
@@ -413,6 +425,58 @@ function Schede({ giorni, oggi }: { giorni: GiornoCalendario[]; oggi: string }) 
             ))}
           </ul>
         </section>
+      ))}
+    </div>
+  );
+}
+
+/* ── festività ───────────────────────────────────────────────────────── */
+
+const eventiDelGiorno = (g: GiornoCalendario) => g.righe.filter((r) => !r.festivita);
+const festivitaDelGiorno = (g: GiornoCalendario) => g.righe.filter((r) => r.festivita);
+
+/** «3 eventi», e niente quando il giorno ha solo la festività. */
+function ContaEventi({ n }: { n: number }) {
+  if (n === 0) return null;
+  return (
+    <span className="md-mono text-2xs font-normal text-[var(--md-muted)]">
+      {n} event{n === 1 ? "o" : "i"}
+    </span>
+  );
+}
+
+/**
+ * La fascia delle festività, sotto l'intestazione del giorno.
+ *
+ * Non una riga fra le righe: una festività non ha orario né numeri, e non si
+ * confronta con i dati di quel giorno — li qualifica. Negli Stati Uniti fermi
+ * per il Labor Day un dato europeo delle 10:00 esce su un mercato più sottile,
+ * e questo va letto PRIMA delle righe. Il fondo è l'ambra dell'attenzione
+ * appena velata, lo stesso segno che il desk usa per ciò che va guardato; il
+ * testo resta `--md-text`. Non si scrive «mercati chiusi»: è un fatto del
+ * paese, non della borsa.
+ */
+function Festivita({ righe }: { righe: RigaCalendario[] }) {
+  return (
+    <div
+      data-festivita
+      className="flex flex-wrap items-baseline gap-x-3 gap-y-1 rounded-[var(--md-r-sm)] px-2.5 py-1.5 text-xs text-[var(--md-text)]"
+      style={{
+        backgroundColor: "color-mix(in oklab, var(--md-warn) 11%, var(--md-bg))",
+        /* Il filetto ambra a sinistra è il segno d'attenzione del listino
+           (`.ml-row-flag`): nel tema scuro il solo fondo velato si perde. */
+        boxShadow: "inset 2px 0 0 var(--md-warn)",
+      }}
+    >
+      <span className="text-2xs font-semibold tracking-[0.06em] uppercase">
+        Festività
+      </span>
+      {righe.map((r) => (
+        <span key={r.id} className="inline-flex items-baseline gap-1.5">
+          <Valuta valuta={r.valuta} />
+          {r.titolo}
+          <span className="md-mono text-2xs text-[var(--md-text-2)]">{r.paese}</span>
+        </span>
       ))}
     </div>
   );
@@ -570,6 +634,20 @@ function Legenda() {
       <VoceLegenda segno={<span className="md-mono">K M B T</span>}>
         migliaia · milioni · miliardi · mille miliardi
       </VoceLegenda>
+      <VoceLegenda
+        segno={
+          <span
+            className="rounded-[var(--md-r-sm)] px-1.5 py-0.5 text-[var(--md-text)]"
+            style={{
+              backgroundColor: "color-mix(in oklab, var(--md-warn) 11%, var(--md-bg))",
+            }}
+          >
+            Festività
+          </span>
+        }
+      >
+        giorno festivo nel paese, visibile con qualsiasi importanza
+      </VoceLegenda>
     </dl>
   );
 }
@@ -635,6 +713,18 @@ function ComeSiLegge() {
             non quanto il prezzo si muoverà. Il filtro parte da «Solo alta»
             perché è la lista che si guarda la mattina; «Tutte» serve quando si
             cerca un dato preciso.
+          </p>
+        </div>
+
+        <div>
+          <PanelLabel>Le festività</PanelLabel>
+          <p className="mt-1">
+            I giorni festivi di un paese stanno in una fascia sotto la data,
+            prima degli eventi. La fonte li classifica d&apos;importanza bassa,
+            ma restano visibili anche con «Solo alta»: un paese fermo cambia
+            il mercato su cui escono gli altri dati. Seguono invece il filtro
+            di valuta. Dicono che il paese è in festa, non che una borsa è
+            chiusa.
           </p>
         </div>
 
