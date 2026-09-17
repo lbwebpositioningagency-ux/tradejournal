@@ -267,7 +267,7 @@ export default async function WeekViewPage({
 
   const weekEquity = new Decimal(baseBalance).plus(pnlBefore);
   function dayTone(value: Decimal): string {
-    if (value.isZero()) return "bg-breakeven/10";
+    if (value.isZero()) return "bg-breakeven/10 border-border/60";
     const ret = weekEquity.gt(0) ? value.div(weekEquity).toFixed(8) : null;
     const tier = ret === null ? 1 : returnIntensity(ret, "day");
     return heatTone(value.gt(0) ? "profit" : "loss", tier);
@@ -427,7 +427,7 @@ export default async function WeekViewPage({
               aria-label={`Apri ${WEEKDAY_SHORT[i]} ${Number(day.slice(8, 10))}${data ? ` (${data.trades} trade)` : ""}`}
               className={cn(
                 "flex min-h-16 flex-col gap-0.5 overflow-hidden rounded-md border px-1 py-1 transition-colors hover:border-foreground/40 sm:p-2",
-                data ? cn(dayTone(data.net), "border-border/60") : "border-border/60 bg-card hover:bg-accent",
+                data ? dayTone(data.net) : "border-border/60 bg-card hover:bg-accent",
               )}
             >
               <span

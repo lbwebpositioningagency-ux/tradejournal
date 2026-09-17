@@ -71,18 +71,6 @@
   --color-profit: var(--profit);
   --color-loss: var(--loss);
   --color-breakeven: var(--breakeven);
-  /* Mappe a intensità (calendari, griglia mensile): scala condivisa, v. :root */
-  --color-heat-profit-1: var(--heat-profit-1);
-  --color-heat-profit-2: var(--heat-profit-2);
-  --color-heat-profit-3: var(--heat-profit-3);
-  --color-heat-loss-1: var(--heat-loss-1);
-  --color-heat-loss-2: var(--heat-loss-2);
-  --color-heat-loss-3: var(--heat-loss-3);
-  --color-heat-foreground: var(--heat-foreground);
-  --color-heat-muted: var(--heat-muted);
-  --color-heat-rule-1: var(--heat-rule-1);
-  --color-heat-rule-2: var(--heat-rule-2);
-  --color-heat-rule-3: var(--heat-rule-3);
   /* Visualizzazione dati «vetro»: famiglia a parte, v. :root */
   --color-viz-profit-1: var(--viz-profit-1);
   --color-viz-profit-2: var(--viz-profit-2);
@@ -100,6 +88,10 @@
   --color-viz-sheen: var(--viz-sheen);
   --color-viz-foreground: var(--viz-foreground);
   --color-viz-muted: var(--viz-muted);
+  --color-viz-rule-1: var(--viz-rule-1);
+  --color-viz-rule-2: var(--viz-rule-2);
+  --color-viz-rule-3: var(--viz-rule-3);
+  --color-viz-rule-edge: var(--viz-rule-edge);
   /* Avvisi non-P&L (es. divergenze sync): ambra AA come testo in entrambi i modi */
   --color-warning: var(--warning);
   /* Micro-testo a scala (11px): unico taglio sotto text-xs */
@@ -150,38 +142,6 @@
   --profit: oklch(0.525 0.123 158);
   --loss: oklch(0.565 0.23 26);
   --breakeven: oklch(0.44 0.012 264);
-  /* MAPPE A INTENSITÀ (calendario del mese e griglia mensile della
-     Dashboard — tavola «Sistema visivo v3 - mappe a intensità del
-     journal», 16/09/2026). Tinte PIENE, non più il token P&L velato al
-     10/20/30%: quella velatura ereditava croma e luminosità di un colore
-     scelto per essere TESTO, e le mappe risultavano spente.
-     Luminosità fissa per gradino (0.92 · 0.84 · 0.74), croma vicina al tetto
-     del gamut sRGB per la tinta — dove il gamut non concede (rosso al primo
-     gradino) il valore è il massimo disponibile. Le soglie di intensità non
-     cambiano: stanno in metrics/monthly-returns.ts.
-     Il testo NON è il token P&L: sono i due token qui sotto, misurati su ogni
-     gradino di ogni coppia (theme-contrast.test.ts).
-     Questi sono gli UNICI token --heat-*: le dosi in percentuale della griglia
-     anni × periodo della Stagionalità (--heat-1…5, taratura a cinque passi)
-     sono state tolte il 17/09/2026 col ritorno alla tinta piena, che si calcola
-     dal valore in `components/seasonality/calore.ts` e non da un token. */
-  --heat-profit-1: oklch(0.92 0.075 158);
-  --heat-profit-2: oklch(0.84 0.13 158);
-  --heat-profit-3: oklch(0.74 0.173 158); /* cifra 9.05 · secondario 5.01 */
-  --heat-loss-1: oklch(0.92 0.04 26);
-  --heat-loss-2: oklch(0.84 0.088 26);
-  --heat-loss-3: oklch(0.74 0.158 26); /* cifra 7.87 · secondario 4.68 */
-  --heat-foreground: oklch(0.16 0.014 264); /* = foreground */
-  /* Numero del giorno, etichetta del mese, conteggio trade: il muted del tema
-     sulla tinta più forte valeva 2.99 (misurato), questo vale 4.68. */
-  --heat-muted: oklch(0.345 0.02 264);
-  /* Progress Tracker — scala della DISCIPLINA (tavola «Progress Tracker -
-     disposizione e heatmap» in Claude Design): ardesia, tonalità 255 a croma
-     bassa, perché verde e rosso sono del P&L e blu e viola delle coppie P&L
-     alternative. Stesse luminosità delle tinte P&L, stesso testo heat-*. */
-  --heat-rule-1: oklch(0.93 0.018 255);
-  --heat-rule-2: oklch(0.85 0.03 255);
-  --heat-rule-3: oklch(0.75 0.045 255);
   /* VISUALIZZAZIONE DATI «VETRO» (tavola «Sistema visivo v3 - vetro, palette
      dei dati», 17/09/2026, candidata B · Fumé). Famiglia A PARTE: rappresenta
      dati su grafici e mappe, non giudica. Non sostituisce né imita il segno
@@ -193,6 +153,10 @@
      card fissa una velatura e la sua composizione sono lo stesso colore, e
      l'opaco si misura (theme-contrast.test.ts).
      Riempimenti: gradini 1-3, luminosità fissa, croma al gamut per tinta.
+     Sostituisce le tinte piene --heat-* (16/09): chi le usava — calendario,
+     griglia mensile, pagina Settimana, heatmap della Disciplina — passa da
+     `heatTone()` / `DISCIPLINE_TONES`, che restituiscono il vetro. Le soglie di
+     intensità non cambiano (metrics/monthly-returns.ts).
      Testo sopra: --viz-foreground 12,13 · --viz-muted 7,21 sul gradino 3 con
      il riflesso (peggiore fra le tre coppie). Tratti (archi, anelli, radar)
      ≥ 3:1 sulla card: profit 3,46 · loss 3,83 · accento 4,36 · neutro 3,64. */
@@ -212,6 +176,13 @@
   --viz-sheen: oklch(1 0 0 / 50%);
   --viz-foreground: oklch(0.16 0.014 264); /* = foreground */
   --viz-muted: oklch(0.345 0.02 264);
+  /* Scala della DISCIPLINA (Progress Tracker) nello stesso vetro: ardesia H 255
+     a croma bassa, perché verde e rosso sono del P&L e blu e viola delle coppie
+     alternative. Stesse luminosità dei riempimenti, stesso testo viz-*. */
+  --viz-rule-1: oklch(0.955 0.012 255);
+  --viz-rule-2: oklch(0.91 0.022 255);
+  --viz-rule-3: oklch(0.855 0.032 255);
+  --viz-rule-edge: oklch(0.6 0.04 255 / 45%);
   /* Testo di avviso (ambra) AA su bg e card: 4.58 · 4.75 (solver) */
   --warning: oklch(0.565 0.133 60);
   /* Sistema v2 (14/09/2026, tavola «Sistema visivo v2» in Claude Design):
@@ -294,21 +265,6 @@
   --profit: oklch(0.75 0.175 158);
   --loss: oklch(0.655 0.228 26);
   --breakeven: oklch(0.714 0.015 264);
-  /* Mappe a intensità in scuro: stessa logica, luminosità 0.31 · 0.40 · 0.49
-     (la tinta si ALLONTANA dalla card salendo di gradino, qui schiarendo).
-     Il verde è il limitato: a queste luminosità il gamut si ferma a C~0.115,
-     ed è già il massimo — non un ripiego di saturazione. */
-  --heat-profit-1: oklch(0.31 0.073 158);
-  --heat-profit-2: oklch(0.4 0.094 158);
-  --heat-profit-3: oklch(0.49 0.115 158); /* cifra 5.50 · secondario 4.63 */
-  --heat-loss-1: oklch(0.31 0.085 26);
-  --heat-loss-2: oklch(0.4 0.13 26);
-  --heat-loss-3: oklch(0.49 0.175 26); /* cifra 6.38 · secondario 5.36 */
-  --heat-foreground: oklch(0.975 0.004 264); /* = foreground */
-  --heat-muted: oklch(0.918 0.02 264); /* il muted del tema valeva 3.81 */
-  --heat-rule-1: oklch(0.3 0.025 255);
-  --heat-rule-2: oklch(0.39 0.035 255);
-  --heat-rule-3: oklch(0.48 0.045 255);
   /* Vetro in scuro: fumé, la tinta si allontana dalla card schiarendo.
      Testo sul gradino 3 con riflesso: 7,98 · 6,73. Tratti su card: profit
      8,18 · loss 7,42 · accento 7,67 · neutro 7,24. */
@@ -328,6 +284,10 @@
   --viz-sheen: oklch(1 0 0 / 5%);
   --viz-foreground: oklch(0.975 0.004 264); /* = foreground */
   --viz-muted: oklch(0.918 0.02 264);
+  --viz-rule-1: oklch(0.26 0.016 255);
+  --viz-rule-2: oklch(0.315 0.024 255);
+  --viz-rule-3: oklch(0.375 0.034 255);
+  --viz-rule-edge: oklch(0.74 0.04 255 / 50%);
   /* Ambra IN GAMUT più vicina all'amber-400 usata prima (che era clampata):
      11.57 su bg · 10.50 su card (solver) */
   --warning: oklch(0.83 0.17 84);
@@ -471,12 +431,8 @@
 [data-pnl="blue-red"] {
   --profit: oklch(0.452 0.313 264); /* blu profondo · 8.59 AA */
   --loss: oklch(0.565 0.23 26); /* 5.12 AA */
-  /* Le mappe a intensità seguono la coppia: stessa scala di luminosità, la
-     croma è quella che il gamut concede alla tinta BLU (più stretta del
-     verde). Il rosso resta quello del blocco base. */
-  --heat-profit-1: oklch(0.92 0.038 264);
-  --heat-profit-2: oklch(0.84 0.079 264);
-  --heat-profit-3: oklch(0.74 0.133 264); /* cifra 8.33 */
+  /* Il vetro dei dati segue la coppia: stessa luminosità, croma al gamut
+     della tinta BLU. Il rosso resta quello del blocco base. */
   --viz-profit-1: oklch(0.955 0.021 264);
   --viz-profit-2: oklch(0.91 0.043 264);
   --viz-profit-3: oklch(0.855 0.071 264);
@@ -486,9 +442,6 @@
 :where(.dark, .dark *)[data-pnl="blue-red"] {
   --profit: oklch(0.635 0.194 262); /* 5.09 AA su card */
   --loss: oklch(0.655 0.228 26); /* 5.08 AA su card */
-  --heat-profit-1: oklch(0.31 0.085 264);
-  --heat-profit-2: oklch(0.4 0.13 264);
-  --heat-profit-3: oklch(0.49 0.175 264); /* cifra 6.04 */
   --viz-profit-1: oklch(0.26 0.042 264);
   --viz-profit-2: oklch(0.315 0.064 264);
   --viz-profit-3: oklch(0.375 0.086 264);
@@ -499,9 +452,6 @@
 [data-pnl="green-violet"] {
   --profit: oklch(0.525 0.123 158); /* 5.07 AA */
   --loss: oklch(0.526 0.292 293); /* viola pieno · 6.36 AA */
-  --heat-loss-1: oklch(0.92 0.042 293);
-  --heat-loss-2: oklch(0.84 0.087 293);
-  --heat-loss-3: oklch(0.74 0.148 293); /* cifra 8.05 */
   --viz-loss-1: oklch(0.955 0.023 293);
   --viz-loss-2: oklch(0.91 0.047 293);
   --viz-loss-3: oklch(0.855 0.078 293);
@@ -511,9 +461,6 @@
 :where(.dark, .dark *)[data-pnl="green-violet"] {
   --profit: oklch(0.75 0.175 158); /* 8.68 AA su card */
   --loss: oklch(0.622 0.225 293); /* 4.51 AA su card */
-  --heat-loss-1: oklch(0.31 0.085 293);
-  --heat-loss-2: oklch(0.4 0.13 293);
-  --heat-loss-3: oklch(0.49 0.175 293); /* cifra 6.30 */
   --viz-loss-1: oklch(0.26 0.042 293);
   --viz-loss-2: oklch(0.315 0.064 293);
   --viz-loss-3: oklch(0.375 0.086 293);
@@ -567,6 +514,24 @@
 }
 
 @layer components {
+  /* VETRO DEI DATI (tavola «Sistema visivo v3 - vetro, palette dei dati»):
+     sopra il riempimento opaco `bg-viz-*` un riflesso che sfuma dall'alto e
+     un filo di luce sul bordo superiore; il bordo colorato lo dà la classe
+     `border-viz-*-edge`. Il gradino più intenso aggiunge un alone morbido
+     della stessa tinta. Il testo sopra è `text-viz-foreground` /
+     `text-viz-muted`, misurati col riflesso composto (theme-contrast.test.ts).
+     Sta in components e non in utilities: un `hover:`/`ring-` del componente
+     deve poterlo completare senza gare di specificità. */
+  .viz-glass {
+    background-image: linear-gradient(180deg, var(--viz-sheen), transparent 58%);
+    box-shadow: inset 0 1px 0 var(--viz-sheen);
+  }
+  .viz-glow-profit {
+    box-shadow: inset 0 1px 0 var(--viz-sheen), 0 0 18px -8px var(--viz-profit);
+  }
+  .viz-glow-loss {
+    box-shadow: inset 0 1px 0 var(--viz-sheen), 0 0 18px -8px var(--viz-loss);
+  }
   /* Gerarchia tipografica delle pagine e delle card — usare SEMPRE queste
      classi, mai ricomporre la gerarchia a mano nei componenti. */
   /* Titolo di pagina a 20px (scala del sistema v2: 11 · 12 · 14 · 16 · 20 ·
@@ -806,17 +771,6 @@
     --profit: oklch(0.525 0.123 158);
     --loss: oklch(0.565 0.23 26);
     --breakeven: oklch(0.44 0.012 264);
-    --heat-profit-1: oklch(0.92 0.075 158);
-    --heat-profit-2: oklch(0.84 0.13 158);
-    --heat-profit-3: oklch(0.74 0.173 158);
-    --heat-loss-1: oklch(0.92 0.04 26);
-    --heat-loss-2: oklch(0.84 0.088 26);
-    --heat-loss-3: oklch(0.74 0.158 26);
-    --heat-foreground: oklch(0.16 0.014 264);
-    --heat-muted: oklch(0.345 0.02 264);
-    --heat-rule-1: oklch(0.93 0.018 255);
-    --heat-rule-2: oklch(0.85 0.03 255);
-    --heat-rule-3: oklch(0.75 0.045 255);
     --viz-profit-1: oklch(0.955 0.03 158);
     --viz-profit-2: oklch(0.91 0.054 158);
     --viz-profit-3: oklch(0.855 0.078 158);
@@ -833,6 +787,10 @@
     --viz-sheen: oklch(1 0 0 / 50%);
     --viz-foreground: oklch(0.16 0.014 264);
     --viz-muted: oklch(0.345 0.02 264);
+    --viz-rule-1: oklch(0.955 0.012 255);
+    --viz-rule-2: oklch(0.91 0.022 255);
+    --viz-rule-3: oklch(0.855 0.032 255);
+    --viz-rule-edge: oklch(0.6 0.04 255 / 45%);
     --warning: oklch(0.565 0.133 60);
      --foreground-2: oklch(0.413 0.029 256);
     --rule: oklch(0.837 0.016 257);
@@ -868,9 +826,6 @@
   :where(.dark, .dark *)[data-pnl="blue-red"] {
     --profit: oklch(0.452 0.313 264);
     --loss: oklch(0.565 0.23 26);
-    --heat-profit-1: oklch(0.92 0.038 264);
-    --heat-profit-2: oklch(0.84 0.079 264);
-    --heat-profit-3: oklch(0.74 0.133 264);
     --viz-profit-1: oklch(0.955 0.021 264);
     --viz-profit-2: oklch(0.91 0.043 264);
     --viz-profit-3: oklch(0.855 0.071 264);
@@ -880,9 +835,6 @@
   :where(.dark, .dark *)[data-pnl="green-violet"] {
     --profit: oklch(0.525 0.123 158);
     --loss: oklch(0.526 0.292 293);
-    --heat-loss-1: oklch(0.92 0.042 293);
-    --heat-loss-2: oklch(0.84 0.087 293);
-    --heat-loss-3: oklch(0.74 0.148 293);
     --viz-loss-1: oklch(0.955 0.023 293);
     --viz-loss-2: oklch(0.91 0.047 293);
     --viz-loss-3: oklch(0.855 0.078 293);

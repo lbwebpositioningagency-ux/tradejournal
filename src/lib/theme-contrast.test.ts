@@ -348,137 +348,6 @@ describe("E-1 — blocco @media print: il tema scuro non finisce sulla carta", (
 });
 
 /**
- * MAPPE A INTENSITÀ (calendario del mese e griglia mensile della
- * Dashboard): le tinte non sono più una velatura del token P&L ma sei colori
- * PIENI per tema (`--heat-{profit,loss}-{1,2,3}`), più i due token di testo
- * che ci stanno sopra. È l'unico posto dell'app dove il testo sta su un fondo
- * scelto per essere saturo: se domani si alza la croma di un gradino senza
- * guardare il testo, la cifra scende sotto AA senza che si veda in una PR.
- *
- * Qui si verifica, leggendo i valori scritti in globals.css:
- *   ① ogni tinta sta nel gamut sRGB (una tinta clampata dichiara una
- *      saturazione e ne rende un'altra — è il difetto storico della palette);
- *   ② `heat-foreground` e `heat-muted` reggono 4,5:1 su OGNI gradino, per
- *      tutte e tre le coppie P&L di Impostazioni e nei due temi;
- *   ③ i gradini sono davvero tre tinte diverse e ordinate: senza, la
- *      «gradazione per intensità» sarebbe un colore solo ripetuto.
- */
-
-/** Tinte effettive di una coppia P&L: override del blocco, altrimenti base. */
-function heatTokens(
-  base: Map<string, Color>,
-  override: Map<string, Color>,
-): Array<[string, Color]> {
-  const nomi = [
-    "heat-profit-1",
-    "heat-profit-2",
-    "heat-profit-3",
-    "heat-loss-1",
-    "heat-loss-2",
-    "heat-loss-3",
-  ];
-  return nomi.map((n) => [n, override.get(n) ?? base.get(n)!]);
-}
-
-describe("mappe a intensità — tinte in gamut, testo AA su ogni gradino", () => {
-  const temi = [
-    ["light", light, (p: string) => `[data-pnl="${p}"]`] as const,
-    [
-      "dark",
-      dark,
-      (p: string) => `:where(.dark, .dark *)[data-pnl="${p}"]`,
-    ] as const,
-  ];
-
-  for (const [mode, base, selettore] of temi) {
-    for (const palette of PNL_PAIRS) {
-      const tinte = heatTokens(base, block(selettore(palette)));
-
-      it(`${mode} ${palette}: sei tinte dichiarate`, () => {
-        for (const [nome, colore] of tinte) {
-          expect(colore, `--${nome} in ${mode}/${palette}`).toBeDefined();
-        }
-      });
-
-      it.each(tinte)(`${mode} ${palette}: %s sta nel gamut sRGB`, (nome, colore) => {
-        expect(
-          outOfGamut(...colore),
-          `${nome} ${hex(...colore)} verrebbe clampato dal browser`,
-        ).toBe(false);
-      });
-
-      it.each(tinte)(
-        `${mode} ${palette}: la cifra e il testo secondario reggono AA su %s`,
-        (nome, colore) => {
-          for (const testo of ["heat-foreground", "heat-muted"]) {
-            const ratio = contrast(base.get(testo)!, colore);
-            expect(
-              ratio,
-              `--${testo} su ${nome} ${hex(...colore)} = ${ratio.toFixed(2)}:1`,
-            ).toBeGreaterThanOrEqual(4.5);
-          }
-        },
-      );
-
-      it(`${mode} ${palette}: i tre gradini sono distinti e ordinati`, () => {
-        for (const segno of ["profit", "loss"]) {
-          const scala = tinte
-            .filter(([n]) => n.startsWith(`heat-${segno}`))
-            .map(([, c]) => c);
-          // In chiaro la tinta si scurisce col crescere dell'intensità, in
-          // scuro si schiarisce: in entrambi i casi si ALLONTANA dalla card.
-          const distanze = scala.map((c) =>
-            Math.abs(c[0] - base.get("card")![0]),
-          );
-          expect(distanze[1], `${segno} 2 vs 1 in ${mode}`).toBeGreaterThan(
-            distanze[0],
-          );
-          expect(distanze[2], `${segno} 3 vs 2 in ${mode}`).toBeGreaterThan(
-            distanze[1],
-          );
-          // E la croma non scende mai salendo di gradino.
-          expect(scala[1][1]).toBeGreaterThanOrEqual(scala[0][1]);
-          expect(scala[2][1]).toBeGreaterThanOrEqual(scala[1][1]);
-        }
-      });
-    }
-  }
-});
-
-/**
- * PROGRESS TRACKER — scala della DISCIPLINA (`--heat-rule-{1,2,3}`): ardesia a
- * croma bassa, indipendente dalle coppie P&L. Stesse tre verifiche delle
- * mappe P&L: gamut, testo heat-* AA su ogni gradino, gradini ordinati.
- */
-describe("heatmap della disciplina — tinte in gamut, testo AA su ogni gradino", () => {
-  for (const [mode, base] of [["light", light], ["dark", dark]] as const) {
-    const tinte = [1, 2, 3].map((n) => [`heat-rule-${n}`, base.get(`heat-rule-${n}`)!] as const);
-
-    it.each(tinte)(`${mode}: %s dichiarata e nel gamut sRGB`, (nome, colore) => {
-      expect(colore, `--${nome} in ${mode}`).toBeDefined();
-      expect(outOfGamut(...colore), `${nome} ${hex(...colore)} clampato`).toBe(false);
-    });
-
-    it.each(tinte)(`${mode}: cifra e testo secondario reggono AA su %s`, (nome, colore) => {
-      for (const testo of ["heat-foreground", "heat-muted"]) {
-        const ratio = contrast(base.get(testo)!, colore);
-        expect(ratio, `--${testo} su ${nome} = ${ratio.toFixed(2)}:1`).toBeGreaterThanOrEqual(4.5);
-      }
-    });
-
-    it(`${mode}: i tre gradini si allontanano dalla card`, () => {
-      const distanze = tinte.map(([, c]) => Math.abs(c[0] - base.get("card")![0]));
-      expect(distanze[1]).toBeGreaterThan(distanze[0]);
-      expect(distanze[2]).toBeGreaterThan(distanze[1]);
-    });
-  }
-
-  it("la scala della disciplina è anche nel blocco di stampa", () => {
-    expect(PRINT_MEDIA).toMatch(/--heat-rule-3:/);
-  });
-});
-
-/**
  * F4 — SUPERFICI TINTE: il contrasto va ricontrollato dove il fondo NON è
  * la card ma la card più una velatura del colore stesso.
  *
@@ -664,6 +533,39 @@ describe("visualizzazione dati «vetro» — gamut, testo AA col riflesso, tratt
       });
     }
   }
+
+  /* Scala della DISCIPLINA (Progress Tracker), ardesia nello stesso vetro:
+     indipendente dalle coppie P&L, stesse tre verifiche dei riempimenti. */
+  for (const [mode, base, baseSel] of temi) {
+    const sheen = alphaTokens(baseSel).get("viz-sheen")!;
+    const tinte = [1, 2, 3].map((n) => [`viz-rule-${n}`, base.get(`viz-rule-${n}`)!] as const);
+
+    it.each(tinte)(`${mode} disciplina: --%s dichiarata, in gamut, testo AA col riflesso`, (nome, colore) => {
+      expect(colore, `--${nome} in ${mode}`).toBeDefined();
+      expect(outOfGamut(...colore), `${nome} ${hex(...colore)} clampato`).toBe(false);
+      const fill = oklchToSrgb(...colore);
+      const lit = over([1, 1, 1], fill, sheen[1]);
+      for (const testo of ["viz-foreground", "viz-muted"]) {
+        const fg = oklchToSrgb(...base.get(testo)!);
+        const peggiore = Math.min(srgbContrast(fg, fill), srgbContrast(fg, lit));
+        expect(peggiore, `--${testo} su ${nome} = ${peggiore.toFixed(2)}:1`).toBeGreaterThanOrEqual(4.5);
+      }
+    });
+
+    it(`${mode} disciplina: i tre gradini si allontanano dalla card, filo in gamut`, () => {
+      const d = tinte.map(([, c]) => Math.abs(c[0] - base.get("card")![0]));
+      expect(d[1]).toBeGreaterThan(d[0]);
+      expect(d[2]).toBeGreaterThan(d[1]);
+      const edge = alphaTokens(baseSel).get("viz-rule-edge");
+      expect(edge).toBeDefined();
+      expect(outOfGamut(...edge![0])).toBe(false);
+    });
+  }
+
+  it("le tinte piene --heat-* del 16/09 non esistono più", () => {
+    expect(CSS).not.toMatch(/--heat-(profit|loss|rule)-\d:|--heat-(foreground|muted):/);
+    expect(PRINT_MEDIA).toMatch(/--viz-rule-3:/);
+  });
 
   it("la famiglia è anche nel blocco di stampa, coppie comprese", () => {
     expect(PRINT_MEDIA).toMatch(/--viz-profit-3:/);

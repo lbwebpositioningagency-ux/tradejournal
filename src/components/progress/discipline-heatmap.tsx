@@ -14,7 +14,8 @@ import { cn } from "@/lib/utils";
  * HEATMAP DELLA DISCIPLINA — un mese per riquadro, i mesi del periodo dal più
  * recente (tavola «Progress Tracker - disposizione e heatmap», scelta 2c).
  *
- * Intensità = punteggio della giornata, sulla scala ardesia `--heat-rule-*`.
+ * Intensità = punteggio della giornata, sulla scala ardesia `--viz-rule-*` in
+ * resa vetro (la stessa delle mappe P&L, v. `DISCIPLINE_TONES`).
  * Le giornate con almeno una violazione portano anche il punto nell'angolo e
  * la frazione rispettate/applicabili: la tinta da sola si perderebbe, perché
  * le giornate perfette sono la maggioranza.
@@ -62,7 +63,7 @@ function MonthGrid({ month, byDay, todayKey }: { month: string; byDay: Map<strin
                 data-disciplina={tier}
                 className={cn(
                   "relative flex h-12 min-w-0 flex-col justify-between rounded-md border px-1 py-0.5",
-                  tier > 0 ? cn(DISCIPLINE_TONES[tier], "border-transparent") : "border-border/60",
+                  tier > 0 ? DISCIPLINE_TONES[tier] : "border-border/60",
                   date === todayKey && "ring-1 ring-primary",
                 )}
               >
@@ -71,7 +72,7 @@ function MonthGrid({ month, byDay, todayKey }: { month: string; byDay: Map<strin
                 </span>
                 {violated ? (
                   <>
-                    <span aria-hidden className="absolute top-1 right-1 size-1.5 rounded-full bg-heat-foreground" />
+                    <span aria-hidden className="absolute top-1 right-1 size-1.5 rounded-full bg-viz-foreground" />
                     <span className={cn("text-xs leading-4 font-semibold tabular-nums", HEAT_TEXT)}>
                       {evaluation.respected}/{evaluation.applicable}
                     </span>
@@ -121,7 +122,7 @@ export function DisciplineHeatmap({ evaluations, todayKey }: { evaluations: DayE
           ] as const
         ).map(([tier, text]) => (
           <span key={tier} className="inline-flex items-center gap-1.5">
-            <span aria-hidden className={cn("size-3.5 rounded-sm border border-border", DISCIPLINE_TONES[tier])} />
+            <span aria-hidden className={cn("size-3.5 rounded-sm border", DISCIPLINE_TONES[tier])} />
             {text}
           </span>
         ))}

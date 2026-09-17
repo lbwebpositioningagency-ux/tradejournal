@@ -145,11 +145,12 @@ export async function DayCalendar({
   const monthEquity = new Decimal(monthBaseBalance).plus(pnlBeforeMonth);
   function dayTone(netPnl: string): string {
     const value = new Decimal(netPnl);
-    if (value.isZero()) return "bg-breakeven/10 hover:border-foreground/40";
+    if (value.isZero()) return "bg-breakeven/10 border-border/60 hover:border-foreground/40";
     const ret = monthEquity.gt(0) ? value.div(monthEquity).toFixed(8) : null;
     const tier = ret === null ? 1 : returnIntensity(ret, "day");
-    // Scala condivisa delle mappe a intensità (globals.css, --heat-*): tinte
-    // piene e opache, quindi l'hover passa dal filo e non dalla velatura.
+    // Scala condivisa delle mappe a intensità (heat-scale.ts, vetro --viz-*):
+    // la tinta porta già il suo filo, quindi niente border-border qui sotto;
+    // l'hover passa dal filo e non da una seconda velatura.
     return cn(heatTone(value.gt(0) ? "profit" : "loss", tier), "hover:border-foreground/40");
   }
 
@@ -277,7 +278,7 @@ export async function DayCalendar({
                       );
                     }
 
-                    const tone = data ? dayTone(data.netPnl) : "hover:bg-accent";
+                    const tone = data ? dayTone(data.netPnl) : "border-border/60 hover:bg-accent";
 
                     return (
                       <Link
@@ -286,7 +287,7 @@ export async function DayCalendar({
                         className={cn(
                           "flex min-h-20 flex-col gap-0.5 overflow-hidden rounded-md border px-0.5 py-1 transition-colors sm:p-1.5",
                           tone,
-                          isToday ? "ring-1 ring-primary" : "border-border/60",
+                          isToday && "ring-1 ring-primary",
                         )}
                       >
                         <span
