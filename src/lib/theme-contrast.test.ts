@@ -607,8 +607,8 @@ describe("calendario mensile — tre esiti a colore pieno, testo AA", () => {
   };
   const fg = root.get("viz-day-foreground")!.toLowerCase();
 
-  it("coppia classica: tinta del riferimento con croma ×0,80, testo bianco", () => {
-    expect(esiti("classic")).toEqual(["#172d25", "#552523", "#20283d"]);
+  it("coppia classica: tinta del riferimento con croma ×0,90, testo bianco", () => {
+    expect(esiti("classic")).toEqual(["#142d24", "#592220", "#1f2740"]);
     expect(fg).toBe("#ffffff");
   });
 
@@ -636,9 +636,9 @@ describe("calendario mensile — tre esiti a colore pieno, testo AA", () => {
     expect(hexLuminance(vuotaScura)).toBeGreaterThan(hexLuminance(cardScura));
   });
 
-  it("bordo: filo netto del colore campionato (blu sollevato al 3:1), nessuna ombra", () => {
+  it("bordo: filo netto del colore ricostruito dal riferimento (verde e blu scostati per il 3:1), nessuna ombra", () => {
     const edge = ["profit", "loss", "breakeven"].map((k) => root.get(`viz-day-${k}-edge`)!.toLowerCase());
-    expect(edge).toEqual(["#719885", "#b37c7b", "#536497"]);
+    expect(edge).toEqual(["#53a27b", "#d76e70", "#415ccf"]);
     expect(CSS).not.toMatch(/edge-soft|hairline/);
     // Il filo è più chiaro del suo riempimento, mai più scuro.
     esiti("classic").forEach((fill, i) => {
@@ -674,9 +674,9 @@ describe("calendario mensile — tre esiti a colore pieno, testo AA", () => {
   }
 
   it("coppie per daltonici: il pareggio lascia il blu quando utile o perdita sono blu o viola", () => {
-    expect(esiti("blue-red")[0]).toBe("#20283d");
-    expect(esiti("blue-red")[2]).not.toBe("#20283d");
-    expect(esiti("green-violet")[2]).not.toBe("#20283d");
+    expect(esiti("blue-red")[0]).toBe("#1f2740");
+    expect(esiti("blue-red")[2]).not.toBe("#1f2740");
+    expect(esiti("green-violet")[2]).not.toBe("#1f2740");
   });
 
   it("le coppie arrivano anche nel blocco di stampa", () => {
@@ -690,14 +690,18 @@ describe("calendario mensile — tre esiti a colore pieno, testo AA", () => {
 });
 
 /**
- * SCHEDA SETTIMANALE del calendario: fondo --viz-day-empty (come le celle
- * vuote) e filo del tema in entrambi i temi — il grigio-nero #181818 / #3a3a3a
- * del riferimento non è più usato; importo #71c6a7 / #dd7271 in scuro, pillola
- * #251b47 col bianco.
+ * SCHEDA SETTIMANALE del calendario: fondo DEDICATO --viz-week-surface,
+ * diverso dalle celle vuote — in scuro più profondo della card (tre livelli:
+ * scheda < card < cella vuota), in chiaro un bianco azzurrato. Filo del tema,
+ * importo #71c6a7 / #dd7271 in scuro, pillola #251b47 col bianco.
  */
-describe("scheda settimanale del calendario — colori del sistema, AA nei due temi", () => {
+describe("scheda settimanale del calendario — fondo dedicato, AA nei due temi", () => {
   const root = rawTokens(topLevelBlock(":root"));
   const darkRaw = rawTokens(topLevelBlock(".dark"));
+  const oklchHex = (v: string) => {
+    const m = v.match(/oklch\(([\d.]+)\s+([\d.]+)\s+([\d.]+)\)/)!;
+    return hex(Number(m[1]), Number(m[2]), Number(m[3]));
+  };
 
   it("filo del tema e nessun grigio del riferimento", () => {
     expect(root.get("viz-week-edge")).toBe("var(--border)");
@@ -709,16 +713,36 @@ describe("scheda settimanale del calendario — colori del sistema, AA nei due t
     expect(root.get("viz-week-pill-foreground")!.toLowerCase()).toBe("#ffffff");
   });
 
-  it("importo in utile e in perdita ≥ 4,5:1 sul fondo scuro della scheda", () => {
-    const m = darkRaw.get("viz-day-empty")!.match(/oklch\(([\d.]+)\s+([\d.]+)\s+([\d.]+)\)/)!;
-    const fondo = hex(Number(m[1]), Number(m[2]), Number(m[3]));
+  it("tre livelli distinti: card, cella vuota, scheda settimanale", () => {
+    const scheda = [oklchHex(root.get("viz-week-surface")!), oklchHex(darkRaw.get("viz-week-surface")!)];
+    const vuota = [oklchHex(root.get("viz-day-empty")!), oklchHex(darkRaw.get("viz-day-empty")!)];
+    const card = [hex(...light.get("card")!), hex(...dark.get("card")!)];
+    for (const t of [0, 1]) {
+      expect(new Set([scheda[t], vuota[t], card[t]]).size).toBe(3);
+      for (const [x, y] of [[scheda[t], card[t]], [scheda[t], vuota[t]], [card[t], vuota[t]]]) {
+        const r = hexContrast(x, y);
+        expect(r, `${x} / ${y} = ${r.toFixed(3)}:1`).toBeGreaterThanOrEqual(1.05);
+      }
+    }
+    // In scuro la scheda sta SOTTO la card, la cella vuota sopra.
+    expect(hexLuminance(scheda[1])).toBeLessThan(hexLuminance(card[1]));
+    expect(hexLuminance(vuota[1])).toBeGreaterThan(hexLuminance(card[1]));
+  });
+
+  it("importo in utile e in perdita ≥ 4,5:1 sul fondo della scheda, nei due temi", () => {
+    const fondoScuro = oklchHex(darkRaw.get("viz-week-surface")!);
     for (const k of ["viz-week-profit", "viz-week-loss"]) {
-      const r = hexContrast(darkRaw.get(k)!.toLowerCase(), fondo);
-      expect(r, `${k} su ${fondo} = ${r.toFixed(2)}:1`).toBeGreaterThanOrEqual(4.5);
+      const r = hexContrast(darkRaw.get(k)!.toLowerCase(), fondoScuro);
+      expect(r, `${k} su ${fondoScuro} = ${r.toFixed(2)}:1`).toBeGreaterThanOrEqual(4.5);
+    }
+    const fondoChiaro = oklchHex(root.get("viz-week-surface")!);
+    for (const k of ["profit", "loss", "foreground"]) {
+      const r = hexContrast(hex(...light.get(k)!), fondoChiaro);
+      expect(r, `${k} su ${fondoChiaro} = ${r.toFixed(2)}:1`).toBeGreaterThanOrEqual(4.5);
     }
   });
 
-  it("in chiaro importo e numero del giorno ≥ 4,5:1 sul fondo delle celle vuote", () => {
+  it("in chiaro il numero del giorno ≥ 4,5:1 sul fondo delle celle vuote", () => {
     const m = root.get("viz-day-empty")!.match(/oklch\(([\d.]+)\s+([\d.]+)\s+([\d.]+)\)/)!;
     const fondo = hex(Number(m[1]), Number(m[2]), Number(m[3]));
     for (const k of ["profit", "loss", "muted-foreground"]) {
