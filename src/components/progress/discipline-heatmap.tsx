@@ -14,8 +14,8 @@ import { cn } from "@/lib/utils";
  * HEATMAP DELLA DISCIPLINA — un mese per riquadro, i mesi del periodo dal più
  * recente (tavola «Progress Tracker - disposizione e heatmap», scelta 2c).
  *
- * Intensità = punteggio della giornata, sulla scala ardesia `--viz-rule-*` in
- * resa vetro (la stessa delle mappe P&L, v. `DISCIPLINE_TONES`).
+ * Intensità = punteggio della giornata, sulla scala ardesia `--viz-rule-*`
+ * con la stessa cella scura delle mappe P&L (v. `DISCIPLINE_TONES`).
  * Le giornate con almeno una violazione portano anche il punto nell'angolo e
  * la frazione rispettate/applicabili: la tinta da sola si perderebbe, perché
  * le giornate perfette sono la maggioranza.

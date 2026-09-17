@@ -106,7 +106,7 @@ import {
   WinRateGauge,
 } from "@/components/dashboard/kpi-visuals";
 import { TradeSequencePanel } from "@/components/charts/trade-sequence-panel";
-import { cn, pluralize } from "@/lib/utils";
+import { cn } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -325,7 +325,8 @@ function StatCard({
   info?: MetricInfoData;
   /** Scala SCARSO/MEDIO/OTTIMO nel popover: soglie da metrics/benchmarks.ts. */
   scale?: MetricScaleData;
-  value: React.ReactNode;
+  /** Assente quando la grafica porta da sola il numero (Streak correnti). */
+  value?: React.ReactNode;
   valueClass?: string;
   /** sm = coppie di valori · md = standard · hero = Net P&L/Saldo */
   size?: "sm" | "md" | "hero";
@@ -354,14 +355,14 @@ function StatCard({
         {visual ? (
           <div className="flex items-center justify-between gap-3">
             <div className="min-w-0">
-              <p className={cn(sizeClass, valueClass)}>{value}</p>
+              {value !== undefined ? <p className={cn(sizeClass, valueClass)}>{value}</p> : null}
               {sub ? <div className="stat-sub mt-1">{sub}</div> : null}
             </div>
             {visual}
           </div>
         ) : (
           <>
-            <p className={cn(sizeClass, valueClass)}>{value}</p>
+            {value !== undefined ? <p className={cn(sizeClass, valueClass)}>{value}</p> : null}
             {sub ? <div className="stat-sub mt-1">{sub}</div> : null}
           </>
         )}
@@ -371,10 +372,6 @@ function StatCard({
   );
 }
 
-/**
- * Streak come espressione naturale unica ("5 win trades" / "3 loss days"),
- * stesso pattern per entrambe le unità, con singolare/plurale.
- */
 interface PanelRow {
   label: string;
   info?: MetricInfoData;
@@ -422,32 +419,6 @@ function OutcomePanel({
         </div>
       ))}
     </div>
-  );
-}
-
-function StreakBadge({
-  streak,
-  unit,
-}: {
-  streak: StreakResult;
-  unit: "trade" | "day";
-}) {
-  // F18 — glossario: termine tecnico (win/loss) in inglese, frase in
-  // italiano — "4 trade in win", "3 giornate in loss".
-  const unitLabel = (count: number) =>
-    unit === "trade" ? "trade" : pluralize(count, "giornata", "giornate");
-  if (streak.direction === "NONE" || streak.length === 0) {
-    return (
-      <span className="text-breakeven">
-        — {unit === "trade" ? "trade" : "giornate"}
-      </span>
-    );
-  }
-  return (
-    <span className={streak.direction === "WIN" ? "text-profit" : "text-loss"}>
-      {streak.length} {unitLabel(streak.length)} in{" "}
-      {streak.direction === "WIN" ? "win" : "loss"}
-    </span>
   );
 }
 
@@ -954,17 +925,14 @@ export function DashboardView({
             className="max-lg:order-3"
             label="Streak correnti"
             info={streaksInfo}
-            value={
-              // trade e giorni con la STESSA prominenza (entrambi stat-value)
-              <span className="flex flex-col gap-1">
-                <StreakBadge streak={data.tradeStreak} unit="trade" />
-                <StreakBadge streak={data.dayStreak} unit="day" />
-              </span>
-            }
-            // Anelli: la serie corrente rispetto alla sua massima nello stesso
-            // verso — giornate su dayRuns, trade su Winners & Losers.
-            visual={
-              <div className="flex shrink-0 gap-2">
+          >
+            {/* Solo gli anelli, col numero dentro: la frase «1 trade in win»
+                diceva la stessa cosa (richiesta del proprietario, come il
+                riferimento). Il verso lo portano il colore e l'aria-label
+                dell'anello. Ogni anello: la serie corrente rispetto alla sua
+                massima nello stesso verso — giornate su dayRuns, trade su
+                Winners & Losers. */}
+            <div className="flex gap-6">
                 <StreakRing
                   label="Giorni"
                   length={data.dayStreak.length}
@@ -977,9 +945,8 @@ export function DashboardView({
                   direction={data.tradeStreak.direction}
                   max={data.tradeStreak.direction === "LOSS" ? data.tradeRuns.maxLoss : data.tradeRuns.maxWin}
                 />
-              </div>
-            }
-          />
+            </div>
+          </StatCard>
         ) : null}
       </div>
 

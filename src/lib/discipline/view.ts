@@ -26,16 +26,15 @@ export function disciplineTier(score: string | null): 0 | 1 | 2 | 3 {
 }
 
 /**
- * Classi per gradino (stringhe letterali perché Tailwind le trovi): lo stesso
- * vetro delle mappe P&L (`.viz-glass`, filo traslucido) sulla scala ardesia
- * `--viz-rule-*`, senza alone — la disciplina non ha un «gradino estremo» da
- * far risaltare, e le giornate perfette sono la maggioranza.
+ * Classi per gradino (stringhe letterali perché Tailwind le trovi): la stessa
+ * cella scura delle mappe P&L (poca tinta, filo appena percettibile) sulla
+ * scala ardesia `--viz-rule-*`.
  */
 export const DISCIPLINE_TONES = [
   "",
-  "viz-glass bg-viz-rule-1 border-viz-rule-edge",
-  "viz-glass bg-viz-rule-2 border-viz-rule-edge",
-  "viz-glass bg-viz-rule-3 border-viz-rule-edge",
+  "bg-viz-rule-1 border-viz-rule-edge",
+  "bg-viz-rule-2 border-viz-rule-edge",
+  "bg-viz-rule-3 border-viz-rule-edge",
 ] as const;
 
 const money = (amount: string, currency: string) =>

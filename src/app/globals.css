@@ -85,7 +85,7 @@
   --color-viz-track: var(--viz-track);
   --color-viz-profit-edge: var(--viz-profit-edge);
   --color-viz-loss-edge: var(--viz-loss-edge);
-  --color-viz-sheen: var(--viz-sheen);
+  --color-viz-accent-fill: var(--viz-accent-fill);
   --color-viz-foreground: var(--viz-foreground);
   --color-viz-muted: var(--viz-muted);
   --color-viz-rule-1: var(--viz-rule-1);
@@ -142,47 +142,50 @@
   --profit: oklch(0.525 0.123 158);
   --loss: oklch(0.565 0.23 26);
   --breakeven: oklch(0.44 0.012 264);
-  /* VISUALIZZAZIONE DATI «VETRO» (tavola «Sistema visivo v3 - vetro, palette
-     dei dati», 17/09/2026, candidata B · Fumé). Famiglia A PARTE: rappresenta
-     dati su grafici e mappe, non giudica. Non sostituisce né imita il segno
-     (--profit/--loss/--breakeven), l'attenzione (--warning) o l'azione
-     (--primary): un testo che dice «guadagno» resta text-profit.
-     Desaturata (croma massima 0,086 in scuro, metà della tinta piena) e
-     luminosa; il vetro è il riempimento opaco + riflesso in alto (--viz-sheen)
-     + filo traslucido della stessa tinta (--viz-*-edge). Opaco perché su una
-     card fissa una velatura e la sua composizione sono lo stesso colore, e
-     l'opaco si misura (theme-contrast.test.ts).
-     Riempimenti: gradini 1-3, luminosità fissa, croma al gamut per tinta.
-     Sostituisce le tinte piene --heat-* (16/09): chi le usava — calendario,
-     griglia mensile, pagina Settimana, heatmap della Disciplina — passa da
-     `heatTone()` / `DISCIPLINE_TONES`, che restituiscono il vetro. Le soglie di
-     intensità non cambiano (metrics/monthly-returns.ts).
-     Testo sopra: --viz-foreground 12,13 · --viz-muted 7,21 sul gradino 3 con
-     il riflesso (peggiore fra le tre coppie). Tratti (archi, anelli, radar)
-     ≥ 3:1 sulla card: profit 3,46 · loss 3,83 · accento 4,36 · neutro 3,64. */
-  --viz-profit-1: oklch(0.955 0.03 158);
-  --viz-profit-2: oklch(0.91 0.054 158);
-  --viz-profit-3: oklch(0.855 0.078 158);
-  --viz-loss-1: oklch(0.955 0.022 26);
-  --viz-loss-2: oklch(0.91 0.046 26);
-  --viz-loss-3: oklch(0.855 0.078 26);
-  --viz-profit: oklch(0.62 0.11 158);
-  --viz-loss: oklch(0.62 0.11 26);
-  --viz-neutral: oklch(0.62 0.01 264);
-  --viz-accent: oklch(0.58 0.1 275);
+  /* VISUALIZZAZIONE DATI (tavole «Sistema visivo v3 - vetro, palette dei dati»
+     e «… vetro scuro, confronto col riferimento», 17/09/2026). Famiglia A
+     PARTE: rappresenta dati su grafici e mappe, non giudica. Non sostituisce
+     né imita il segno (--profit/--loss/--breakeven), l'attenzione
+     (--warning) o l'azione (--primary): un testo che dice «guadagno» resta
+     text-profit.
+     DUE REGOLE OPPOSTE, e non si contraddicono:
+     ① le CELLE delle mappe (riempimenti 1-3) fanno da FONDO a un numero:
+        partono dalla card e aggiungono poca tinta, filo appena percettibile,
+        niente riflesso né alone (scala «N3 · Brace», che sostituisce la
+        B · Fumé: quella schiariva la cella e la tinta competeva col numero).
+        La gradazione la porta soprattutto la croma: ΔE OKLab fra gradini
+        ≥ 2,9, sopra la soglia del percepibile (~2).
+     ② ARCHI, ANELLI, BARRE e RADAR sono il DATO: luminosità media e croma
+        alta, vividi. Il pastello di prima (L 0,74 · C 0,115 in scuro) era
+        chiaro, non vivo.
+     Riempimenti opachi perché su una card fissa si misurano.
+     Testo sulle celle (peggiore fra le tre coppie e la Disciplina): cifra
+     14,05 · secondario 8,35. Tratti ≥ 3:1 sulla card: profit 4,01 · loss
+     4,71 · accento 6,33 · neutro 3,95. Le soglie di intensità non cambiano
+     (metrics/monthly-returns.ts). */
+  --viz-profit-1: oklch(0.962 0.024 158);
+  --viz-profit-2: oklch(0.934 0.043 158);
+  --viz-profit-3: oklch(0.898 0.065 158);
+  --viz-loss-1: oklch(0.962 0.018 26);
+  --viz-loss-2: oklch(0.934 0.033 26);
+  --viz-loss-3: oklch(0.898 0.053 26);
+  --viz-profit: oklch(0.58 0.136 158);
+  --viz-loss: oklch(0.58 0.19 26);
+  --viz-neutral: oklch(0.6 0.012 264);
+  --viz-accent: oklch(0.5 0.14 290);
+  --viz-accent-fill: oklch(0.5 0.14 290 / 34%);
   --viz-track: oklch(0.93 0.006 264);
-  --viz-profit-edge: oklch(0.6 0.1 158 / 45%);
-  --viz-loss-edge: oklch(0.6 0.1 26 / 45%);
-  --viz-sheen: oklch(1 0 0 / 50%);
+  --viz-profit-edge: oklch(0.6 0.06 158 / 22%);
+  --viz-loss-edge: oklch(0.6 0.06 26 / 22%);
   --viz-foreground: oklch(0.16 0.014 264); /* = foreground */
   --viz-muted: oklch(0.345 0.02 264);
-  /* Scala della DISCIPLINA (Progress Tracker) nello stesso vetro: ardesia H 255
-     a croma bassa, perché verde e rosso sono del P&L e blu e viola delle coppie
-     alternative. Stesse luminosità dei riempimenti, stesso testo viz-*. */
-  --viz-rule-1: oklch(0.955 0.012 255);
-  --viz-rule-2: oklch(0.91 0.022 255);
-  --viz-rule-3: oklch(0.855 0.032 255);
-  --viz-rule-edge: oklch(0.6 0.04 255 / 45%);
+  /* Scala della DISCIPLINA (Progress Tracker), stessa regola delle celle:
+     ardesia H 255 a croma bassa, perché verde e rosso sono del P&L e blu e
+     viola delle coppie alternative. Stesso testo viz-*. */
+  --viz-rule-1: oklch(0.962 0.01 255);
+  --viz-rule-2: oklch(0.934 0.017 255);
+  --viz-rule-3: oklch(0.898 0.026 255);
+  --viz-rule-edge: oklch(0.6 0.03 255 / 22%);
   /* Testo di avviso (ambra) AA su bg e card: 4.58 · 4.75 (solver) */
   --warning: oklch(0.565 0.133 60);
   /* Sistema v2 (14/09/2026, tavola «Sistema visivo v2» in Claude Design):
@@ -265,29 +268,30 @@
   --profit: oklch(0.75 0.175 158);
   --loss: oklch(0.655 0.228 26);
   --breakeven: oklch(0.714 0.015 264);
-  /* Vetro in scuro: fumé, la tinta si allontana dalla card schiarendo.
-     Testo sul gradino 3 con riflesso: 7,98 · 6,73. Tratti su card: profit
-     8,18 · loss 7,42 · accento 7,67 · neutro 7,24. */
-  --viz-profit-1: oklch(0.26 0.042 158);
-  --viz-profit-2: oklch(0.315 0.064 158);
-  --viz-profit-3: oklch(0.375 0.086 158);
-  --viz-loss-1: oklch(0.26 0.042 26);
-  --viz-loss-2: oklch(0.315 0.064 26);
-  --viz-loss-3: oklch(0.375 0.086 26);
-  --viz-profit: oklch(0.74 0.115 158);
-  --viz-loss: oklch(0.74 0.115 26);
-  --viz-neutral: oklch(0.72 0.012 264);
-  --viz-accent: oklch(0.74 0.1 275);
+  /* Dati in scuro. Celle: la card è L 0,204, i gradini salgono appena
+     (0,232 · 0,262 · 0,30) con la croma che cresce — quasi nero velato di
+     tinta, come il riferimento. Cifra 12,31 · secondario 10,37. Tratti:
+     profit 7,21 · loss 5,08 · accento 5,13 · neutro 5,77 sulla card. */
+  --viz-profit-1: oklch(0.232 0.036 158);
+  --viz-profit-2: oklch(0.262 0.06 158);
+  --viz-profit-3: oklch(0.3 0.071 158);
+  --viz-loss-1: oklch(0.232 0.036 26);
+  --viz-loss-2: oklch(0.262 0.06 26);
+  --viz-loss-3: oklch(0.3 0.086 26);
+  --viz-profit: oklch(0.7 0.16 158);
+  --viz-loss: oklch(0.65 0.19 26);
+  --viz-neutral: oklch(0.66 0.012 264);
+  --viz-accent: oklch(0.64 0.13 290);
+  --viz-accent-fill: oklch(0.64 0.13 290 / 50%);
   --viz-track: oklch(0.3 0.014 264);
-  --viz-profit-edge: oklch(0.74 0.11 158 / 50%);
-  --viz-loss-edge: oklch(0.74 0.11 26 / 50%);
-  --viz-sheen: oklch(1 0 0 / 5%);
+  --viz-profit-edge: oklch(0.5 0.07 158 / 26%);
+  --viz-loss-edge: oklch(0.5 0.07 26 / 26%);
   --viz-foreground: oklch(0.975 0.004 264); /* = foreground */
   --viz-muted: oklch(0.918 0.02 264);
-  --viz-rule-1: oklch(0.26 0.016 255);
-  --viz-rule-2: oklch(0.315 0.024 255);
-  --viz-rule-3: oklch(0.375 0.034 255);
-  --viz-rule-edge: oklch(0.74 0.04 255 / 50%);
+  --viz-rule-1: oklch(0.232 0.014 255);
+  --viz-rule-2: oklch(0.262 0.024 255);
+  --viz-rule-3: oklch(0.3 0.034 255);
+  --viz-rule-edge: oklch(0.5 0.03 255 / 26%);
   /* Ambra IN GAMUT più vicina all'amber-400 usata prima (che era clampata):
      11.57 su bg · 10.50 su card (solver) */
   --warning: oklch(0.83 0.17 84);
@@ -431,41 +435,41 @@
 [data-pnl="blue-red"] {
   --profit: oklch(0.452 0.313 264); /* blu profondo · 8.59 AA */
   --loss: oklch(0.565 0.23 26); /* 5.12 AA */
-  /* Il vetro dei dati segue la coppia: stessa luminosità, croma al gamut
-     della tinta BLU. Il rosso resta quello del blocco base. */
-  --viz-profit-1: oklch(0.955 0.021 264);
-  --viz-profit-2: oklch(0.91 0.043 264);
-  --viz-profit-3: oklch(0.855 0.071 264);
-  --viz-profit: oklch(0.62 0.11 264);
-  --viz-profit-edge: oklch(0.6 0.1 264 / 45%);
+  /* I dati seguono la coppia: stessa luminosità, croma al gamut della tinta
+     BLU. Il rosso resta quello del blocco base. */
+  --viz-profit-1: oklch(0.962 0.017 264);
+  --viz-profit-2: oklch(0.934 0.031 264);
+  --viz-profit-3: oklch(0.898 0.049 264);
+  --viz-profit: oklch(0.58 0.14 264);
+  --viz-profit-edge: oklch(0.6 0.06 264 / 22%);
 }
 :where(.dark, .dark *)[data-pnl="blue-red"] {
   --profit: oklch(0.635 0.194 262); /* 5.09 AA su card */
   --loss: oklch(0.655 0.228 26); /* 5.08 AA su card */
-  --viz-profit-1: oklch(0.26 0.042 264);
-  --viz-profit-2: oklch(0.315 0.064 264);
-  --viz-profit-3: oklch(0.375 0.086 264);
-  --viz-profit: oklch(0.74 0.115 264);
-  --viz-profit-edge: oklch(0.74 0.11 264 / 50%);
+  --viz-profit-1: oklch(0.232 0.036 264);
+  --viz-profit-2: oklch(0.262 0.06 264);
+  --viz-profit-3: oklch(0.3 0.086 264);
+  --viz-profit: oklch(0.7 0.156 264);
+  --viz-profit-edge: oklch(0.5 0.07 264 / 26%);
 }
 
 [data-pnl="green-violet"] {
   --profit: oklch(0.525 0.123 158); /* 5.07 AA */
   --loss: oklch(0.526 0.292 293); /* viola pieno · 6.36 AA */
-  --viz-loss-1: oklch(0.955 0.023 293);
-  --viz-loss-2: oklch(0.91 0.047 293);
-  --viz-loss-3: oklch(0.855 0.078 293);
-  --viz-loss: oklch(0.62 0.11 293);
-  --viz-loss-edge: oklch(0.6 0.1 293 / 45%);
+  --viz-loss-1: oklch(0.962 0.019 293);
+  --viz-loss-2: oklch(0.934 0.034 293);
+  --viz-loss-3: oklch(0.898 0.054 293);
+  --viz-loss: oklch(0.58 0.19 293);
+  --viz-loss-edge: oklch(0.6 0.06 293 / 22%);
 }
 :where(.dark, .dark *)[data-pnl="green-violet"] {
   --profit: oklch(0.75 0.175 158); /* 8.68 AA su card */
   --loss: oklch(0.622 0.225 293); /* 4.51 AA su card */
-  --viz-loss-1: oklch(0.26 0.042 293);
-  --viz-loss-2: oklch(0.315 0.064 293);
-  --viz-loss-3: oklch(0.375 0.086 293);
-  --viz-loss: oklch(0.74 0.115 293);
-  --viz-loss-edge: oklch(0.74 0.11 293 / 50%);
+  --viz-loss-1: oklch(0.232 0.036 293);
+  --viz-loss-2: oklch(0.262 0.06 293);
+  --viz-loss-3: oklch(0.3 0.086 293);
+  --viz-loss: oklch(0.65 0.19 293);
+  --viz-loss-edge: oklch(0.5 0.07 293 / 26%);
 }
 
 @layer base {
@@ -514,24 +518,6 @@
 }
 
 @layer components {
-  /* VETRO DEI DATI (tavola «Sistema visivo v3 - vetro, palette dei dati»):
-     sopra il riempimento opaco `bg-viz-*` un riflesso che sfuma dall'alto e
-     un filo di luce sul bordo superiore; il bordo colorato lo dà la classe
-     `border-viz-*-edge`. Il gradino più intenso aggiunge un alone morbido
-     della stessa tinta. Il testo sopra è `text-viz-foreground` /
-     `text-viz-muted`, misurati col riflesso composto (theme-contrast.test.ts).
-     Sta in components e non in utilities: un `hover:`/`ring-` del componente
-     deve poterlo completare senza gare di specificità. */
-  .viz-glass {
-    background-image: linear-gradient(180deg, var(--viz-sheen), transparent 58%);
-    box-shadow: inset 0 1px 0 var(--viz-sheen);
-  }
-  .viz-glow-profit {
-    box-shadow: inset 0 1px 0 var(--viz-sheen), 0 0 18px -8px var(--viz-profit);
-  }
-  .viz-glow-loss {
-    box-shadow: inset 0 1px 0 var(--viz-sheen), 0 0 18px -8px var(--viz-loss);
-  }
   /* Gerarchia tipografica delle pagine e delle card — usare SEMPRE queste
      classi, mai ricomporre la gerarchia a mano nei componenti. */
   /* Titolo di pagina a 20px (scala del sistema v2: 11 · 12 · 14 · 16 · 20 ·
@@ -771,26 +757,26 @@
     --profit: oklch(0.525 0.123 158);
     --loss: oklch(0.565 0.23 26);
     --breakeven: oklch(0.44 0.012 264);
-    --viz-profit-1: oklch(0.955 0.03 158);
-    --viz-profit-2: oklch(0.91 0.054 158);
-    --viz-profit-3: oklch(0.855 0.078 158);
-    --viz-loss-1: oklch(0.955 0.022 26);
-    --viz-loss-2: oklch(0.91 0.046 26);
-    --viz-loss-3: oklch(0.855 0.078 26);
-    --viz-profit: oklch(0.62 0.11 158);
-    --viz-loss: oklch(0.62 0.11 26);
-    --viz-neutral: oklch(0.62 0.01 264);
-    --viz-accent: oklch(0.58 0.1 275);
+    --viz-profit-1: oklch(0.962 0.024 158);
+    --viz-profit-2: oklch(0.934 0.043 158);
+    --viz-profit-3: oklch(0.898 0.065 158);
+    --viz-loss-1: oklch(0.962 0.018 26);
+    --viz-loss-2: oklch(0.934 0.033 26);
+    --viz-loss-3: oklch(0.898 0.053 26);
+    --viz-profit: oklch(0.58 0.136 158);
+    --viz-loss: oklch(0.58 0.19 26);
+    --viz-neutral: oklch(0.6 0.012 264);
+    --viz-accent: oklch(0.5 0.14 290);
+    --viz-accent-fill: oklch(0.5 0.14 290 / 34%);
     --viz-track: oklch(0.93 0.006 264);
-    --viz-profit-edge: oklch(0.6 0.1 158 / 45%);
-    --viz-loss-edge: oklch(0.6 0.1 26 / 45%);
-    --viz-sheen: oklch(1 0 0 / 50%);
+    --viz-profit-edge: oklch(0.6 0.06 158 / 22%);
+    --viz-loss-edge: oklch(0.6 0.06 26 / 22%);
     --viz-foreground: oklch(0.16 0.014 264);
     --viz-muted: oklch(0.345 0.02 264);
-    --viz-rule-1: oklch(0.955 0.012 255);
-    --viz-rule-2: oklch(0.91 0.022 255);
-    --viz-rule-3: oklch(0.855 0.032 255);
-    --viz-rule-edge: oklch(0.6 0.04 255 / 45%);
+    --viz-rule-1: oklch(0.962 0.01 255);
+    --viz-rule-2: oklch(0.934 0.017 255);
+    --viz-rule-3: oklch(0.898 0.026 255);
+    --viz-rule-edge: oklch(0.6 0.03 255 / 22%);
     --warning: oklch(0.565 0.133 60);
      --foreground-2: oklch(0.413 0.029 256);
     --rule: oklch(0.837 0.016 257);
@@ -826,20 +812,20 @@
   :where(.dark, .dark *)[data-pnl="blue-red"] {
     --profit: oklch(0.452 0.313 264);
     --loss: oklch(0.565 0.23 26);
-    --viz-profit-1: oklch(0.955 0.021 264);
-    --viz-profit-2: oklch(0.91 0.043 264);
-    --viz-profit-3: oklch(0.855 0.071 264);
-    --viz-profit: oklch(0.62 0.11 264);
-    --viz-profit-edge: oklch(0.6 0.1 264 / 45%);
+    --viz-profit-1: oklch(0.962 0.017 264);
+    --viz-profit-2: oklch(0.934 0.031 264);
+    --viz-profit-3: oklch(0.898 0.049 264);
+    --viz-profit: oklch(0.58 0.14 264);
+    --viz-profit-edge: oklch(0.6 0.06 264 / 22%);
   }
   :where(.dark, .dark *)[data-pnl="green-violet"] {
     --profit: oklch(0.525 0.123 158);
     --loss: oklch(0.526 0.292 293);
-    --viz-loss-1: oklch(0.955 0.023 293);
-    --viz-loss-2: oklch(0.91 0.047 293);
-    --viz-loss-3: oklch(0.855 0.078 293);
-    --viz-loss: oklch(0.62 0.11 293);
-    --viz-loss-edge: oklch(0.6 0.1 293 / 45%);
+    --viz-loss-1: oklch(0.962 0.019 293);
+    --viz-loss-2: oklch(0.934 0.034 293);
+    --viz-loss-3: oklch(0.898 0.054 293);
+    --viz-loss: oklch(0.58 0.19 293);
+    --viz-loss-edge: oklch(0.6 0.06 293 / 22%);
   }
 
   /* Il foglio è bianco: si dichiara, invece di dipendere dal fatto che il

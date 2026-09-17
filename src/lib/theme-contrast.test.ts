@@ -432,14 +432,28 @@ describe("F4 — testo su fondo velato di un token P&L", () => {
  * scritti in globals.css, per i due temi e le tre coppie P&L:
  *   ① ogni token opaco e ogni filo traslucido sta nel gamut sRGB;
  *   ② cifra (`viz-foreground`) e secondario (`viz-muted`) reggono 4,5:1 su
- *      ogni gradino ANCHE nel punto del riflesso (`viz-sheen` composto sul
- *      riempimento, come lo compone il browser): è il punto peggiore;
+ *      ogni gradino (celle opache, senza riflesso dal 17/09 sera);
  *   ③ i tratti dei grafici (archi, anelli, radar) reggono 3:1 sulla card —
  *      la soglia WCAG per la grafica, non per il testo;
- *   ④ i tre gradini si allontanano dalla card e la croma non scende;
+ *   ④ i tre gradini si allontanano dalla card, la croma non scende e due
+ *      gradini vicini distano almeno 2,5 in ΔE OKLab (×100): le celle scure
+ *      differiscono soprattutto in croma, che il rapporto di luminanza non
+ *      vede;
  *   ⑤ la famiglia NON riusa i valori dei token semantici: un grafico non
  *      deve poter essere letto come un giudizio di segno.
  */
+
+/** Distanza in OKLab ×100 fra due colori oklch (~2 = appena percepibile). */
+function deltaE([L1, C1, H1]: Color, [L2, C2, H2]: Color): number {
+  const rad = Math.PI / 180;
+  return (
+    Math.hypot(
+      L1 - L2,
+      C1 * Math.cos(H1 * rad) - C2 * Math.cos(H2 * rad),
+      C1 * Math.sin(H1 * rad) - C2 * Math.sin(H2 * rad),
+    ) * 100
+  );
+}
 
 /** Token oklch con alfa (`oklch(L C H / N%)`) di un blocco. */
 function alphaTokens(selector: string): Map<string, [Color, number]> {
@@ -461,10 +475,8 @@ describe("visualizzazione dati «vetro» — gamut, testo AA col riflesso, tratt
   ];
 
   for (const [mode, base, baseSel, selettore] of temi) {
-    const sheen = alphaTokens(baseSel).get("viz-sheen");
-
-    it(`${mode}: il riflesso del vetro è dichiarato`, () => {
-      expect(sheen, `--viz-sheen in ${mode}`).toBeDefined();
+    it(`${mode}: il riflesso del vetro non esiste più`, () => {
+      expect(alphaTokens(baseSel).get("viz-sheen")).toBeUndefined();
     });
 
     for (const palette of PNL_PAIRS) {
@@ -495,14 +507,11 @@ describe("visualizzazione dati «vetro» — gamut, testo AA col riflesso, tratt
       });
 
       it.each(riempimenti)(
-        `${mode} ${palette}: cifra e secondario reggono AA su --%s, riflesso incluso`,
+        `${mode} ${palette}: cifra e secondario reggono AA su --%s`,
         (nome, colore) => {
-          const fill = oklchToSrgb(...colore);
-          const lit = over([1, 1, 1], fill, sheen![1]);
           for (const testo of ["viz-foreground", "viz-muted"]) {
-            const fg = oklchToSrgb(...base.get(testo)!);
-            const peggiore = Math.min(srgbContrast(fg, fill), srgbContrast(fg, lit));
-            expect(peggiore, `--${testo} su ${nome} = ${peggiore.toFixed(2)}:1`).toBeGreaterThanOrEqual(4.5);
+            const ratio = contrast(base.get(testo)!, colore);
+            expect(ratio, `--${testo} su ${nome} = ${ratio.toFixed(2)}:1`).toBeGreaterThanOrEqual(4.5);
           }
         },
       );
@@ -520,6 +529,8 @@ describe("visualizzazione dati «vetro» — gamut, testo AA col riflesso, tratt
           expect(d[2]).toBeGreaterThan(d[1]);
           expect(scala[1][1]).toBeGreaterThanOrEqual(scala[0][1]);
           expect(scala[2][1]).toBeGreaterThanOrEqual(scala[1][1]);
+          expect(deltaE(scala[0], scala[1]), `${segno} 1↔2 in ${mode}`).toBeGreaterThanOrEqual(2.5);
+          expect(deltaE(scala[1], scala[2]), `${segno} 2↔3 in ${mode}`).toBeGreaterThanOrEqual(2.5);
         }
       });
 
@@ -537,18 +548,14 @@ describe("visualizzazione dati «vetro» — gamut, testo AA col riflesso, tratt
   /* Scala della DISCIPLINA (Progress Tracker), ardesia nello stesso vetro:
      indipendente dalle coppie P&L, stesse tre verifiche dei riempimenti. */
   for (const [mode, base, baseSel] of temi) {
-    const sheen = alphaTokens(baseSel).get("viz-sheen")!;
     const tinte = [1, 2, 3].map((n) => [`viz-rule-${n}`, base.get(`viz-rule-${n}`)!] as const);
 
-    it.each(tinte)(`${mode} disciplina: --%s dichiarata, in gamut, testo AA col riflesso`, (nome, colore) => {
+    it.each(tinte)(`${mode} disciplina: --%s dichiarata, in gamut, testo AA`, (nome, colore) => {
       expect(colore, `--${nome} in ${mode}`).toBeDefined();
       expect(outOfGamut(...colore), `${nome} ${hex(...colore)} clampato`).toBe(false);
-      const fill = oklchToSrgb(...colore);
-      const lit = over([1, 1, 1], fill, sheen[1]);
       for (const testo of ["viz-foreground", "viz-muted"]) {
-        const fg = oklchToSrgb(...base.get(testo)!);
-        const peggiore = Math.min(srgbContrast(fg, fill), srgbContrast(fg, lit));
-        expect(peggiore, `--${testo} su ${nome} = ${peggiore.toFixed(2)}:1`).toBeGreaterThanOrEqual(4.5);
+        const ratio = contrast(base.get(testo)!, colore);
+        expect(ratio, `--${testo} su ${nome} = ${ratio.toFixed(2)}:1`).toBeGreaterThanOrEqual(4.5);
       }
     });
 
@@ -569,7 +576,7 @@ describe("visualizzazione dati «vetro» — gamut, testo AA col riflesso, tratt
 
   it("la famiglia è anche nel blocco di stampa, coppie comprese", () => {
     expect(PRINT_MEDIA).toMatch(/--viz-profit-3:/);
-    expect(PRINT_MEDIA).toMatch(/--viz-sheen:/);
+    expect(PRINT_MEDIA).toMatch(/--viz-accent-fill:/);
     for (const palette of ["blue-red", "green-violet"]) {
       const printPnl = rawTokens(printBlock(`:where(.dark, .dark *)[data-pnl="${palette}"]`));
       const lightPnl = rawTokens(topLevelBlock(`[data-pnl="${palette}"]`));

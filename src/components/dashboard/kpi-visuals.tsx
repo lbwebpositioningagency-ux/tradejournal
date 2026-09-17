@@ -7,7 +7,9 @@ import { cn } from "@/lib/utils";
  *
  * Colori dalla famiglia --viz-* (rappresenta dati, non giudica): tratti
  * `viz-profit` / `viz-loss` / `viz-neutral` sul binario `viz-track`, tutti
- * ≥ 3:1 sulla card nei due temi (theme-contrast.test.ts). Il testo dentro o
+ * ≥ 3:1 sulla card nei due temi (theme-contrast.test.ts). Qui i tratti SONO il
+ * dato, senza testo sopra: vividi (luminosità media, croma alta) e spessi come
+ * nel riferimento — l'opposto delle celle delle mappe, che fanno da fondo. Il testo dentro o
  * accanto alle grafiche è `foreground` o `viz-foreground` sui riempimenti
  * viz: nessuna cifra colorata con un tratto grafico.
  *
@@ -58,7 +60,8 @@ export function WinRateGauge({ wins, breakevens, losses }: { wins: number; break
   const R = 34;
   const CX = 42;
   const CY = 40;
-  const GAP = 0.06;
+  const STROKE = 9;
+  const GAP = 0.08;
   const parts = [
     { n: wins, stroke: "var(--viz-profit)" },
     { n: breakevens, stroke: "var(--viz-neutral)" },
@@ -75,13 +78,13 @@ export function WinRateGauge({ wins, breakevens, losses }: { wins: number; break
         role="img"
         aria-label={`Trade vinti ${wins}, in pareggio ${breakevens}, persi ${losses}`}
       >
-        <path d={arcPath(CX, CY, R, Math.PI, 2 * Math.PI)} fill="none" stroke="var(--viz-track)" strokeWidth={7} strokeLinecap="round" />
+        <path d={arcPath(CX, CY, R, Math.PI, 2 * Math.PI)} fill="none" stroke="var(--viz-track)" strokeWidth={STROKE} strokeLinecap="round" />
         {total > 0
           ? parts.map((p, i) => {
               const d = (p.n / total) * span;
               const path = arcPath(CX, CY, R, cursor, cursor + d);
               cursor += d + GAP;
-              return <path key={i} d={path} fill="none" stroke={p.stroke} strokeWidth={7} strokeLinecap="round" />;
+              return <path key={i} d={path} fill="none" stroke={p.stroke} strokeWidth={STROKE} strokeLinecap="round" />;
             })
           : null}
       </svg>
@@ -119,7 +122,7 @@ export function AvgWinLossBar({
   return (
     <div className="flex w-full min-w-0 flex-col gap-1" data-kpi-visual="avg-win-loss">
       <div
-        className="flex h-1.5 w-full gap-0.5"
+        className="flex h-2 w-full gap-0.5"
         role="img"
         aria-label={`Vincita media ${winLabel}, perdita media ${lossLabel}`}
       >
@@ -166,7 +169,7 @@ export function ProfitFactorRing({ profitFactor, wins }: { profitFactor: string 
       data-kpi-visual="profit-factor"
     >
       <g transform="rotate(-90 26 26)">
-        <circle cx={26} cy={26} r={R} fill="none" stroke={share === null ? "var(--viz-track)" : "var(--viz-loss)"} strokeWidth={6} />
+        <circle cx={26} cy={26} r={R} fill="none" stroke={share === null ? "var(--viz-track)" : "var(--viz-loss)"} strokeWidth={7} />
         {share !== null && share > 0 ? (
           <circle
             cx={26}
@@ -174,7 +177,7 @@ export function ProfitFactorRing({ profitFactor, wins }: { profitFactor: string 
             r={R}
             fill="none"
             stroke="var(--viz-profit)"
-            strokeWidth={6}
+            strokeWidth={7}
             strokeDasharray={`${Math.max(0, C * share - gap).toFixed(2)} ${C.toFixed(2)}`}
           />
         ) : null}
@@ -217,7 +220,7 @@ export function StreakRing({
             : `${label}: nessuna serie in corso`
         }
       >
-        <circle cx={20} cy={20} r={R} fill="none" stroke="var(--viz-track)" strokeWidth={4} />
+        <circle cx={20} cy={20} r={R} fill="none" stroke="var(--viz-track)" strokeWidth={5} />
         {active ? (
           <circle
             cx={20}
@@ -225,7 +228,7 @@ export function StreakRing({
             r={R}
             fill="none"
             stroke={direction === "WIN" ? "var(--viz-profit)" : "var(--viz-loss)"}
-            strokeWidth={4}
+            strokeWidth={5}
             strokeLinecap="round"
             strokeDasharray={`${(C * share).toFixed(2)} ${C.toFixed(2)}`}
             transform="rotate(-90 20 20)"
