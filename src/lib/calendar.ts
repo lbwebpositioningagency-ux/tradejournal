@@ -1,5 +1,6 @@
 import Decimal from "decimal.js";
 import { daysInMonth, isValidCalendarDate } from "@/lib/dates";
+import { winRate } from "@/lib/metrics/win-rate";
 
 /**
  * Aritmetica di calendario per la vista mensile e la Day View.
@@ -173,6 +174,19 @@ export function weekRangeLabel(monday: string): string {
  * Arrotondata all'intero (metà in su, su Decimal). Nessuna giornata operativa
  * → null: niente percentuale su zero, niente «NaN%».
  */
+/**
+ * Win rate della giornata per la cella del calendario: STESSA definizione del
+ * win rate del conto (`winRate` in metrics/win-rate.ts) — vincenti = P&L netto
+ * > 0, denominatore = tutti i trade chiusi della giornata, quindi i breakeven
+ * contano nel totale ma non tra i vincenti. Arrotondato all'intero (metà in
+ * su): in una cella piccola i decimali sono rumore. Nessun trade → null.
+ */
+export function dayWinRateLabel(wins: number, trades: number): string | null {
+  const rate = winRate(wins, trades);
+  if (rate === null) return null;
+  return `${new Decimal(rate).times(100).toDecimalPlaces(0, Decimal.ROUND_HALF_UP).toFixed(0)}%`;
+}
+
 export function greenDaysQuota(greenDays: number, tradingDays: number): string | null {
   if (tradingDays <= 0) return null;
   const pct = new Decimal(greenDays).div(tradingDays).times(100).toDecimalPlaces(0, Decimal.ROUND_HALF_UP);

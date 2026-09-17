@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   addDays,
+  dayWinRateLabel,
   greenDaysQuota,
   addMonths,
   buildMonthWeeks,
@@ -167,5 +168,23 @@ describe("greenDaysQuota — giorni verdi in percentuale", () => {
 
   it("nessuna giornata operativa: nessuna percentuale, mai NaN", () => {
     expect(greenDaysQuota(0, 0)).toBeNull();
+  });
+});
+
+describe("dayWinRateLabel — win rate della giornata nella cella", () => {
+  it("vincenti sul totale, arrotondato all'intero", () => {
+    expect(dayWinRateLabel(1, 1)).toBe("100%");
+    expect(dayWinRateLabel(1, 3)).toBe("33%");
+    expect(dayWinRateLabel(2, 3)).toBe("67%");
+    expect(dayWinRateLabel(0, 2)).toBe("0%");
+  });
+
+  it("i breakeven contano nel totale ma non tra i vincenti (come winRate del conto)", () => {
+    // 1 vincente + 1 a zero: 50%, non 100%.
+    expect(dayWinRateLabel(1, 2)).toBe("50%");
+  });
+
+  it("nessun trade: nulla", () => {
+    expect(dayWinRateLabel(0, 0)).toBeNull();
   });
 });

@@ -9,6 +9,7 @@ import {
   buildMonthWeeks,
   CALENDAR_ANCHOR,
   calendarHref,
+  dayWinRateLabel,
   greenDaysQuota,
   isValidMonthKey,
   sumPnl,
@@ -231,7 +232,12 @@ export async function DayCalendar({
         <CardContent className="px-2 sm:px-4">
           {/* Otto colonne UGUALI: la settimana ha la stessa misura di un giorno
               (prima era una colonna stretta da 3-4,5rem, più piccola delle celle). */}
-          <div className="grid grid-cols-8 gap-0.5 sm:gap-1">
+          {/* Proporzioni: la card resta a tutta larghezza, la GRIGLIA si ferma a
+              50rem e si centra, così i margini ai lati crescono con lo schermo.
+              Celle ~96×80 (rapporto 1,21; riferimento TradeZella 95,5×79,5 =
+              1,20) invece di 139×80 a 1440. Sotto 50rem nessun margine: su
+              mobile la griglia occupa già tutta la card. */}
+          <div className="mx-auto grid grid-cols-8 max-w-[50rem] gap-0.5 sm:gap-1">
             {WEEKDAY_LABELS.map((label) => (
               <div
                 key={label}
@@ -282,7 +288,9 @@ export async function DayCalendar({
                         href={withCurrencyParam(`/day/${date}`, keptCurrency)}
                         className={cn(
                           // Come il riferimento: raggio piccolo, testo allineato a destra.
-                          "flex min-h-20 flex-col items-end gap-0.5 overflow-hidden rounded-xs border px-0.5 py-1 text-right transition-colors sm:p-1.5",
+                          // Quattro righe in 80px (giorno, importo, trade, win rate):
+                          // nessuno spazio fra le righe, le ultime due a interlinea stretta.
+                          "flex h-20 flex-col items-end overflow-hidden rounded-xs border px-0.5 py-1 text-right transition-colors sm:p-1.5",
                           tone,
                           isToday && "ring-1 ring-primary",
                         )}
@@ -316,11 +324,16 @@ export async function DayCalendar({
                                 {formatSignedCompact(data.netPnl)}
                               </span>
                             </span>
-                            <span className={cn("text-2xs", DAY_TEXT)}>
+                            <span className={cn("text-2xs leading-3.5", DAY_TEXT)}>
                               <span className="sm:hidden">{data.trades}</span>
                               <span className="hidden sm:inline">
                                 {data.trades} trade
                               </span>
+                            </span>
+                            {/* Win rate della giornata, come il riferimento ma
+                                all'intero (dayWinRateLabel: breakeven nel totale). */}
+                            <span className={cn("text-2xs leading-3.5 tabular-nums", DAY_TEXT)}>
+                              {dayWinRateLabel(data.wins, data.trades)}
                             </span>
                           </>
                         ) : null}

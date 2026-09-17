@@ -227,9 +227,11 @@ export async function getTradeSequence(
   return rows;
 }
 
-/** DailyPnl arricchito con la somma degli R della giornata (vista R). */
+/** DailyPnl arricchito con la somma degli R della giornata (vista R) e i vincenti. */
 export interface DailyPnlRow extends DailyPnl {
   rSum: string;
+  /** Trade con P&L netto > 0: numeratore del win rate della giornata (`winRate`). */
+  wins: number;
 }
 
 /**
@@ -245,7 +247,8 @@ export async function getDailyPnl(
       to_char((t."closedAt" AT TIME ZONE 'UTC') AT TIME ZONE ${timezone}, 'YYYY-MM-DD') AS "day",
       COALESCE(SUM(t."netPnl"), 0)::text                           AS "netPnl",
       COUNT(*)::int                                                AS "trades",
-      COALESCE(SUM(t."rMultiple"), 0)::text                        AS "rSum"
+      COALESCE(SUM(t."rMultiple"), 0)::text                        AS "rSum",
+      (COUNT(*) FILTER (WHERE t."netPnl" > 0))::int                AS "wins"
     ${FROM_TRADES}
     WHERE ${whereClosedTrades(filter)}
     GROUP BY 1

@@ -56,6 +56,8 @@ describe("calendario mensile dentro la Dashboard", () => {
     // La cella «Sett.» ha la misura di un giorno e apre la vista Settimana.
     const calendar = readFileSync(join(SRC, "components", "dashboard", "day-calendar.tsx"), "utf8");
     expect(calendar).toMatch(/grid grid-cols-8 /);
+    // Proporzioni vicine al riferimento: la griglia si ferma a 50rem e si centra.
+    expect(calendar).toMatch(/mx-auto grid grid-cols-8 max-w-\[50rem\]/);
     expect(calendar).not.toMatch(/_4\.5rem\]|_3rem\]/);
     expect(calendar).toContain("withCurrencyParam(`/week/${week[0]}`, keptCurrency)");
     // Nessun doppione ridotto dello stesso mese.
