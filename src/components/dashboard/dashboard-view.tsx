@@ -99,6 +99,12 @@ import type { TradeSequencePointView } from "@/components/charts/trade-sequence-
 // di questi non pesa più sull'idratazione iniziale.
 import { UnderwaterChart } from "@/components/charts/lazy-charts";
 import { StreakLegend } from "@/components/charts/streak-legend";
+import {
+  AvgWinLossBar,
+  ProfitFactorRing,
+  StreakRing,
+  WinRateGauge,
+} from "@/components/dashboard/kpi-visuals";
 import { TradeSequencePanel } from "@/components/charts/trade-sequence-panel";
 import { cn, pluralize } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
@@ -311,6 +317,7 @@ function StatCard({
   valueClass,
   size = "md",
   sub,
+  visual,
   children,
   className,
 }: {
@@ -323,6 +330,8 @@ function StatCard({
   /** sm = coppie di valori · md = standard · hero = Net P&L/Saldo */
   size?: "sm" | "md" | "hero";
   sub?: React.ReactNode;
+  /** Grafica «vetro» accanto al numero (kpi-visuals.tsx): stessi dati della card. */
+  visual?: React.ReactNode;
   children?: React.ReactNode;
   /** F26 — es. nascondere la card su mobile quando le metriche sono collassate. */
   className?: string;
@@ -342,8 +351,20 @@ function StatCard({
         </CardTitle>
       </CardHeader>
       <CardContent className="min-w-0 px-4">
-        <p className={cn(sizeClass, valueClass)}>{value}</p>
-        {sub ? <div className="stat-sub mt-1">{sub}</div> : null}
+        {visual ? (
+          <div className="flex items-center justify-between gap-3">
+            <div className="min-w-0">
+              <p className={cn(sizeClass, valueClass)}>{value}</p>
+              {sub ? <div className="stat-sub mt-1">{sub}</div> : null}
+            </div>
+            {visual}
+          </div>
+        ) : (
+          <>
+            <p className={cn(sizeClass, valueClass)}>{value}</p>
+            {sub ? <div className="stat-sub mt-1">{sub}</div> : null}
+          </>
+        )}
         {children}
       </CardContent>
     </Card>
@@ -815,7 +836,14 @@ export function DashboardView({
             label="Trade Win %"
             info={winRateInfo}
             value={formatPercent(data.winRate)}
-            sub={`${data.wins} W · ${data.losses} L${data.breakevens > 0 ? ` · ${data.breakevens} BE` : ""}`}
+            // I conteggi V / BE / L stanno nelle pillole sotto l'arco.
+            visual={
+              <WinRateGauge
+                wins={data.wins}
+                breakevens={data.breakevens}
+                losses={data.losses}
+              />
+            }
           />
         ) : null}
         {show("profit-factor") && !hideExtraMetrics ? (
@@ -831,6 +859,7 @@ export function DashboardView({
                   : "—"
             }
             sub="Profitti / |Perdite|"
+            visual={<ProfitFactorRing profitFactor={data.profitFactor} wins={data.wins} />}
           />
         ) : null}
         {show("day-win-rate") && !hideExtraMetrics ? (
@@ -848,18 +877,20 @@ export function DashboardView({
             label="Avg Win / Loss"
             info={avgWinLossInfo}
             value={data.payoff !== null ? formatRMultiple(data.payoff) : "—"}
-            sub={
-              <>
-                <span className={masked ? undefined : "text-profit"}>
-                  {data.avgWin !== null ? money(data.avgWin, data.avgWinR, false) : "—"}
-                </span>
-                <span className="mx-1 text-muted-foreground">/</span>
-                <span className={masked ? undefined : "text-loss"}>
-                  {data.avgLoss !== null ? money(data.avgLoss, data.avgLossR, false) : "—"}
-                </span>
-              </>
-            }
-          />
+          >
+            {/* Barra a due estremi SOTTO il numero, a tutta larghezza: accanto
+                i due importi non ci stavano a 390px. Proporzioni nell'unità
+                mostrata (R nella vista R, valuta altrimenti; la % è uguale). */}
+            <div className="mt-2">
+              <AvgWinLossBar
+                avgWin={inR ? data.avgWinR : data.avgWin}
+                avgLoss={inR ? data.avgLossR : data.avgLoss}
+                winLabel={data.avgWin !== null ? money(data.avgWin, data.avgWinR, false) : "—"}
+                lossLabel={data.avgLoss !== null ? money(data.avgLoss, data.avgLossR, false) : "—"}
+                masked={masked}
+              />
+            </div>
+          </StatCard>
         ) : null}
         {show("expectancy") && !hideExtraMetrics ? (
           <StatCard
@@ -929,6 +960,24 @@ export function DashboardView({
                 <StreakBadge streak={data.tradeStreak} unit="trade" />
                 <StreakBadge streak={data.dayStreak} unit="day" />
               </span>
+            }
+            // Anelli: la serie corrente rispetto alla sua massima nello stesso
+            // verso — giornate su dayRuns, trade su Winners & Losers.
+            visual={
+              <div className="flex shrink-0 gap-2">
+                <StreakRing
+                  label="Giorni"
+                  length={data.dayStreak.length}
+                  direction={data.dayStreak.direction}
+                  max={data.dayStreak.direction === "LOSS" ? data.dayRuns.maxLoss : data.dayRuns.maxWin}
+                />
+                <StreakRing
+                  label="Trade"
+                  length={data.tradeStreak.length}
+                  direction={data.tradeStreak.direction}
+                  max={data.tradeStreak.direction === "LOSS" ? data.tradeRuns.maxLoss : data.tradeRuns.maxWin}
+                />
+              </div>
             }
           />
         ) : null}
