@@ -193,6 +193,8 @@ export function CalendarioView({ dati }: { dati: DatiCalendario }) {
             percentuali, conteggi e saldi in valuta.
           </p>
 
+          <Legenda />
+
           <Schede giorni={giorniFiltrati} oggi={dati.oggi} />
           <Tabella giorni={giorniFiltrati} oggi={dati.oggi} />
         </div>
@@ -523,6 +525,61 @@ function Importanza({ livello }: { livello: LivelloImportanza }) {
       className="mt-[1px] inline-block size-1.5 shrink-0 rounded-full"
       style={stile}
     />
+  );
+}
+
+/* ── legenda ─────────────────────────────────────────────────────────── */
+
+/**
+ * La legenda dei simboli, sempre aperta sopra la lista.
+ *
+ * «Come si legge» spiega PERCHÉ una cella dice «non pubblicato»; questa
+ * striscia dice COSA vuol dire ogni segno, e deve stare dove l'occhio lo
+ * incontra. Chiusa dentro un `<details>` nessuno la apre prima di chiedersi
+ * cosa sia il pallino ambra — cioè la apre troppo tardi.
+ *
+ * Una `<dl>` vera: simbolo → significato, letta come coppie anche da uno
+ * screen reader. Il pallino usa lo stesso componente delle righe, così la
+ * legenda non può divergere da ciò che spiega.
+ */
+function Legenda() {
+  return (
+    <dl
+      aria-label="Legenda dei simboli"
+      className="flex flex-wrap items-baseline gap-x-4 gap-y-1.5 border-t pt-2.5 text-2xs leading-snug text-[var(--md-text-2)]"
+      style={{ borderColor: "var(--md-border)" }}
+    >
+      <VoceLegenda
+        segno={
+          <span className="inline-flex items-center gap-1.5">
+            <Importanza livello="alta" />
+            alta
+            <Importanza livello="media" />
+            media
+            <Importanza livello="bassa" />
+            bassa
+          </span>
+        }
+      >
+        importanza dichiarata dalla fonte
+      </VoceLegenda>
+      <VoceLegenda segno="giornata">evento senza orario</VoceLegenda>
+      <VoceLegenda segno="non pubblicato">consenso non ancora uscito</VoceLegenda>
+      <VoceLegenda segno="in uscita">effettivo atteso</VoceLegenda>
+      <VoceLegenda segno="—">la fonte non l&apos;ha pubblicato</VoceLegenda>
+      <VoceLegenda segno={<span className="md-mono">K M B T</span>}>
+        migliaia · milioni · miliardi · mille miliardi
+      </VoceLegenda>
+    </dl>
+  );
+}
+
+function VoceLegenda({ segno, children }: { segno: ReactNode; children: ReactNode }) {
+  return (
+    <div className="flex items-baseline gap-1.5">
+      <dt className="font-semibold text-[var(--md-text)]">{segno}</dt>
+      <dd>{children}</dd>
+    </div>
   );
 }
 

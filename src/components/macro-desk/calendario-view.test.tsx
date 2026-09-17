@@ -58,6 +58,21 @@ function dati(
 const html = (righe: RigaCalendario[], over?: Partial<DatiCalendario>) =>
   renderToStaticMarkup(<CalendarioView dati={dati(righe, over)} />);
 
+/** La pagina senza la legenda: la legenda nomina di proposito ogni segno. */
+const lista = (righe: RigaCalendario[], over?: Partial<DatiCalendario>) =>
+  html(righe, over).replace(/<dl aria-label="Legenda dei simboli"[\s\S]*?<\/dl>/, "");
+
+describe("Calendario — legenda dei simboli", () => {
+  it("è sempre in pagina, fuori da «Come si legge», e spiega ogni segno", () => {
+    const out = html([riga()]);
+    const legenda = out.slice(out.indexOf('aria-label="Legenda dei simboli"'));
+    expect(out.indexOf('aria-label="Legenda dei simboli"')).toBeGreaterThan(out.indexOf("</details>"));
+    for (const segno of ["giornata", "non pubblicato", "in uscita", "—", "K M B T", "alta", "media", "bassa"]) {
+      expect(legenda).toContain(segno);
+    }
+  });
+});
+
 describe("Calendario — le celle che non devono essere trattini", () => {
   it("scrive «non pubblicato» sul consenso mancante, non un trattino", () => {
     /* Sarà vuota più spesso che piena: il consenso è un sondaggio che esce
@@ -71,13 +86,13 @@ describe("Calendario — le celle che non devono essere trattini", () => {
   });
 
   it("usa il trattino solo dove il dato manca davvero: evento passato senza effettivo", () => {
-    const out = html([riga({ effettivo: null, passato: true })]);
+    const out = lista([riga({ effettivo: null, passato: true })]);
     expect(out).not.toContain("in uscita");
     expect(out).toContain("—");
   });
 
   it("mostra l'effettivo quando c'è", () => {
-    const out = html([riga({ effettivo: "79K", passato: true })]);
+    const out = lista([riga({ effettivo: "79K", passato: true })]);
     expect(out).toContain("79K");
     expect(out).not.toContain("in uscita");
   });
