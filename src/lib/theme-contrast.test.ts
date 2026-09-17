@@ -657,3 +657,39 @@ describe("calendario mensile — tre esiti a colore pieno, testo AA", () => {
     }
   });
 });
+
+/**
+ * SCHEDA SETTIMANALE del calendario: valori campionati dal riferimento in
+ * scuro (fondo #181818, filo #3a3a3a, importo #71c6a7 / #dd7271, pillola
+ * #251b47 col bianco); in chiaro filo e importo del tema.
+ */
+describe("scheda settimanale del calendario — riferimento in scuro, AA nei due temi", () => {
+  const root = rawTokens(topLevelBlock(":root"));
+  const dark = rawTokens(topLevelBlock(".dark"));
+
+  it("valori campionati dal riferimento", () => {
+    expect(dark.get("viz-week-edge")!.toLowerCase()).toBe("#3a3a3a");
+    expect(dark.get("viz-week-profit")!.toLowerCase()).toBe("#71c6a7");
+    expect(dark.get("viz-week-loss")!.toLowerCase()).toBe("#dd7271");
+    expect(root.get("viz-week-pill")!.toLowerCase()).toBe("#251b47");
+    expect(root.get("viz-week-pill-foreground")!.toLowerCase()).toBe("#ffffff");
+  });
+
+  it("importo in utile e in perdita ≥ 4,5:1 sul fondo scuro della scheda", () => {
+    const fondo = dark.get("viz-day-surface")!.toLowerCase();
+    for (const k of ["viz-week-profit", "viz-week-loss"]) {
+      const r = hexContrast(dark.get(k)!.toLowerCase(), fondo);
+      expect(r, `${k} su ${fondo} = ${r.toFixed(2)}:1`).toBeGreaterThanOrEqual(4.5);
+    }
+  });
+
+  it("pillola dei giorni: testo ≥ 4,5:1, uguale nei due temi", () => {
+    expect(hexContrast("#ffffff", "#251b47")).toBeGreaterThanOrEqual(4.5);
+    expect(dark.has("viz-week-pill")).toBe(false);
+  });
+
+  it("in chiaro l'importo usa il verde e il rosso di testo del tema", () => {
+    expect(root.get("viz-week-profit")).toBe("var(--profit)");
+    expect(root.get("viz-week-loss")).toBe("var(--loss)");
+  });
+});

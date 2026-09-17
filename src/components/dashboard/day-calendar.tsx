@@ -21,6 +21,13 @@ import {
 import { netPnlInfo } from "@/lib/metrics";
 import { getCurrencyBreakdown, getDailyPnl } from "@/lib/queries/stats";
 import { calendarDayTone, DAY_TEXT, dayOutcome } from "@/lib/calendar-day-tone";
+import {
+  tradingDaysLabel,
+  tradingDaysLabelShort,
+  weekAmountClass,
+  weekLabel,
+  weekLabelShort,
+} from "@/lib/calendar-week-card";
 import { resolveCurrencyScope } from "@/lib/currency-scope";
 import { withCurrencyParam } from "@/lib/currency-nav";
 import { cn } from "@/lib/utils";
@@ -230,14 +237,10 @@ export async function DayCalendar({
               Sett.
             </div>
 
-            {weeks.map((week) => {
+            {weeks.map((week, weekIndex) => {
               const weekDaysWithData = week.filter((d) => byDay.has(d));
               const weekNet = sumPnl(
                 weekDaysWithData.map((d) => byDay.get(d)!.netPnl),
-              );
-              const weekTrades = weekDaysWithData.reduce(
-                (acc, d) => acc + byDay.get(d)!.trades,
-                0,
               );
               return (
                 <div key={week[0]} className="contents">
@@ -317,39 +320,28 @@ export async function DayCalendar({
                       </Link>
                     );
                   })}
-                  {/* La cella «Sett.» apre la vista Settimana (lunedì→domenica,
-                      la stessa riga): stesso aspetto a riposo, filo al
-                      passaggio come le celle giorno. */}
+                  {/* SCHEDA SETTIMANALE sul modello del riferimento: scheda a sé
+                      col suo filo, tre livelli allineati a sinistra (etichetta,
+                      P&L della settimana, pillola dei giorni operativi).
+                      Settimana senza trade: come il riferimento, importo 0 e
+                      «0 giorni». Apre la vista Settimana, con la valuta. */}
                   <Link
                     href={withCurrencyParam(`/week/${week[0]}`, keptCurrency)}
-                    aria-label={`Apri la settimana dal ${Number(week[0].slice(8, 10))}/${Number(week[0].slice(5, 7))}${weekDaysWithData.length > 0 ? ` (${weekTrades} trade)` : ""}`}
-                    className={cn(
-                      "flex min-h-20 flex-col items-center justify-center gap-0.5 overflow-hidden rounded-md border border-border/60 bg-muted/40 px-0.5 py-1 text-xs tabular-nums transition-colors hover:border-foreground/40 sm:p-1.5",
-                      weekDaysWithData.length > 0
-                        ? pnlColorClass(weekNet)
-                        : "text-muted-foreground",
-                    )}
+                    aria-label={`Apri la ${weekLabel(weekIndex).toLowerCase()}, dal ${Number(week[0].slice(8, 10))}/${Number(week[0].slice(5, 7))}: ${tradingDaysLabel(weekDaysWithData.length)} operativi`}
+                    className="flex min-h-20 flex-col items-start justify-center gap-0.5 overflow-hidden rounded-lg border border-viz-week-edge bg-viz-day-surface px-1 py-1 tabular-nums transition-colors hover:border-foreground/40 sm:gap-1 sm:px-2.5"
                   >
-                    {weekDaysWithData.length > 0 ? (
-                      <>
-                        <span className="font-semibold">
-                          <span className="sm:hidden">
-                            {formatSignedShort(weekNet)}
-                          </span>
-                          <span className="hidden sm:inline">
-                            {formatSignedCompact(weekNet)}
-                          </span>
-                        </span>
-                        <span className="text-2xs text-muted-foreground">
-                          <span className="sm:hidden">{weekTrades}</span>
-                          <span className="hidden sm:inline">
-                            {weekTrades} trade
-                          </span>
-                        </span>
-                      </>
-                    ) : (
-                      "—"
-                    )}
+                    <span className="text-2xs text-foreground sm:text-xs">
+                      <span className="sm:hidden">{weekLabelShort(weekIndex)}</span>
+                      <span className="hidden sm:inline">{weekLabel(weekIndex)}</span>
+                    </span>
+                    <span className={cn("text-2xs font-semibold sm:text-base", weekAmountClass(weekNet))}>
+                      <span className="sm:hidden">{formatSignedShort(weekNet)}</span>
+                      <span className="hidden sm:inline">{formatSignedCompact(weekNet)}</span>
+                    </span>
+                    <span className="rounded-full bg-viz-week-pill px-1 text-2xs leading-4 text-viz-week-pill-foreground sm:px-2">
+                      <span className="sm:hidden">{tradingDaysLabelShort(weekDaysWithData.length)}</span>
+                      <span className="hidden sm:inline">{tradingDaysLabel(weekDaysWithData.length)}</span>
+                    </span>
                   </Link>
                 </div>
               );

@@ -103,6 +103,11 @@
   --color-viz-day-breakeven-edge: var(--viz-day-breakeven-edge);
   --color-viz-day-empty: var(--viz-day-empty);
   --color-viz-day-surface: var(--viz-day-surface);
+  --color-viz-week-edge: var(--viz-week-edge);
+  --color-viz-week-pill: var(--viz-week-pill);
+  --color-viz-week-pill-foreground: var(--viz-week-pill-foreground);
+  --color-viz-week-profit: var(--viz-week-profit);
+  --color-viz-week-loss: var(--viz-week-loss);
   /* Avvisi non-P&L (es. divergenze sync): ambra AA come testo in entrambi i modi */
   --color-warning: var(--warning);
   /* Micro-testo a scala (11px): unico taglio sotto text-xs */
@@ -220,6 +225,15 @@
      card bianca e la cella trasparente col filo del tema. */
   --viz-day-empty: transparent;
   --viz-day-surface: var(--card);
+  /* SCHEDA SETTIMANALE (colonna «Sett.»), campionata dal riferimento: pillola
+     dei giorni #251b47 col testo bianco (15,83), uguale nei due temi. Filo e
+     importo del riferimento sono tarati sul fondo scuro #181818: in chiaro si
+     usano il filo del tema e il verde/rosso di testo AA della card bianca. */
+  --viz-week-edge: var(--border);
+  --viz-week-pill: #251b47;
+  --viz-week-pill-foreground: #ffffff;
+  --viz-week-profit: var(--profit);
+  --viz-week-loss: var(--loss);
   /* Testo di avviso (ambra) AA su bg e card: 4.58 · 4.75 (solver) */
   --warning: oklch(0.565 0.133 60);
   /* Sistema v2 (14/09/2026, tavola «Sistema visivo v2» in Claude Design):
@@ -329,6 +343,9 @@
   --viz-rule-edge: oklch(0.5 0.03 255 / 26%);
   --viz-day-empty: #262626; /* cella senza trade del riferimento */
   --viz-day-surface: #181818; /* fondo del calendario del riferimento */
+  --viz-week-edge: #3a3a3a; /* filo della scheda settimanale del riferimento */
+  --viz-week-profit: #71c6a7; /* importo in utile del riferimento · 9,4 su #181818 */
+  --viz-week-loss: #dd7271; /* rosso di testo del riferimento · 5,6 su #181818 */
   /* Ambra IN GAMUT più vicina all'amber-400 usata prima (che era clampata):
      11.57 su bg · 10.50 su card (solver) */
   --warning: oklch(0.83 0.17 84);
@@ -832,6 +849,9 @@
     --viz-rule-edge: oklch(0.6 0.03 255 / 22%);
     --viz-day-empty: transparent;
     --viz-day-surface: var(--card);
+    --viz-week-edge: var(--border);
+    --viz-week-profit: var(--profit);
+    --viz-week-loss: var(--loss);
     --warning: oklch(0.565 0.133 60);
      --foreground-2: oklch(0.413 0.029 256);
     --rule: oklch(0.837 0.016 257);
