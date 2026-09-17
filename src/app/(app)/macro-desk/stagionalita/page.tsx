@@ -594,7 +594,8 @@ export default async function StagionalitaPage({
                    390 (560 → 466). La regola di scala non cambia. */
                 <div className="mt-2 h-[466px] w-full md:h-[732px]">
                   {/* Rimontato a ogni cambio di strumento, finestra o vista:
-                      all'apertura è accesa solo la finestra selezionata. */}
+                      all'apertura si accendono 20, 10 e 5 anni (o le tre
+                      più ampie disponibili) più la finestra selezionata. */}
                   <SeasonalPathChart
                     key={`${instrument}-${lookbackEffettivo}-${detrended ? "d" : "g"}`}
                     series={pathSeries}
@@ -617,8 +618,9 @@ export default async function StagionalitaPage({
                 {def.kind === "LEVEL"
                   ? " Per un indice di volatilità l'indice nasce dalle sue variazioni giornaliere; le tabelle restano in livelli."
                   : ""}{" "}
-                L&apos;anno in corso, tratteggiato, è escluso dalle medie. All&apos;apertura è accesa
-                solo la finestra selezionata, le altre sono a un clic nella legenda: la scala verticale
+                L&apos;anno in corso, tratteggiato, è escluso dalle medie. All&apos;apertura sono accese
+                le finestre da 20, 10 e 5 anni (le tre più ampie disponibili, se lo storico è più corto)
+                e quella selezionata; le altre sono a un clic nella legenda. La scala verticale
                 segue le linee accese e i giorni scelti nella striscia sotto il grafico, contiene sempre
                 il 100 e l&apos;asse riporta i valori veri dell&apos;indice.
               </p>

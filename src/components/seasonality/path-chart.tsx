@@ -24,6 +24,7 @@ import {
   ZoomBrush,
 } from "@/components/charts/chart-zoom";
 import { scalaIndice, tickDelDominio } from "@/components/seasonality/scala-indice";
+import { curveIniziali } from "@/components/seasonality/curve-iniziali";
 import { formatNumber } from "@/lib/format-number";
 
 /**
@@ -40,8 +41,10 @@ import { formatNumber } from "@/lib/format-number";
  * erano accese tutte le finestre più l'anno in corso, e la scala le conteneva
  * tutte: sull'oro 61,8 punti d'indice su 424px, 6,9px per punto — la finestra
  * selezionata (11 punti) si schiacciava in 77px. Ora:
- * - all'apertura è accesa SOLO la finestra selezionata; le altre e l'anno in
- *   corso sono a un clic nella legenda;
+ * - all'apertura era accesa SOLO la finestra selezionata. Dal 17/09/2026 se
+ *   ne accendono tre, 20, 10 e 5 anni (o le tre più ampie disponibili), più la
+ *   selezionata se non è fra queste (`curve-iniziali.ts`); le altre e l'anno
+ *   in corso sono a un clic nella legenda;
  * - la scala segue le linee accese E i giorni scelti nella striscia sotto il
  *   grafico (prima ignorava la striscia), con il 100 sempre dentro e tacche
  *   1-2-5 fitte quanto l'altezza permette (`scala-indice.ts`);
@@ -96,13 +99,15 @@ export function SeasonalPathChart({
   series: SerieIndice[];
   /** Indice dell'anno in corso fino a oggi; null = non disponibile. */
   currentYear: (number | null)[] | null;
-  /** All'apertura è l'unica linea accesa: la pagina rimonta il grafico quando cambia. */
+  /** Linea marcata, sempre accesa all'apertura: la pagina rimonta il grafico quando cambia. */
   selectedWindow: number;
   todayDoy: number;
   currentMonthDoy: number;
 }) {
   /* Chiavi delle linee ACCESE: anni di finestra, 0 = anno in corso. */
-  const [accese, setAccese] = useState<ReadonlySet<number>>(() => new Set([selectedWindow]));
+  const [accese, setAccese] = useState<ReadonlySet<number>>(
+    () => new Set(curveIniziali(series.map((s) => s.lookbackYears), selectedWindow)),
+  );
   /* Indici della striscia di selezione dei giorni; null = tutto l'anno. */
   const [intervallo, setIntervallo] = useState<{ startIndex: number; endIndex: number } | null>(null);
 
