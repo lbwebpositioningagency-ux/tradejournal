@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   addDays,
+  greenDaysQuota,
   addMonths,
   buildMonthWeeks,
   calendarHref,
@@ -152,5 +153,19 @@ describe("settimana del journal (lunedì→domenica)", () => {
     expect(weekRangeLabel("2026-07-13")).toBe("13–19 luglio 2026");
     expect(weekRangeLabel("2026-06-29")).toBe("29 giugno – 5 luglio 2026");
     expect(weekRangeLabel("2025-12-29")).toBe("29 dicembre 2025 – 4 gennaio 2026");
+  });
+});
+
+describe("greenDaysQuota — giorni verdi in percentuale", () => {
+  it("arrotonda all'intero, metà in su", () => {
+    expect(greenDaysQuota(13, 19)).toBe("(68%)");
+    expect(greenDaysQuota(12, 18)).toBe("(67%)");
+    expect(greenDaysQuota(1, 8)).toBe("(13%)"); // 12,5 → 13
+    expect(greenDaysQuota(0, 5)).toBe("(0%)");
+    expect(greenDaysQuota(7, 7)).toBe("(100%)");
+  });
+
+  it("nessuna giornata operativa: nessuna percentuale, mai NaN", () => {
+    expect(greenDaysQuota(0, 0)).toBeNull();
   });
 });

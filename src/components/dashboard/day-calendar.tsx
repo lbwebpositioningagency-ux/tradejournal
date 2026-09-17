@@ -9,6 +9,7 @@ import {
   buildMonthWeeks,
   CALENDAR_ANCHOR,
   calendarHref,
+  greenDaysQuota,
   isValidMonthKey,
   sumPnl,
 } from "@/lib/calendar";
@@ -169,7 +170,13 @@ export async function DayCalendar({
                     <span className={cn("font-medium", pnlColorClass(monthNet))}>
                       {formatSignedMoney(monthNet, currency)}
                     </span>
-                    {` · ${monthTrades} trade · ${greenDays} giorni verdi su ${daily.length}${scope.multi ? ` · ${currency}` : ""}`}
+                    {` · ${monthTrades} trade · ${greenDays} giorni verdi su ${daily.length}`}
+                    {/* Quota accanto al conteggio, in secondo piano come «In
+                        rialzo» della Stagionalità: stesso colore, taglia minore. */}
+                    {greenDaysQuota(greenDays, daily.length) ? (
+                      <span className="text-xs tabular-nums">{greenDaysQuota(greenDays, daily.length)}</span>
+                    ) : null}
+                    {scope.multi ? ` · ${currency}` : ""}
                     <MetricInfo info={netPnlInfo} />
                   </>
                 )}

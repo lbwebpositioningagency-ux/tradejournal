@@ -166,3 +166,15 @@ export function weekRangeLabel(monday: string): string {
   }
   return `${WEEK_LABEL_FULL.format(at(monday))} – ${WEEK_LABEL_FULL.format(at(sunday))}`;
 }
+
+/**
+ * Quota delle giornate verdi sulle giornate operative, da scrivere accanto al
+ * conteggio nella testata del calendario: «13 giorni verdi su 19 (68%)».
+ * Arrotondata all'intero (metà in su, su Decimal). Nessuna giornata operativa
+ * → null: niente percentuale su zero, niente «NaN%».
+ */
+export function greenDaysQuota(greenDays: number, tradingDays: number): string | null {
+  if (tradingDays <= 0) return null;
+  const pct = new Decimal(greenDays).div(tradingDays).times(100).toDecimalPlaces(0, Decimal.ROUND_HALF_UP);
+  return `(${pct.toFixed(0)}%)`;
+}
