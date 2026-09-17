@@ -9,9 +9,9 @@
  *
  * I colori sono quelli CAMPIONATI dallo screenshot di riferimento, identici in
  * entrambi i temi (`--viz-day-*` in globals.css): riempimento piatto più un
- * BORDO NEON nel colore dell'esito — 1px pieno del colore campionato (`-edge`)
- * a ogni densità e, in scuro, un alone (6px) dello stesso colore al 75%. Il mezzo
- * pixel di 8699449 su uno schermo 1x era quasi invisibile. Testo bianco sopra
+ * FILO netto di 1px del colore campionato (`-edge`). Nessuna ombra, alone o
+ * sfocatura: il bagliore di caf84ec (box-shadow 6px al 75%) faceva sembrare le
+ * celle accese. Testo bianco sopra
  * (≥ 12,58:1).
  * Le coppie P&L per daltonici rimappano i tre stati senza che due coincidano. 
  *
@@ -21,22 +21,10 @@
 
 export type DayOutcome = "profit" | "loss" | "breakeven";
 
-/* Alone del neon: stesso colore del bordo al 75%, sfocato 6px, SOLO in scuro.
-   Sulla card bianca l'alone scurisce il fondo accanto al filo e lo porta sotto
-   3:1 (misurato 2,6:1): in chiaro resta il filo pieno. Scritto per esteso
-   perché Tailwind trova le classi solo come stringhe intere. */
-function glow(outcome: DayOutcome): string {
-  return {
-    profit: "dark:shadow-[0_0_6px_color-mix(in_srgb,var(--viz-day-profit-edge)_75%,transparent)]",
-    loss: "dark:shadow-[0_0_6px_color-mix(in_srgb,var(--viz-day-loss-edge)_75%,transparent)]",
-    breakeven: "dark:shadow-[0_0_6px_color-mix(in_srgb,var(--viz-day-breakeven-edge)_75%,transparent)]",
-  }[outcome];
-}
-
 const TONE: Record<DayOutcome, string> = {
-  profit: `bg-viz-day-profit border-viz-day-profit-edge ${glow("profit")}`,
-  loss: `bg-viz-day-loss border-viz-day-loss-edge ${glow("loss")}`,
-  breakeven: `bg-viz-day-breakeven border-viz-day-breakeven-edge ${glow("breakeven")}`,
+  profit: "bg-viz-day-profit border-viz-day-profit-edge",
+  loss: "bg-viz-day-loss border-viz-day-loss-edge",
+  breakeven: "bg-viz-day-breakeven border-viz-day-breakeven-edge",
 };
 
 /** Esito della giornata dal segno del P&L netto (stringa decimale). */

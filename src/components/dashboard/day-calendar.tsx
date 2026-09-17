@@ -270,12 +270,11 @@ export async function DayCalendar({
                       );
                     }
 
-                    // Senza trade: il fondo blu-ardesia storico del calendario
-                    // (bg-muted/40, la cella «Sett.» prima dello stile vetro,
-                    // 59ac18f), appena distinto dalla card; nessun bordo.
+                    // Senza trade: un gradino di blu sopra la card (--viz-day-empty),
+                    // perché la griglia si legga; nessun bordo.
                     const tone = data
                       ? dayTone(data.netPnl)
-                      : "border-transparent bg-muted/40 hover:border-foreground/40";
+                      : "border-transparent bg-viz-day-empty hover:border-foreground/40";
 
                     return (
                       <Link
@@ -336,7 +335,7 @@ export async function DayCalendar({
                   <Link
                     href={withCurrencyParam(`/week/${week[0]}`, keptCurrency)}
                     aria-label={`Apri la ${weekLabel(weekIndex).toLowerCase()}, dal ${Number(week[0].slice(8, 10))}/${Number(week[0].slice(5, 7))}: ${tradingDaysLabel(weekDaysWithData.length)} operativi`}
-                    className="flex min-h-20 flex-col items-start justify-center gap-0.5 overflow-hidden rounded-lg border border-viz-week-edge bg-viz-day-surface px-1 py-1 tabular-nums transition-colors hover:border-foreground/40 sm:gap-1 sm:px-2.5"
+                    className="flex min-h-20 flex-col items-start justify-center gap-0.5 overflow-hidden rounded-lg border border-viz-week-edge bg-viz-day-empty px-1 py-1 tabular-nums transition-colors hover:border-foreground/40 sm:gap-1 sm:px-2.5"
                   >
                     <span className="text-2xs text-foreground sm:text-xs">
                       <span className="sm:hidden">{weekLabelShort(weekIndex)}</span>

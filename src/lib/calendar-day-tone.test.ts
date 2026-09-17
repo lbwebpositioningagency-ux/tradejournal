@@ -20,13 +20,11 @@ describe("calendario mensile — colore pieno per esito, nessuna intensità", ()
     const classi = (["profit", "loss", "breakeven"] as const).map(calendarDayTone);
     expect(new Set(classi).size).toBe(3);
     for (const c of classi) expect(c).not.toMatch(/viz-(profit|loss|rule)-\d|heat|gradient|ring|glass/);
-    // Riempimento piatto + bordo neon: 1px pieno del colore campionato e
-    // alone dello stesso colore, a ogni densità (niente mezzo pixel).
+    // Riempimento piatto + filo netto del colore campionato: nessuna ombra,
+    // alone o sfocatura (il bagliore di caf84ec faceva sembrare le celle accese).
     for (const k of ["profit", "loss", "breakeven"] as const) {
-      expect(calendarDayTone(k)).toBe(
-        `bg-viz-day-${k} border-viz-day-${k}-edge dark:shadow-[0_0_6px_color-mix(in_srgb,var(--viz-day-${k}-edge)_75%,transparent)]`,
-      );
-      expect(calendarDayTone(k)).not.toMatch(/soft|hairline/);
+      expect(calendarDayTone(k)).toBe(`bg-viz-day-${k} border-viz-day-${k}-edge`);
+      expect(calendarDayTone(k)).not.toMatch(/shadow|glow|blur|soft|hairline/);
     }
     expect(DAY_TEXT).toBe("text-viz-day-foreground");
   });

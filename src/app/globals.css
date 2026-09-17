@@ -101,7 +101,7 @@
   --color-viz-day-profit-edge: var(--viz-day-profit-edge);
   --color-viz-day-loss-edge: var(--viz-day-loss-edge);
   --color-viz-day-breakeven-edge: var(--viz-day-breakeven-edge);
-  --color-viz-day-surface: var(--viz-day-surface);
+  --color-viz-day-empty: var(--viz-day-empty);
   --color-viz-week-edge: var(--viz-week-edge);
   --color-viz-week-pill: var(--viz-week-pill);
   --color-viz-week-pill-foreground: var(--viz-week-pill-foreground);
@@ -204,34 +204,31 @@
   --viz-rule-2: oklch(0.934 0.017 255);
   --viz-rule-3: oklch(0.898 0.026 255);
   --viz-rule-edge: oklch(0.6 0.03 255 / 22%);
-  /* CALENDARIO MENSILE — colore PIENO per esito, identico al riferimento
-     TradeZella (valori campionati dallo screenshot originale, 17/09/2026:
-     celle piatte, migliaia di pixel identici per cella). Nessuna scala di
-     intensità: v. src/lib/calendar-day-tone.ts. Uguali nei DUE temi di
-     proposito (il riferimento ha un solo aspetto) e quindi fuori da .dark.
-     Testo sopra: bianco del riferimento, 14,58 verde · 12,58 rosso · 14,75 blu. */
-  --viz-day-profit: #112e24;
-  --viz-day-loss: #5c1f1d;
-  --viz-day-breakeven: #1e2742;
+  /* CALENDARIO MENSILE — colore PIENO per esito, sulla tinta del riferimento
+     TradeZella (#112e24 · #5c1f1d · #1e2742, campionati dal file originale) con
+     la croma ×0,80 a luminosità OKLCH invariata: appena più smorzati, su
+     richiesta del proprietario (17/09/2026). Nessuna scala di intensità: v.
+     src/lib/calendar-day-tone.ts. Uguali nei DUE temi, quindi fuori da .dark.
+     Testo sopra: bianco, 14,60 verde · 12,54 rosso · 14,66 blu. */
+  --viz-day-profit: #172d25;
+  --viz-day-loss: #552523;
+  --viz-day-breakeven: #20283d;
   --viz-day-foreground: #ffffff;
-  /* BORDO NEON delle celle colorate: 1px PIENO del colore campionato dal
-     riferimento (verde #719885 · rosso #b37c7b · blu #4b5b8e portato a #7789bf,
-     OKLCH L +0,17 a tinta e croma invariate: con l'alone acceso il pixel fuori
-     dal filo si schiarisce, e #536497 scendeva a 2,28:1) a ogni densità, più in
-     scuro un alone dello stesso colore (calendar-day-tone.ts). Coppie: viola
-     #8f7fc8 e grigio #868a94, ritoccati per lo stesso motivo. Ogni filo ≥ 3,15:1
-     sul pixel esterno illuminato e ≥ 3,2:1 sulla card bianca. Il mezzo pixel del giro precedente
-     su uno schermo 1x si vedeva appena: tolto. */
+  /* BORDO: un filo NETTO di 1px del colore campionato dal riferimento, nessun
+     alone né ombra (verde #719885 · rosso #b37c7b · blu #4b5b8e portato a
+     #536497 per il 3:1 sulla card scura). Coppie: viola #8a7ac3, grigio #848892. */
   --viz-day-profit-edge: #719885;
   --viz-day-loss-edge: #b37c7b;
-  --viz-day-breakeven-edge: #7789bf;
-  /* Fondo della scheda settimanale (in chiaro la card). Le celle senza trade
-     non hanno token: usano bg-muted/40, il fondo storico (59ac18f). */
-  --viz-day-surface: var(--card);
+  --viz-day-breakeven-edge: #536497;
+  /* Cella senza trade e fondo della scheda settimanale: un gradino sopra la
+     card, come nel riferimento (#181818 → #262626 = OKLCH L +0,06, 1,17:1).
+     Chiaro: L 0,962 sulla card bianca (#f0f2f8, 1,12:1): il gradino più
+     marcato che tiene l'importo verde della scheda settimanale a 4,53:1. */
+  --viz-day-empty: oklch(0.962 0.008 264);
   /* SCHEDA SETTIMANALE (colonna «Sett.»), campionata dal riferimento: pillola
      dei giorni #251b47 col testo bianco (15,83), uguale nei due temi. Filo e
-     importo del riferimento sono tarati sul fondo scuro #181818: in chiaro si
-     usano il filo del tema e il verde/rosso di testo AA della card bianca. */
+     importo in scuro sono quelli del riferimento; il fondo è --viz-day-empty
+     (come le celle vuote), il filo quello del tema. */
   --viz-week-edge: var(--border);
   --viz-week-pill: #251b47;
   --viz-week-pill-foreground: #ffffff;
@@ -344,10 +341,9 @@
   --viz-rule-2: oklch(0.262 0.024 255);
   --viz-rule-3: oklch(0.3 0.034 255);
   --viz-rule-edge: oklch(0.5 0.03 255 / 26%);
-  --viz-day-surface: #181818; /* fondo del calendario del riferimento */
-  --viz-week-edge: #3a3a3a; /* filo della scheda settimanale del riferimento */
-  --viz-week-profit: #71c6a7; /* importo in utile del riferimento · 9,4 su #181818 */
-  --viz-week-loss: #dd7271; /* rosso di testo del riferimento · 5,6 su #181818 */
+  --viz-day-empty: oklch(0.264 0.02 264); /* #20252f · 1,17:1 sulla card */
+  --viz-week-profit: #71c6a7; /* importo in utile del riferimento */
+  --viz-week-loss: #dd7271; /* rosso di testo del riferimento */
   /* Ambra IN GAMUT più vicina all'amber-400 usata prima (che era clampata):
      11.57 su bg · 10.50 su card (solver) */
   --warning: oklch(0.83 0.17 84);
@@ -495,12 +491,12 @@
      BLU. Il rosso resta quello del blocco base.
      Calendario: il verde diventa il BLU del riferimento, e il blu del pareggio
      passa a un grigio ardesia — due esiti blu sarebbero indistinguibili. */
-  --viz-day-profit: #1e2742;
-  --viz-day-breakeven: #34373e;
+  --viz-day-profit: #20283d;
+  --viz-day-breakeven: #35373d;
   /* Bordi con la stessa regola della coppia classica: blu campionato; per il
      grigio del pareggio scarto fill → filo L +0,29 · C ×1,2 (≥ 3:1). */
-  --viz-day-profit-edge: #7789bf;
-  --viz-day-breakeven-edge: #868a94;
+  --viz-day-profit-edge: #536497;
+  --viz-day-breakeven-edge: #848892;
   --viz-profit-1: oklch(0.962 0.017 264);
   --viz-profit-2: oklch(0.934 0.031 264);
   --viz-profit-3: oklch(0.898 0.049 264);
@@ -523,10 +519,10 @@
   /* Calendario: la perdita diventa viola alla stessa luminosità e croma del
      rosso del riferimento (#5c1f1d → H 293); il pareggio lascia il blu, troppo
      vicino al viola per chi usa questa coppia, e va sul grigio ardesia. */
-  --viz-day-loss: #392b60;
-  --viz-day-breakeven: #34373e;
-  --viz-day-loss-edge: #8f7fc8;
-  --viz-day-breakeven-edge: #868a94;
+  --viz-day-loss: #382e58;
+  --viz-day-breakeven: #35373d;
+  --viz-day-loss-edge: #8a7ac3;
+  --viz-day-breakeven-edge: #848892;
   --viz-loss-1: oklch(0.962 0.019 293);
   --viz-loss-2: oklch(0.934 0.034 293);
   --viz-loss-3: oklch(0.898 0.054 293);
@@ -849,7 +845,7 @@
     --viz-rule-2: oklch(0.934 0.017 255);
     --viz-rule-3: oklch(0.898 0.026 255);
     --viz-rule-edge: oklch(0.6 0.03 255 / 22%);
-    --viz-day-surface: var(--card);
+    --viz-day-empty: oklch(0.962 0.008 264);
     --viz-week-edge: var(--border);
     --viz-week-profit: var(--profit);
     --viz-week-loss: var(--loss);
@@ -893,10 +889,10 @@
     --viz-profit-3: oklch(0.898 0.049 264);
     --viz-profit: oklch(0.58 0.14 264);
     --viz-profit-edge: oklch(0.6 0.06 264 / 22%);
-    --viz-day-profit: #1e2742;
-    --viz-day-breakeven: #34373e;
-    --viz-day-profit-edge: #7789bf;
-    --viz-day-breakeven-edge: #868a94;
+    --viz-day-profit: #20283d;
+    --viz-day-breakeven: #35373d;
+    --viz-day-profit-edge: #536497;
+    --viz-day-breakeven-edge: #848892;
   }
   :where(.dark, .dark *)[data-pnl="green-violet"] {
     --profit: oklch(0.525 0.123 158);
@@ -906,10 +902,10 @@
     --viz-loss-3: oklch(0.898 0.054 293);
     --viz-loss: oklch(0.58 0.19 293);
     --viz-loss-edge: oklch(0.6 0.06 293 / 22%);
-    --viz-day-loss: #392b60;
-    --viz-day-breakeven: #34373e;
-    --viz-day-loss-edge: #8f7fc8;
-    --viz-day-breakeven-edge: #868a94;
+    --viz-day-loss: #382e58;
+    --viz-day-breakeven: #35373d;
+    --viz-day-loss-edge: #8a7ac3;
+    --viz-day-breakeven-edge: #848892;
   }
 
   /* Il foglio è bianco: si dichiara, invece di dipendere dal fatto che il
