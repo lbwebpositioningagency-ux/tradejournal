@@ -13,7 +13,9 @@ import {
   type RigaCalendario,
 } from "@/lib/calendario-economico";
 import { cn } from "@/lib/utils";
+import { etichettaPeriodo, periodoDi } from "@/lib/calendario-periodo";
 import { PanelLabel } from "./primitives";
+import { CalendarioPeriodoNav, type NavigazionePeriodo } from "./calendario-periodo-nav";
 
 /**
  * CALENDARIO ECONOMICO — resa nel linguaggio di **Driver e Stagionalità**,
@@ -74,6 +76,10 @@ export interface DatiCalendario {
   totale: number;
   /** Le valute spuntate al primo render: USD ed EUR, gli strumenti del desk. */
   valutePredefinite: readonly string[];
+  /** La risposta ha toccato il tetto della fonte: il periodo può essere monco. */
+  troncato?: boolean;
+  /** Il periodo e i suoi controlli. Assente = finestra «In arrivo» senza navigazione. */
+  navigazione?: NavigazionePeriodo;
 }
 
 type FiltroImportanza = "alta" | "tutte";
@@ -103,6 +109,12 @@ export function CalendarioView({ dati }: { dati: DatiCalendario }) {
     return perGiorno(righe);
   }, [tutteLeRighe, importanza, valute]);
 
+  const vista = dati.navigazione?.vista ?? "arrivo";
+  const titolo =
+    dati.navigazione && vista !== "arrivo"
+      ? etichettaPeriodo(periodoDi(vista, dati.navigazione.ancora))
+      : "I prossimi giorni";
+
   const mostrate = giorniFiltrati.reduce((n, g) => n + eventiDelGiorno(g).length, 0);
   const festive = giorniFiltrati.reduce((n, g) => n + festivitaDelGiorno(g).length, 0);
 
@@ -112,6 +124,8 @@ export function CalendarioView({ dati }: { dati: DatiCalendario }) {
 
       {/* ── Selettori ──────────────────────────────────────────────────── */}
       <div className="md-card flex flex-col gap-3 p-3 sm:p-4">
+        {dati.navigazione ? <CalendarioPeriodoNav nav={dati.navigazione} /> : null}
+
         <ChipGroup label="Importanza">
           <SegmentedControl
             label="Importanza"
@@ -156,9 +170,16 @@ export function CalendarioView({ dati }: { dati: DatiCalendario }) {
             reggere prima di essere creduto. */}
         <p className="md-mono text-2xs leading-relaxed text-[var(--md-muted)]">
           Aggiornato {eta(dati.etaMinuti)} · fonte TradingView · orari nel fuso{" "}
-          {dati.fuso} · {dati.totale} eventi nella finestra −2/+10 giorni
+          {dati.fuso} · {dati.totale} eventi{" "}
+          {vista === "arrivo" ? "nella finestra −2/+10 giorni" : "nel periodo"}
           {dati.scartati > 0 ? ` · ${dati.scartati} scartati perché malformati` : ""}
         </p>
+        {dati.troncato ? (
+          <p data-avviso className="text-xs font-semibold text-[var(--md-warn)]">
+            La fonte ha restituito il massimo di 2000 eventi: il periodo può
+            essere incompleto, e gli ultimi giorni mancare.
+          </p>
+        ) : null}
       </div>
 
       {/* ── I giorni ───────────────────────────────────────────────────── */}
@@ -168,18 +189,22 @@ export function CalendarioView({ dati }: { dati: DatiCalendario }) {
            perché è vuota. */
         <div className="md-card p-4 sm:p-5">
           <p className="text-sm text-[var(--md-text-2)]">
-            Nessun evento con questi filtri.
+            {tutteLeRighe.length === 0
+              ? "La fonte non ha eventi in questo periodo."
+              : "Nessun evento con questi filtri."}
           </p>
-          <p className="mt-1 text-xs leading-relaxed text-[var(--md-muted)]">
-            Nella finestra ce ne sono {tutteLeRighe.length}: allarga
-            l&apos;importanza a «Tutte», oppure aggiungi una valuta.
-          </p>
+          {tutteLeRighe.length > 0 ? (
+            <p className="mt-1 text-xs leading-relaxed text-[var(--md-muted)]">
+              Nel periodo ce ne sono {tutteLeRighe.length}: allarga
+              l&apos;importanza a «Tutte», oppure aggiungi una valuta.
+            </p>
+          ) : null}
         </div>
       ) : (
         <div className="md-card flex flex-col gap-2.5 p-3 sm:p-4">
           <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
             <h2 className="text-sm font-semibold text-[var(--md-text)]">
-              I prossimi giorni
+              {titolo}
             </h2>
             <span className="md-mono text-2xs text-[var(--md-muted)]">
               {mostrate} event{mostrate === 1 ? "o" : "i"} su{" "}
@@ -725,6 +750,20 @@ function ComeSiLegge() {
             il mercato su cui escono gli altri dati. Seguono invece il filtro
             di valuta. Dicono che il paese è in festa, non che una borsa è
             chiusa.
+          </p>
+        </div>
+
+        <div>
+          <PanelLabel>Il periodo, e fin dove si può andare</PanelLabel>
+          <p className="mt-1">
+            «In arrivo» è la finestra di oggi, due giorni indietro e dieci
+            avanti. <strong>Settimana</strong> e <strong>Mese</strong> si
+            scorrono con le frecce o si scelgono con la data. I limiti sono
+            della fonte: lo storico parte dal <strong>gennaio 2013</strong>, e
+            il futuro è pubblicato per circa cinque settimane — la data esatta
+            è scritta sotto i controlli, e oltre le frecce si fermano. Periodi
+            più lunghi di un mese non ci sono di proposito: la fonte consegna
+            al massimo 2000 eventi per volta e taglierebbe il resto senza dirlo.
           </p>
         </div>
 

@@ -74,6 +74,19 @@ describe("Calendario — legenda dei simboli", () => {
   });
 });
 
+describe("Calendario — il tetto della fonte", () => {
+  it("dice che il periodo può essere monco quando la risposta tocca i 2000 eventi", () => {
+    expect(html([riga()], { troncato: true })).toContain("massimo di 2000 eventi");
+    expect(html([riga()])).not.toContain("massimo di 2000 eventi");
+  });
+
+  it("un periodo senza eventi alla fonte lo dice come fatto, non come filtro", () => {
+    const out = html([]);
+    expect(out).toContain("La fonte non ha eventi in questo periodo.");
+    expect(out).not.toContain("allarga");
+  });
+});
+
 describe("Calendario — le festività in evidenza", () => {
   const labor = (over: Partial<RigaCalendario> = {}) =>
     riga({

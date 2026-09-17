@@ -1,5 +1,10 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { finestra, getCalendarioEconomico } from "./calendario-economico";
+import {
+  finestra,
+  getCalendarioEconomico,
+  getOrizzontePubblicato,
+  richiestaPeriodo,
+} from "./calendario-economico";
 
 /**
  * Il confine con la fonte esterna.
@@ -174,5 +179,81 @@ describe("getCalendarioEconomico — ogni guasto è dichiarato, mai una tabella 
     if (!esito.ok) return;
     expect(esito.dati.totale).toBe(1);
     expect(esito.dati.scartati).toBe(1);
+  });
+});
+
+describe("il periodo scelto — navigazione nel tempo", () => {
+  const SETTIMANA = { inizio: "2026-09-07", fine: "2026-09-14" };
+
+  it("chiede un giorno in più per parte, nel fuso di chi legge", () => {
+    const r = richiestaPeriodo(SETTIMANA, "Europe/Rome", ADESSO);
+    expect(r.from).toBe("2026-09-05T22:00:00.000Z");
+    expect(r.to).toBe("2026-09-14T22:00:00.000Z");
+  });
+
+  it("cache di cinque minuti sui periodi vivi, di un giorno su quelli chiusi", () => {
+    expect(richiestaPeriodo(SETTIMANA, "Europe/Rome", ADESSO).revalidate).toBe(300);
+    expect(
+      richiestaPeriodo({ inizio: "2024-03-04", fine: "2024-03-11" }, "Europe/Rome", ADESSO)
+        .revalidate,
+    ).toBe(86_400);
+  });
+
+  it("tiene solo i giorni del periodo, anche per gli eventi di giornata a New York", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () =>
+        rispostaFinta({
+          status: "ok",
+          result: [
+            { ...EVENTO, id: "prima", date: "2026-09-06T15:00:00.000Z" },
+            { ...EVENTO, id: "labor", indicator: "Holidays", date: "2026-09-07T00:00:00.000Z" },
+            { ...EVENTO, id: "dopo", date: "2026-09-14T15:00:00.000Z" },
+          ],
+        }),
+      ),
+    );
+    const esito = await getCalendarioEconomico("America/New_York", ADESSO, SETTIMANA);
+    expect(esito.ok).toBe(true);
+    if (!esito.ok) return;
+    expect(esito.dati.giorni.flatMap((g) => g.righe.map((r) => r.id))).toEqual(["labor"]);
+  });
+
+  it("`no_data` della fonte è un periodo vuoto, non un guasto", async () => {
+    vi.stubGlobal("fetch", vi.fn(async () => rispostaFinta({ status: "no_data" })));
+    const esito = await getCalendarioEconomico("Europe/Rome", ADESSO, SETTIMANA);
+    expect(esito.ok).toBe(true);
+    if (esito.ok) expect(esito.dati.totale).toBe(0);
+  });
+
+  it("dichiara il taglio quando la risposta tocca il tetto di 2000 eventi", async () => {
+    const tanti = Array.from({ length: 2000 }, (_, i) => ({ ...EVENTO, id: String(i) }));
+    vi.stubGlobal("fetch", vi.fn(async () => rispostaFinta({ status: "ok", result: tanti })));
+    const esito = await getCalendarioEconomico("Europe/Rome", ADESSO);
+    expect(esito.ok && esito.dati.troncato).toBe(true);
+  });
+
+  it("legge l'orizzonte pubblicato come la data più lontana, e null se la fonte cade", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () =>
+        rispostaFinta({
+          status: "ok",
+          result: [
+            { ...EVENTO, id: "a", date: "2026-10-21T12:30:00.000Z" },
+            { ...EVENTO, id: "b", date: "2026-09-20T12:30:00.000Z" },
+          ],
+        }),
+      ),
+    );
+    expect(await getOrizzontePubblicato("Europe/Rome", ADESSO)).toBe("2026-10-21");
+
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => {
+        throw new Error("giù");
+      }),
+    );
+    expect(await getOrizzontePubblicato("Europe/Rome", ADESSO)).toBeNull();
   });
 });

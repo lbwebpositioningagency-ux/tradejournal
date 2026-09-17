@@ -3,14 +3,26 @@ import { redirect } from "next/navigation";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { todayKeyInZone } from "@/lib/dates";
+import { addDays } from "@/lib/calendar";
 import {
   getCalendarioEconomico,
+  getOrizzontePubblicato,
   VALUTE_PREDEFINITE,
 } from "@/lib/queries/calendario-economico";
+import {
+  accantoPossibile,
+  dentroILimiti,
+  hrefPeriodo,
+  leggiPeriodo,
+  periodoAccanto,
+  STORICO_DAL,
+} from "@/lib/calendario-periodo";
+import type { NavigazionePeriodo } from "@/components/macro-desk/calendario-periodo-nav";
 import { Badge } from "@/components/ui/badge";
 import { MacroDeskTabs } from "@/components/macro-desk/section-nav";
 import { PageHeader } from "@/components/layout/page-header";
 import { CalendarioView } from "@/components/macro-desk/calendario-view";
+import { CalendarioPeriodoNav } from "@/components/macro-desk/calendario-periodo-nav";
 import { cn } from "@/lib/utils";
 
 export const metadata: Metadata = { title: "Calendario · Macro Desk" };
@@ -43,7 +55,12 @@ export const metadata: Metadata = { title: "Calendario · Macro Desk" };
  * tabella senza righe, in un calendario, si legge come «non succede niente»,
  * ed è la bugia peggiore che questa sezione possa raccontare.
  */
-export default async function MacroCalendarioPage() {
+export default async function MacroCalendarioPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ vista?: string; data?: string }>;
+}) {
+  const parametri = await searchParams;
   const session = await auth();
   if (!session?.user?.id) redirect("/login");
 
@@ -55,7 +72,56 @@ export default async function MacroCalendarioPage() {
 
   const adesso = new Date();
   const oggi = todayKeyInZone(fuso, adesso);
-  const esito = await getCalendarioEconomico(fuso, adesso);
+
+  /* L'orizzonte in avanti serve prima del calendario: decide se il periodo
+     chiesto esiste. Ha la sua cache di un'ora, quindi non raddoppia il costo
+     di ogni visita. */
+  const pubblicatoFino = await getOrizzontePubblicato(fuso, adesso);
+  const periodo = dentroILimiti(leggiPeriodo(parametri, oggi), pubblicatoFino);
+
+  /* Un URL scritto a mano (un mercoledì, un anno fuori dai dati, una vista
+     sconosciuta) si riscrive nella sua forma canonica: così la pagina che si
+     vede e l'indirizzo che si condivide dicono lo stesso periodo. */
+  const canonico = hrefPeriodo(periodo.vista, periodo.ancora);
+  const chiesto =
+    parametri.vista || parametri.data
+      ? `${hrefPeriodo("arrivo")}?${new URLSearchParams(
+          Object.entries(parametri).filter(
+            (v): v is [string, string] => typeof v[1] === "string",
+          ),
+        ).toString()}`
+      : hrefPeriodo("arrivo");
+  if (chiesto !== canonico) redirect(canonico);
+
+  const esito = await getCalendarioEconomico(
+    fuso,
+    adesso,
+    periodo.vista === "arrivo" ? undefined : periodo,
+  );
+
+  const contieneOggi = periodo.inizio <= oggi && oggi < periodo.fine;
+  const navigazione: NavigazionePeriodo = {
+    vista: periodo.vista,
+    ancora: periodo.ancora,
+    oggi,
+    hrefPrec: accantoPossibile(periodo, -1, pubblicatoFino)
+      ? hrefPeriodo(periodo.vista, periodoAccanto(periodo, -1).ancora)
+      : null,
+    hrefSucc: accantoPossibile(periodo, 1, pubblicatoFino)
+      ? hrefPeriodo(periodo.vista, periodoAccanto(periodo, 1).ancora)
+      : null,
+    hrefOggi:
+      periodo.vista === "arrivo" || contieneOggi ? null : hrefPeriodo(periodo.vista, oggi),
+    hrefSettimana: hrefPeriodo("settimana", periodo.vista === "arrivo" ? oggi : periodo.ancora),
+    hrefMese: hrefPeriodo("mese", periodo.vista === "arrivo" ? oggi : periodo.ancora),
+    storicoDal: STORICO_DAL,
+    pubblicatoFino,
+    /* L'ultimo giorno del periodo è quello prima di `fine`. */
+    oltreOrizzonte:
+      periodo.vista !== "arrivo" &&
+      pubblicatoFino !== null &&
+      addDays(periodo.fine, -1) > pubblicatoFino,
+  };
 
   return (
     <div className="flex flex-col gap-4">
@@ -98,10 +164,13 @@ export default async function MacroCalendarioPage() {
               scartati: esito.dati.scartati,
               totale: esito.dati.totale,
               valutePredefinite: VALUTE_PREDEFINITE,
+              troncato: esito.dati.troncato,
+              navigazione,
             }}
           />
         ) : (
           <StatoAssente
+            navigazione={navigazione}
             motivo={esito.motivo}
             tentativoIl={esito.tentativoIl}
             fuso={fuso}
@@ -121,10 +190,14 @@ export default async function MacroCalendarioPage() {
  * ripropone lo stesso errore è peggio di nessun riprova.
  */
 function StatoAssente({
+  navigazione,
   motivo,
   tentativoIl,
   fuso,
 }: {
+  /* I controlli restano anche qui: da un periodo che la fonte non ha
+     servito si deve poter tornare a uno che serve. */
+  navigazione: NavigazionePeriodo;
   motivo: string;
   tentativoIl: string;
   fuso: string;
@@ -137,7 +210,10 @@ function StatoAssente({
   }).format(new Date(tentativoIl));
 
   return (
-    <div className="p-4 sm:p-5">
+    <div className="flex flex-col gap-4 p-4 sm:p-5">
+      <div className="md-card p-3 sm:p-4">
+        <CalendarioPeriodoNav nav={navigazione} />
+      </div>
       <div className="md-card p-4 sm:p-5">
         <p className="text-sm font-semibold text-[var(--md-warn)]">
           Dati non disponibili — ultimo tentativo alle {ora}
