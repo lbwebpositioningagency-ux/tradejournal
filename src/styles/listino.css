@@ -497,8 +497,18 @@
   padding: 0;
   height: 12px;
 }
+/* I NUMERI della sintesi sono in testo primario (17/09/2026): in secondario,
+   sul fondo di cornice, StDev e In rialzo si leggevano sbiaditi — 7,43:1 in
+   chiaro e 7,15:1 in scuro. Le etichette a sinistra restano in secondario (la
+   regola `th:first-child` più sotto). */
 .ml-griglia tfoot :is(th, td) {
   background-color: var(--ml-frame);
+  color: var(--md-text);
+  font-weight: 500;
+}
+/* Il trattino di una colonna senza statistiche: il grigio attenuato sul fondo
+   di cornice fa 4,46:1 in chiaro, sotto soglia. */
+.ml-griglia tfoot td.ml-vuota {
   color: var(--md-text-2);
 }
 .ml-griglia tfoot tr:first-child > * {
@@ -534,52 +544,24 @@
   text-transform: none;
   letter-spacing: 0;
 }
-/* «1.206 su 2.401» in colonna: cinque caratteri di larghezza invece di
-   quattordici, quando i denominatori cambiano da colonna a colonna. */
-.ml-griglia .ml-frazione {
-  display: inline-flex;
-  flex-direction: column;
-  align-items: flex-end;
-  line-height: 16px;
+/* «547 su 1.044 (52%)» su UNA riga (17/09/2026, tavola «Sistema visivo v3 -
+   Stagionalità, «In rialzo» su una riga», forma A). Prima conteggio e
+   denominatore stavano uno sopra l'altro e con i campioni del Giorno e
+   dell'Ora si leggevano come due numeri spezzati. La gerarchia sta nel peso e
+   nella taglia, non nel colore: conteggio a 500, «su …» a 400, quota a 12px
+   e 400, tutto in testo primario. */
+.ml-griglia .ml-su {
+  font-weight: 400;
 }
-/* Sul fondo di cornice il grigio attenuato scende a 4,46 in chiaro: il
-   denominatore sta in testo secondario (7,41) e si distingue per la taglia. */
-.ml-griglia .ml-frazione > span:last-child {
+.ml-griglia .ml-quota {
   font-size: 12px;
-  color: var(--md-text-2);
+  font-weight: 400;
 }
 /* In ricalcolo: due parole in una casella sola, non una frase per dodici
    colonne. */
 .ml-griglia tfoot td.ml-ricalcolo {
   text-align: left;
   font-style: italic;
-}
-/* Legenda della scala accanto al titolo: i campioni prendono la tinta dalla
-   stessa funzione delle caselle. */
-.ml-scala {
-  display: inline-flex;
-  align-items: center;
-  gap: 2px;
-  font-size: 11px;
-  line-height: 16px;
-  color: var(--md-text-2);
-  font-variant-numeric: tabular-nums;
-}
-.ml-scala i {
-  display: block;
-  width: 14px;
-  height: 12px;
-  border-radius: var(--md-r-sm);
-}
-.ml-scala b {
-  display: block;
-  width: 1px;
-  height: 14px;
-  margin-inline: 2px;
-  background-color: var(--ml-rule);
-}
-.ml-scala span {
-  margin-inline: 3px;
 }
 
 /* ── icona informativa ───────────────────────────────────────────────────

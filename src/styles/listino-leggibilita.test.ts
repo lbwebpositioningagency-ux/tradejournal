@@ -128,7 +128,7 @@ describe("Griglia anni × periodo — tinta piena, colori dal sistema", () => {
     scuro: tokens(block(GLOBALS, ".dark")),
   };
 
-  it("nessun colore scritto a mano nelle regole della griglia e della legenda", () => {
+  it("nessun colore scritto a mano nelle regole della griglia", () => {
     expect(regole.length).toBeGreaterThanOrEqual(15);
     for (const { selettore, corpo: c } of regole) {
       expect(c, selettore).not.toMatch(/#[0-9a-f]{3,8}\b|oklch\(|rgb\(/i);
@@ -188,6 +188,19 @@ describe("Griglia anni × periodo — la cornice ha un fondo suo (--frame)", () 
     expect(regola(".ml-griglia tfoot :is(th, td)")).toMatch(/background-color:\s*var\(--ml-frame\)/);
     expect(regola(".ml-griglia tfoot th:first-child")).toMatch(/color:\s*var\(--md-text-2\)/);
     expect(LISTINO).toMatch(/--ml-frame:\s*var\(--frame\)/);
+  });
+
+  it("i numeri della sintesi sono in testo primario, e la quota si stacca per taglia e peso, non per colore", () => {
+    expect(regola(".ml-griglia tfoot :is(th, td)")).toMatch(/color:\s*var\(--md-text\);/);
+    expect(regola(".ml-griglia .ml-quota")).toMatch(/font-size:\s*12px/);
+    expect(regola(".ml-griglia .ml-quota")).not.toMatch(/color:/);
+    expect(regola(".ml-griglia .ml-su")).not.toMatch(/color:/);
+    // «547» sopra «1.044»: la forma in colonna non torna.
+    expect(LISTINO).not.toMatch(/\.ml-frazione/);
+  });
+
+  it("la legenda della scala in testata non c'è più", () => {
+    expect(LISTINO).not.toMatch(/\.ml-scala/);
   });
 
   for (const [tema, t] of Object.entries(TEMI)) {

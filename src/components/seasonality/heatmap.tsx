@@ -39,7 +39,8 @@ import { formatInteger, formatNumber } from "@/lib/format-number";
  * COLORE (17/09/2026): torna il modello originale, tinta piena e graduata
  * (`calore.ts`). Resta tutto ciò che è stato costruito dopo: tipografia e token
  * del sistema, anno in corso distinto, sintesi in blocco, colonna degli anni
- * ferma, «%» fuori dalle caselle, legenda della scala e nota in fondo.
+ * ferma, «%» fuori dalle caselle e nota in fondo (la legenda della scala in
+ * testata è stata tolta il 17/09/2026: la nota dice già come leggere il colore).
  *
  * LARGHEZZA: la griglia usa la larghezza della pagina — le colonne vanno da
  * quanto serve alla cifra più lunga (misurata in `ch`) fino a COLONNA_MAX_REM,
@@ -105,20 +106,33 @@ export function SeasonalityHeatmap({
   const summaryByBucket = new Map(summary.map((s) => [s.bucket, s]));
   const conSintesi = summary.length > 0;
 
-  /* «In rialzo» si conta sulle occorrenze. Se il denominatore è lo stesso in
-     ogni colonna (i mesi e le settimane: gli anni) sale nell'etichetta e le
-     caselle portano il solo conteggio; altrimenti conteggio e denominatore
-     stanno in colonna, uno sopra l'altro. */
-  const occorrenze = summary.map((s) => s.rawCount ?? s.n);
+  /* «In rialzo» si conta sulle occorrenze, e si scrive su UNA riga con la
+     quota accanto in secondo piano: «547 su 1.044 (52%)». Se il denominatore è
+     lo stesso in ogni colonna (i mesi e le settimane: gli anni) sale
+     nell'etichetta e la casella porta «14 (70%)». Il 17/09/2026 conteggio e
+     denominatore stavano uno sopra l'altro: con i campioni del Giorno e
+     dell'Ora si leggevano «547» e «1.044» come due numeri spezzati (tavola
+     «Sistema visivo v3 - Stagionalità, «In rialzo» su una riga», forma A).
+     Sull'Ora la griglia si allarga e scorre nel suo riquadro. */
+  /* Solo le colonne mostrate: una riga d'archivio fuori asse (la settimana 53
+     prima del ricalcolo) non deve togliere il totale dall'etichetta. */
+  const occorrenze = axis.buckets.flatMap((b) => {
+    const s = summaryByBucket.get(b);
+    return s ? [s.rawCount ?? s.n] : [];
+  });
   const denominatoreUnico =
     occorrenze.length > 0 && occorrenze.every((n) => n === occorrenze[0]) ? occorrenze[0] : null;
   const conteggio = (s: BucketView) => {
     const n = s.rawCount ?? s.n;
     return Number.isFinite(s.positiveShare) && n > 0 ? Math.round(s.positiveShare * n) : null;
   };
+  const quota = (s: BucketView) => `(${formatNumber(s.positiveShare * 100, { decimals: 0 })}%)`;
   /* Gli anni si scrivono solo se dicono qualcosa: diversi fra le colonne,
      diversi dalla finestra dichiarata nel titolo, o pochi. */
-  const anni = summary.map((s) => s.n);
+  const anni = axis.buckets.flatMap((b) => {
+    const s = summaryByBucket.get(b);
+    return s ? [s.n] : [];
+  });
   const anniDaMostrare =
     anni.length > 0 &&
     !(anni.every((n) => n === lookbackYears) && sampleQuality(lookbackYears) === "ok");
@@ -132,7 +146,6 @@ export function SeasonalityHeatmap({
   for (const s of summary) {
     lunghezze.push(formatCasella(s.mean, kind, sintesiDecimals).length);
     lunghezze.push(formatStdev(s.stdev, kind, unit, sintesiDecimals).length);
-    lunghezze.push(formatInteger(s.rawCount ?? s.n).length);
   }
   for (const b of axis.buckets) lunghezze.push(Math.ceil(axis.short(b).length * 1.1));
   const colonna = Math.max(3, ...lunghezze);
@@ -149,40 +162,26 @@ export function SeasonalityHeatmap({
     kind === "LEVEL"
       ? `±${formatNumber(scala, { decimals: 1 })} dalla mediana`
       : `±${formatNumber(scala, { decimals: cellDecimals })}%`;
-  /* Campioni della legenda: la stessa funzione delle caselle, agli stessi
-     livelli di intensità che si vedono in griglia. */
-  const livelli = [1, 0.75, 0.5, 0.25];
 
+  /* Testata: il titolo e l'unità, nient'altro. La legenda della scala
+     («giù ▪▪▪▪ su», 17/09/2026) è stata tolta: come si legge il colore lo dice
+     la nota sotto la griglia. */
   return (
     <div className="flex flex-col gap-2">
       <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-1.5">
-        <Titolo className="mb-0 min-w-0 flex-1">
+        {/* `flex-auto`, non `flex-1`: il titolo parte dalla sua larghezza, così a
+            390px l'unità va a capo invece di sovrapporsi al titolo. */}
+        <Titolo className="mb-0 min-w-0 flex-auto">
           Anni × {axis.columnName.toLowerCase()} — ultimi {lookbackYears} anni
         </Titolo>
-        <div className="flex flex-wrap items-center gap-x-4 gap-y-1">
-          <span className="text-2xs text-[var(--md-muted)]">
-            {UNIT_LABEL[unit]}
-            {granularity === "MONTH"
-              ? " del mese"
-              : granularity === "WEEK"
-                ? " della settimana"
-                : ", media delle osservazioni di quell’anno"}
-          </span>
-          {scala > 0 ? (
-            <span className="ml-scala" aria-hidden="true">
-              <span>{kind === "LEVEL" ? "sotto" : "giù"}</span>
-              {livelli.map((l) => (
-                <i key={`g${l}`} style={{ backgroundColor: fondoCella(-l * scala, scala) }} />
-              ))}
-              <b />
-              {[...livelli].reverse().map((l) => (
-                <i key={`s${l}`} style={{ backgroundColor: fondoCella(l * scala, scala) }} />
-              ))}
-              <span>{kind === "LEVEL" ? "sopra" : "su"}</span>
-              <span className="text-[var(--md-muted)]">piena da {scalaTesto}</span>
-            </span>
-          ) : null}
-        </div>
+        <span className="text-2xs text-[var(--md-muted)]">
+          {UNIT_LABEL[unit]}
+          {granularity === "MONTH"
+            ? " del mese"
+            : granularity === "WEEK"
+              ? " della settimana"
+              : ", media delle osservazioni di quell’anno"}
+        </span>
       </div>
 
       {/* La griglia scorre DENTRO il suo contenitore, il documento non scorre
@@ -341,14 +340,14 @@ export function SeasonalityHeatmap({
               ) : (
                 <SintesiRiga
                   label={
-                    <>
-                      {positiveLabel(kind)}{" "}
-                      <span className="ml-sintesi-den">
-                        {denominatoreUnico !== null
-                          ? `su ${formatInteger(denominatoreUnico)}`
-                          : `${axis.rawUnit} su`}
-                      </span>
-                    </>
+                    denominatoreUnico !== null ? (
+                      <>
+                        {positiveLabel(kind)}{" "}
+                        <span className="ml-sintesi-den">su {formatInteger(denominatoreUnico)}</span>
+                      </>
+                    ) : (
+                      positiveLabel(kind)
+                    )
                   }
                   className="ml-sintesi ml-sintesi-chiude"
                   buckets={axis.buckets}
@@ -356,12 +355,14 @@ export function SeasonalityHeatmap({
                   render={(s) => {
                     const c = conteggio(s);
                     if (c === null) return "—";
-                    if (denominatoreUnico !== null) return formatInteger(c);
                     return (
-                      <span className="ml-frazione">
-                        <span>{formatInteger(c)}</span>
-                        <span>{formatInteger(s.rawCount ?? s.n)}</span>
-                      </span>
+                      <>
+                        {formatInteger(c)}
+                        {denominatoreUnico === null ? (
+                          <span className="ml-su"> su {formatInteger(s.rawCount ?? s.n)}</span>
+                        ) : null}{" "}
+                        <span className="ml-quota">{quota(s)}</span>
+                      </>
                     );
                   }}
                 />
