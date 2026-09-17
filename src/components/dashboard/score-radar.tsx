@@ -115,6 +115,21 @@ export function ScoreRadar({ result }: { result: RadarScore | null }) {
                 ).join(", ")}`
           }
         >
+          {/* Fondo dell'esagono: una lastra appena velata dell'accento dei
+              dati — il «vetro» su cui sta il poligono (tavola «Sistema visivo
+              v3 - vetro, palette dei dati»). Sotto la griglia, così i fili
+              restano visibili. */}
+          <defs>
+            <radialGradient id="score-radar-vetro" cx="50%" cy="45%" r="60%">
+              <stop offset="0" stopColor="var(--viz-accent)" stopOpacity={lowSample ? 0.22 : 0.42} />
+              <stop offset="1" stopColor="var(--viz-accent)" stopOpacity={lowSample ? 0.08 : 0.16} />
+            </radialGradient>
+          </defs>
+          <polygon
+            points={polygonPoints(SCORE_FACTOR_KEYS.map(() => 1))}
+            fill="var(--viz-accent)"
+            fillOpacity={0.06}
+          />
           {/* Griglia esagonale di riferimento, grigio chiaro */}
           {GRID_LEVELS.map((level) => (
             <polygon
@@ -140,7 +155,10 @@ export function ScoreRadar({ result }: { result: RadarScore | null }) {
               />
             );
           })}
-          {/* Area dei fattori: accento primario, contorno netto.
+          {/* Area dei fattori: vetro dell'accento dei DATI (--viz-accent, indaco
+              desaturato — non il blu d'azione: il radar rappresenta, non
+              invita a cliccare), riempimento a gradiente radiale e contorno
+              sottile. Sotto SCORE_MIN_TRADES tutto si attenua.
 
               I PALLINI sui vertici non sono decorazione: con uno score alto
               il poligono quasi coincide col ring esterno della griglia — lo
@@ -153,26 +171,27 @@ export function ScoreRadar({ result }: { result: RadarScore | null }) {
             <>
               <polygon
                 points={polygonPoints(fractions)}
-                fill="var(--primary)"
-                fillOpacity={lowSample ? 0.14 : 0.28}
-                stroke="var(--primary)"
-                strokeWidth={2}
+                fill="url(#score-radar-vetro)"
+                stroke="var(--viz-accent)"
+                strokeWidth={1.5}
                 strokeOpacity={lowSample ? 0.55 : 1}
                 strokeLinejoin="round"
               />
               {fractions.map((r, i) => {
                 const [x, y] = vertex(i, r);
                 return (
-                  <circle
-                    key={SCORE_FACTOR_KEYS[i]}
-                    cx={x}
-                    cy={y}
-                    r={3}
-                    fill="var(--primary)"
-                    stroke="var(--card)"
-                    strokeWidth={1.5}
-                    opacity={lowSample ? 0.55 : 1}
-                  />
+                  <g key={SCORE_FACTOR_KEYS[i]} opacity={lowSample ? 0.55 : 1}>
+                    {/* Alone del vertice: la luce del vetro sul dato. */}
+                    <circle cx={x} cy={y} r={6} fill="var(--viz-accent)" fillOpacity={0.22} />
+                    <circle
+                      cx={x}
+                      cy={y}
+                      r={2.75}
+                      fill="var(--viz-accent)"
+                      stroke="var(--card)"
+                      strokeWidth={1}
+                    />
+                  </g>
                 );
               })}
             </>
