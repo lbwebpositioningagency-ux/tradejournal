@@ -556,3 +556,124 @@ describe("F4 — testo su fondo velato di un token P&L", () => {
     );
   }
 });
+
+/**
+ * VISUALIZZAZIONE DATI «VETRO» (`--viz-*`, 17/09/2026): famiglia a parte per
+ * grafici e mappe, separata dai token semantici. Qui si verifica, dai valori
+ * scritti in globals.css, per i due temi e le tre coppie P&L:
+ *   ① ogni token opaco e ogni filo traslucido sta nel gamut sRGB;
+ *   ② cifra (`viz-foreground`) e secondario (`viz-muted`) reggono 4,5:1 su
+ *      ogni gradino ANCHE nel punto del riflesso (`viz-sheen` composto sul
+ *      riempimento, come lo compone il browser): è il punto peggiore;
+ *   ③ i tratti dei grafici (archi, anelli, radar) reggono 3:1 sulla card —
+ *      la soglia WCAG per la grafica, non per il testo;
+ *   ④ i tre gradini si allontanano dalla card e la croma non scende;
+ *   ⑤ la famiglia NON riusa i valori dei token semantici: un grafico non
+ *      deve poter essere letto come un giudizio di segno.
+ */
+
+/** Token oklch con alfa (`oklch(L C H / N%)`) di un blocco. */
+function alphaTokens(selector: string): Map<string, [Color, number]> {
+  const escaped = selector.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  const match = CSS.match(new RegExp(`(?:^|\\n)${escaped}\\s*\\{([\\s\\S]*?)\\n\\}`));
+  if (!match) throw new Error(`Blocco CSS non trovato: ${selector}`);
+  const tokens = new Map<string, [Color, number]>();
+  const re = /--([\w-]+):\s*oklch\(([\d.]+)\s+([\d.]+)\s+([\d.]+)\s*\/\s*([\d.]+)%\s*\)/g;
+  for (const m of match[1].matchAll(re)) {
+    tokens.set(m[1], [[Number(m[2]), Number(m[3]), Number(m[4])], Number(m[5]) / 100]);
+  }
+  return tokens;
+}
+
+describe("visualizzazione dati «vetro» — gamut, testo AA col riflesso, tratti 3:1", () => {
+  const temi = [
+    ["light", light, ":root", (p: string) => `[data-pnl="${p}"]`] as const,
+    ["dark", dark, ".dark", (p: string) => `:where(.dark, .dark *)[data-pnl="${p}"]`] as const,
+  ];
+
+  for (const [mode, base, baseSel, selettore] of temi) {
+    const sheen = alphaTokens(baseSel).get("viz-sheen");
+
+    it(`${mode}: il riflesso del vetro è dichiarato`, () => {
+      expect(sheen, `--viz-sheen in ${mode}`).toBeDefined();
+    });
+
+    for (const palette of PNL_PAIRS) {
+      const override = block(selettore(palette));
+      const overrideAlpha = alphaTokens(selettore(palette));
+      const tok = (n: string) => override.get(n) ?? base.get(n)!;
+      const riempimenti = ["profit", "loss"].flatMap((s) =>
+        [1, 2, 3].map((g) => [`viz-${s}-${g}`, tok(`viz-${s}-${g}`)] as const),
+      );
+      const tratti = ["viz-profit", "viz-loss", "viz-neutral", "viz-accent"].map(
+        (n) => [n, tok(n)] as const,
+      );
+
+      it.each([...riempimenti, ...tratti])(
+        `${mode} ${palette}: --%s dichiarato e nel gamut sRGB`,
+        (nome, colore) => {
+          expect(colore, `--${nome}`).toBeDefined();
+          expect(outOfGamut(...colore), `${nome} ${hex(...colore)} clampato`).toBe(false);
+        },
+      );
+
+      it(`${mode} ${palette}: i fili traslucidi stanno nel gamut`, () => {
+        for (const n of ["viz-profit-edge", "viz-loss-edge"]) {
+          const edge = overrideAlpha.get(n) ?? alphaTokens(baseSel).get(n);
+          expect(edge, `--${n}`).toBeDefined();
+          expect(outOfGamut(...edge![0]), `--${n} clampato`).toBe(false);
+        }
+      });
+
+      it.each(riempimenti)(
+        `${mode} ${palette}: cifra e secondario reggono AA su --%s, riflesso incluso`,
+        (nome, colore) => {
+          const fill = oklchToSrgb(...colore);
+          const lit = over([1, 1, 1], fill, sheen![1]);
+          for (const testo of ["viz-foreground", "viz-muted"]) {
+            const fg = oklchToSrgb(...base.get(testo)!);
+            const peggiore = Math.min(srgbContrast(fg, fill), srgbContrast(fg, lit));
+            expect(peggiore, `--${testo} su ${nome} = ${peggiore.toFixed(2)}:1`).toBeGreaterThanOrEqual(4.5);
+          }
+        },
+      );
+
+      it.each(tratti)(`${mode} ${palette}: il tratto --%s regge 3:1 sulla card`, (nome, colore) => {
+        const ratio = contrast(colore, base.get("card")!);
+        expect(ratio, `${nome} su card = ${ratio.toFixed(2)}:1`).toBeGreaterThanOrEqual(3);
+      });
+
+      it(`${mode} ${palette}: i gradini si allontanano dalla card, croma mai in calo`, () => {
+        for (const segno of ["profit", "loss"]) {
+          const scala = [1, 2, 3].map((g) => tok(`viz-${segno}-${g}`));
+          const d = scala.map((c) => Math.abs(c[0] - base.get("card")![0]));
+          expect(d[1]).toBeGreaterThan(d[0]);
+          expect(d[2]).toBeGreaterThan(d[1]);
+          expect(scala[1][1]).toBeGreaterThanOrEqual(scala[0][1]);
+          expect(scala[2][1]).toBeGreaterThanOrEqual(scala[1][1]);
+        }
+      });
+
+      it(`${mode} ${palette}: nessun token viz coincide con un token semantico`, () => {
+        const semantici = ["profit", "loss", "breakeven", "warning", "primary"].map((n) =>
+          (override.get(n) ?? base.get(n)!).join(" "),
+        );
+        for (const [nome, colore] of [...riempimenti, ...tratti]) {
+          expect(semantici, `--${nome} ripete un token semantico`).not.toContain(colore.join(" "));
+        }
+      });
+    }
+  }
+
+  it("la famiglia è anche nel blocco di stampa, coppie comprese", () => {
+    expect(PRINT_MEDIA).toMatch(/--viz-profit-3:/);
+    expect(PRINT_MEDIA).toMatch(/--viz-sheen:/);
+    for (const palette of ["blue-red", "green-violet"]) {
+      const printPnl = rawTokens(printBlock(`:where(.dark, .dark *)[data-pnl="${palette}"]`));
+      const lightPnl = rawTokens(topLevelBlock(`[data-pnl="${palette}"]`));
+      for (const [k, v] of lightPnl) {
+        if (k.startsWith("viz-")) expect(printPnl.get(k), `${palette} --${k} in stampa`).toBe(v);
+      }
+    }
+  });
+});
