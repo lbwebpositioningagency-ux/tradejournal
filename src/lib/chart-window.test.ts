@@ -1,5 +1,12 @@
 import { describe, expect, it } from "vitest";
-import { presetCutoff, presetRange, sequenceWindow } from "./chart-window";
+import {
+  DEFAULT_CUMULATIVE_PRESET,
+  DEFAULT_WINDOW_PRESET,
+  presetCutoff,
+  presetRange,
+  sequenceWindow,
+  WINDOW_PRESETS,
+} from "./chart-window";
 
 describe("presetCutoff", () => {
   it("giorni: 30 e 90 giorni di calendario prima dell'ultima giornata", () => {
@@ -63,5 +70,16 @@ describe("sequenceWindow", () => {
     expect(sequenceWindow(25, "50")).toMatchObject({ showPresets: false, count: 25, start: 0 });
     expect(sequenceWindow(6, "25")).toMatchObject({ showPresets: false, count: 6, effective: "all" });
     expect(sequenceWindow(0, "50")).toMatchObject({ count: 0, start: 0, showPresets: false });
+  });
+});
+
+describe("preset all'apertura dei grafici della Dashboard", () => {
+  it("il P&L cumulativo apre su «Tutto», il giornaliero resta su «6m»", () => {
+    expect(DEFAULT_CUMULATIVE_PRESET).toBe("all");
+    expect(DEFAULT_WINDOW_PRESET).toBe("6m");
+  });
+
+  it("i preset disponibili non cambiano", () => {
+    expect(WINDOW_PRESETS.map((p) => p.label)).toEqual(["30g", "90g", "6m", "1a", "Tutto"]);
   });
 });

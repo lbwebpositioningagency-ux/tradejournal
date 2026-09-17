@@ -21,7 +21,11 @@ export interface ChartWindow {
   range: WindowRange;
 }
 
-export function useChartWindow(days: readonly string[]): ChartWindow {
-  const [preset, setPreset] = useState<WindowPreset>(DEFAULT_WINDOW_PRESET);
+export function useChartWindow(
+  days: readonly string[],
+  /** Preset all'apertura: valore fisso nel codice, non una preferenza salvata. */
+  initialPreset: WindowPreset = DEFAULT_WINDOW_PRESET,
+): ChartWindow {
+  const [preset, setPreset] = useState<WindowPreset>(initialPreset);
   return { preset, setPreset, range: presetRange(days, preset) };
 }

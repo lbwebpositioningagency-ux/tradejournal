@@ -586,3 +586,61 @@ describe("visualizzazione dati «vetro» — gamut, testo AA col riflesso, tratt
     }
   });
 });
+
+/**
+ * CALENDARIO MENSILE — colore PIENO per esito (`--viz-day-*`), identico al
+ * riferimento TradeZella e uguale nei due temi. Qui si verifica:
+ *   ① i valori della coppia classica sono ESATTAMENTE quelli campionati;
+ *   ② il testo bianco regge 4,5:1 su ogni esito, in ogni coppia P&L;
+ *   ③ in ogni coppia i tre esiti sono tre colori diversi e il pareggio non è
+ *      della stessa famiglia di tinta di utile o perdita (blu/rosso: niente
+ *      due blu; verde/viola: niente blu accanto al viola).
+ */
+describe("calendario mensile — tre esiti a colore pieno, testo AA", () => {
+  const root = rawTokens(topLevelBlock(":root"));
+  const pair = (p: string) => rawTokens(topLevelBlock(`[data-pnl="${p}"]`));
+  const esiti = (p: string) => {
+    const o = p === "classic" ? new Map<string, string>() : pair(p);
+    return ["profit", "loss", "breakeven"].map(
+      (k) => (o.get(`viz-day-${k}`) ?? root.get(`viz-day-${k}`)!).toLowerCase(),
+    );
+  };
+  const fg = root.get("viz-day-foreground")!.toLowerCase();
+
+  it("coppia classica: i colori campionati dal riferimento, testo bianco", () => {
+    expect(esiti("classic")).toEqual(["#112e24", "#5c1f1d", "#1e2742"]);
+    expect(fg).toBe("#ffffff");
+  });
+
+  it("le celle NON cambiano col tema: nessuna ridefinizione in .dark", () => {
+    expect([...rawTokens(topLevelBlock(".dark")).keys()].filter((k) => k.startsWith("viz-day-"))).toEqual([]);
+  });
+
+  for (const p of PNL_PAIRS) {
+    it(`${p}: testo bianco ≥ 4,5:1 su utile, perdita e pareggio`, () => {
+      for (const c of esiti(p)) {
+        const ratio = hexContrast(fg, c);
+        expect(ratio, `bianco su ${c} = ${ratio.toFixed(2)}:1`).toBeGreaterThanOrEqual(4.5);
+      }
+    });
+
+    it(`${p}: tre esiti distinti`, () => {
+      expect(new Set(esiti(p)).size).toBe(3);
+    });
+  }
+
+  it("coppie per daltonici: il pareggio lascia il blu quando utile o perdita sono blu o viola", () => {
+    expect(esiti("blue-red")[0]).toBe("#1e2742");
+    expect(esiti("blue-red")[2]).not.toBe("#1e2742");
+    expect(esiti("green-violet")[2]).not.toBe("#1e2742");
+  });
+
+  it("le coppie arrivano anche nel blocco di stampa", () => {
+    for (const p of ["blue-red", "green-violet"]) {
+      const printPnl = rawTokens(printBlock(`:where(.dark, .dark *)[data-pnl="${p}"]`));
+      for (const [k, v] of pair(p)) {
+        if (k.startsWith("viz-day-")) expect(printPnl.get(k), `${p} --${k}`).toBe(v);
+      }
+    }
+  });
+});

@@ -131,7 +131,11 @@ import {
   type ChartPoint,
 } from "./pnl-charts";
 import { useChartWindow } from "@/components/charts/use-chart-window";
-import { WINDOW_PRESETS, type WindowPreset } from "@/lib/chart-window";
+import {
+  DEFAULT_CUMULATIVE_PRESET,
+  WINDOW_PRESETS,
+  type WindowPreset,
+} from "@/lib/chart-window";
 import { ScoreRadar } from "./score-radar";
 import { OnboardingHero } from "./onboarding-hero";
 import { CALENDAR_ANCHOR } from "@/lib/calendar";
@@ -556,7 +560,8 @@ export function DashboardView({
   // preset. Stanno qui (prima di ogni return) perché sono hook.
   const chartDays = useMemo(() => chart.points.map((p) => p.day), [chart.points]);
   const dailyWindow = useChartWindow(chartDays);
-  const cumulativeWindow = useChartWindow(chartDays);
+  // Il cumulativo apre su «Tutto», il giornaliero resta su «6m» (chart-window.ts).
+  const cumulativeWindow = useChartWindow(chartDays, DEFAULT_CUMULATIVE_PRESET);
 
   function toggleWidget(id: WidgetId) {
     const next = hidden.includes(id)

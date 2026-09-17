@@ -18,14 +18,9 @@ import {
   formatSignedShort,
   pnlColorClass,
 } from "@/lib/money";
-import { netPnlInfo, returnIntensity } from "@/lib/metrics";
-import {
-  getCurrencyBreakdown,
-  getDailyPnl,
-  getNetPnlBefore,
-  getStartingBalance,
-} from "@/lib/queries/stats";
-import { HEAT_TEXT, HEAT_TEXT_MUTED, heatTone } from "@/lib/heat-scale";
+import { netPnlInfo } from "@/lib/metrics";
+import { getCurrencyBreakdown, getDailyPnl } from "@/lib/queries/stats";
+import { calendarDayTone, DAY_TEXT, dayOutcome } from "@/lib/calendar-day-tone";
 import { resolveCurrencyScope } from "@/lib/currency-scope";
 import { withCurrencyParam } from "@/lib/currency-nav";
 import { cn } from "@/lib/utils";
@@ -38,7 +33,13 @@ import { MonthPicker } from "./month-picker";
 /**
  * Calendario mensile della Dashboard — la stessa vista che fino al 16/09/2026
  * era la pagina a sé `/day`, spostata qui senza ridurla: stesse celle, stesse
- * frecce, month-picker e «Oggi», stessa heatmap sulle soglie assolute.
+ * frecce, month-picker e «Oggi».
+ *
+ * Colore delle celle: PIENO per esito (verde utile, rosso perdita, blu
+ * pareggio, vuota senza trade), uguale per tutte le giornate dello stesso
+ * esito — `calendar-day-tone.ts`. Dal 17/09/2026 non usa più la scala di
+ * intensità sulle soglie di ritorno, che resta alla griglia mensile e alla
+ * pagina Settimana.
  *
  * Sezione FISSA, non un widget nascondibile. Componente server: le sue query
  * girano accanto a quelle della Dashboard e arrivano al client già risolte.
@@ -104,7 +105,7 @@ export async function DayCalendar({
   const keptCurrency = scope.multi ? scope.active : undefined;
   const currency = scope.active ?? activeAccount?.currency ?? baseCurrency;
 
-  const [daily, noteRows, monthBaseBalance, pnlBeforeMonth] = await Promise.all([
+  const [daily, noteRows] = await Promise.all([
     getDailyPnl({ ...monthFilter, currency: scope.active }, timezone),
     prisma.note.findMany({
       where: {
@@ -118,14 +119,6 @@ export async function DayCalendar({
       },
       select: { dayDate: true },
     }),
-    // Equity a inizio mese: base delle tinte della heatmap. Senza, l'unica
-    // gradazione possibile sarebbe relativa al mese, e due mesi diversi non
-    // sarebbero confrontabili fra loro.
-    getStartingBalance({ userId, accountId: activeAccountId, currency: scope.active }),
-    getNetPnlBefore(
-      { userId, accountId: activeAccountId, currency: scope.active },
-      new Date(`${month}-01T00:00:00.000Z`),
-    ),
   ]);
   const byDay = new Map(daily.map((d) => [d.day, d]));
   const noteDays = new Set(
@@ -137,21 +130,10 @@ export async function DayCalendar({
   const greenDays = daily.filter((d) => new Decimal(d.netPnl).gt(0)).length;
   const weeks = buildMonthWeeks(month);
 
-  /* HEATMAP: gradazione su soglie ASSOLUTE in frazione di equity, le stesse
-     del calendario mensile (una convenzione sola per tutte le heatmap
-     dell'app). Senza un'equity positiva a inizio mese non esiste un ritorno:
-     le celle restano tinte al livello più basso, che dice il SEGNO senza
-     pretendere di dire la magnitudine. */
-  const monthEquity = new Decimal(monthBaseBalance).plus(pnlBeforeMonth);
+  /* Cella piena per esito, nessuna gradazione: il valore lo dice la cifra.
+     Il colore non ha bordo proprio; l'hover passa dal filo. */
   function dayTone(netPnl: string): string {
-    const value = new Decimal(netPnl);
-    if (value.isZero()) return "bg-breakeven/10 border-border/60 hover:border-foreground/40";
-    const ret = monthEquity.gt(0) ? value.div(monthEquity).toFixed(8) : null;
-    const tier = ret === null ? 1 : returnIntensity(ret, "day");
-    // Scala condivisa delle mappe a intensità (heat-scale.ts, vetro --viz-*):
-    // la tinta porta già il suo filo, quindi niente border-border qui sotto;
-    // l'hover passa dal filo e non da una seconda velatura.
-    return cn(heatTone(value.gt(0) ? "profit" : "loss", tier), "hover:border-foreground/40");
+    return cn(calendarDayTone(dayOutcome(netPnl)), "border-transparent hover:border-foreground/40");
   }
 
   // Frecce, picker e «Oggi» restano sulla Dashboard: conservano periodo e
@@ -293,7 +275,7 @@ export async function DayCalendar({
                         <span
                           className={cn(
                             "flex items-center justify-between text-xs",
-                            data ? HEAT_TEXT_MUTED : "text-muted-foreground",
+                            data ? DAY_TEXT : "text-muted-foreground",
                           )}
                         >
                           <span>{dayNumber}</span>
@@ -303,12 +285,12 @@ export async function DayCalendar({
                         </span>
                         {data ? (
                           <>
-                            {/* F4 — testo NON colorato sulla cella tinta: il
+                            {/* F4 — testo NON colorato sulla cella piena: il
                                 colore lo porta il fondo, il segno il + o il −
-                                del numero. I due token heat-* reggono 4,5:1
-                                sulla tinta più forte in entrambi i temi
+                                del numero. Bianco del riferimento, ≥ 12,58:1
+                                sui tre esiti e sulle coppie per daltonici
                                 (theme-contrast.test.ts). */}
-                            <span className={cn("text-2xs font-semibold tabular-nums sm:text-sm", HEAT_TEXT)}>
+                            <span className={cn("text-2xs font-semibold tabular-nums sm:text-sm", DAY_TEXT)}>
                               <span className="sm:hidden">
                                 {formatSignedShort(data.netPnl)}
                               </span>
@@ -316,7 +298,7 @@ export async function DayCalendar({
                                 {formatSignedCompact(data.netPnl)}
                               </span>
                             </span>
-                            <span className={cn("text-2xs", HEAT_TEXT_MUTED)}>
+                            <span className={cn("text-2xs", DAY_TEXT)}>
                               <span className="sm:hidden">{data.trades}</span>
                               <span className="hidden sm:inline">
                                 {data.trades} trade

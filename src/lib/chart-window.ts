@@ -29,8 +29,19 @@ export const WINDOW_PRESETS: readonly {
   { value: "all", label: "Tutto", title: "Tutto il periodo" },
 ];
 
-/** Circa 120 giornate con trade su uno storico pieno: metà o meno di tutto. */
+/**
+ * Apertura del P&L GIORNALIERO: circa 120 giornate con trade su uno storico
+ * pieno — un grafico a barre per giornata resta leggibile solo su una finestra
+ * stretta.
+ */
 export const DEFAULT_WINDOW_PRESET: WindowPreset = "6m";
+
+/**
+ * Apertura del P&L CUMULATIVO: tutto lo storico (17/09/2026, richiesta del
+ * proprietario). Una curva cumulativa si legge intera, e tagliata a 6 mesi
+ * ripartiva da zero a metà della storia.
+ */
+export const DEFAULT_CUMULATIVE_PRESET: WindowPreset = "all";
 
 /**
  * Primo giorno ESCLUSO dal preset: la finestra contiene le giornate
