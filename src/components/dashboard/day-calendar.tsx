@@ -141,7 +141,8 @@ export async function DayCalendar({
   /* Cella piena per esito, nessuna gradazione: il valore lo dice la cifra.
      Il colore non ha bordo proprio; l'hover passa dal filo. */
   function dayTone(netPnl: string): string {
-    return cn(calendarDayTone(dayOutcome(netPnl)), "hover:border-foreground/60");
+    // Bordo trasparente: la cella è solo riempimento; il filo compare al passaggio.
+    return cn(calendarDayTone(dayOutcome(netPnl)), "border-transparent hover:border-foreground/40");
   }
 
   // Frecce, picker e «Oggi» restano sulla Dashboard: conservano periodo e

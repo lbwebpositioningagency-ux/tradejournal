@@ -621,12 +621,8 @@ describe("calendario mensile — tre esiti a colore pieno, testo AA", () => {
     expect(hexContrast(fg, "#262626")).toBeGreaterThanOrEqual(4.5);
   });
 
-  it("filo di 1px campionato dal riferimento, più chiaro della sua tinta", () => {
-    const edges = ["profit", "loss", "breakeven"].map((k) => root.get(`viz-day-${k}-edge`)!.toLowerCase());
-    expect(edges).toEqual(["#739683", "#b37d7d", "#4a5b8e"]);
-    esiti("classic").forEach((fill, i) => {
-      expect(hexLuminance(edges[i])).toBeGreaterThan(hexLuminance(fill));
-    });
+  it("nessun filo colorato: i token --viz-day-*-edge non esistono più", () => {
+    expect(CSS).not.toMatch(/--viz-day-(profit|loss|breakeven)-edge/);
   });
 
   for (const p of PNL_PAIRS) {

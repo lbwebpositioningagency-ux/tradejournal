@@ -20,10 +20,11 @@ describe("calendario mensile — colore pieno per esito, nessuna intensità", ()
     const classi = (["profit", "loss", "breakeven"] as const).map(calendarDayTone);
     expect(new Set(classi).size).toBe(3);
     for (const c of classi) expect(c).not.toMatch(/viz-(profit|loss|rule)-\d|heat|shadow|gradient|ring|glow|glass/);
-    // Riempimento piatto + filo della stessa tinta, come il riferimento.
-    expect(calendarDayTone("profit")).toBe("bg-viz-day-profit border-viz-day-profit-edge");
-    expect(calendarDayTone("loss")).toBe("bg-viz-day-loss border-viz-day-loss-edge");
-    expect(calendarDayTone("breakeven")).toBe("bg-viz-day-breakeven border-viz-day-breakeven-edge");
+    // Solo riempimento piatto: nessun filo colorato attorno alla cella.
+    expect(calendarDayTone("profit")).toBe("bg-viz-day-profit");
+    expect(calendarDayTone("loss")).toBe("bg-viz-day-loss");
+    expect(calendarDayTone("breakeven")).toBe("bg-viz-day-breakeven");
+    for (const c of classi) expect(c).not.toMatch(/border|edge/);
     expect(DAY_TEXT).toBe("text-viz-day-foreground");
   });
 });

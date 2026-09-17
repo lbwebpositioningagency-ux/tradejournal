@@ -8,9 +8,10 @@
  *   utile → verde · perdita → rosso · chiusa a zero → blu · nessun trade → vuota.
  *
  * I colori sono quelli CAMPIONATI dallo screenshot di riferimento, identici in
- * entrambi i temi (`--viz-day-*` in globals.css): riempimento piatto più il
- * filo di 1px della stessa tinta che il riferimento ha davvero (nessun alone,
- * nessun riflesso), testo bianco sopra (≥ 12,58:1, theme-contrast.test.ts).
+ * entrambi i temi (`--viz-day-*` in globals.css): SOLO riempimento piatto,
+ * nessun filo colorato, nessun alone, nessun riflesso (decisione del
+ * proprietario del 17/09/2026 sera: il filo di 1px del riferimento, aggiunto in
+ * beede1c, è stato tolto), testo bianco sopra (≥ 12,58:1).
  * Le coppie P&L per daltonici rimappano i tre stati senza che due coincidano. 
  *
  * NON riguarda la griglia anni × mese della Dashboard, la pagina Settimana né
@@ -20,9 +21,9 @@
 export type DayOutcome = "profit" | "loss" | "breakeven";
 
 const TONE: Record<DayOutcome, string> = {
-  profit: "bg-viz-day-profit border-viz-day-profit-edge",
-  loss: "bg-viz-day-loss border-viz-day-loss-edge",
-  breakeven: "bg-viz-day-breakeven border-viz-day-breakeven-edge",
+  profit: "bg-viz-day-profit",
+  loss: "bg-viz-day-loss",
+  breakeven: "bg-viz-day-breakeven",
 };
 
 /** Esito della giornata dal segno del P&L netto (stringa decimale). */
@@ -32,7 +33,7 @@ export function dayOutcome(netPnl: string): DayOutcome {
   return trimmed.startsWith("-") ? "loss" : "profit";
 }
 
-/** Classi di sfondo e filo della cella: una coppia per esito, mai graduata. */
+/** Classe di sfondo della cella: una per esito, mai graduata, senza filo. */
 export function calendarDayTone(outcome: DayOutcome): string {
   return TONE[outcome];
 }
