@@ -153,3 +153,31 @@ describe("ScoreRadar — un asse senza dato", () => {
     expect(markup).not.toContain("Recovery factor —");
   });
 });
+
+describe("ScoreRadar — barra di scala 0-100", () => {
+  it("indicatore e riempimento fermi al punteggio, tacche 0-100", () => {
+    const result = radarScore(input)!;
+    const markup = render(result);
+    const pct = Number(result.score);
+    expect(markup).toContain(`left:${pct}%`);
+    expect(markup).toContain(`inset(0 ${(100 - pct).toFixed(2)}% 0 0 round 9999px)`);
+    expect(markup).toContain("data-score-marker");
+    for (const t of [0, 20, 40, 60, 80, 100]) expect(markup).toContain(`>${t}</span>`);
+    expect(markup).toContain("var(--viz-loss)");
+    expect(markup).toContain("var(--viz-scale-mid)");
+    expect(markup).toContain("var(--viz-profit)");
+    expect(markup).not.toContain("var(--warning)");
+  });
+
+  it("il punteggio si legge anche a parole: aria-label con il numero", () => {
+    const result = radarScore(input)!;
+    expect(render(result)).toContain("Scala dello score 0-100: punteggio");
+  });
+
+  it("senza punteggio: binario vuoto, niente indicatore, trattino", () => {
+    const markup = render(null);
+    expect(markup).not.toContain("data-score-marker");
+    expect(markup).toContain("nessun punteggio");
+    expect(markup).toContain("—");
+  });
+});

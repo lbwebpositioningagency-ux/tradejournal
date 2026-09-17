@@ -81,6 +81,68 @@ function labelTransform(side: "left" | "center" | "right"): string {
   return side === "right" ? "translate(0, -50%)" : "translate(-100%, -50%)";
 }
 
+const SCALE_TICKS = [0, 20, 40, 60, 80, 100] as const;
+
+/**
+ * Barra 0-100: binario `viz-track` pieno, gradiente loss → mid → profit che
+ * copre l'intera larghezza ma si vede solo fino al punteggio (clip-path), così
+ * il colore sotto l'indicatore è quello della sua posizione sulla scala intera,
+ * come nel riferimento. Tacche posizionate AL loro valore (non distribuite con
+ * justify-between, che le spostava della propria larghezza): 0 e 100 allineate
+ * ai bordi, le intermedie centrate sul punto.
+ */
+function ScoreScale({ score }: { score: number | null }) {
+  const pct = score === null ? 0 : Math.min(100, Math.max(0, score));
+  return (
+    <div className="flex flex-col gap-2" data-score-scale>
+      <div
+        className="relative h-2 rounded-full bg-viz-track"
+        role="img"
+        aria-label={
+          score === null
+            ? "Scala dello score 0-100: nessun punteggio"
+            : `Scala dello score 0-100: punteggio ${formatNumber(score, { decimals: 2 })}`
+        }
+      >
+        {score !== null ? (
+          <>
+            <span
+              aria-hidden
+              className="absolute inset-0 rounded-full"
+              style={{
+                background:
+                  "linear-gradient(to right, var(--viz-loss), var(--viz-scale-mid) 50%, var(--viz-profit))",
+                clipPath: `inset(0 ${(100 - pct).toFixed(2)}% 0 0 round 9999px)`,
+              }}
+            />
+            <span
+              aria-hidden
+              data-score-marker
+              className="absolute top-1/2 size-4 -translate-x-1/2 -translate-y-1/2 rounded-full border-[3px] border-card bg-foreground shadow-sm"
+              style={{ left: `${pct}%` }}
+            />
+          </>
+        ) : null}
+      </div>
+      <div aria-hidden className="relative h-4 text-2xs leading-4 text-muted-foreground tabular-nums">
+        {SCALE_TICKS.map((tick) => (
+          <span
+            key={tick}
+            className="absolute top-0"
+            style={{
+              left: `${tick}%`,
+              transform:
+                tick === 0 ? "none" : tick === 100 ? "translateX(-100%)" : "translateX(-50%)",
+            }}
+          >
+            {tick}
+          </span>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 export function ScoreRadar({ result }: { result: RadarScore | null }) {
   /* Un fattore non calcolabile vale null e NON entra nella media: sul
      radar il suo vertice sta al centro (frazione 0) ma il pallino diventa
@@ -239,48 +301,33 @@ export function ScoreRadar({ result }: { result: RadarScore | null }) {
         })}
       </div>
 
-      {/* Etichetta "Score" + numero grande + barra a gradiente */}
-      <div className="flex w-full items-center gap-4">
-        <div className="flex shrink-0 items-baseline gap-2">
-          {/* Coppia etichetta/valore del design system invece di due taglie
-              ad hoc: `stat-value` (text-xl) è la misura dei numeri delle KPI
-              card, `stat-label` (text-2xs maiuscoletto grigio) la loro
-              etichetta. Il numero cala da text-3xl a text-xl ma resta
-              nettamente l'elemento dominante della riga — il salto di scala
-              sale a ~2,4× (era 1,7× su text-sm) e il peso/colore lo
-              staccano ancora di più. */}
-          <span className="stat-label">Score</span>
-          <span
-            className={cn("stat-value", lowSample && "opacity-70")}
-          >
-            {score === null
-              ? "—"
-              : formatNumber(score, { decimals: 2 })}
-          </span>
-        </div>
-        <div className="min-w-0 flex-1">
-          <div
-            className="relative h-2 rounded-full"
-            style={{
-              background:
-                "linear-gradient(to right, var(--loss), var(--warning) 50%, var(--profit))",
-            }}
-          >
-            {score !== null ? (
-              <span
-                aria-hidden
-                className="absolute top-1/2 size-3.5 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-background bg-foreground shadow"
-                style={{ left: `${score}%` }}
-              />
-            ) : null}
+      {/* BARRA DI SCALA 0-100, sul modello del riferimento TradeZella (tavola
+          «Score - barra di scala, confronto col riferimento»): filo orizzontale
+          sotto il radar, punteggio in grande a sinistra, filo verticale, barra
+          a gradiente che si riempie FINO al punteggio sul binario, indicatore
+          tondo e tacche sotto.
+          Il riferimento schiaccia numero e tacche contro i fili del riquadro:
+          qui il filo sopra ha 16px di respiro (pt-4), il filo verticale non
+          tocca né il numero né la barra (px-4 da entrambi i lati), e le tacche
+          stanno 8px sotto la barra con la riga intera (16px) prima del bordo.
+          La posizione si legge anche senza colore: numero, indicatore ad alto
+          contrasto (foreground cerchiato dalla card) e la parte vuota del
+          binario. */}
+      <div className="mt-2 w-full border-t pt-4">
+        <div className="flex items-stretch">
+          <div className="flex shrink-0 flex-col justify-center gap-0.5 border-r pr-4">
+            <span className="text-xs text-muted-foreground">Il tuo Score</span>
+            <span
+              className={cn(
+                "text-2xl font-semibold tracking-tight tabular-nums",
+                lowSample && "opacity-70",
+              )}
+            >
+              {score === null ? "—" : formatNumber(score, { decimals: 2 })}
+            </span>
           </div>
-          <div
-            aria-hidden
-            className="mt-1 flex justify-between text-2xs text-muted-foreground tabular-nums"
-          >
-            {[0, 20, 40, 60, 80, 100].map((tick) => (
-              <span key={tick}>{tick}</span>
-            ))}
+          <div className="min-w-0 flex-1 py-1 pl-4">
+            <ScoreScale score={score} />
           </div>
         </div>
       </div>

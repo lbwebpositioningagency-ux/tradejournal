@@ -486,7 +486,7 @@ describe("visualizzazione dati «vetro» — gamut, testo AA col riflesso, tratt
       const riempimenti = ["profit", "loss"].flatMap((s) =>
         [1, 2, 3].map((g) => [`viz-${s}-${g}`, tok(`viz-${s}-${g}`)] as const),
       );
-      const tratti = ["viz-profit", "viz-loss", "viz-neutral", "viz-accent"].map(
+      const tratti = ["viz-profit", "viz-loss", "viz-neutral", "viz-accent", "viz-scale-mid"].map(
         (n) => [n, tok(n)] as const,
       );
 

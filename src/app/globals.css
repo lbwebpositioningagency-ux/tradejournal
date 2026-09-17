@@ -86,6 +86,7 @@
   --color-viz-profit-edge: var(--viz-profit-edge);
   --color-viz-loss-edge: var(--viz-loss-edge);
   --color-viz-accent-fill: var(--viz-accent-fill);
+  --color-viz-scale-mid: var(--viz-scale-mid);
   --color-viz-foreground: var(--viz-foreground);
   --color-viz-muted: var(--viz-muted);
   --color-viz-rule-1: var(--viz-rule-1);
@@ -178,6 +179,9 @@
   --viz-neutral: oklch(0.6 0.012 264);
   --viz-accent: oklch(0.5 0.14 290);
   --viz-accent-fill: oklch(0.5 0.14 290 / 34%);
+  /* Punto medio della barra 0-100 dello Score: loss → mid → profit. In chiaro
+     un giallo vero starebbe a 1,5:1 sulla card, quindi ambra scura (4,06). */
+  --viz-scale-mid: oklch(0.6 0.13 70);
   --viz-track: oklch(0.93 0.006 264);
   --viz-profit-edge: oklch(0.6 0.06 158 / 22%);
   --viz-loss-edge: oklch(0.6 0.06 26 / 22%);
@@ -297,6 +301,7 @@
   --viz-neutral: oklch(0.66 0.012 264);
   --viz-accent: oklch(0.64 0.13 290);
   --viz-accent-fill: oklch(0.64 0.13 290 / 50%);
+  --viz-scale-mid: oklch(0.82 0.15 95); /* 10,31 sulla card */
   --viz-track: oklch(0.3 0.014 264);
   --viz-profit-edge: oklch(0.5 0.07 158 / 26%);
   --viz-loss-edge: oklch(0.5 0.07 26 / 26%);
@@ -791,6 +796,7 @@
     --viz-neutral: oklch(0.6 0.012 264);
     --viz-accent: oklch(0.5 0.14 290);
     --viz-accent-fill: oklch(0.5 0.14 290 / 34%);
+    --viz-scale-mid: oklch(0.6 0.13 70);
     --viz-track: oklch(0.93 0.006 264);
     --viz-profit-edge: oklch(0.6 0.06 158 / 22%);
     --viz-loss-edge: oklch(0.6 0.06 26 / 22%);
