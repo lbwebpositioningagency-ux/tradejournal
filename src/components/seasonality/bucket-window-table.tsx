@@ -243,16 +243,22 @@ export function BucketWindowTable({
             const posizione = sel ? (posizionePerRango(sel.mean, medie)?.posizione ?? null) : null;
             return (
               <tr key={bucket} className={adesso ? "ml-ora" : undefined} aria-current={adesso ? "date" : undefined}>
-                <td className={`ml-sx ${ferma} font-medium`}>
-                  {axis.label(bucket)}
+                {/* Periodo corrente: filo ambra a sinistra (`ml-ora`) e un alone
+                    tenue sul nome (`ml-alone`). La pillola «adesso» è stata tolta il
+                    17/09/2026: scura su scuro, sembrava spenta e ripeteva il filo.
+                    A parole resta per gli screen reader e come tooltip della cella. */}
+                <td
+                  className={`ml-sx ${ferma} font-medium`}
+                  title={adesso ? "Periodo in corso" : undefined}
+                >
                   {adesso ? (
-                    <span
-                      className="ml-1.5 px-1 py-0.5 text-2xs font-medium"
-                      style={{ backgroundColor: "color-mix(in oklab, var(--md-warn) 18%, var(--md-bg))" }}
-                    >
-                      adesso
-                    </span>
-                  ) : null}
+                    <>
+                      <span className="ml-alone">{axis.label(bucket)}</span>
+                      <span className="sr-only"> (periodo in corso)</span>
+                    </>
+                  ) : (
+                    axis.label(bucket)
+                  )}
                 </td>
                 {windows.map((w) => {
                   const row = byWindow.get(w)?.find((r) => r.bucket === bucket);

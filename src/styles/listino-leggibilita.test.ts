@@ -216,3 +216,53 @@ describe("Griglia anni × periodo — la cornice ha un fondo suo (--frame)", () 
     });
   }
 });
+
+describe("Periodo corrente nelle tabelle della Stagionalità — alone, non pillola", () => {
+  const TABELLA = read("src/components/seasonality/bucket-window-table.tsx");
+  const regola = (sel: string) =>
+    [...LISTINO.matchAll(/(\.ml-[^{]*)\{([^}]*)\}/g)].find((m) => m[1].trim() === sel)?.[2] ?? "";
+  const TEMI = {
+    chiaro: tokens(block(GLOBALS, ":root")),
+    scuro: tokens(block(GLOBALS, ".dark")),
+  };
+
+  /* Miscela in oklab di due colori oklch, restituita come oklch: il centro
+     dell'alone è `color-mix(in oklab, warn P%, transparent)` sopra la card. */
+  function mescola(a: string, b: string, t: number): string {
+    const lab = (v: string) => {
+      const [L, C, H] = v.match(/oklch\(\s*([\d.]+)\s+([\d.]+)\s+([\d.]+)/)!.slice(1).map(Number);
+      return [L, C * Math.cos((H * Math.PI) / 180), C * Math.sin((H * Math.PI) / 180)];
+    };
+    const [x, y] = [lab(a), lab(b)];
+    const [L, aa, bb] = x.map((v, i) => v * t + y[i] * (1 - t));
+    const H = ((Math.atan2(bb, aa) * 180) / Math.PI + 360) % 360;
+    return `oklch(${L} ${Math.hypot(aa, bb)} ${H})`;
+  }
+
+  it("la pillola «adesso» non c'è più: il periodo in corso si dice a parole solo agli screen reader e nel tooltip", () => {
+    expect(TABELLA).not.toMatch(/>\s*adesso\s*</);
+    expect(TABELLA).not.toMatch(/--md-warn\) 18%/);
+    expect(TABELLA).toMatch(/className="ml-alone"/);
+    expect(TABELLA).toMatch(/className="sr-only"> \(periodo in corso\)/);
+    expect(TABELLA).toMatch(/title=\{adesso \? "Periodo in corso"/);
+  });
+
+  it("il filo ambra resta, e l'alone è un gradiente del token senza bordo né forma", () => {
+    expect(regola(".ml-tab tr.ml-ora td:first-child")).toMatch(/inset 2px 0 0 var\(--md-warn\)/);
+    const alone = regola(".ml-alone");
+    expect(alone).toMatch(/radial-gradient/);
+    expect(alone).toMatch(/var\(--md-warn\) 24%, transparent/);
+    expect(alone).not.toMatch(/border|#[0-9a-f]{3,8}\b|oklch\(|rgb\(/i);
+    // Padding e margine si annullano: la riga non si sposta.
+    expect(alone).toMatch(/padding:\s*3px 10px/);
+    expect(alone).toMatch(/margin:\s*-3px -10px/);
+  });
+
+  for (const [tema, t] of Object.entries(TEMI)) {
+    it(`il nome sopra il centro dell'alone regge 4,5:1 in tema ${tema}`, () => {
+      const centro = mescola(t.get("warning")!, t.get("card")!, 0.24);
+      const ratio = contrast(t.get("foreground")!, centro);
+      expect(ratio, `--foreground sull'alone = ${ratio.toFixed(2)}:1`).toBeGreaterThanOrEqual(4.5);
+    });
+  }
+});

@@ -241,6 +241,21 @@
 .ml-tab tr.ml-ora td:first-child {
   box-shadow: inset 2px 0 0 var(--md-warn);
 }
+/* ALONE sul nome del periodo corrente (17/09/2026, tavola «Sistema visivo v3 -
+   Stagionalità, alone del periodo corrente», forma C): un evidenziatore passato
+   con poca pressione, al posto della pillola «adesso». Gradiente radiale senza
+   bordo né forma netta; al centro il 24% dell'ambra, a sfumare nel fondo. Padding
+   e margine si annullano, la riga non si sposta. Misurato al centro: testo 14,14:1
+   in chiaro e 9,82:1 in scuro; 10% e 16% non si vedevano in scuro. */
+.ml-alone {
+  background: radial-gradient(
+    closest-side,
+    color-mix(in oklab, var(--md-warn) 24%, transparent),
+    transparent
+  );
+  padding: 3px 10px;
+  margin: -3px -10px;
+}
 .ml-tab .ml-sep {
   border-left: 1px solid var(--md-border);
 }
