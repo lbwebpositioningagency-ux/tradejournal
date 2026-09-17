@@ -21,6 +21,7 @@ import {
   dailyReturns,
   validReturnWindow,
   classifyOutcome,
+  meanDailyReturn,
   radarScore,
   underwaterSeries,
   currentDayStreak,
@@ -300,6 +301,7 @@ export default async function DashboardPage({
   // L'Ulcer alimenta sia la card sia il fattore drawdown dello Score: una
   // sola chiamata, mai due convenzioni per la stessa buca.
   const ulcer = ulcerIndex(dailySeries, equityStart);
+  const sortino = sortinoRatio(ratioWindow.window);
   const score = radarScore({
     total: agg.total,
     wins: agg.wins,
@@ -309,9 +311,11 @@ export default async function DashboardPage({
     // Ogni fattore è un tasso o una media: mai il max drawdown (un massimo,
     // che cresce con la finestra) né il P&L netto (un totale).
     ulcer,
-    grossLosses: agg.grossLosses,
-    plannedRiskLosses: agg.plannedRiskLosses,
-    riskRespectedLosses: agg.riskRespectedLosses,
+    // Recovery factor: il Sortino (MAR 0) sul tratto valido, lo stesso della
+    // card — una funzione sola, mai due convenzioni per lo stesso rapporto.
+    recoveryRatio: sortino,
+    meanDailyReturn: meanDailyReturn(ratioWindow.window),
+    sessions: ratioWindow.window.length,
     daily,
   });
   const expectancyR =
@@ -421,7 +425,7 @@ export default async function DashboardPage({
     avgLossDurationSec: agg.avgLossDurationSec,
     // Metriche avanzate (FASE 9): ratio adimensionali sulla stessa serie
     // giornaliera del drawdown e sugli aggregati R già in SQL.
-    sortino: sortinoRatio(ratioWindow.window),
+    sortino,
     sharpe: sharpeRatio(ratioWindow.window),
     calmar: calmarRatio(daily, equityStart, dd.maxDrawdownPct),
     sqn: sqn(agg.rCount, agg.rSum, agg.rSumSq),

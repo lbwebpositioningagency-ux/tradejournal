@@ -29,9 +29,9 @@ const input: RadarScoreInput = {
   winSum: "9000.00",
   lossSum: "-4500.00",
   ulcer: "0.0400",
-  grossLosses: 45,
-  plannedRiskLosses: 40,
-  riskRespectedLosses: 36,
+  recoveryRatio: "1.4000",
+  meanDailyReturn: "0.00120000",
+  sessions: 120,
   daily: [{ netPnl: "3000.00" }, { netPnl: "2000.00" }, { netPnl: "-500.00" }],
 };
 
@@ -109,7 +109,7 @@ describe("ScoreRadar — icona (i) per ogni fattore", () => {
   it("senza risultato mostra comunque le sei etichette con le loro icone", () => {
     const markup = render(null);
     expect(markup.match(/<button/g)).toHaveLength(SCORE_FACTOR_KEYS.length);
-    expect(markup).toContain("Disciplina");
+    expect(markup).toContain("Recovery factor");
   });
 });
 
@@ -120,38 +120,36 @@ describe("ScoreRadar — icona (i) per ogni fattore", () => {
  * stessa scala.
  */
 describe("ScoreRadar — un asse senza dato", () => {
-  const senzaDisciplina = radarScore({
+  const senzaRecovery = radarScore({
     ...input,
-    // Nessuna delle 45 perdite porta un rischio pianificato: il caso
-    // dell'import CSV senza colonna di rischio.
-    plannedRiskLosses: 0,
-    riskRespectedLosses: 0,
+    // Un periodo di sei settimane: sotto le 60 sedute del Sortino.
+    sessions: 30,
   });
 
   it("dichiara su quanti fattori è calcolata la media", () => {
-    const markup = render(senzaDisciplina);
+    const markup = render(senzaRecovery);
     expect(markup).toContain("Media di 5 fattori su 6");
     expect(markup).toContain("non è confrontabile");
   });
 
   it("mostra il MOTIVO, coi numeri: «non calcolabile» sembra un guasto", () => {
-    const markup = render(senzaDisciplina);
-    expect(markup).toContain("0 delle 45 perdite");
-    expect(markup).toContain("80%");
+    const markup = render(senzaRecovery);
+    expect(markup).toContain("Solo 30 sedute");
+    expect(markup).toContain("60");
   });
 
   it("l'etichetta dell'asse porta il trattino: non è solo forma e colore", () => {
-    expect(render(senzaDisciplina)).toContain("Disciplina —");
+    expect(render(senzaRecovery)).toContain("Recovery factor —");
   });
 
   it("il tooltip del vertice dice «non calcolabile», non «0/100»", () => {
-    const markup = render(senzaDisciplina);
-    expect(markup).toContain("Disciplina: non calcolabile");
+    const markup = render(senzaRecovery);
+    expect(markup).toContain("Recovery factor: non calcolabile");
   });
 
   it("con tutti i fattori misurati nessuno di quei messaggi compare", () => {
     const markup = render(radarScore(input));
     expect(markup).not.toContain("fattori su 6");
-    expect(markup).not.toContain("Disciplina —");
+    expect(markup).not.toContain("Recovery factor —");
   });
 });

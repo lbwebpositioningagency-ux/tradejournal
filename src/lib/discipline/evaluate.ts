@@ -214,7 +214,7 @@ export function evaluateDays(
  * Sotto questo numero di giornate applicabili il follow rate si dichiara poco
  * affidabile: con 20 giornate una sola giornata sposta la percentuale di 5
  * punti, e sotto quella soglia la cifra racconta il caso più che l'abitudine.
- * Stessa logica dei minimi di campione dello Score (`DISCIPLINE_MIN_LOSSES`).
+ * Stessa logica dei minimi di campione di SQN, Optimal f e Score.
  */
 export const FOLLOW_RATE_MIN_DAYS = 20;
 

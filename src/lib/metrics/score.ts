@@ -1,6 +1,7 @@
 import Decimal from "decimal.js";
 import { profitFactor } from "./profit-factor";
 import { avgLoss, avgWin, payoffRatio } from "./averages";
+import { RATIO_MIN_OBSERVATIONS } from "./benchmarks";
 import type { MetricInfoData } from "./types";
 
 /**
@@ -64,34 +65,26 @@ import type { MetricInfoData } from "./types";
  *   della finestra (misurato: 0,66 → 0,70 fra 30 e 500 sedute). Sostituisce
  *   `1 − miglior giornata / Σ giornate positive`, che dipendeva da un
  *   MASSIMO e aveva un pavimento meccanico di 1−1/n.
- * - DISCIPLINA: quota di trade CHIUSI IN PERDITA la cui perdita è rimasta
- *   entro il rischio deciso prima di entrare. È l'unico asse che misura un
- *   COMPORTAMENTO invece di un risultato, quindi l'unico davvero
- *   indipendente dagli altri cinque.
+ * - RECOVERY FACTOR: rendimento medio per giornata / deviazione delle sole
+ *   giornate negative, annualizzato (×√252). Media e deviazione sulla STESSA
+ *   serie giornaliera: due momenti della distribuzione dei ritorni, quindi
+ *   invarianti alla finestra. È numericamente il Sortino con MAR 0 — e lo si
+ *   calcola con `sortinoRatio()`, non con una seconda copia della formula.
  *
- *   Nota storica, ed è la seconda riscrittura di questo asse. Il fattore
- *   nasce per sostituire il RECOVERY FACTOR, tolto perché derivava dalla
- *   finestra (+40 punti), duplicava il drawdown e restava SATURO A 100 su
- *   ogni periodo di SIM1. La prima versione leggeva la PRESENZA di stop e
- *   target pianificati — e aveva lo stesso difetto: misurato su tutti i
- *   conti locali, 100,00 in ogni finestra di SIM1, e sui due conti
- *   realistici numeratore e denominatore COINCIDEVANO (75 su 75, 49 su 49:
- *   nessun trade ha mai avuto un solo campo dei due). Il fattore era la
- *   copertura del campo travestita da comportamento: valeva 100 ovunque il
- *   campo fosse compilato, e scendeva solo contando i dati mancanti.
- *
- *   Ora misura il RISPETTO del piano e non la sua presenza: fra i trade
- *   finiti in perdita, quanti hanno perso non più del rischio pianificato.
- *   Il confronto è sulla perdita LORDA — lo stop è un livello di prezzo, e
- *   addebitare al trader le commissioni farebbe risultare violato ogni stop
- *   preso. Misurato: SIM1 67,4%, futures 79,5%, forex 97,3%, e mese per mese
- *   su SIM1 fra 46% e 89%. Discrimina.
- *
- *   LIMITE DICHIARATO: dai dati non si distingue lo stop SPOSTATO dal gap
- *   che lo salta. Entrambi finiscono qui dentro, ed è il motivo per cui il
- *   target del fattore è "nessuna perdita oltre il piano" e non "quasi
- *   nessuna": una soglia di slippage "accettabile" sarebbe un numero
- *   inventato, il conteggio no.
+ *   Nota storica, perché questo asse ha già cambiato tre volte.
+ *   ① «Profitto netto / max drawdown», la definizione classica: rapporto fra
+ *     un TOTALE e un MASSIMO, +40 punti solo allungando la finestra (tabella
+ *     qui sopra), saturo a 100 su ogni periodo di SIM1, doppione del drawdown.
+ *     Tolto; l'asse era diventato «Disciplina» (rispetto del rischio
+ *     pianificato sulle perdite), che resta misurata nel Progress Tracker.
+ *   ② 17/09/2026: il proprietario riporta l'asse col nome di TradeZella e
+ *     sceglie una forma invariante. Provata prima «rendimento medio / Ulcer»:
+ *     MISURATA, non lo era — l'Ulcer di una finestra corta è piccolo e il
+ *     rapporto si gonfia (mediane su processo stazionario, 30 → 500 sedute:
+ *     60 → 38 profittevole, −8,5 → −1,0 perdente; SIM1 34 → 14). Ogni misura
+ *     di drawdown dipende dal cammino, e il cammino si allunga col periodo.
+ *   ③ Scelta finale: la deviazione delle giornate negative al posto
+ *     dell'Ulcer. Stesse finestre: 9,0 → 9,0 e −3,3 → −3,0.
  *
  * CAUTELA STATISTICA: sotto SCORE_MIN_TRADES trade chiusi (30, la stessa
  * soglia di SQN e Optimal f) il risultato è marcato `lowSample`.
@@ -118,16 +111,15 @@ export interface RadarScoreInput {
    */
   ulcer: string | null;
   /**
-   * Trade chiusi in perdita LORDA (prima delle commissioni): la popolazione
-   * su cui la disciplina è osservabile. Una vincita non dice nulla sul
-   * rispetto dello stop, e tenerla nel denominatore legherebbe l'asse al win
-   * rate — cioè a un altro asse.
+   * Recovery factor del periodo: `sortinoRatio()` (MAR 0) sul tratto valido
+   * della serie giornaliera — lo stesso numero della card Sortino. null se non
+   * calcolabile (nessuna giornata negativa, o serie vuota).
    */
-  grossLosses: number;
-  /** Di quelle perdite, quante hanno un rischio pianificato: la COPERTURA. */
-  plannedRiskLosses: number;
-  /** Di quelle, quante sono rimaste entro il rischio: il NUMERATORE. */
-  riskRespectedLosses: number;
+  recoveryRatio: string | null;
+  /** Ritorno medio giornaliero dello stesso tratto: decide il caso senza giornate negative. */
+  meanDailyReturn: string | null;
+  /** Sedute del tratto valido: il cancello di campione dell'asse. */
+  sessions: number;
   /** Serie giornaliera del periodo (per la consistency). */
   daily: { netPnl: string }[];
 }
@@ -136,41 +128,15 @@ export interface RadarScoreInput {
 export const SCORE_MIN_TRADES = 30;
 
 /**
- * COPERTURA MINIMA perché la disciplina sia misurabile: quota delle perdite
- * del periodo che porta un rischio pianificato.
- *
- * Il problema è reale e non ipotetico: chi importa lo storico da un CSV
- * senza colonna di rischio non ha nulla da confrontare, e un fattore
- * calcolato sulle poche righe rimaste verrebbe presentato come un giudizio
- * sul comportamento di tutte.
- *
- * DA DOVE VIENE IL NUMERO — e perché non è più 0,20. Le perdite senza
- * rischio pianificato non sono osservabili: nel caso peggiore le hanno
- * sforate tutte. Con copertura c il valore vero sta dunque in una banda
- * larga (1 − c) punti di tasso, QUALUNQUE sia il valore osservato. La regola
- * è che questa banda d'ignoranza non superi un passo d'ancora del fattore
- * (neutro 0,80 → target 1,00 = 0,20): quindi c ≥ 0,80.
- *
- * Con la soglia precedente — 0,20 — la banda era 0,80: quattro passi
- * d'ancora, due volte l'intera scala del fattore. A copertura 25% il numero
- * veniva calcolato su un quarto dei dati e trattato come pienamente valido:
- * non era una misura, era un'ipotesi con due decimali.
- *
- * Il verso dell'errore è deliberato. Dire «non misurabile» a un trader che è
- * davvero indisciplinato gli nasconde un giudizio; dire 0 a chi non ha il
- * dato gliene inventa uno. Fra i due, questo progetto non inventa.
+ * Media dei ritorni giornalieri definiti (scala 8); null senza ritorni.
+ * Chi chiama passa il tratto valido della serie (`validReturnWindow`), lo
+ * stesso di Sortino e Sharpe.
  */
-export const DISCIPLINE_MIN_COVERAGE = "0.80";
-
-/**
- * CAMPIONE MINIMO: perdite con rischio pianificato sotto le quali il tasso
- * non si calcola. È la stessa soglia di significatività che il progetto usa
- * già per SQN, Optimal f e per lo Score intero (SCORE_MIN_TRADES = 30), e
- * qui ha un secondo motivo, aritmetico: a 30 osservazioni un solo trade
- * muove il tasso di 3,3 punti percentuali, cioè oltre 16 punti di fattore.
- * Sotto, l'asse racconterebbe il caso invece del comportamento.
- */
-export const DISCIPLINE_MIN_LOSSES = 30;
+export function meanDailyReturn(series: { ret: string | null }[]): string | null {
+  const rets = series.filter((d) => d.ret !== null).map((d) => new Decimal(d.ret!));
+  if (rets.length === 0) return null;
+  return rets.reduce((a, b) => a.plus(b), new Decimal(0)).div(rets.length).toFixed(8);
+}
 
 /**
  * Ancore di un fattore. `lowerIsBetter` inverte il verso senza cambiare il
@@ -200,11 +166,13 @@ export interface FactorAnchors {
  * - CONSISTENCY: calibrata sui dati. Giornate tutte uguali → CV 0; una serie
  *   realistica di giornate diverse → CV ~0,48; una giornata sola che vale
  *   metà del profitto → CV 2,1-7,0 a seconda della lunghezza.
- * - DISCIPLINA: le tre ancore sono conteggi leggibili sulle perdite del
- *   periodo. 100 = nessuna perdita oltre il rischio pianificato; 50 = una su
- *   cinque; 0 = una su due, cioè lo stop non è più una regola. Il target è
- *   la perfezione di proposito: l'alternativa sarebbe dichiarare quanto
- *   slippage è "accettabile", e sarebbe un numero inventato.
+ * - RECOVERY FACTOR: le fasce del Sortino già pubblicate in app
+ *   (`SORTINO_BENCHMARK`: < 1 scarso, 1-2 medio, > 2 ottimo). 0 = la curva
+ *   non cresce (pareggio: sotto è allarme), 50 = ingresso nella fascia
+ *   media, 100 = fascia ottima. Sotto `RATIO_MIN_OBSERVATIONS` sedute (60)
+ *   il fattore non si calcola: è lo stesso cancello che toglie la fascia al
+ *   Sortino in Dashboard e su /analytics, perché ×√252 amplifica il rumore
+ *   di una serie corta.
  */
 export const SCORE_ANCHORS = {
   winRate: { floor: "0.25", neutral: "0.40", target: "0.60" },
@@ -212,7 +180,7 @@ export const SCORE_ANCHORS = {
   avgWinLoss: { floor: "0.50", neutral: "1.00", target: "2.00" },
   drawdown: { floor: "0.10", neutral: "0.05", target: "0.02", lowerIsBetter: true },
   consistency: { floor: "1.60", neutral: "0.80", target: "0.40", lowerIsBetter: true },
-  discipline: { floor: "0.50", neutral: "0.80", target: "1.00" },
+  recoveryFactor: { floor: "0.00", neutral: "1.00", target: "2.00" },
 } as const satisfies Record<string, FactorAnchors>;
 
 /** Ordine degli assi del radar (senso orario dal vertice in alto). */
@@ -220,7 +188,7 @@ export const SCORE_FACTOR_KEYS = [
   "winRate",
   "profitFactor",
   "avgWinLoss",
-  "discipline",
+  "recoveryFactor",
   "drawdown",
   "consistency",
 ] as const;
@@ -230,7 +198,7 @@ export const SCORE_FACTOR_LABELS: Record<ScoreFactorKey, string> = {
   winRate: "Win %",
   profitFactor: "Profit factor",
   avgWinLoss: "Avg win/loss",
-  discipline: "Disciplina",
+  recoveryFactor: "Recovery factor",
   drawdown: "Drawdown",
   consistency: "Consistency",
 };
@@ -352,25 +320,18 @@ export function radarScore(input: RadarScoreInput): RadarScore | null {
         : new Decimal(0)
       : factorOf("avgWinLoss", payoff);
 
-  // DISCIPLINA — quota di PERDITE rimaste entro il rischio pianificato.
-  // Due cancelli prima di calcolarla, e nessuno dei due è cosmetico: senza
-  // copertura il tasso descrive un campione scelto dai dati mancanti, senza
-  // campione descrive il caso (v. DISCIPLINE_MIN_COVERAGE e _MIN_LOSSES).
-  const lossCoverage =
-    input.grossLosses === 0
+  // RECOVERY FACTOR — rendimento medio / deviazione delle giornate negative.
+  // Sotto il cancello di campione non si calcola. Senza giornate negative il
+  // rapporto non ha tetto: massimo se la curva cresce, pareggio (0) se è
+  // piatta — come profit factor e payoff senza perdite.
+  const recoveryScore =
+    input.sessions < RATIO_MIN_OBSERVATIONS || input.meanDailyReturn === null
       ? null
-      : new Decimal(input.plannedRiskLosses).div(input.grossLosses);
-  const disciplineScore =
-    lossCoverage === null ||
-    lossCoverage.lt(DISCIPLINE_MIN_COVERAGE) ||
-    input.plannedRiskLosses < DISCIPLINE_MIN_LOSSES
-      ? null
-      : factorOf(
-          "discipline",
-          new Decimal(input.riskRespectedLosses)
-            .div(input.plannedRiskLosses)
-            .toFixed(6),
-        );
+      : input.recoveryRatio !== null
+        ? factorOf("recoveryFactor", input.recoveryRatio)
+        : new Decimal(input.meanDailyReturn).gt(0)
+          ? new Decimal(100)
+          : anchoredScore(new Decimal(0), SCORE_ANCHORS.recoveryFactor);
 
   // DRAWDOWN (Ulcer) e CONSISTENCY (CV): null se non calcolabili.
   const drawdownScore = factorOf("drawdown", input.ulcer);
@@ -380,7 +341,7 @@ export function radarScore(input: RadarScoreInput): RadarScore | null {
     winRate: factorOf("winRate", winRate),
     profitFactor: pfScore,
     avgWinLoss: payoffScore,
-    discipline: disciplineScore,
+    recoveryFactor: recoveryScore,
     drawdown: drawdownScore,
     consistency: consistencyScore,
   };
@@ -396,18 +357,11 @@ export function radarScore(input: RadarScoreInput): RadarScore | null {
     .toDecimalPlaces(2, Decimal.ROUND_HALF_UP);
 
   const missingReasons: Partial<Record<ScoreFactorKey, string>> = {};
-  if (disciplineScore === null) {
-    // Tre motivi diversi, e vanno detti separati: «non calcolabile» senza il
-    // perché si legge come un guasto, e i tre si risolvono in modi diversi.
-    const minCoveragePct = new Decimal(DISCIPLINE_MIN_COVERAGE)
-      .times(100)
-      .toFixed(0);
-    missingReasons.discipline =
-      input.grossLosses === 0
-        ? "Nessun trade chiuso in perdita nel periodo: il rispetto dello stop non ha nulla su cui misurarsi."
-        : lossCoverage !== null && lossCoverage.lt(DISCIPLINE_MIN_COVERAGE)
-          ? `Rischio pianificato presente su ${input.plannedRiskLosses} delle ${input.grossLosses} perdite del periodo: sotto il ${minCoveragePct}% le perdite senza rischio potrebbero averlo sforato tutte, e la banda d'incertezza sarebbe più larga di un passo della scala.`
-          : `Solo ${input.plannedRiskLosses} perdite con rischio pianificato: sotto le ${DISCIPLINE_MIN_LOSSES} un singolo trade sposta il fattore di oltre 16 punti, e l'asse racconterebbe il caso invece del comportamento.`;
+  if (recoveryScore === null) {
+    missingReasons.recoveryFactor =
+      input.meanDailyReturn === null
+        ? "Nessun ritorno giornaliero definito nel periodo: serve un'equity positiva a inizio giornata."
+        : `Solo ${input.sessions} ${input.sessions === 1 ? "seduta" : "sedute"} nel periodo: sotto le ${RATIO_MIN_OBSERVATIONS} l'annualizzazione amplifica il rumore di una serie corta, ed è lo stesso motivo per cui il Sortino non riceve una fascia.`;
   }
   if (drawdownScore === null) {
     missingReasons.drawdown =
@@ -458,13 +412,13 @@ export const SCORE_FACTOR_INFO: Record<ScoreFactorKey, MetricInfoData> = {
       "Payoff ratio: quanto vale in media una vincita rispetto a una perdita. Anche qui il neutro è 1, cioè vincita media uguale a perdita media. Nessuna perdita → 100; nessuna vincita → 0.",
     formula: "0 sotto 0,50 · 50 a 1,00 (vincita media = perdita media) · 100 da 2,00 in su",
   },
-  discipline: {
-    label: "Disciplina (fattore dello Score)",
+  recoveryFactor: {
+    label: "Recovery factor (fattore dello Score)",
     description:
-      "Fra i trade finiti in PERDITA, quanti hanno perso non più del rischio che avevi deciso di correre prima di entrare. Non misura se il piano c'era, misura se l'hai rispettato: è l'unico asse che guarda un comportamento invece di un risultato, ed è l'unico su cui puoi agire domani mattina. Il confronto è sulla perdita lorda, perché lo stop è un livello di prezzo e le commissioni non sono una decisione di uscita. Attenzione a come si legge: dai dati non si distingue lo stop spostato dal gap che lo salta — entrambi contano come piano non rispettato.",
+      "Quanto rende in media una seduta rispetto a quanto fanno male le giornate negative: rendimento medio giornaliero diviso la deviazione delle sole giornate in perdita, annualizzato. È lo stesso numero del Sortino in Dashboard. Non è la versione classica (profitto netto diviso drawdown massimo) di proposito: quella, come ogni misura costruita sul drawdown, cresce o si gonfia solo cambiando la lunghezza del periodo, mentre media e deviazione delle giornate restano stabili. Se nel periodo non c'è una sola giornata negativa vale 100. Serve un minimo di 60 sedute.",
     formula:
-      "perdite rimaste entro il rischio pianificato / perdite con rischio pianificato · 0 al 50% (una perdita su due lo sfora) · 50 all'80% (una su cinque) · 100 al 100% (nessuna lo sfora)",
-    note: "Serve il rischio pianificato su almeno l'80% delle perdite del periodo e almeno 30 perdite: sotto, il fattore vale «—» ed esce dalla media.",
+      "√252 × media dei ritorni giornalieri / √(Σ min(r, 0)² / N) · 0 sotto 0,00 (la curva non cresce) · 50 a 1,00 · 100 da 2,00 in su",
+    note: "Sotto 60 sedute nel periodo vale «—» ed esce dalla media, come la fascia del Sortino.",
   },
   drawdown: {
     label: "Drawdown (fattore dello Score)",
@@ -503,7 +457,7 @@ export function scoreFactorInfo(
 export const scoreInfo: MetricInfoData = {
   label: "Score",
   description:
-    "Indice composito 0-100 dello stato del tuo trading: sei fattori (win rate, profit factor, avg win/loss, disciplina, drawdown, consistency) combinati a peso uguale. Su ogni asse 50 vuol dire la STESSA cosa — il valore di riferimento né buono né cattivo — ed è la condizione perché una media a peso uguale abbia senso. Ogni fattore è un tasso o una media, mai un massimo o un totale: così il punteggio non sale da solo allungando il filtro periodo. Sotto 30 trade è indicativo.",
+    "Indice composito 0-100 dello stato del tuo trading: sei fattori (win rate, profit factor, avg win/loss, recovery factor, drawdown, consistency) combinati a peso uguale. Su ogni asse 50 vuol dire la STESSA cosa — il valore di riferimento né buono né cattivo — ed è la condizione perché una media a peso uguale abbia senso. Ogni fattore è un tasso o una media, mai un massimo o un totale: così il punteggio non sale da solo allungando il filtro periodo. Sotto 30 trade è indicativo.",
   formula:
     "Score = media dei fattori calcolabili (peso uguale) · ogni fattore: 0 alla soglia d'allarme, 50 al valore neutro, 100 al valore eccellente · un fattore non calcolabile resta fuori dalla media",
   note: "Un fattore che non si può calcolare vale «—» e non entra nella media, che dichiara su quanti fattori è stata fatta.",
