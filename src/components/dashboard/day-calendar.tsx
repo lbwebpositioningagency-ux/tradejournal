@@ -139,10 +139,9 @@ export async function DayCalendar({
   const weeks = buildMonthWeeks(month);
 
   /* Cella piena per esito, nessuna gradazione: il valore lo dice la cifra.
-     Il colore non ha bordo proprio; l'hover passa dal filo. */
+     Bordo del riferimento (calendar-day-tone.ts); al passaggio diventa neutro. */
   function dayTone(netPnl: string): string {
-    // Bordo trasparente: la cella è solo riempimento; il filo compare al passaggio.
-    return cn(calendarDayTone(dayOutcome(netPnl)), "border-transparent hover:border-foreground/40");
+    return cn(calendarDayTone(dayOutcome(netPnl)), "hover:border-foreground/40");
   }
 
   // Frecce, picker e «Oggi» restano sulla Dashboard: conservano periodo e
@@ -271,11 +270,11 @@ export async function DayCalendar({
                       );
                     }
 
-                    // Senza trade: in scuro la cella grigia piena del riferimento
-                    // (#262626, nessun filo), in chiaro trasparente col filo.
+                    // Senza trade: vuota davvero, nei due temi — nessun fondo
+                    // proprio (si vede la card) e nessun bordo a riposo.
                     const tone = data
                       ? dayTone(data.netPnl)
-                      : "border-border/60 bg-viz-day-empty hover:border-foreground/40 dark:border-transparent";
+                      : "border-transparent hover:border-foreground/40";
 
                     return (
                       <Link
@@ -283,7 +282,7 @@ export async function DayCalendar({
                         href={withCurrencyParam(`/day/${date}`, keptCurrency)}
                         className={cn(
                           // Come il riferimento: raggio piccolo, testo allineato a destra.
-                          "flex min-h-20 flex-col items-end gap-0.5 overflow-hidden rounded-xs border px-0.5 py-1 text-right transition-colors sm:p-1.5",
+                          "flex min-h-20 flex-col items-end gap-0.5 overflow-hidden rounded-xs border px-0.5 py-1 text-right transition-colors hairline:border-[0.5px] sm:p-1.5",
                           tone,
                           isToday && "ring-1 ring-primary",
                         )}

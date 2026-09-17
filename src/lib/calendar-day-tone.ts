@@ -8,10 +8,13 @@
  *   utile → verde · perdita → rosso · chiusa a zero → blu · nessun trade → vuota.
  *
  * I colori sono quelli CAMPIONATI dallo screenshot di riferimento, identici in
- * entrambi i temi (`--viz-day-*` in globals.css): SOLO riempimento piatto,
- * nessun filo colorato, nessun alone, nessun riflesso (decisione del
- * proprietario del 17/09/2026 sera: il filo di 1px del riferimento, aggiunto in
- * beede1c, è stato tolto), testo bianco sopra (≥ 12,58:1).
+ * entrambi i temi (`--viz-day-*` in globals.css): riempimento piatto più il
+ * bordo del riferimento con il suo spessore VERO — 1 pixel fisico, netto, senza
+ * alone. Sugli schermi ≥ 2dppx è 0,5px del colore campionato (`-edge`); a 1x,
+ * dove mezzo pixel non esiste, è 1px del misto filo/riempimento (`-edge-soft`),
+ * lo stesso peso ottico. Il filo intero di 1px a colore pieno (beede1c) pesava
+ * il doppio del riferimento ed è stato tolto in 9788493. Testo bianco sopra
+ * (≥ 12,58:1).
  * Le coppie P&L per daltonici rimappano i tre stati senza che due coincidano. 
  *
  * NON riguarda la griglia anni × mese della Dashboard, la pagina Settimana né
@@ -21,9 +24,9 @@
 export type DayOutcome = "profit" | "loss" | "breakeven";
 
 const TONE: Record<DayOutcome, string> = {
-  profit: "bg-viz-day-profit",
-  loss: "bg-viz-day-loss",
-  breakeven: "bg-viz-day-breakeven",
+  profit: "bg-viz-day-profit border-viz-day-profit-edge-soft hairline:border-viz-day-profit-edge",
+  loss: "bg-viz-day-loss border-viz-day-loss-edge-soft hairline:border-viz-day-loss-edge",
+  breakeven: "bg-viz-day-breakeven border-viz-day-breakeven-edge-soft hairline:border-viz-day-breakeven-edge",
 };
 
 /** Esito della giornata dal segno del P&L netto (stringa decimale). */
@@ -33,7 +36,7 @@ export function dayOutcome(netPnl: string): DayOutcome {
   return trimmed.startsWith("-") ? "loss" : "profit";
 }
 
-/** Classe di sfondo della cella: una per esito, mai graduata, senza filo. */
+/** Sfondo e bordo della cella: una terna per esito, mai graduata. */
 export function calendarDayTone(outcome: DayOutcome): string {
   return TONE[outcome];
 }

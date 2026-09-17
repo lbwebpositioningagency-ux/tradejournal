@@ -612,18 +612,43 @@ describe("calendario mensile — tre esiti a colore pieno, testo AA", () => {
     expect(fg).toBe("#ffffff");
   });
 
-  it("le celle colorate e i loro fili NON cambiano col tema; in scuro solo vuota e fondo del riferimento", () => {
+  it("le celle colorate e i loro bordi NON cambiano col tema; in scuro solo il fondo della scheda settimanale", () => {
     const dark = rawTokens(topLevelBlock(".dark"));
-    expect([...dark.keys()].filter((k) => k.startsWith("viz-day-")).sort()).toEqual(["viz-day-empty", "viz-day-surface"]);
-    expect(dark.get("viz-day-empty")!.toLowerCase()).toBe("#262626");
+    expect([...dark.keys()].filter((k) => k.startsWith("viz-day-")).sort()).toEqual(["viz-day-surface"]);
     expect(dark.get("viz-day-surface")!.toLowerCase()).toBe("#181818");
-    // Il numero del giorno sulla cella vuota scura è il bianco del riferimento.
-    expect(hexContrast(fg, "#262626")).toBeGreaterThanOrEqual(4.5);
   });
 
-  it("nessun filo colorato: i token --viz-day-*-edge non esistono più", () => {
-    expect(CSS).not.toMatch(/--viz-day-(profit|loss|breakeven)-edge/);
+  it("celle senza trade: nessun fondo proprio (il grigio #262626 non esiste più)", () => {
+    expect(CSS).not.toMatch(/--viz-day-empty/);
+    expect(CSS).not.toMatch(/#262626/i);
   });
+
+  it("bordo: filo campionato dal riferimento (blu sollevato al 3:1) e misto a 1x", () => {
+    const edge = (s: string) => ["profit", "loss", "breakeven"].map((k) => root.get(`viz-day-${k}-${s}`)!.toLowerCase());
+    expect(edge("edge")).toEqual(["#719885", "#b37c7b", "#536497"]);
+    expect(edge("edge-soft")).toEqual(["#527363", "#905c5b", "#56658f"]);
+    // Il filo è più chiaro del suo riempimento, mai più scuro.
+    esiti("classic").forEach((fill, i) => {
+      expect(hexLuminance(edge("edge")[i])).toBeGreaterThan(hexLuminance(fill));
+      expect(hexLuminance(edge("edge-soft")[i])).toBeGreaterThan(hexLuminance(fill));
+    });
+  });
+
+  for (const p of PNL_PAIRS) {
+    it(`${p}: bordo ≥ 3:1 sulla card, chiara e scura, a 1x e a 2dppx`, () => {
+      const cards = [light.get("card")!, dark.get("card")!].map((c) => hex(...c));
+      const o = p === "classic" ? new Map<string, string>() : pair(p);
+      for (const k of ["profit", "loss", "breakeven"]) {
+        for (const s of ["edge", "edge-soft"]) {
+          const c = (o.get(`viz-day-${k}-${s}`) ?? root.get(`viz-day-${k}-${s}`)!).toLowerCase();
+          for (const card of cards) {
+            const r = hexContrast(c, card);
+            expect(r, `${p} ${k}-${s} ${c} su ${card} = ${r.toFixed(2)}:1`).toBeGreaterThanOrEqual(3);
+          }
+        }
+      }
+    });
+  }
 
   for (const p of PNL_PAIRS) {
     it(`${p}: testo bianco ≥ 4,5:1 su utile, perdita e pareggio`, () => {
