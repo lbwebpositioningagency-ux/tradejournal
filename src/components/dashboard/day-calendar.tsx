@@ -154,7 +154,7 @@ export async function DayCalendar({
       aria-labelledby="calendario-titolo"
       className="scroll-mt-20"
     >
-      <Card className="gap-4 bg-viz-day-surface py-4">
+      <Card className="gap-4 py-4">
         <CardHeader className="flex flex-row flex-wrap items-start justify-between gap-3 px-4">
           <div className="flex min-w-0 flex-col gap-1">
             <CardTitle id="calendario-titolo" className="stat-label">
