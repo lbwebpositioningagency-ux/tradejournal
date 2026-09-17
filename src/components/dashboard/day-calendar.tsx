@@ -133,7 +133,7 @@ export async function DayCalendar({
   /* Cella piena per esito, nessuna gradazione: il valore lo dice la cifra.
      Il colore non ha bordo proprio; l'hover passa dal filo. */
   function dayTone(netPnl: string): string {
-    return cn(calendarDayTone(dayOutcome(netPnl)), "border-transparent hover:border-foreground/40");
+    return cn(calendarDayTone(dayOutcome(netPnl)), "hover:border-foreground/60");
   }
 
   // Frecce, picker e «Oggi» restano sulla Dashboard: conservano periodo e
@@ -147,7 +147,7 @@ export async function DayCalendar({
       aria-labelledby="calendario-titolo"
       className="scroll-mt-20"
     >
-      <Card className="gap-4 py-4">
+      <Card className="gap-4 bg-viz-day-surface py-4">
         <CardHeader className="flex flex-row flex-wrap items-start justify-between gap-3 px-4">
           <div className="flex min-w-0 flex-col gap-1">
             <CardTitle id="calendario-titolo" className="stat-label">
@@ -254,34 +254,42 @@ export async function DayCalendar({
                       return (
                         <div
                           key={date}
-                          className="min-h-20 rounded-md border border-transparent"
+                          className="min-h-20 rounded-xs border border-transparent"
                           aria-hidden
                         />
                       );
                     }
 
-                    const tone = data ? dayTone(data.netPnl) : "border-border/60 hover:bg-accent";
+                    // Senza trade: in scuro la cella grigia piena del riferimento
+                    // (#262626, nessun filo), in chiaro trasparente col filo.
+                    const tone = data
+                      ? dayTone(data.netPnl)
+                      : "border-border/60 bg-viz-day-empty hover:border-foreground/40 dark:border-transparent";
 
                     return (
                       <Link
                         key={date}
                         href={withCurrencyParam(`/day/${date}`, keptCurrency)}
                         className={cn(
-                          "flex min-h-20 flex-col gap-0.5 overflow-hidden rounded-md border px-0.5 py-1 transition-colors sm:p-1.5",
+                          // Come il riferimento: raggio piccolo, testo allineato a destra.
+                          "flex min-h-20 flex-col items-end gap-0.5 overflow-hidden rounded-xs border px-0.5 py-1 text-right transition-colors sm:p-1.5",
                           tone,
                           isToday && "ring-1 ring-primary",
                         )}
                       >
                         <span
                           className={cn(
-                            "flex items-center justify-between text-xs",
-                            data ? DAY_TEXT : "text-muted-foreground",
+                            // Numero in alto a destra, icona della nota a sinistra.
+                            "flex w-full items-center justify-between text-xs",
+                            data ? DAY_TEXT : "text-muted-foreground dark:text-viz-day-foreground",
                           )}
                         >
-                          <span>{dayNumber}</span>
                           {noteDays.has(date) ? (
                             <NotebookPen className="size-3" aria-label="Nota di giornata" />
-                          ) : null}
+                          ) : (
+                            <span aria-hidden />
+                          )}
+                          <span>{dayNumber}</span>
                         </span>
                         {data ? (
                           <>

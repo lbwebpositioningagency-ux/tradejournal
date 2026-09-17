@@ -612,8 +612,21 @@ describe("calendario mensile — tre esiti a colore pieno, testo AA", () => {
     expect(fg).toBe("#ffffff");
   });
 
-  it("le celle NON cambiano col tema: nessuna ridefinizione in .dark", () => {
-    expect([...rawTokens(topLevelBlock(".dark")).keys()].filter((k) => k.startsWith("viz-day-"))).toEqual([]);
+  it("le celle colorate e i loro fili NON cambiano col tema; in scuro solo vuota e fondo del riferimento", () => {
+    const dark = rawTokens(topLevelBlock(".dark"));
+    expect([...dark.keys()].filter((k) => k.startsWith("viz-day-")).sort()).toEqual(["viz-day-empty", "viz-day-surface"]);
+    expect(dark.get("viz-day-empty")!.toLowerCase()).toBe("#262626");
+    expect(dark.get("viz-day-surface")!.toLowerCase()).toBe("#181818");
+    // Il numero del giorno sulla cella vuota scura è il bianco del riferimento.
+    expect(hexContrast(fg, "#262626")).toBeGreaterThanOrEqual(4.5);
+  });
+
+  it("filo di 1px campionato dal riferimento, più chiaro della sua tinta", () => {
+    const edges = ["profit", "loss", "breakeven"].map((k) => root.get(`viz-day-${k}-edge`)!.toLowerCase());
+    expect(edges).toEqual(["#739683", "#b37d7d", "#4a5b8e"]);
+    esiti("classic").forEach((fill, i) => {
+      expect(hexLuminance(edges[i])).toBeGreaterThan(hexLuminance(fill));
+    });
   });
 
   for (const p of PNL_PAIRS) {

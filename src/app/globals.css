@@ -60,6 +60,7 @@
   --color-popover: var(--popover);
   --color-card-foreground: var(--card-foreground);
   --color-card: var(--card);
+  --radius-xs: calc(var(--radius) * 0.4);
   --radius-sm: calc(var(--radius) * 0.6);
   --radius-md: calc(var(--radius) * 0.8);
   --radius-lg: var(--radius);
@@ -97,6 +98,11 @@
   --color-viz-day-loss: var(--viz-day-loss);
   --color-viz-day-breakeven: var(--viz-day-breakeven);
   --color-viz-day-foreground: var(--viz-day-foreground);
+  --color-viz-day-profit-edge: var(--viz-day-profit-edge);
+  --color-viz-day-loss-edge: var(--viz-day-loss-edge);
+  --color-viz-day-breakeven-edge: var(--viz-day-breakeven-edge);
+  --color-viz-day-empty: var(--viz-day-empty);
+  --color-viz-day-surface: var(--viz-day-surface);
   /* Avvisi non-P&L (es. divergenze sync): ambra AA come testo in entrambi i modi */
   --color-warning: var(--warning);
   /* Micro-testo a scala (11px): unico taglio sotto text-xs */
@@ -204,6 +210,16 @@
   --viz-day-loss: #5c1f1d;
   --viz-day-breakeven: #1e2742;
   --viz-day-foreground: #ffffff;
+  /* Filo di 1px della STESSA tinta, più chiaro: nel riferimento c'è (campionato
+     lungo i lati dritti delle celle, valore costante): #739683 · #b37d7d · #4a5b8e. */
+  --viz-day-profit-edge: #739683;
+  --viz-day-loss-edge: #b37d7d;
+  --viz-day-breakeven-edge: #4a5b8e;
+  /* Celle senza trade e fondo del calendario: il riferimento è solo scuro
+     (cella vuota #262626 senza filo, fondo #181818); in chiaro restano la
+     card bianca e la cella trasparente col filo del tema. */
+  --viz-day-empty: transparent;
+  --viz-day-surface: var(--card);
   /* Testo di avviso (ambra) AA su bg e card: 4.58 · 4.75 (solver) */
   --warning: oklch(0.565 0.133 60);
   /* Sistema v2 (14/09/2026, tavola «Sistema visivo v2» in Claude Design):
@@ -311,6 +327,8 @@
   --viz-rule-2: oklch(0.262 0.024 255);
   --viz-rule-3: oklch(0.3 0.034 255);
   --viz-rule-edge: oklch(0.5 0.03 255 / 26%);
+  --viz-day-empty: #262626; /* cella senza trade del riferimento */
+  --viz-day-surface: #181818; /* fondo del calendario del riferimento */
   /* Ambra IN GAMUT più vicina all'amber-400 usata prima (che era clampata):
      11.57 su bg · 10.50 su card (solver) */
   --warning: oklch(0.83 0.17 84);
@@ -460,6 +478,8 @@
      passa a un grigio ardesia — due esiti blu sarebbero indistinguibili. */
   --viz-day-profit: #1e2742;
   --viz-day-breakeven: #34373e;
+  --viz-day-profit-edge: #4a5b8e;
+  --viz-day-breakeven-edge: #858993;
   --viz-profit-1: oklch(0.962 0.017 264);
   --viz-profit-2: oklch(0.934 0.031 264);
   --viz-profit-3: oklch(0.898 0.049 264);
@@ -484,6 +504,10 @@
      vicino al viola per chi usa questa coppia, e va sul grigio ardesia. */
   --viz-day-loss: #392b60;
   --viz-day-breakeven: #34373e;
+  /* Fili derivati con lo stesso scarto fill → filo del riferimento
+     (L +0,29 · C ×1,2 in OKLCH, media dei tre esiti campionati). */
+  --viz-day-loss-edge: #8b7bc4;
+  --viz-day-breakeven-edge: #858993;
   --viz-loss-1: oklch(0.962 0.019 293);
   --viz-loss-2: oklch(0.934 0.034 293);
   --viz-loss-3: oklch(0.898 0.054 293);
@@ -806,6 +830,8 @@
     --viz-rule-2: oklch(0.934 0.017 255);
     --viz-rule-3: oklch(0.898 0.026 255);
     --viz-rule-edge: oklch(0.6 0.03 255 / 22%);
+    --viz-day-empty: transparent;
+    --viz-day-surface: var(--card);
     --warning: oklch(0.565 0.133 60);
      --foreground-2: oklch(0.413 0.029 256);
     --rule: oklch(0.837 0.016 257);
@@ -848,6 +874,8 @@
     --viz-profit-edge: oklch(0.6 0.06 264 / 22%);
     --viz-day-profit: #1e2742;
     --viz-day-breakeven: #34373e;
+    --viz-day-profit-edge: #4a5b8e;
+    --viz-day-breakeven-edge: #858993;
   }
   :where(.dark, .dark *)[data-pnl="green-violet"] {
     --profit: oklch(0.525 0.123 158);
@@ -859,6 +887,8 @@
     --viz-loss-edge: oklch(0.6 0.06 293 / 22%);
     --viz-day-loss: #392b60;
     --viz-day-breakeven: #34373e;
+    --viz-day-loss-edge: #8b7bc4;
+    --viz-day-breakeven-edge: #858993;
   }
 
   /* Il foglio è bianco: si dichiara, invece di dipendere dal fatto che il

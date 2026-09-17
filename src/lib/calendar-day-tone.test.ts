@@ -19,7 +19,11 @@ describe("calendario mensile — colore pieno per esito, nessuna intensità", ()
   it("tre esiti, tre classi diverse, nessuna della vecchia scala", () => {
     const classi = (["profit", "loss", "breakeven"] as const).map(calendarDayTone);
     expect(new Set(classi).size).toBe(3);
-    for (const c of classi) expect(c).not.toMatch(/viz-(profit|loss|rule)-\d|heat|shadow|gradient/);
+    for (const c of classi) expect(c).not.toMatch(/viz-(profit|loss|rule)-\d|heat|shadow|gradient|ring|glow|glass/);
+    // Riempimento piatto + filo della stessa tinta, come il riferimento.
+    expect(calendarDayTone("profit")).toBe("bg-viz-day-profit border-viz-day-profit-edge");
+    expect(calendarDayTone("loss")).toBe("bg-viz-day-loss border-viz-day-loss-edge");
+    expect(calendarDayTone("breakeven")).toBe("bg-viz-day-breakeven border-viz-day-breakeven-edge");
     expect(DAY_TEXT).toBe("text-viz-day-foreground");
   });
 });
