@@ -25,7 +25,7 @@ import {
 import { RangeBar } from "@/components/macro-desk/primitives";
 import {
   descrizionePosizione,
-  posizioneNelRange,
+  posizionePerRango,
 } from "@/components/seasonality/posizione";
 import {
   UNIT_LABEL,
@@ -66,7 +66,9 @@ import { formatInteger } from "@/lib/format-number";
  * la `RangeBar` del desk che mostra dove cade il periodo fra il peggiore e il
  * migliore della finestra selezionata, col rango nel tooltip (`posizione.ts`).
  * Era stata tolta perché «ripeteva il rango già detto dal colore», ma il colore
- * dice il segno, non la distanza dagli altri periodi.
+ * dice il segno, non la distanza dagli altri periodi. Stesso giorno, più tardi:
+ * il pallino segue il RANGO come il tooltip (prima seguiva il valore e i due
+ * si contraddicevano, vedi `posizione.ts`).
  */
 export function BucketWindowTable({
   kind,
@@ -117,9 +119,11 @@ export function BucketWindowTable({
   const [etMigliore, etPeggiore] = kind === "LEVEL" ? ["Massimo", "Minimo"] : ["Migliore", "Peggiore"];
   const ferma = "sticky left-0 z-[1] bg-[var(--md-bg)]";
   const cellaMotivo = mostraAmpiezza && motivoAmpiezza !== null;
-  /* Scala della colonna «Posizione»: le medie della finestra selezionata, cioè
-     l'intervallo reale fra il periodo peggiore e il migliore di questa vista. */
-  const medie = selected.map((s) => s.mean);
+  /* Colonna «Posizione»: il RANGO della media fra le medie della finestra
+     selezionata. Pallino e tooltip escono dallo stesso `posizionePerRango`.
+     Solo i periodi dell'asse: una riga d'archivio fuori asse (la settimana 53
+     prima del ricalcolo notturno) dava «10º su 53» in una tabella di 52. */
+  const medie = selected.filter((s) => axis.buckets.includes(s.bucket)).map((s) => s.mean);
 
   if (windows.length === 0) {
     return <p className="text-sm text-[var(--md-muted)]">Nessuna statistica disponibile per questa granularità.</p>;
@@ -236,7 +240,7 @@ export function BucketWindowTable({
             const amp = ampiezza?.get(bucket);
             const occorrenze = sel ? (sel.rawCount ?? sel.n) : 0;
             const unita = unitaFrequenza(granularity, bucket);
-            const posizione = sel ? posizioneNelRange(sel.mean, medie) : null;
+            const posizione = sel ? (posizionePerRango(sel.mean, medie)?.posizione ?? null) : null;
             return (
               <tr key={bucket} className={adesso ? "ml-ora" : undefined} aria-current={adesso ? "date" : undefined}>
                 <td className={`ml-sx ${ferma} font-medium`}>
@@ -359,6 +363,7 @@ export function BucketWindowTable({
                     <RangeBar
                       position={posizione}
                       color={valueColor(sel!.mean, kind, reference)}
+                      contorno="var(--md-muted)"
                       ariaLabel={`${axis.label(bucket)}: posizione fra ${axis.plural}`}
                       title={descrizionePosizione(axis.label(bucket), sel!.mean, medie, axis.altri)}
                     />
@@ -377,8 +382,10 @@ export function BucketWindowTable({
         {mostraAmpiezza ? "Ampiezza, m" : "M"}ediana, StDev,{" "}
         {mostraEstremi ? `${kind === "LEVEL" ? "massimo e minimo" : "migliore e peggiore anno"}, ` : ""}
         {positiveLabel(kind).toLowerCase()}, campione e posizione si riferiscono alla finestra
-        selezionata ({selectedWindow} anni). La barra «Posizione» dice dove cade il periodo fra il
-        peggiore e il migliore di questa vista, e il suo rango è nel tooltip. «{positiveLabel(kind)}» e ampiezza si contano sulle occorrenze della riga
+        selezionata ({selectedWindow} anni). La barra «Posizione» dice il rango del periodo fra quelli
+        di questa vista: il migliore all&apos;estremo destro, il peggiore al sinistro, gli altri a
+        passi uguali, i pari merito nello stesso punto; il tooltip dice quanti ne batte. Non misura la
+        distanza fra i valori: quella è nelle colonne numeriche. «{positiveLabel(kind)}» e ampiezza si contano sulle occorrenze della riga
         ({axis.rawUnit}), come il campione; media, mediana, StDev e banda sugli anni. Le frequenze sono
         conteggi storici, non probabilità. {meanHelp(kind)} Ogni colonna «{meanLabel(kind)}» porta il suo n
         nel tooltip.

@@ -151,6 +151,7 @@ export function RangeBar({
   ticks,
   ariaLabel,
   title,
+  contorno,
 }: {
   /** Posizione 0-100 nel range (fuori scala viene riportata dentro). */
   position: number;
@@ -160,12 +161,21 @@ export function RangeBar({
   ticks?: number[];
   ariaLabel: string;
   title?: string;
+  /** Contorno della traccia, es. `var(--md-muted)`. La traccia piena su
+   *  `--md-surface-3` sta a 1,12:1 (chiaro) e 1,25:1 (scuro) sul fondo, sotto il
+   *  3:1 degli elementi grafici; col contorno in `--md-muted` 5,20 e 7,08
+   *  (tavola «Sistema visivo v3 - Stagionalità, Posizione per rango», forma A).
+   *  Opzionale: COT e Driver restano come sono finché non si verificano. */
+  contorno?: string;
 }) {
   const clamped = Math.min(100, Math.max(0, position));
   return (
     <div
       className="relative h-2 w-full rounded-full"
-      style={{ backgroundColor: "var(--md-surface-3)" }}
+      style={{
+        backgroundColor: "var(--md-surface-3)",
+        boxShadow: contorno ? `inset 0 0 0 1px ${contorno}` : undefined,
+      }}
       role="img"
       aria-label={ariaLabel}
       title={title}

@@ -112,10 +112,10 @@ export function campioneInfo(rawUnit: string): MetricInfoData {
   };
 }
 export const posizioneInfo: MetricInfoData = {
-  label: "Posizione nel range",
+  label: "Posizione per rango",
   description:
-    "Dove sta questo bucket nell'intervallo fra il peggiore e il migliore della finestra selezionata. È un indicatore di posizione su una scala, non una quantità.",
-  formula: "(valore − minimo) / (massimo − minimo)",
+    "Il rango di questo periodo fra quelli della vista, sulla finestra selezionata: il migliore all'estremo destro, il peggiore all'estremo sinistro, gli altri a passi uguali. I pari merito stanno nello stesso punto. Non misura la distanza fra i valori — due periodi vicini ma diversi distano una tacca come due lontani: la distanza si legge nelle colonne numeriche. Il tooltip della barra dice il rango e quanti periodi batte.",
+  formula: "(periodi battuti + pari / 2) / (periodi − 1)",
 };
 
 export const detrendInfo: MetricInfoData = {
