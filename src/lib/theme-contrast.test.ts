@@ -618,28 +618,41 @@ describe("calendario mensile — tre esiti a colore pieno, testo AA", () => {
     expect(dark.get("viz-day-surface")!.toLowerCase()).toBe("#181818");
   });
 
-  it("celle senza trade: nessun fondo proprio (il grigio #262626 non esiste più)", () => {
+  it("celle senza trade: niente grigio #262626 del riferimento (il fondo è bg-muted/40 nel componente)", () => {
     expect(CSS).not.toMatch(/--viz-day-empty/);
     expect(CSS).not.toMatch(/#262626/i);
   });
 
-  it("bordo: filo campionato dal riferimento (blu sollevato al 3:1) e misto a 1x", () => {
+  it("bordo neon: colore campionato dal riferimento (blu sollevato al 3:1), nessun misto", () => {
     const edge = (s: string) => ["profit", "loss", "breakeven"].map((k) => root.get(`viz-day-${k}-${s}`)!.toLowerCase());
-    expect(edge("edge")).toEqual(["#719885", "#b37c7b", "#536497"]);
-    expect(edge("edge-soft")).toEqual(["#527363", "#905c5b", "#56658f"]);
+    expect(edge("edge")).toEqual(["#719885", "#b37c7b", "#7789bf"]);
+    expect(CSS).not.toMatch(/edge-soft|hairline/);
     // Il filo è più chiaro del suo riempimento, mai più scuro.
     esiti("classic").forEach((fill, i) => {
       expect(hexLuminance(edge("edge")[i])).toBeGreaterThan(hexLuminance(fill));
-      expect(hexLuminance(edge("edge-soft")[i])).toBeGreaterThan(hexLuminance(fill));
     });
   });
 
   for (const p of PNL_PAIRS) {
-    it(`${p}: bordo ≥ 3:1 sulla card, chiara e scura, a 1x e a 2dppx`, () => {
+    it(`${p}: in scuro il filo regge 3:1 anche sul pixel esterno acceso dall'alone`, () => {
+      // Misurato in pagina (alone 6px al 75%): il pixel subito fuori dal filo è
+      // la card spostata di un terzo verso il colore del filo, canale per canale.
+      const card = hex(...dark.get("card")!);
+      const ch = (h: string) => [1, 3, 5].map((i) => parseInt(h.slice(i, i + 2), 16));
+      const o = p === "classic" ? new Map<string, string>() : pair(p);
+      for (const k of ["profit", "loss", "breakeven"]) {
+        const c = (o.get(`viz-day-${k}-edge`) ?? root.get(`viz-day-${k}-edge`)!).toLowerCase();
+        const acceso = "#" + ch(card).map((v, i) => Math.round(v + 0.33 * (ch(c)[i] - v)).toString(16).padStart(2, "0")).join("");
+        const r = hexContrast(c, acceso);
+        expect(r, `${p} ${k} ${c} su ${acceso} = ${r.toFixed(2)}:1`).toBeGreaterThanOrEqual(3);
+      }
+    });
+
+    it(`${p}: bordo ≥ 3:1 sulla card, chiara e scura`, () => {
       const cards = [light.get("card")!, dark.get("card")!].map((c) => hex(...c));
       const o = p === "classic" ? new Map<string, string>() : pair(p);
       for (const k of ["profit", "loss", "breakeven"]) {
-        for (const s of ["edge", "edge-soft"]) {
+        for (const s of ["edge"]) {
           const c = (o.get(`viz-day-${k}-${s}`) ?? root.get(`viz-day-${k}-${s}`)!).toLowerCase();
           for (const card of cards) {
             const r = hexContrast(c, card);

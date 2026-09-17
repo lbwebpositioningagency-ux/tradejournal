@@ -7,9 +7,6 @@
 @import "../styles/listino.css";
 
 @custom-variant dark (&:is(.dark *));
-/* Schermi ad alta densità (≥ 2 pixel fisici per px CSS): qui un filo di 0,5px
-   è UN pixel fisico, lo spessore reale del bordo delle celle nel riferimento. */
-@custom-variant hairline (@media (min-resolution: 2dppx));
 
 /* ============================================================================
    DESIGN TOKENS — FASE 10
@@ -104,9 +101,6 @@
   --color-viz-day-profit-edge: var(--viz-day-profit-edge);
   --color-viz-day-loss-edge: var(--viz-day-loss-edge);
   --color-viz-day-breakeven-edge: var(--viz-day-breakeven-edge);
-  --color-viz-day-profit-edge-soft: var(--viz-day-profit-edge-soft);
-  --color-viz-day-loss-edge-soft: var(--viz-day-loss-edge-soft);
-  --color-viz-day-breakeven-edge-soft: var(--viz-day-breakeven-edge-soft);
   --color-viz-day-surface: var(--viz-day-surface);
   --color-viz-week-edge: var(--viz-week-edge);
   --color-viz-week-pill: var(--viz-week-pill);
@@ -220,26 +214,19 @@
   --viz-day-loss: #5c1f1d;
   --viz-day-breakeven: #1e2742;
   --viz-day-foreground: #ffffff;
-  /* BORDO delle celle colorate, campionato dal file originale (3004×1716, cioè
-     2 pixel fisici per px CSS; mediana lungo i lati dritti di 7 celle):
-     un filo NETTO di 1 pixel fisico = 0,5px CSS, sul bordo esterno della cella,
-     senza alone né sfumatura (a 2 pixel di distanza, fuori e dentro, si torna
-     a fondo e riempimento; il pixel scuro accanto al filo è ringing del webp).
-     Filo esatto (--edge, a 0,5px sugli schermi ≥ 2dppx):
-       verde #719885 su #112e24 (OKLCH L +0,37) · rosso #b37c7b su #5c1f1d
-       (L +0,31) · blu #4b5b8e su #1e2742 (L +0,20) → portato a #536497 (L +0,03)
-       per il 3:1 sulla card scura (era 2,73).
-     A 1x (--edge-soft, 1px): un pixel CSS del riferimento è metà filo e metà
-     riempimento, quindi 1px del loro MISTO in luce lineare al 50% — lo stesso
-     peso ottico, non un filo intero acceso. Il blu sale a 3,13:1. */
+  /* BORDO NEON delle celle colorate: 1px PIENO del colore campionato dal
+     riferimento (verde #719885 · rosso #b37c7b · blu #4b5b8e portato a #7789bf,
+     OKLCH L +0,17 a tinta e croma invariate: con l'alone acceso il pixel fuori
+     dal filo si schiarisce, e #536497 scendeva a 2,28:1) a ogni densità, più in
+     scuro un alone dello stesso colore (calendar-day-tone.ts). Coppie: viola
+     #8f7fc8 e grigio #868a94, ritoccati per lo stesso motivo. Ogni filo ≥ 3,15:1
+     sul pixel esterno illuminato e ≥ 3,2:1 sulla card bianca. Il mezzo pixel del giro precedente
+     su uno schermo 1x si vedeva appena: tolto. */
   --viz-day-profit-edge: #719885;
   --viz-day-loss-edge: #b37c7b;
-  --viz-day-breakeven-edge: #536497;
-  --viz-day-profit-edge-soft: #527363;
-  --viz-day-loss-edge-soft: #905c5b;
-  --viz-day-breakeven-edge-soft: #56658f;
+  --viz-day-breakeven-edge: #7789bf;
   /* Fondo della scheda settimanale (in chiaro la card). Le celle senza trade
-     non hanno token: sono trasparenti, cioè il fondo della card. */
+     non hanno token: usano bg-muted/40, il fondo storico (59ac18f). */
   --viz-day-surface: var(--card);
   /* SCHEDA SETTIMANALE (colonna «Sett.»), campionata dal riferimento: pillola
      dei giorni #251b47 col testo bianco (15,83), uguale nei due temi. Filo e
@@ -510,12 +497,10 @@
      passa a un grigio ardesia — due esiti blu sarebbero indistinguibili. */
   --viz-day-profit: #1e2742;
   --viz-day-breakeven: #34373e;
-  /* Fili con la stessa regola della coppia classica: blu campionato; per il
+  /* Bordi con la stessa regola della coppia classica: blu campionato; per il
      grigio del pareggio scarto fill → filo L +0,29 · C ×1,2 (≥ 3:1). */
-  --viz-day-profit-edge: #536497;
-  --viz-day-breakeven-edge: #848892;
-  --viz-day-profit-edge-soft: #56658f;
-  --viz-day-breakeven-edge-soft: #666972;
+  --viz-day-profit-edge: #7789bf;
+  --viz-day-breakeven-edge: #868a94;
   --viz-profit-1: oklch(0.962 0.017 264);
   --viz-profit-2: oklch(0.934 0.031 264);
   --viz-profit-3: oklch(0.898 0.049 264);
@@ -540,10 +525,8 @@
      vicino al viola per chi usa questa coppia, e va sul grigio ardesia. */
   --viz-day-loss: #392b60;
   --viz-day-breakeven: #34373e;
-  --viz-day-loss-edge: #8a7ac3;
-  --viz-day-breakeven-edge: #848892;
-  --viz-day-loss-edge-soft: #6b5d9c;
-  --viz-day-breakeven-edge-soft: #666972;
+  --viz-day-loss-edge: #8f7fc8;
+  --viz-day-breakeven-edge: #868a94;
   --viz-loss-1: oklch(0.962 0.019 293);
   --viz-loss-2: oklch(0.934 0.034 293);
   --viz-loss-3: oklch(0.898 0.054 293);
@@ -912,10 +895,8 @@
     --viz-profit-edge: oklch(0.6 0.06 264 / 22%);
     --viz-day-profit: #1e2742;
     --viz-day-breakeven: #34373e;
-    --viz-day-profit-edge: #536497;
-    --viz-day-breakeven-edge: #848892;
-    --viz-day-profit-edge-soft: #56658f;
-    --viz-day-breakeven-edge-soft: #666972;
+    --viz-day-profit-edge: #7789bf;
+    --viz-day-breakeven-edge: #868a94;
   }
   :where(.dark, .dark *)[data-pnl="green-violet"] {
     --profit: oklch(0.525 0.123 158);
@@ -927,10 +908,8 @@
     --viz-loss-edge: oklch(0.6 0.06 293 / 22%);
     --viz-day-loss: #392b60;
     --viz-day-breakeven: #34373e;
-    --viz-day-loss-edge: #8a7ac3;
-    --viz-day-breakeven-edge: #848892;
-    --viz-day-loss-edge-soft: #6b5d9c;
-    --viz-day-breakeven-edge-soft: #666972;
+    --viz-day-loss-edge: #8f7fc8;
+    --viz-day-breakeven-edge: #868a94;
   }
 
   /* Il foglio è bianco: si dichiara, invece di dipendere dal fatto che il

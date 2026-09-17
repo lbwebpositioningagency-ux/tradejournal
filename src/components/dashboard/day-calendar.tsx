@@ -270,11 +270,12 @@ export async function DayCalendar({
                       );
                     }
 
-                    // Senza trade: vuota davvero, nei due temi — nessun fondo
-                    // proprio (si vede la card) e nessun bordo a riposo.
+                    // Senza trade: il fondo blu-ardesia storico del calendario
+                    // (bg-muted/40, la cella «Sett.» prima dello stile vetro,
+                    // 59ac18f), appena distinto dalla card; nessun bordo.
                     const tone = data
                       ? dayTone(data.netPnl)
-                      : "border-transparent hover:border-foreground/40";
+                      : "border-transparent bg-muted/40 hover:border-foreground/40";
 
                     return (
                       <Link
@@ -282,7 +283,7 @@ export async function DayCalendar({
                         href={withCurrencyParam(`/day/${date}`, keptCurrency)}
                         className={cn(
                           // Come il riferimento: raggio piccolo, testo allineato a destra.
-                          "flex min-h-20 flex-col items-end gap-0.5 overflow-hidden rounded-xs border px-0.5 py-1 text-right transition-colors hairline:border-[0.5px] sm:p-1.5",
+                          "flex min-h-20 flex-col items-end gap-0.5 overflow-hidden rounded-xs border px-0.5 py-1 text-right transition-colors sm:p-1.5",
                           tone,
                           isToday && "ring-1 ring-primary",
                         )}

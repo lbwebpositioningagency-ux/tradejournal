@@ -19,13 +19,14 @@ describe("calendario mensile — colore pieno per esito, nessuna intensità", ()
   it("tre esiti, tre classi diverse, nessuna della vecchia scala", () => {
     const classi = (["profit", "loss", "breakeven"] as const).map(calendarDayTone);
     expect(new Set(classi).size).toBe(3);
-    for (const c of classi) expect(c).not.toMatch(/viz-(profit|loss|rule)-\d|heat|shadow|gradient|ring|glow|glass/);
-    // Riempimento piatto + bordo del riferimento: 1px del misto a 1x,
-    // 0,5px del filo campionato sugli schermi ≥ 2dppx.
+    for (const c of classi) expect(c).not.toMatch(/viz-(profit|loss|rule)-\d|heat|gradient|ring|glass/);
+    // Riempimento piatto + bordo neon: 1px pieno del colore campionato e
+    // alone dello stesso colore, a ogni densità (niente mezzo pixel).
     for (const k of ["profit", "loss", "breakeven"] as const) {
       expect(calendarDayTone(k)).toBe(
-        `bg-viz-day-${k} border-viz-day-${k}-edge-soft hairline:border-viz-day-${k}-edge`,
+        `bg-viz-day-${k} border-viz-day-${k}-edge dark:shadow-[0_0_6px_color-mix(in_srgb,var(--viz-day-${k}-edge)_75%,transparent)]`,
       );
+      expect(calendarDayTone(k)).not.toMatch(/soft|hairline/);
     }
     expect(DAY_TEXT).toBe("text-viz-day-foreground");
   });
